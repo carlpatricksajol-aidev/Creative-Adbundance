@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tell us — Poss Up</title>
+<title>Contact — SongReels</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Caveat:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg: #FAF6F0;
@@ -155,21 +156,21 @@ footer{padding:48px 0 32px;border-top:1px solid var(--rule-soft);margin-top:auto
 <!-- nav -->
 <header class="nav">
   <div class="wrap nav-row">
-    <div class="brand"><a href="Landing Page-standalone-src.html">Poss Up</a><span class="dot"></span></div>
+    <a class="brand" href="/" style="text-decoration:none;color:inherit">SongReels<span class="dot"></span></a>
     <nav class="nav-links">
-      <a href="Landing Page.html#occasions">Occasions</a>
-      <a href="Landing Page.html#how">How it works</a>
-      <a href="Landing Page-standalone-src.html#pricing">Pricing</a>
-      <a class="active">Contact</a>
+      <a href="/#occasions">Occasions</a>
+      <a href="/#how">How it works</a>
+      <a href="/#pricing">Pricing</a>
+      <a class="active" href="/contact">Contact</a>
     </nav>
-    <a class="btn btn-primary" href="Gift Creation Flow.html">Make one <span class="arr">→</span></a>
+    <a class="btn btn-primary" href="/app">Make one <span class="arr">→</span></a>
   </div>
 </header>
 
 <!-- hero -->
 <section class="hero">
   <div class="wrap-narrow hero-inner">
-    <span class="eyebrow">Contact · Poss Up</span>
+    <span class="eyebrow">Contact · SongReels</span>
     <h1>Tell us <em>everything.</em></h1>
     <p class="lede"><em>Real people read every message.</em> Stuck, planning something tender, or just want to say the song made your mom cry — we want to hear it.</p>
   </div>
@@ -209,7 +210,7 @@ footer{padding:48px 0 32px;border-top:1px solid var(--rule-soft);margin-top:auto
           <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M4 16l8 8L28 8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <h3>Got it — your message is <em>on its way</em>.</h3>
-        <p>We'll write back from <strong><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="39515c5555567949564a4a4c49175a5654">[email&#160;protected]</a></strong> within one business day. Check your spam folder too, just in case.</p>
+        <p>We'll write back within one business day. Check your spam folder too, just in case.</p>
       </div>
     </div>
   </div>
@@ -220,7 +221,7 @@ footer{padding:48px 0 32px;border-top:1px solid var(--rule-soft);margin-top:auto
   <div class="wrap-narrow">
     <div class="or">or, write directly</div>
     <h3>Skip the form.</h3>
-    <div class="email"><a href="/cdn-cgi/l/email-protection#59313c3535361929362a2a2c29773a3634"><span class="__cf_email__" data-cfemail="422a272e2e2d02322d313137326c212d2f">[email&#160;protected]</span></a></div>
+    <div class="email"><a href="mailto:hello@songreels.ai">hello@songreels.ai</a></div>
     <p class="reply-meta">A real person reads it. Usually replies within one business day.</p>
   </div>
 </section>
@@ -235,8 +236,8 @@ footer{padding:48px 0 32px;border-top:1px solid var(--rule-soft);margin-top:auto
         <p>If something's off about your gift, or you're making one for someone you're losing or already lost — please reach out. We'll reply like humans, because we are.</p>
       </div>
       <div>
-        <div class="founder-sign">— Sarah &amp; the Poss Up team</div>
-        <div class="founder-role">Founders · Brooklyn, NY</div>
+        <div class="founder-sign">— The SongReels team</div>
+        <div class="founder-role">Founders · Creative Abundance</div>
       </div>
     </div>
   </div>
@@ -320,17 +321,26 @@ footer{padding:48px 0 32px;border-top:1px solid var(--rule-soft);margin-top:auto
   </div>
 </footer>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 (function(){
-  const form = document.getElementById('contactForm');
-  const success = document.getElementById('success');
-  const formCard = document.getElementById('formCard');
+  const SUPABASE_URL = 'https://xakngjsybyytldyqfsmi.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhha25nanN5Ynl5dGxkeXFmc21pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NzAwMjUsImV4cCI6MjA5NDQ0NjAyNX0.Aqm2gv_LUdM4Bo233mNL9AwHmRhwGEEaLGHmNaT-VXk';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  form.addEventListener('submit', e => {
+  const form     = document.getElementById('contactForm');
+  const success  = document.getElementById('success');
+  const formCard = document.getElementById('formCard');
+  const submitBtn = form.querySelector('[type=submit]');
+
+  form.addEventListener('submit', async e => {
     e.preventDefault();
+
+    // validate
     const required = form.querySelectorAll('[required]');
     let ok = true;
     required.forEach(el => {
+      el.closest('.ctl').style.borderColor = '';
+      el.closest('.ctl').style.boxShadow = '';
       if (!el.value.trim()) {
         ok = false;
         el.closest('.ctl').style.borderColor = 'var(--accent)';
@@ -338,6 +348,27 @@ footer{padding:48px 0 32px;border-top:1px solid var(--rule-soft);margin-top:auto
       }
     });
     if (!ok) return;
+
+    // loading state
+    const origText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = 'Sending…';
+
+    const { error } = await sb.from('contact_inquiries').insert({
+      name:    document.getElementById('name').value.trim(),
+      email:   document.getElementById('email').value.trim(),
+      message: document.getElementById('message').value.trim(),
+    });
+
+    if (error) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = origText;
+      alert('Something went wrong — please try again or email us directly.');
+      console.error(error);
+      return;
+    }
+
+    // success
     form.style.display = 'none';
     formCard.querySelector('h2').style.display = 'none';
     formCard.querySelector('.form-sub').style.display = 'none';
