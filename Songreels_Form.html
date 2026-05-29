@@ -395,61 +395,75 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 .done-dash-link:hover{color:var(--ink)}
 .done-dash-link:hover svg{transform:translateX(3px);color:var(--ink)}
 
-/* phone mockup (right side) */
-.done-right{flex:0 0 auto;display:flex;justify-content:center;align-items:center}
+/* ── DONE: centered reveal layout ── */
+.done-right{display:none} /* hide old split right */
+
+/* celebration header */
+.done-hero{
+  background:linear-gradient(160deg,oklch(0.18 0.025 30) 0%,oklch(0.13 0.018 280) 100%);
+  padding:52px 24px 40px;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+  border-radius:24px;
+  margin-bottom:40px;
+}
+.done-hero::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 70% 50% at 50% 0%,oklch(0.35 0.08 30 / .35),transparent 70%);
+  pointer-events:none;
+}
+.done-hero-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px}
+.done-hero-dot{width:5px;height:5px;border-radius:50%;background:var(--accent-soft);animation:doneLive 2s ease-in-out infinite}
+@keyframes doneLive{0%,100%{opacity:1}50%{opacity:.35}}
+.done-hero-title{font-family:var(--serif);font-size:clamp(36px,5vw,56px);line-height:1.02;letter-spacing:-.022em;color:#fff;font-weight:400;margin-bottom:10px}
+.done-hero-title em{font-style:italic;color:var(--accent-soft)}
+.done-hero-sub{color:rgba(255,255,255,.55);font-size:15px;line-height:1.5;max-width:440px;margin:0 auto}
+
+/* center stage: phone + actions side by side */
+.done-stage{display:grid;grid-template-columns:auto 1fr;gap:48px;align-items:center;max-width:840px;margin:0 auto 52px}
+@media(max-width:720px){.done-stage{grid-template-columns:1fr;gap:28px}}
+
+/* phone */
 .done-phone{
   position:relative;
-  width:260px;
+  width:220px;
+  flex-shrink:0;
   aspect-ratio:9/19.5;
   background:oklch(0.12 0.02 280);
-  border-radius:44px;
-  padding:10px;
-  box-shadow:
-    0 40px 80px -20px rgba(40,20,15,.45),
-    0 0 0 1.5px rgba(255,255,255,.08),
-    inset 0 1px 0 rgba(255,255,255,.06);
+  border-radius:40px;
+  padding:9px;
+  box-shadow:0 40px 80px -20px rgba(40,20,15,.5),0 0 0 1.5px rgba(255,255,255,.08),inset 0 1px 0 rgba(255,255,255,.06);
 }
-@media(max-width:780px){.done-phone{width:min(240px,70vw)}}
-.done-phone-pill{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:88px;height:24px;background:#000;border-radius:14px;z-index:5}
-.done-phone-screen{
-  width:100%;height:100%;
-  border-radius:36px;
-  overflow:hidden;
-  position:relative;
-  background:#000;
-}
-.done-phone-screen video{
-  width:100%;height:100%;
-  object-fit:cover;
-  display:block;
-  transform:translateZ(0);
-  -webkit-backface-visibility:hidden;
-}
+@media(max-width:720px){.done-phone{width:min(200px,60vw);margin:0 auto}}
+.done-phone-pill{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:80px;height:22px;background:#000;border-radius:12px;z-index:5}
+.done-phone-screen{width:100%;height:100%;border-radius:33px;overflow:hidden;position:relative;background:#000}
+.done-phone-screen video{width:100%;height:100%;object-fit:contain;display:block;background:#000;transform:translateZ(0);-webkit-backface-visibility:hidden}
 .done-phone-placeholder{
-  position:absolute;inset:0;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:14px;
-  background:linear-gradient(160deg,oklch(0.25 0.04 30) 0%,oklch(0.14 0.02 280) 100%);
-  color:rgba(255,255,255,.5);
-  font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  background:linear-gradient(160deg,oklch(0.22 0.035 30) 0%,oklch(0.13 0.018 280) 100%);
+  color:rgba(255,255,255,.45);font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;text-align:center;padding:16px;
 }
-.done-phone-placeholder svg{animation:donePulse 2s ease-in-out infinite;color:rgba(255,255,255,.55)}
+.done-phone-placeholder svg{animation:donePulse 2s ease-in-out infinite;color:rgba(255,255,255,.5)}
 @keyframes donePulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.85;transform:scale(1.06)}}
+.done-phone-tap{position:absolute;bottom:14px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.35);z-index:3}
+.done-phone::after{content:'';position:absolute;inset:-20px;border-radius:60px;background:radial-gradient(ellipse at 50% 80%,var(--accent-soft),.1),transparent;opacity:.12;z-index:-1;pointer-events:none}
 
-/* phone glow */
-.done-phone::before{
-  content:'';
-  position:absolute;
-  inset:-1px;
-  border-radius:45px;
-  background:conic-gradient(from 180deg at 50% 50%,var(--accent-soft) 0deg,transparent 60deg,transparent 300deg,var(--accent-soft) 360deg);
-  opacity:.18;
-  z-index:-1;
-  filter:blur(12px);
-}
-
-/* share strip below phone */
-.done-phone-meta{margin-top:18px;text-align:center;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+/* action panel beside phone */
+.done-panel{}
+.done-panel-label{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:20px}
+.done-link{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:12px 8px 12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.done-link-url{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.copy-btn{background:var(--ink);color:var(--paper);border:none;border-radius:999px;padding:8px 18px;font-size:12px;font-weight:500;flex-shrink:0;transition:background .2s,transform .15s;cursor:pointer;white-space:nowrap}
+.copy-btn:hover{background:var(--accent-deep);transform:translateY(-1px)}
+.copy-btn.copied{background:oklch(0.45 0.10 155)}
+.done-actions{display:flex;flex-direction:column;gap:10px;margin-bottom:22px}
+.done-btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:400px){.done-btn-row{grid-template-columns:1fr}}
+.done-dash-link{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink-soft);padding:2px 0;transition:color .15s;width:fit-content;cursor:pointer;background:none;border:none}
+.done-dash-link svg{color:var(--ink-faint);transition:transform .2s,color .15s}
+.done-dash-link:hover{color:var(--ink)}
+.done-dash-link:hover svg{transform:translateX(3px);color:var(--ink)}
 
 /* ═══ HOOK SECTION ═══ */
 .done-hook{
@@ -512,7 +526,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .vid-modal-inner{position:relative;width:min(280px,80vw);display:flex;flex-direction:column;align-items:center;gap:14px}
 .vid-modal-frame{width:100%;aspect-ratio:9/16;border-radius:22px;overflow:hidden;background:#000;box-shadow:0 40px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.06)}
-.vid-modal-frame video,.vid-modal-frame img{width:100%;height:100%;object-fit:cover;display:block}
+.vid-modal-frame video,.vid-modal-frame img{width:100%;height:100%;object-fit:contain;display:block;background:#000}
 .vid-modal-close{position:absolute;top:-14px;right:-14px;width:36px;height:36px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink);box-shadow:0 4px 12px rgba(0,0,0,.25);cursor:pointer;border:none}
 .vid-modal-label{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.65)}
 
@@ -1171,70 +1185,70 @@ body.gate-active { overflow: hidden; }
          DONE SCREEN — split layout + hook section
          ═══════════════════════════════════════════════════════════════════ -->
     <div id="screen-done" class="screen" style="display:none">
-      <div class="done-split">
+      <div style="max-width:900px;margin:0 auto;padding:40px 24px 0">
 
-        <!-- LEFT — info + actions -->
-        <div class="done-left">
-          <div class="done-badge">
-            <span class="done-badge-dot"></span>
+        <!-- celebration header -->
+        <div class="done-hero">
+          <div class="done-hero-eyebrow">
+            <span class="done-hero-dot"></span>
             Your gift is ready
           </div>
-
-          <h2 class="done-title" id="done-title">Made with <em>love.</em></h2>
-          <p class="done-sub" id="done-sub">Your SongReel is ready to share. Send the link and they'll tap it to watch the whole gift play.</p>
-
-          <!-- URL copy row -->
-          <div class="done-link">
-            <span class="done-link-url" id="done-url">Generating your link…</span>
-            <button class="copy-btn" id="copy-btn" onclick="copyLink()">Copy link</button>
-          </div>
-
-          <!-- Primary actions -->
-          <div class="done-actions">
-            <button class="btn btn-primary" onclick="shareWhatsApp()" style="justify-content:center">
-              <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M9 1.5A7.5 7.5 0 002 12l-.5 4.5 4.6-.5A7.5 7.5 0 109 1.5z" stroke="currentColor" stroke-width="1.4"/><path d="M6 7.5c.5 2 2 3.5 4 4l1-1c.3-.3.7-.4 1 0l1.5 1c.4.3.4.7 0 1l-.5.5c-.7.7-1.7.8-2.5.3a8 8 0 01-5-5c-.5-.8-.4-1.8.3-2.5l.5-.5c.3-.4.7-.3 1 0l1 1.5c.4.3.3.7 0 1l-.3.5z" fill="currentColor"/></svg>
-              Share on WhatsApp
-            </button>
-            <div class="done-btn-row">
-              <button class="btn btn-ghost" id="done-download-btn" onclick="downloadReel()" style="justify-content:center">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                Download
-              </button>
-              <button class="btn btn-ghost" onclick="shareGeneric()" style="justify-content:center">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="12" cy="3" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="12" cy="13" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="4" cy="8" r="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 3.7L5.5 7M10.5 12.3L5.5 9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-                Share
-              </button>
-            </div>
-          </div>
-
-          <!-- Dashboard link -->
-          <button class="done-dash-link" onclick="window.location.href='Dashboard.html'">
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="1.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="8.5" y="1.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="1.5" y="8.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="8.5" y="8.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
-            View all your SongReels
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
+          <h2 class="done-hero-title" id="done-title">Made with <em>love.</em></h2>
+          <p class="done-hero-sub" id="done-sub">Send the link and they'll tap it to watch the whole gift play, song and all.</p>
         </div>
 
-        <!-- RIGHT — phone mockup -->
-        <div class="done-right">
-          <div>
-            <div class="done-phone">
-              <div class="done-phone-pill"></div>
-              <div class="done-phone-screen">
-                <video id="done-video" controls playsinline preload="metadata" style="display:none"></video>
-                <div class="done-phone-placeholder" id="done-video-placeholder">
-                  <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="18" stroke="currentColor" stroke-width="1.4" opacity=".5"/><path d="M16 13l12 7-12 7V13z" fill="currentColor"/></svg>
-                  <span>Preview loading…</span>
-                </div>
+        <!-- phone + action panel -->
+        <div class="done-stage">
+          <!-- phone mockup -->
+          <div class="done-phone">
+            <div class="done-phone-pill"></div>
+            <div class="done-phone-screen">
+              <video id="done-video" controls playsinline preload="metadata" style="display:none"></video>
+              <div class="done-phone-placeholder" id="done-video-placeholder">
+                <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><circle cx="18" cy="18" r="16" stroke="currentColor" stroke-width="1.4" opacity=".45"/><path d="M14 11l11 7-11 7V11z" fill="currentColor"/></svg>
+                <span>Your reel<br>loads here</span>
+              </div>
+              <div class="done-phone-tap" id="done-phone-tap" style="display:none">Tap to preview</div>
+            </div>
+          </div>
+
+          <!-- action panel -->
+          <div class="done-panel">
+            <div class="done-panel-label">Share your gift</div>
+
+            <div class="done-link">
+              <span class="done-link-url" id="done-url">Generating your link…</span>
+              <button class="copy-btn" id="copy-btn" onclick="copyLink()">Copy link</button>
+            </div>
+
+            <div class="done-actions">
+              <button class="btn btn-primary" onclick="shareWhatsApp()" style="justify-content:center">
+                <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><path d="M9 1.5A7.5 7.5 0 002 12l-.5 4.5 4.6-.5A7.5 7.5 0 109 1.5z" stroke="currentColor" stroke-width="1.4"/><path d="M6 7.5c.5 2 2 3.5 4 4l1-1c.3-.3.7-.4 1 0l1.5 1c.4.3.4.7 0 1l-.5.5c-.7.7-1.7.8-2.5.3a8 8 0 01-5-5c-.5-.8-.4-1.8.3-2.5l.5-.5c.3-.4.7-.3 1 0l1 1.5c.4.3.3.7 0 1l-.3.5z" fill="currentColor"/></svg>
+                Share on WhatsApp
+              </button>
+              <div class="done-btn-row">
+                <button class="btn btn-ghost" onclick="downloadReel()" style="justify-content:center">
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                  Download
+                </button>
+                <button class="btn btn-ghost" onclick="shareGeneric()" style="justify-content:center">
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="12" cy="3" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="12" cy="13" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="4" cy="8" r="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 3.7L5.5 7M10.5 12.3L5.5 9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                  Share
+                </button>
               </div>
             </div>
-            <p class="done-phone-meta">This is exactly what they'll see</p>
+
+            <button class="done-dash-link" onclick="window.location.href='/dashboard'">
+              <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="1.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="8.5" y="1.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="1.5" y="8.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="8.5" y="8.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+              View all your SongReels
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
           </div>
         </div>
       </div>
 
       <!-- ═══ HOOK — drives repeat creation ═══ -->
-      <div class="done-hook">
+      <div class="done-hook" style="max-width:900px;margin:0 auto 80px;padding:52px 24px 0;border-top:1px solid var(--rule-soft)">
         <div class="done-hook-divider">
           <span>Got someone else who deserves one?</span>
         </div>
