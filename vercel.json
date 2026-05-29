@@ -1,5 +1,4 @@
 {
-  "cleanUrls": true,
   "rewrites": [
     { "source": "/app",       "destination": "/Songreels_Form.html" },
     { "source": "/dashboard", "destination": "/Dashboard.html" },
