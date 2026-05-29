@@ -288,6 +288,76 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 .review-action-buttons{display:flex;gap:10px;flex-wrap:wrap}
 
 /* ═══════════════════════════════════════════════════════════════════════
+   CHECKOUT SCREEN
+   ═══════════════════════════════════════════════════════════════════════ */
+#screen-checkout{padding-bottom:80px}
+.ckout-layout{display:grid;grid-template-columns:1fr 360px;gap:48px;align-items:start;margin-top:40px}
+@media(max-width:860px){.ckout-layout{grid-template-columns:1fr;gap:32px}}
+@media(max-width:860px){#screen-checkout .ckout-right{order:-1}}
+
+/* plan cards */
+.ckout-plans{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
+@media(max-width:500px){.ckout-plans{grid-template-columns:1fr}}
+.ckout-plan{position:relative;padding:20px;border:1.5px solid var(--rule-soft);border-radius:18px;background:var(--paper);text-align:left;cursor:pointer;transition:border-color .2s,box-shadow .2s,background .2s}
+.ckout-plan:hover{border-color:var(--rule)}
+.ckout-plan.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);background:var(--paper)}
+.plan-badge{display:inline-block;background:var(--accent);color:#fff;font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:3px 9px;border-radius:999px;margin-bottom:10px}
+.plan-name{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px}
+.plan-price{font-family:var(--serif);font-size:36px;letter-spacing:-.02em;line-height:1;color:var(--ink);margin-bottom:4px}
+.plan-price span{font-size:14px;color:var(--ink-soft);font-family:var(--sans);font-weight:400;letter-spacing:0}
+.plan-desc{font-size:13px;color:var(--ink-soft);line-height:1.45;margin-bottom:14px}
+.plan-feats{list-style:none;display:flex;flex-direction:column;gap:7px}
+.plan-feats li{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--ink-soft);line-height:1.35}
+.plan-feats li svg{flex-shrink:0;margin-top:1px;color:var(--accent)}
+.plan-feats li.muted{color:var(--ink-faint)}
+.plan-feats li.muted svg{color:var(--rule)}
+.plan-sel-ring{position:absolute;top:14px;right:14px;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--rule);background:var(--bg);display:flex;align-items:center;justify-content:center;transition:all .2s}
+.ckout-plan.sel .plan-sel-ring{background:var(--accent);border-color:var(--accent)}
+.ckout-plan.sel .plan-sel-ring svg{display:block}
+.plan-sel-ring svg{display:none;color:#fff}
+
+/* payment form */
+.ckout-payment{background:var(--paper);border:1px solid var(--rule-soft);border-radius:18px;padding:24px;margin-bottom:0}
+.ckout-payment-title{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:18px}
+.ckout-express{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.ckout-express-btn{padding:12px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:7px;font-weight:600;font-size:13px;cursor:pointer;transition:opacity .2s,transform .15s;border:1.5px solid transparent}
+.ckout-express-btn:hover{transform:translateY(-1px);opacity:.9}
+.ckout-apple{background:#000;color:#fff;border-color:#000}
+.ckout-gpay{background:#fff;color:#1a1a1a;border-color:var(--rule)}
+.ckout-divider{display:flex;align-items:center;gap:10px;margin-bottom:18px;color:var(--ink-faint);font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+.ckout-divider::before,.ckout-divider::after{content:'';flex:1;height:1px;background:var(--rule-soft)}
+.ckout-field{margin-bottom:12px}
+.ckout-field label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px}
+.ckout-input{width:100%;padding:12px 14px;border:1.5px solid var(--rule-soft);border-radius:10px;background:var(--bg);font-size:15px;color:var(--ink);outline:none;transition:border-color .15s,box-shadow .15s;font-family:var(--mono)}
+.ckout-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);background:var(--paper)}
+.ckout-input::placeholder{color:var(--ink-faint);font-family:var(--sans)}
+.ckout-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ckout-pay-btn{width:100%;padding:15px;border-radius:12px;background:var(--ink);color:var(--paper);font-size:15px;font-weight:500;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:10px;transition:background .2s,transform .15s;margin-top:16px}
+.ckout-pay-btn:hover{background:var(--accent-deep);transform:translateY(-1px)}
+.ckout-secure{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--ink-faint);margin-top:10px;font-family:var(--mono)}
+
+/* free CTA */
+.ckout-free-cta{text-align:center;padding:24px;background:var(--bg-2);border:1px solid var(--rule-soft);border-radius:18px}
+.ckout-free-cta p{font-size:13px;color:var(--ink-soft);margin-top:12px;line-height:1.5}
+
+/* order summary card */
+.ckout-summary{background:var(--paper);border:1px solid var(--rule-soft);border-radius:18px;overflow:hidden;position:sticky;top:88px}
+.ckout-summary-head{background:linear-gradient(135deg,oklch(0.25 0.04 30),oklch(0.16 0.02 280));padding:24px;color:#fff}
+.ckout-summary-eyebrow{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.55);margin-bottom:8px}
+.ckout-summary-title{font-family:var(--serif);font-size:22px;font-style:italic;line-height:1.2;color:#fff}
+.ckout-summary-sub{font-size:13px;color:rgba(255,255,255,.65);margin-top:6px}
+.ckout-summary-body{padding:20px 24px}
+.ckout-line{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--rule-soft);font-size:14px}
+.ckout-line:last-child{border-bottom:none}
+.ckout-line-label{color:var(--ink-soft)}
+.ckout-line-val{color:var(--ink);font-weight:500}
+.ckout-total{display:flex;justify-content:space-between;align-items:baseline;padding:16px 24px;background:var(--bg-2);border-top:1px solid var(--rule-soft)}
+.ckout-total-label{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+.ckout-total-price{font-family:var(--serif);font-size:28px;color:var(--ink)}
+.ckout-guarantee{display:flex;align-items:flex-start;gap:10px;padding:16px 24px;border-top:1px solid var(--rule-soft);font-size:12px;color:var(--ink-soft);line-height:1.45}
+.ckout-guarantee svg{flex-shrink:0;color:var(--accent);margin-top:1px}
+
+/* ═══════════════════════════════════════════════════════════════════════
    DONE SCREEN — split + hook section
    ═══════════════════════════════════════════════════════════════════════ */
 #screen-done{max-width:1200px;margin:0 auto;padding:0 32px;width:100%;box-sizing:border-box}
@@ -751,7 +821,7 @@ body.gate-active { overflow: hidden; }
     <!-- STEP 1: OCCASION -->
     <div id="screen-1" class="screen wrap">
       <div class="step-head">
-        <span class="eyebrow">Step 1 of 4 · Occasion</span>
+        <span class="eyebrow">Step 1 of 5 · Occasion</span>
         <h1>Who is this <em>for</em><br>and what is the <em>occasion?</em></h1>
         <p class="lede">We will match the tone, pacing, and song style to the moment.</p>
       </div>
@@ -774,14 +844,149 @@ body.gate-active { overflow: hidden; }
     <!-- STEP 2: QUESTIONS -->
     <div id="screen-2" class="screen wrap" style="display:none">
       <div class="step-head">
-        <span class="eyebrow">Step 2 of 4 · About them</span>
+        <span class="eyebrow">Step 2 of 5 · About them</span>
         <h1>Tell us about <em>them.</em></h1>
         <p class="lede">Just two quick questions. Tap the mic to speak instead of type.</p>
       </div>
       <div class="chat" id="chat-questions"></div>
       <div class="step-actions">
         <button class="btn btn-ghost" onclick="goTo(1)">Back</button>
-        <button class="btn btn-primary" onclick="goToSlideshow()">Continue <span class="arr">→</span></button>
+        <button class="btn btn-primary" onclick="goToCheckout()">Continue <span class="arr">→</span></button>
+      </div>
+    </div>
+
+    <!-- CHECKOUT -->
+    <div id="screen-checkout" class="screen wrap" style="display:none">
+      <div class="step-head">
+        <span class="eyebrow">Step 3 of 5 · Complete your order</span>
+        <h1>Unlock your <em>SongReel.</em></h1>
+        <p class="lede">Choose a plan and pay once — then you can upload your clips and we'll compose the song.</p>
+      </div>
+
+      <div class="ckout-layout">
+        <!-- LEFT: plans + payment -->
+        <div class="ckout-left">
+          <div class="ckout-plans">
+            <!-- Free plan -->
+            <button class="ckout-plan" id="plan-free" onclick="selectPlan('free')">
+              <div class="plan-sel-ring"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="plan-name">Free trial</div>
+              <div class="plan-price">$0</div>
+              <p class="plan-desc">Try the full flow, get a watermarked result.</p>
+              <ul class="plan-feats">
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>1 video, watermarked</li>
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>2 song styles</li>
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Shareable link</li>
+                <li class="muted"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 2l9 9M11 2L2 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>No download</li>
+              </ul>
+            </button>
+            <!-- Paid plan -->
+            <button class="ckout-plan sel" id="plan-paid" onclick="selectPlan('paid')">
+              <div class="plan-badge">Most popular</div>
+              <div class="plan-sel-ring"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="plan-name">Single gift</div>
+              <div class="plan-price">$12<span>.99 one-time</span></div>
+              <p class="plan-desc">Full HD, no watermark. The real gift.</p>
+              <ul class="plan-feats">
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Full HD, no watermark</li>
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>4 custom song styles</li>
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Permanent shareable link</li>
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Download for keepsake</li>
+              </ul>
+            </button>
+          </div>
+
+          <!-- Payment form (paid plan) -->
+          <div id="ckout-payment" class="ckout-payment">
+            <div class="ckout-payment-title">Payment details</div>
+            <div class="ckout-express">
+              <button class="ckout-express-btn ckout-apple" onclick="handleExpressPay('apple')">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M11.182 0c.074.95-.271 1.87-.869 2.55-.584.664-1.496 1.13-2.37 1.06-.09-.93.31-1.88.87-2.5C9.39.42 10.33-.03 11.182 0zm2.11 4.52c-1.22-.065-2.26.69-2.85.69-.6 0-1.49-.66-2.47-.64C6.6 4.6 5.2 5.38 4.44 6.62c-1.54 2.65-.4 6.58 1.1 8.74.73 1.06 1.6 2.24 2.75 2.2 1.1-.04 1.52-.72 2.85-.72 1.32 0 1.7.72 2.86.7 1.18-.02 1.94-1.07 2.66-2.14.84-1.21 1.18-2.39 1.2-2.45-.03-.01-2.3-.88-2.32-3.5-.02-2.2 1.8-3.25 1.87-3.3-1.02-1.5-2.6-1.67-3.15-1.7z"/></svg>
+                Apple Pay
+              </button>
+              <button class="ckout-express-btn ckout-gpay" onclick="handleExpressPay('google')">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><text y="13" font-size="13" font-weight="700" fill="#4285F4">G</text></svg>
+                Google Pay
+              </button>
+            </div>
+            <div class="ckout-divider">or pay by card</div>
+            <div class="ckout-field">
+              <label>Card number</label>
+              <input class="ckout-input" type="text" placeholder="1234 5678 9012 3456" maxlength="19" oninput="fmtCard(this)">
+            </div>
+            <div class="ckout-row">
+              <div class="ckout-field">
+                <label>Expiry</label>
+                <input class="ckout-input" type="text" placeholder="MM / YY" maxlength="7" oninput="fmtExpiry(this)">
+              </div>
+              <div class="ckout-field">
+                <label>CVC</label>
+                <input class="ckout-input" type="text" placeholder="123" maxlength="4">
+              </div>
+            </div>
+            <div class="ckout-field">
+              <label>Name on card</label>
+              <input class="ckout-input" type="text" placeholder="Full name">
+            </div>
+            <button class="ckout-pay-btn" onclick="completePayment()">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="5" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M1 8h14" stroke="currentColor" stroke-width="1.4"/><path d="M5 3V2a3 3 0 016 0v1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              Pay $12.99 &amp; continue
+            </button>
+            <div class="ckout-secure">
+              <svg width="11" height="12" viewBox="0 0 11 12" fill="none"><rect x=".8" y="4.5" width="9.4" height="7" rx="1.2" stroke="currentColor" stroke-width="1.2"/><path d="M3 4.5V3a2.5 2.5 0 015 0v1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Secured by Stripe · 256-bit SSL
+            </div>
+          </div>
+
+          <!-- Free CTA -->
+          <div id="ckout-free-cta" class="ckout-free-cta" style="display:none">
+            <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="completePayment()">
+              Start free — continue <span class="arr">→</span>
+            </button>
+            <p>Your video will have a SongReels watermark. You can upgrade from your dashboard anytime.</p>
+          </div>
+        </div>
+
+        <!-- RIGHT: order summary -->
+        <div class="ckout-right">
+          <div class="ckout-summary">
+            <div class="ckout-summary-head">
+              <div class="ckout-summary-eyebrow">Your order</div>
+              <div class="ckout-summary-title" id="ckout-summary-title">A gift for someone special</div>
+              <div class="ckout-summary-sub" id="ckout-summary-sub">AI-composed song + personalized video reel</div>
+            </div>
+            <div class="ckout-summary-body">
+              <div class="ckout-line">
+                <span class="ckout-line-label">Occasion</span>
+                <span class="ckout-line-val" id="ckout-occasion-val">—</span>
+              </div>
+              <div class="ckout-line">
+                <span class="ckout-line-label">Custom AI song</span>
+                <span class="ckout-line-val">Included</span>
+              </div>
+              <div class="ckout-line">
+                <span class="ckout-line-label">9:16 vertical reel</span>
+                <span class="ckout-line-val">Included</span>
+              </div>
+              <div class="ckout-line">
+                <span class="ckout-line-label">Shareable link</span>
+                <span class="ckout-line-val">Included</span>
+              </div>
+            </div>
+            <div class="ckout-total">
+              <span class="ckout-total-label">Total</span>
+              <span class="ckout-total-price" id="ckout-total-price">$12.99</span>
+            </div>
+            <div class="ckout-guarantee">
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1L2 3.5v4c0 3.5 2.5 5.5 5.5 6.5 3-1 5.5-3 5.5-6.5v-4L7.5 1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M5 7.5l1.5 1.5 3.5-3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              If you're not happy with your SongReel, we'll remake it or refund you — no questions asked.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-actions" style="margin-top:32px">
+        <button class="btn btn-ghost" onclick="goTo(2)">Back</button>
       </div>
     </div>
 
@@ -838,7 +1043,7 @@ body.gate-active { overflow: hidden; }
     <!-- STEP 3: CLIPS -->
     <div id="screen-3" class="screen wrap" style="display:none">
       <div class="step-head">
-        <span class="eyebrow">Step 3 of 4 · Your clips and photos</span>
+        <span class="eyebrow">Step 4 of 5 · Your clips and photos</span>
         <h1>Upload your <em>videos</em><br>and <em>photos.</em></h1>
         <p class="lede">Mix photos and video clips, up to 20 files. Videos up to 100 MB each (about 1.5 min); photos up to 25 MB. Describe what is happening in each one so AI can match every moment to the right lyric.</p>
       </div>
@@ -858,7 +1063,7 @@ body.gate-active { overflow: hidden; }
         <p class="upload-prog-lbl" id="upload-prog-lbl">Uploading...</p>
       </div>
       <div class="step-actions">
-        <button class="btn btn-ghost" onclick="goToSlideshow()">Back</button>
+        <button class="btn btn-ghost" onclick="showScreen('slideshow')">Back</button>
         <button class="btn btn-primary" id="s3-next" disabled onclick="goTo(4)">Continue <span class="arr">→</span></button>
       </div>
     </div>
@@ -866,7 +1071,7 @@ body.gate-active { overflow: hidden; }
     <!-- STEP 4: SONG STYLE -->
     <div id="screen-4" class="screen wrap" style="display:none">
       <div class="step-head">
-        <span class="eyebrow">Step 4 of 4 · Song style</span>
+        <span class="eyebrow">Step 5 of 5 · Song style</span>
         <h1>Pick the <em>vibe</em><br>and <em>length.</em></h1>
         <p class="lede">Suno AI will compose an original song in this style, timed to your clips.</p>
       </div>
@@ -1401,13 +1606,14 @@ function showScreen(id) {
   
   el.style.display = 'block'; el.classList.add('show');
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  const stepMap  = { '1':20,'2':40,'slideshow':50,'3':70,'4':90,'proc':95,'review':95,'done':100 };
-  const labelMap = { 
-    '1':'Step 1 of 4 · Occasion',
-    '2':'Step 2 of 4 · About them',
+  const stepMap  = { '1':16,'2':32,'checkout':48,'slideshow':56,'3':68,'4':84,'proc':93,'review':93,'done':100 };
+  const labelMap = {
+    '1':'Step 1 of 5 · Occasion',
+    '2':'Step 2 of 5 · About them',
+    'checkout':'Step 3 of 5 · Complete your order',
     'slideshow':'How this works',
-    '3':'Step 3 of 4 · Clips and photos',
-    '4':'Step 4 of 4 · Song style',
+    '3':'Step 4 of 5 · Clips and photos',
+    '4':'Step 5 of 5 · Song style',
     'proc':'Creating...',
     'review':'Review your script',
     'done':'Done!'
@@ -1422,6 +1628,61 @@ function goTo(n) {
   if (n === 2 && !S.occasion) return;
   if (n === 2) buildChatQuestions();
   showScreen(String(n));
+}
+
+function goToCheckout() {
+  if (!S.fields['f-name'] || !S.fields['f-theme']) {
+    alert('Please answer both questions before continuing.');
+    return;
+  }
+  // Populate order summary with what user entered
+  const name = S.fields['f-name'] || '';
+  const occLabels = {
+    'mothers-day':"Mother's Day",'fathers-day':"Father's Day",
+    'birthday':'Birthday','anniversary':'Anniversary',
+    'graduation':'Graduation','christmas':'Christmas',
+    'memorial':'Memorial','justbecause':'Just because'
+  };
+  const occ = occLabels[S.occasion] || S.occasion || '—';
+  const el = document.getElementById('ckout-summary-title');
+  if (el && name) el.textContent = 'A gift for ' + name;
+  const occEl = document.getElementById('ckout-occasion-val');
+  if (occEl) occEl.textContent = occ;
+  selectPlan('paid');
+  showScreen('checkout');
+}
+
+function selectPlan(plan) {
+  S.selectedPlan = plan;
+  document.getElementById('plan-free').classList.toggle('sel', plan === 'free');
+  document.getElementById('plan-paid').classList.toggle('sel', plan === 'paid');
+  document.getElementById('ckout-payment').style.display  = plan === 'paid'  ? 'block' : 'none';
+  document.getElementById('ckout-free-cta').style.display = plan === 'free' ? 'block' : 'none';
+  const priceEl = document.getElementById('ckout-total-price');
+  if (priceEl) priceEl.textContent = plan === 'paid' ? '$12.99' : '$0';
+}
+
+function completePayment() {
+  // UI-only: advance to slideshow. Backend payment hook goes here.
+  S.currentSlide = 1;
+  updateSlideshow();
+  showScreen('slideshow');
+}
+
+function handleExpressPay(provider) {
+  // UI-only placeholder — wire to Stripe when backend is ready
+  completePayment();
+}
+
+function fmtCard(el) {
+  let v = el.value.replace(/\D/g,'').substring(0,16);
+  el.value = v.replace(/(.{4})/g,'$1 ').trim();
+}
+
+function fmtExpiry(el) {
+  let v = el.value.replace(/\D/g,'').substring(0,4);
+  if (v.length > 2) v = v.substring(0,2) + ' / ' + v.substring(2);
+  el.value = v;
 }
 
 function goToSlideshow() {
