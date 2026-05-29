@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SongReels — gifts you can't buy in a store</title>
+<meta name="description" content="SongReels turns your photos and memories into a cinematic music video with an AI-composed song made just for them. The most meaningful gift you'll give all year — ready in 10 minutes.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   NUCLEAR GHL FULL-WIDTH ESCAPE
+   ============================================================ */
+
+:root{
+  --bg: oklch(0.97 0.012 75);
+  --bg-2: oklch(0.94 0.020 70);
+  --paper: oklch(0.99 0.008 80);
+  --ink: oklch(0.18 0.018 50);
+  --ink-soft: oklch(0.42 0.014 50);
+  --ink-faint: oklch(0.62 0.010 60);
+  --rule: oklch(0.86 0.014 70);
+  --rule-soft: oklch(0.91 0.012 75);
+  --accent: oklch(0.60 0.135 28);
+  --accent-deep: oklch(0.48 0.13 28);
+  --accent-soft: oklch(0.92 0.048 30);
+  --night: oklch(0.16 0.02 270);
+  --night-ink: oklch(0.95 0.008 80);
+  --serif: 'Instrument Serif', 'Times New Roman', serif;
+  --sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  --maxw: 1240px;
+  --pad: 48px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+img, svg { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
+
+html { overflow-x: hidden; }
+
+body {
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+  font-weight: 400;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.bleed {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  padding-left: calc(50vw - 50% + var(--pad));
+  padding-right: calc(50vw - 50% + var(--pad));
+  box-sizing: border-box;
+}
+.inner { max-width: var(--maxw); margin: 0 auto; width: 100%; }
+
+.eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-soft); font-weight: 500; }
+.btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 999px; font-weight: 500; font-size: 15px; letter-spacing: -.005em; transition: background .2s, color .2s; white-space: nowrap; cursor: pointer; }
+.btn-primary { background: var(--ink); color: var(--paper); }
+.btn-primary:hover { background: var(--accent-deep); color: #fff; }
+.btn-ghost { color: var(--ink); border: 1px solid var(--rule); }
+.btn-ghost:hover { border-color: var(--ink); }
+.btn .arr { font-family: var(--serif); font-size: 20px; line-height: 1; transform: translateY(-1px); }
+
+/* ── BETA BANNER ───────────────────────────────── */
+.beta-banner {
+  background: var(--accent-deep);
+  color: #fff;
+  text-align: center;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-family: var(--sans);
+}
+.beta-banner strong { font-weight: 600; }
+.beta-banner a { text-decoration: underline; }
+
+/* ── NAV ───────────────────────────────────────── */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid transparent;
+  transition: border-color .2s;
+  background: color-mix(in oklch, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(150%) blur(10px);
+  -webkit-backdrop-filter: saturate(150%) blur(10px);
+}
+.nav.scrolled { border-color: var(--rule-soft); }
+.nav-row { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+.brand { display: flex; align-items: baseline; gap: 8px; font-family: var(--serif); font-size: 24px; letter-spacing: -.01em; }
+.brand .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); transform: translateY(-3px); }
+.nav-links { display: flex; gap: 28px; align-items: center; font-size: 14px; color: var(--ink-soft); }
+.nav-links a:hover { color: var(--ink); }
+@media (max-width: 720px) { .nav-links { display: none; } }
+
+/* ── HERO ──────────────────────────────────────── */
+.hero { background: var(--bg); padding: 60px 0 96px; overflow: hidden; }
+.hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 64px; align-items: center; }
+@media (max-width: 980px) { .hero-grid { grid-template-columns: 1fr; gap: 48px; } }
+
+.hero h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(48px, 6.6vw, 92px); line-height: 1.02; letter-spacing: -0.022em; color: var(--ink); margin-top: 24px; }
+.hero h1 em { font-style: italic; color: var(--accent-deep); }
+.hero h1 .cycler { display: inline-block; color: var(--accent-deep); font-style: italic; }
+.hero .lede { margin-top: 28px; font-size: 19px; line-height: 1.55; color: var(--ink-soft); max-width: 520px; }
+.cta-row { margin-top: 36px; display: flex; gap: 12px; flex-wrap: wrap; }
+.meta-row { margin-top: 28px; display: flex; gap: 24px; font-size: 13px; color: var(--ink-faint); align-items: center; flex-wrap: wrap; }
+.meta-row .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-faint); }
+
+.device-stage { position: relative; display: flex; justify-content: center; align-items: center; min-height: 560px; }
+.device { position: relative; width: 280px; aspect-ratio: 9/19.5; background: var(--night); border-radius: 42px; padding: 10px; box-shadow: 0 30px 60px -20px rgba(40,20,15,.35), 0 80px 120px -40px rgba(40,20,15,.28), 0 0 0 1px oklch(0.10 0.02 280); }
+.device-screen { width: 100%; height: 100%; border-radius: 34px; background: linear-gradient(180deg, oklch(0.13 0.025 285), oklch(0.18 0.03 280)); overflow: hidden; position: relative; color: var(--night-ink); }
+.device-status { display: flex; justify-content: space-between; padding: 14px 22px 8px; font-size: 11px; font-family: var(--sans); font-weight: 600; color: var(--night-ink); opacity: .85; }
+.device-pill { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 90px; height: 24px; background: #000; border-radius: 14px; }
+.dev-content { padding: 24px 20px 18px; display: flex; flex-direction: column; height: calc(100% - 36px); }
+.dev-eyebrow { font-family: var(--mono); font-size: 9.5px; letter-spacing: .22em; color: oklch(0.7 0.04 30); text-transform: uppercase; margin-bottom: 10px; }
+.dev-name { font-family: var(--serif); font-style: italic; font-size: 38px; line-height: 1; }
+.dev-title { font-family: var(--serif); font-size: 18px; margin-top: 4px; color: rgba(255,255,255,.78); font-style: italic; }
+.dev-vid { margin-top: 20px; flex: 1; border-radius: 14px; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,.06); filter: sepia(.18) saturate(1.05) contrast(.96) brightness(.96); background: url('https://picsum.photos/seed/heartreel-mom-hero/700/900') center/cover no-repeat, linear-gradient(135deg, oklch(0.55 0.13 30), oklch(0.40 0.12 18)); }
+.dev-vid::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 30%, rgba(20,10,5,.45) 100%); }
+.dev-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 54px; height: 54px; border-radius: 50%; background: rgba(255,255,255,.92); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0,0,0,.35); z-index: 2; }
+.dev-play svg { margin-left: 3px; }
+.dev-cap { position: absolute; left: 14px; bottom: 14px; font-family: var(--mono); font-size: 10px; color: rgba(255,255,255,.85); z-index: 2; }
+.dev-time { position: absolute; right: 14px; bottom: 14px; font-family: var(--mono); font-size: 10px; color: rgba(255,255,255,.85); z-index: 2; }
+.dev-wave { margin-top: 14px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,.06); border-radius: 12px; border: 1px solid rgba(255,255,255,.05); }
+.dev-wave .play-sm { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.wave { display: flex; align-items: center; gap: 2px; height: 22px; flex: 1; }
+.wave span { display: block; width: 2px; background: rgba(255,255,255,.55); border-radius: 1px; }
+.dev-song { font-size: 11px; color: rgba(255,255,255,.7); font-family: var(--mono); }
+.dev-foot { margin-top: 12px; font-family: var(--serif); font-style: italic; font-size: 14px; color: rgba(255,255,255,.7); line-height: 1.3; text-align: center; }
+
+.float-tag { position: absolute; background: var(--paper); border: 1px solid var(--rule); padding: 9px 14px; border-radius: 999px; font-size: 12px; color: var(--ink-soft); box-shadow: 0 8px 18px -10px rgba(40,20,15,.18); display: flex; align-items: center; gap: 8px; font-family: var(--sans); font-weight: 500; white-space: nowrap; }
+.float-tag .em { font-family: var(--serif); font-style: italic; color: var(--ink); font-size: 13px; }
+.float-tag .pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--accent) 60%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.tag-1 { top: 12%; right: -2%; }
+.tag-2 { bottom: 18%; left: -6%; }
+.tag-3 { top: 46%; right: -10%; }
+@media (max-width: 980px) { .tag-3 { display: none; } }
+@media (max-width: 560px) { .tag-1, .tag-2 { display: none; } }
+
+/* ── STRIP ─────────────────────────────────────── */
+.strip {
+  background: var(--bg-2);
+  border-top: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule-soft);
+  padding: 36px 0;
+}
+.strip-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.strip-q { font-family: var(--serif); font-size: 22px; font-style: italic; color: var(--ink); max-width: 560px; line-height: 1.3; }
+.strip-q::before { content: '"'; font-size: 48px; line-height: 0; vertical-align: -18px; color: var(--accent); margin-right: 6px; }
+.strip-q::after { content: '"'; font-size: 48px; line-height: 0; vertical-align: -22px; color: var(--accent); margin-left: 4px; }
+.strip-attr { font-size: 12px; color: var(--ink-faint); font-family: var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+
+/* ── OCCASIONS ─────────────────────────────────── */
+.section-light { background: var(--bg); padding: 120px 0; }
+.section-muted { background: var(--bg-2); border-top: 1px solid var(--rule-soft); border-bottom: 1px solid var(--rule-soft); padding: 120px 0; }
+.section-dark { background: var(--night); padding: 120px 0; position: relative; overflow: hidden; }
+.section-dark::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 20% 0%, oklch(0.30 0.08 30 / .35), transparent 55%), radial-gradient(ellipse at 80% 100%, oklch(0.30 0.06 280 / .4), transparent 50%); pointer-events: none; }
+
+.section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 48px; margin-bottom: 56px; flex-wrap: wrap; }
+.section-head h2 { font-family: var(--serif); font-size: clamp(38px, 4.5vw, 60px); line-height: 1.05; letter-spacing: -.02em; font-weight: 400; max-width: 680px; }
+.section-head h2 em { font-style: italic; color: var(--accent-deep); }
+.section-head .blurb { font-size: 16px; color: var(--ink-soft); max-width: 340px; line-height: 1.55; }
+
+.occasions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media (max-width: 980px) { .occasions { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .occasions { grid-template-columns: 1fr 1fr; } }
+
+.occ { position: relative; aspect-ratio: 3/4; border-radius: 18px; overflow: hidden; border: 1px solid var(--rule-soft); cursor: pointer; transition: transform .25s, box-shadow .25s; }
+.occ:hover { transform: translateY(-4px); box-shadow: 0 24px 40px -28px rgba(40,20,15,.35); }
+.occ-bg { position: absolute; inset: 0; filter: sepia(.18) saturate(1.05) contrast(.96) brightness(.96); }
+.occ-bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(20,10,5,.55) 100%); }
+.occ-bg::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, transparent 0 14px, rgba(255,255,255,.05) 14px 15px); z-index: 1; }
+.occ-1 .occ-bg { background: url('https://picsum.photos/seed/heartreel-mothers/600/800') center/cover no-repeat, linear-gradient(135deg, oklch(0.78 0.10 30), oklch(0.55 0.14 18)); }
+.occ-2 .occ-bg { background: url('https://picsum.photos/seed/heartreel-fathers/600/800') center/cover no-repeat, linear-gradient(135deg, oklch(0.55 0.10 240), oklch(0.30 0.06 250)); }
+.occ-3 .occ-bg { background: url('https://picsum.photos/seed/heartreel-bday/600/800') center/cover no-repeat, linear-gradient(135deg, oklch(0.80 0.10 90), oklch(0.55 0.13 50)); }
+.occ-4 .occ-bg { background: url('https://picsum.photos/seed/heartreel-anniv/600/800') center/cover no-repeat, linear-gradient(135deg, oklch(0.65 0.10 150), oklch(0.38 0.07 175)); }
+.occ-5 .occ-bg { background: url('https://picsum.photos/seed/heartreel-grad/600/800') center/cover no-repeat, linear-gradient(135deg, oklch(0.72 0.09 320), oklch(0.45 0.10 305)); }
+.occ-6 .occ-bg { background: url('https://picsum.photos/seed/heartreel-xmas/600/800') center/cover no-repeat, linear-gradient(135deg, oklch(0.78 0.07 60), oklch(0.50 0.11 30)); }
+.occ-7 .occ-bg { background: url('https://picsum.photos/seed/heartreel-memorial/600/800') center/cover no-repeat, linear-gradient(135deg, oklch(0.62 0.08 280), oklch(0.32 0.05 275)); }
+.occ-8 .occ-bg { background: linear-gradient(135deg, oklch(0.85 0.05 80), oklch(0.60 0.08 55)); }
+.occ-meta { position: absolute; top: 14px; left: 14px; font-family: var(--mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: rgba(255,255,255,.85); z-index: 2; }
+.occ-name { position: absolute; left: 18px; right: 18px; bottom: 18px; font-family: var(--serif); font-size: 28px; line-height: 1.05; color: #fff; z-index: 2; }
+.occ-name em { font-style: italic; display: block; color: rgba(255,255,255,.85); font-size: 14px; margin-top: 6px; line-height: 1.4; }
+.occ-more { display: flex; align-items: center; justify-content: center; border: 1px dashed var(--rule); font-family: var(--serif); font-size: 18px; color: var(--ink-soft); font-style: italic; background: transparent; }
+.occ-more:hover { border-color: var(--ink-soft); color: var(--ink); }
+
+/* ── HOW IT WORKS ──────────────────────────────── */
+.steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 0; margin-top: 24px; }
+@media (max-width: 880px) { .steps { grid-template-columns: 1fr; } }
+.step { padding: 40px 32px 40px 0; border-right: 1px solid var(--rule-soft); }
+.step:last-child { border-right: 0; }
+@media (max-width: 880px) { .step { border-right: 0; border-bottom: 1px solid var(--rule-soft); padding: 36px 0; } .step:last-child { border-bottom: 0; } }
+.step-num { font-family: var(--serif); font-size: 48px; color: var(--accent-deep); font-style: italic; line-height: 1; margin-bottom: 24px; }
+.step h3 { font-family: var(--serif); font-size: 30px; font-weight: 400; letter-spacing: -.015em; line-height: 1.1; margin-bottom: 14px; }
+.step p { color: var(--ink-soft); font-size: 15.5px; line-height: 1.55; max-width: 320px; }
+.step .demo { margin-top: 24px; padding: 18px; background: var(--paper); border: 1px solid var(--rule-soft); border-radius: 14px; min-height: 120px; }
+.step .demo .q { color: var(--ink); font-family: var(--sans); font-weight: 500; font-size: 13px; margin-bottom: 8px; display: block; }
+.step .demo .a { display: block; color: var(--ink); font-style: italic; font-family: var(--serif); font-size: 18px; line-height: 1.3; }
+.step .demo .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.step .demo .chip { padding: 6px 10px; background: var(--bg); border: 1px solid var(--rule); border-radius: 999px; font-size: 11px; font-family: var(--sans); color: var(--ink-soft); }
+.step .demo .chip.on { background: var(--accent-soft); color: var(--accent-deep); border-color: transparent; }
+.step .demo .upload { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+.step .demo .ph { aspect-ratio: 1; border-radius: 6px; filter: sepia(.18) saturate(1.05) contrast(.96) brightness(.96); }
+.step .demo .ph:nth-child(1) { background: url('https://picsum.photos/seed/heartreel-p1/200/200') center/cover no-repeat; }
+.step .demo .ph:nth-child(2) { background: url('https://picsum.photos/seed/heartreel-p2/200/200') center/cover no-repeat; }
+.step .demo .ph:nth-child(3) { background: url('https://picsum.photos/seed/heartreel-p3/200/200') center/cover no-repeat; }
+.step .demo .ph:nth-child(4) { background: url('https://picsum.photos/seed/heartreel-p4/200/200') center/cover no-repeat; }
+.step .demo .ph:nth-child(5) { background: url('https://picsum.photos/seed/heartreel-p5/200/200') center/cover no-repeat; }
+.step .demo .ph:nth-child(6) { background: url('https://picsum.photos/seed/heartreel-p6/200/200') center/cover no-repeat; }
+.step .demo .ph:nth-child(7) { background: url('https://picsum.photos/seed/heartreel-p7/200/200') center/cover no-repeat; }
+.step .demo .ph:nth-child(8) { background: transparent; border: 1px dashed var(--rule); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); font-family: var(--serif); font-style: italic; font-size: 20px; filter: none; }
+
+/* ── DARK RECIPIENT SECTION ────────────────────── */
+.dark-grid { display: grid; grid-template-columns: .9fr 1.1fr; gap: 80px; align-items: center; position: relative; z-index: 1; }
+@media (max-width: 980px) { .dark-grid { grid-template-columns: 1fr; gap: 64px; } }
+.dark-eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: oklch(0.75 0.06 30); font-weight: 500; }
+.dark-section h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(40px, 5vw, 68px); line-height: 1.05; letter-spacing: -.02em; color: var(--night-ink); margin-top: 18px; }
+.dark-section h2 em { font-style: italic; color: oklch(0.78 0.10 30); }
+.dark-section .blurb { margin-top: 24px; color: rgba(245,240,230,.65); font-size: 17px; line-height: 1.55; max-width: 480px; }
+.feat-list { margin-top: 36px; display: flex; flex-direction: column; gap: 18px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 24px; }
+.feat { display: flex; gap: 18px; align-items: flex-start; padding-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.feat:last-child { border-bottom: 0; }
+.feat-num { font-family: var(--mono); font-size: 11px; color: oklch(0.78 0.10 30); letter-spacing: .18em; flex-shrink: 0; padding-top: 3px; }
+.feat-body strong { font-family: var(--serif); font-weight: 400; font-size: 20px; display: block; margin-bottom: 4px; color: var(--night-ink); }
+.feat-body p { color: rgba(245,240,230,.6); font-size: 14.5px; line-height: 1.5; }
+.recip-stage { display: flex; justify-content: center; position: relative; padding: 20px; }
+.recip-stage .url { position: absolute; top: 0; left: 50%; transform: translateX(-50%); font-family: var(--mono); font-size: 12px; color: rgba(255,220,180,.7); background: rgba(255,255,255,.06); padding: 8px 16px; border-radius: 999px; border: 1px solid rgba(255,255,255,.08); white-space: nowrap; }
+.recip-stage .url .accent { color: oklch(0.85 0.10 30); }
+.recip-device { width: 320px; aspect-ratio: 9/19.5; background: #0a0a0c; border-radius: 48px; padding: 8px; box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 60px 120px -30px rgba(0,0,0,.6), 0 80px 200px -40px oklch(0.40 0.12 18 / .35); margin-top: 48px; }
+.recip-screen { width: 100%; height: 100%; border-radius: 42px; overflow: hidden; position: relative; background: #000; }
+.recip-bg { position: absolute; inset: 0; background: linear-gradient(160deg, oklch(0.42 0.13 25 / .75) 0%, oklch(0.20 0.06 280 / .92) 75%), url('https://picsum.photos/seed/heartreel-recipient/700/1200') center/cover no-repeat, oklch(0.18 0.04 280); }
+.recip-content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; padding: 60px 32px 36px; color: #fff; }
+.recip-tagline { font-family: var(--mono); font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: rgba(255,220,200,.75); margin-bottom: 14px; }
+.recip-headline { font-family: var(--serif); font-style: italic; font-size: 44px; line-height: 1.02; color: #fff; }
+.recip-sub { font-family: var(--serif); font-size: 20px; color: rgba(255,255,255,.78); margin-top: 8px; font-style: italic; }
+.recip-controls { margin-top: auto; display: flex; align-items: center; padding: 14px 16px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); backdrop-filter: blur(20px); border-radius: 18px; gap: 12px; }
+.recip-controls .play-btn { width: 36px; height: 36px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.recip-controls .ctrl-meta { flex: 1; min-width: 0; }
+.recip-controls .song-title { font-family: var(--serif); font-size: 14px; color: #fff; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recip-controls .song-meta { font-size: 10px; color: rgba(255,255,255,.65); font-family: var(--mono); margin-top: 2px; }
+.recip-controls .wave-mini { display: flex; align-items: center; gap: 1.5px; height: 14px; }
+.recip-controls .wave-mini span { display: block; width: 1.5px; background: #fff; border-radius: 1px; opacity: .7; }
+.recip-play { position: absolute; left: 50%; top: 46%; transform: translate(-50%,-50%); z-index: 3; width: 78px; height: 78px; border-radius: 50%; background: rgba(255,255,255,.95); display: flex; align-items: center; justify-content: center; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+.recip-play::before { content: ''; position: absolute; inset: -8px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); animation: halo 2.4s ease-out infinite; }
+.recip-play::after { content: ''; position: absolute; inset: -16px; border-radius: 50%; border: 1px solid rgba(255,255,255,.12); animation: halo 2.4s ease-out infinite .8s; }
+@keyframes halo { 0% { transform: scale(.85); opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
+.recip-action { margin-top: 14px; display: flex; gap: 8px; }
+.recip-action .a-btn { flex: 1; padding: 12px; text-align: center; font-size: 12px; font-weight: 500; border-radius: 14px; color: #fff; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.05); }
+.recip-action .a-btn.primary { background: #fff; color: #1a1310; border-color: transparent; font-weight: 600; }
+
+/* ── EXAMPLES ──────────────────────────────────── */
+.examples { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
+@media (max-width: 980px) { .examples { grid-template-columns: 1fr; } }
+.ex { background: var(--paper); border: 1px solid var(--rule-soft); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; }
+.ex-vid { aspect-ratio: 4/5; position: relative; overflow: hidden; filter: sepia(.18) saturate(1.05) contrast(.96) brightness(.96); }
+.ex-1 .ex-vid { background: url('https://picsum.photos/seed/heartreel-ex-mom/600/750') center/cover no-repeat, linear-gradient(135deg, oklch(0.78 0.10 30), oklch(0.50 0.14 25)); }
+.ex-2 .ex-vid { background: url('https://picsum.photos/seed/heartreel-ex-dad60/600/750') center/cover no-repeat, linear-gradient(135deg, oklch(0.62 0.08 240), oklch(0.30 0.06 250)); }
+.ex-3 .ex-vid { background: url('https://picsum.photos/seed/heartreel-ex-anniv/600/750') center/cover no-repeat, linear-gradient(135deg, oklch(0.78 0.08 90), oklch(0.45 0.12 60)); }
+.ex-vid::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(35deg, transparent 0 24px, rgba(255,255,255,.05) 24px 25px), linear-gradient(180deg, transparent 50%, rgba(20,10,5,.55) 100%); }
+.ex-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 54px; height: 54px; border-radius: 50%; background: rgba(255,255,255,.95); display: flex; align-items: center; justify-content: center; z-index: 2; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+.ex-tag { position: absolute; top: 14px; left: 14px; font-family: var(--mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: rgba(255,255,255,.85); z-index: 2; }
+.ex-cap { position: absolute; left: 18px; right: 18px; bottom: 18px; color: #fff; z-index: 2; }
+.ex-cap .for { font-family: var(--mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; opacity: .78; }
+.ex-cap .name { font-family: var(--serif); font-style: italic; font-size: 24px; line-height: 1.1; margin-top: 4px; }
+.ex-body { padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+.ex-quote { font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 1.4; color: var(--ink); }
+.ex-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-faint); font-family: var(--mono); }
+
+/* ── PRICING ───────────────────────────────────── */
+.pricing-grid { display: grid; grid-template-columns: repeat(3,1fr); border: 1px solid var(--rule); border-radius: 20px; overflow: hidden; background: var(--paper); }
+@media (max-width: 880px) { .pricing-grid { grid-template-columns: 1fr; } }
+.tier { padding: 40px 32px; border-right: 1px solid var(--rule-soft); display: flex; flex-direction: column; position: relative; }
+.tier:last-child { border-right: 0; }
+@media (max-width: 880px) { .tier { border-right: 0; border-bottom: 1px solid var(--rule-soft); } .tier:last-child { border-bottom: 0; } }
+.tier.featured { background: var(--accent-soft); }
+.tier .badge { position: absolute; top: 16px; right: 16px; font-family: var(--mono); font-size: 10px; color: var(--accent-deep); letter-spacing: .14em; text-transform: uppercase; background: rgba(255,255,255,.7); padding: 5px 10px; border-radius: 999px; }
+.tier-name { font-family: var(--mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-soft); }
+.tier-price { margin-top: 14px; font-family: var(--serif); font-size: 54px; line-height: 1; color: var(--ink); display: flex; align-items: baseline; gap: 6px; }
+.tier-price .unit { font-size: 16px; color: var(--ink-soft); font-family: var(--sans); }
+.tier-tag { margin-top: 10px; font-size: 14px; color: var(--ink-soft); font-style: italic; font-family: var(--serif); }
+.tier ul { list-style: none; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--rule-soft); display: flex; flex-direction: column; gap: 11px; font-size: 14.5px; flex: 1; }
+.tier ul li { display: flex; gap: 10px; line-height: 1.4; }
+.tier ul li::before { content: ''; width: 14px; height: 14px; border-radius: 50%; background: var(--bg-2); border: 1px solid var(--rule); flex-shrink: 0; margin-top: 3px; background-image: radial-gradient(circle at center, var(--accent) 0 3px, transparent 4px); }
+.tier .btn { margin-top: 28px; justify-content: center; width: 100%; }
+.tier.featured .btn-primary { background: var(--accent-deep); }
+
+/* ── FAQ ───────────────────────────────────────── */
+.faq { display: grid; grid-template-columns: repeat(2,1fr); gap: 0 64px; border-top: 1px solid var(--rule-soft); }
+@media (max-width: 880px) { .faq { grid-template-columns: 1fr; } }
+.faq details { padding: 24px 0; border-bottom: 1px solid var(--rule-soft); }
+.faq summary { font-family: var(--serif); font-size: 22px; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: '+'; font-family: var(--serif); font-size: 28px; color: var(--accent); }
+.faq details[open] summary::after { content: '−'; }
+.faq p { margin-top: 14px; color: var(--ink-soft); font-size: 15px; line-height: 1.6; max-width: 520px; }
+
+/* ── FINAL CTA ─────────────────────────────────── */
+.final-bg { background: var(--bg-2); padding: 140px 0 120px; text-align: center; position: relative; overflow: hidden; }
+.final-bg::before { content: ''; position: absolute; width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(circle, var(--accent-soft) 0%, transparent 60%); left: 50%; top: 50%; transform: translate(-50%,-50%); opacity: .6; pointer-events: none; }
+.final-bg h2 { position: relative; font-family: var(--serif); font-size: clamp(48px, 7vw, 96px); line-height: 1.02; letter-spacing: -.022em; font-weight: 400; max-width: 900px; margin: 0 auto; }
+.final-bg h2 em { font-style: italic; color: var(--accent-deep); }
+.final-bg p { position: relative; margin: 24px auto 0; color: var(--ink-soft); font-size: 18px; max-width: 560px; line-height: 1.5; }
+.final-cta-row { position: relative; margin-top: 40px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+/* ── FOOTER ────────────────────────────────────── */
+.footer-bg { background: var(--bg); border-top: 1px solid var(--rule-soft); padding: 48px 0 32px; }
+.foot { display: flex; justify-content: space-between; align-items: flex-start; gap: 32px; flex-wrap: wrap; }
+.foot-brand { font-family: var(--serif); font-size: 24px; display: flex; align-items: baseline; gap: 8px; }
+.foot-brand .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); transform: translateY(-3px); }
+.foot-mini { margin-top: 8px; font-size: 13px; color: var(--ink-faint); max-width: 300px; }
+.foot-cols { display: flex; gap: 48px; font-size: 13px; color: var(--ink-soft); }
+.foot-col h4 { font-family: var(--mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 12px; font-weight: 500; }
+.foot-col a { display: block; margin-bottom: 8px; }
+.foot-col a:hover { color: var(--ink); }
+.foot-bottom { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--rule-soft); display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-faint); font-family: var(--mono); flex-wrap: wrap; gap: 16px; }
+.foot-legal { display: flex; gap: 20px; }
+.foot-legal a:hover { color: var(--ink); }
+
+@media (max-width: 640px) {
+  :root { --pad: 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- BETA BANNER -->
+<div class="beta-banner">
+  <strong>Private Beta</strong> · SongReels is invite-only right now. <a href="/app">Have a code?</a>
+</div>
+
+<!-- NAV -->
+<header class="nav bleed" id="nav">
+  <div class="inner nav-row">
+    <div class="brand">SongReels<span class="dot"></span></div>
+    <nav class="nav-links">
+      <a href="#occasions">Occasions</a>
+      <a href="#how">How it works</a>
+      <a href="#examples">Examples</a>
+      <a href="#pricing">Pricing</a>
+    </nav>
+    <div>
+      <a class="btn btn-primary" href="/app">Make one <span class="arr">→</span></a>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero bleed">
+  <div class="inner hero-grid">
+    <div class="hero-copy">
+      <span class="eyebrow">Personalized video &amp; song · made by AI · in 10 minutes</span>
+      <h1>The gift that <em>made</em><br>
+        <span class="cycler" id="cycler">mom</span> cry —<br>
+        in a good way.</h1>
+      <p class="lede">SongReels turns your photos and memories into a cinematic personalized video with a custom AI-composed song. Upload your photos, answer a few questions, and we'll generate a heartfelt gift you can send by link. The most meaningful gift you'll give all year — and you didn't have to spend four hours in iMovie.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="/app">Start a gift <span class="arr">→</span></a>
+        <a class="btn btn-ghost" href="#examples">Watch a sample</a>
+      </div>
+      <div class="meta-row">
+        <span>Free to start</span><span class="dot"></span>
+        <span>No app to install</span><span class="dot"></span>
+        <span>Send by text, email, anywhere</span>
+      </div>
+    </div>
+    <div class="device-stage">
+      <div class="float-tag tag-1"><span class="pulse"></span><span>Generated <span class="em">in 8 minutes</span></span></div>
+      <div class="float-tag tag-2"><span class="em">4 song styles</span> · pick your favorite</div>
+      <div class="float-tag tag-3"><span class="em">1.2M views</span> · shared 84,000×</div>
+      <div class="device">
+        <div class="device-screen">
+          <div class="device-pill"></div>
+          <div class="device-status"><span>9:41</span><span>●●●● 5G ▮▮▮</span></div>
+          <div class="dev-content">
+            <div class="dev-eyebrow">For you, Sarah</div>
+            <div class="dev-name">A love letter,</div>
+            <div class="dev-title">from Marcus &amp; the kids</div>
+            <div class="dev-vid">
+              <div class="dev-play"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M0 0v20l18-10z" fill="#1a1310"/></svg></div>
+              <span class="dev-cap">[ video · 1:34 ]</span>
+              <span class="dev-time">0:12 / 1:34</span>
+            </div>
+            <div class="dev-wave">
+              <div class="play-sm"><svg width="8" height="10" viewBox="0 0 8 10" fill="none"><path d="M0 0v10l8-5z" fill="#fff"/></svg></div>
+              <div class="wave" id="wave"></div>
+              <div class="dev-song">2:18</div>
+            </div>
+            <div class="dev-foot">"Mom — for everything you've done<br>and everything you are."</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STRIP -->
+<section class="strip bleed">
+  <div class="inner strip-row">
+    <div class="strip-q">She watched it three times in a row before she could speak. I haven't seen my mom cry like that since my wedding day.</div>
+    <div style="font-size:12px;color:var(--ink-faint);font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;">Beta tester · Mother's Day '26</div>
+  </div>
+</section>
+
+<!-- OCCASIONS -->
+<section class="section-light bleed" id="occasions">
+  <div class="inner">
+    <div class="section-head">
+      <h2>Built for the moments<br>that <em>actually matter.</em></h2>
+      <p class="blurb">Every occasion gets its own template, tone, and song style — so a Mother's Day gift doesn't sound like a corporate retirement video.</p>
+    </div>
+    <div class="occasions">
+      <a class="occ occ-1" href="/app"><div class="occ-bg"></div><div class="occ-meta">May 10</div><div class="occ-name">Mother's Day<em>For the woman who saved you a thousand times.</em></div></a>
+      <a class="occ occ-2" href="/app"><div class="occ-bg"></div><div class="occ-meta">June 21</div><div class="occ-name">Father's Day<em>The hugs he never knew how to ask for.</em></div></a>
+      <a class="occ occ-3" href="/app"><div class="occ-bg"></div><div class="occ-meta">Any date</div><div class="occ-name">Birthday<em>Make their year, not just their day.</em></div></a>
+      <a class="occ occ-4" href="/app"><div class="occ-bg"></div><div class="occ-meta">Any date</div><div class="occ-name">Anniversary<em>The story of how you two happened.</em></div></a>
+      <a class="occ occ-5" href="/app"><div class="occ-bg"></div><div class="occ-meta">May / June</div><div class="occ-name">Graduation<em>Twelve years of effort, in 90 seconds.</em></div></a>
+      <a class="occ occ-6" href="/app"><div class="occ-bg"></div><div class="occ-meta">Holiday</div><div class="occ-name">Christmas<em>The card no one's throwing away.</em></div></a>
+      <a class="occ occ-7" href="/app"><div class="occ-bg"></div><div class="occ-meta">In memory</div><div class="occ-name">Memorial<em>The eulogy that played at the service.</em></div></a>
+      <a class="occ occ-8 occ-more" href="/app"><div class="occ-bg"></div><span>+ weddings, retirements,<br>new babies, friendship…</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section-muted bleed" id="how">
+  <div class="inner">
+    <div class="section-head">
+      <h2>From <em>"I should do something nice"</em><br>to sent — in ten minutes.</h2>
+      <p class="blurb">Three steps. No editing skills, no app to install, no awkward phone calls to relatives for old photos.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">i.</div>
+        <h3>Pick the occasion.</h3>
+        <p>Mother's Day, a 60th birthday, a graduation. We'll set the tone, pacing, and song style to match.</p>
+        <div class="demo"><div class="chips"><span class="chip on">Mother's Day</span><span class="chip">Father's Day</span><span class="chip">Birthday</span><span class="chip">Anniversary</span><span class="chip">Graduation</span></div></div>
+      </div>
+      <div class="step">
+        <div class="step-num">ii.</div>
+        <h3>Tell us about them.</h3>
+        <p>Five short questions, conversational — like texting a friend. Their name, a memory, an inside joke.</p>
+        <div class="demo"><span class="q">What's a memory you share with her?</span><span class="a">"The summer she taught me to drive in the church parking lot."</span></div>
+      </div>
+      <div class="step">
+        <div class="step-num">iii.</div>
+        <h3>Upload your photos.</h3>
+        <p>5 to 20 pictures or short clips. We handle pacing, color, transitions, and four custom song options.</p>
+        <div class="demo"><div class="upload"><div class="ph"></div><div class="ph"></div><div class="ph"></div><div class="ph"></div><div class="ph"></div><div class="ph"></div><div class="ph"></div><div class="ph">+</div></div></div>
+      </div>
+    </div>
+    <div style="margin-top:48px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:24px;padding-top:32px;border-top:1px solid var(--rule-soft)">
+      <div style="font-family:var(--serif);font-size:24px;font-style:italic;color:var(--ink);display:flex;align-items:baseline;gap:14px"><span style="font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);font-style:normal">Then</span>We build it, generate four songs, and email you when it's ready — usually inside 10 minutes.</div>
+      <a class="btn btn-primary" href="/app">Start one now <span class="arr">→</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- RECIPIENT DARK -->
+<section class="section-dark bleed dark-section" id="recipient">
+  <div class="inner">
+    <div class="dark-grid">
+      <div>
+        <span class="dark-eyebrow">The recipient page</span>
+        <h2>The link they tap<br>is the <em>whole gift.</em></h2>
+        <p class="blurb">No login, no app, no clutter. Just a beautiful full-screen page with their name, their video, their song.</p>
+        <div class="feat-list">
+          <div class="feat"><div class="feat-num">01</div><div class="feat-body"><strong>Their name, fading in first.</strong><p>Before anything else, "This was made for you, Mom." The page knows who they are.</p></div></div>
+          <div class="feat"><div class="feat-num">02</div><div class="feat-body"><strong>Plays itself.</strong><p>Video and song roll automatically — no tapping, no fumbling. They sit and watch.</p></div></div>
+          <div class="feat"><div class="feat-num">03</div><div class="feat-body"><strong>Lives forever at one URL.</strong><p>They can save it, share it, and revisit it on the anniversary every year.</p></div></div>
+        </div>
+      </div>
+      <div class="recip-stage">
+        <div class="url">songreels.ai/for/<span class="accent">sarah-mothersday</span></div>
+        <div class="recip-device">
+          <div class="recip-screen">
+            <div class="recip-bg"></div>
+            <div class="recip-play"><svg width="22" height="26" viewBox="0 0 22 26" fill="none"><path d="M0 0v26l22-13z" fill="#1a1310"/></svg></div>
+            <div class="recip-content">
+              <div class="recip-tagline">Made just for you</div>
+              <div class="recip-headline">Sarah,</div>
+              <div class="recip-sub">your kids made<br>you something.</div>
+              <div style="flex:1"></div>
+              <div class="recip-controls">
+                <div class="play-btn"><svg width="10" height="12" viewBox="0 0 10 12" fill="none"><path d="M0 0v12l10-6z" fill="#1a1310"/></svg></div>
+                <div class="ctrl-meta"><div class="song-title">"All the years you held us"</div><div class="song-meta">CUSTOM · 0:34 / 2:18</div></div>
+                <div class="wave-mini" id="wave-mini"></div>
+              </div>
+              <div class="recip-action">
+                <button class="a-btn">Save forever</button>
+                <button class="a-btn primary">Make one ↗</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EXAMPLES -->
+<section class="section-light bleed" id="examples">
+  <div class="inner">
+    <div class="section-head">
+      <h2>What people made <em>last week.</em></h2>
+      <p class="blurb">Real videos from real beta users (with permission). Each generated in under fifteen minutes.</p>
+    </div>
+    <div class="examples">
+      <article class="ex ex-1"><div class="ex-vid"><div class="ex-tag">Mother's Day</div><div class="ex-play"><svg width="14" height="16" viewBox="0 0 14 16" fill="none"><path d="M0 0v16l14-8z" fill="#1a1310"/></svg></div><div class="ex-cap"><div class="for">For Cynthia · from Marcus</div><div class="name">"All the years<br>you held us"</div></div></div><div class="ex-body"><p class="ex-quote">"My mom called me crying within thirty seconds of opening it. She made my dad watch it twice."</p><div class="ex-meta"><span>16 PHOTOS · 1:34</span><span>SOFT FOLK</span></div></div></article>
+      <article class="ex ex-2"><div class="ex-vid"><div class="ex-tag">60th Birthday</div><div class="ex-play"><svg width="14" height="16" viewBox="0 0 14 16" fill="none"><path d="M0 0v16l14-8z" fill="#1a1310"/></svg></div><div class="ex-cap"><div class="for">For Robert · from his three kids</div><div class="name">"Six decades,<br>still our hero."</div></div></div><div class="ex-body"><p class="ex-quote">"We played it at his surprise party on the projector. Whole room was a wreck. Best decision we made."</p><div class="ex-meta"><span>22 PHOTOS · 2:08</span><span>UPBEAT GOSPEL</span></div></div></article>
+      <article class="ex ex-3"><div class="ex-vid"><div class="ex-tag">25th Anniversary</div><div class="ex-play"><svg width="14" height="16" viewBox="0 0 14 16" fill="none"><path d="M0 0v16l14-8z" fill="#1a1310"/></svg></div><div class="ex-cap"><div class="for">For Eleanor &amp; James · from their kids</div><div class="name">"How you<br>two happened."</div></div></div><div class="ex-body"><p class="ex-quote">"They've been married 25 years and acted like teenagers watching it. My dad still won't admit he cried."</p><div class="ex-meta"><span>18 PHOTOS · 1:52</span><span>WARM ACOUSTIC</span></div></div></article>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="section-light bleed" id="pricing" style="padding-top:0">
+  <div class="inner">
+    <div class="section-head">
+      <h2>Cheaper than flowers.<br>Lasts <em>longer than they will.</em></h2>
+      <p class="blurb">Simple pricing. Try it free — if you don't love what we generate, pay nothing.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="tier"><div class="tier-name">Free</div><div class="tier-price">$0</div><div class="tier-tag">try it before you commit</div><ul><li>One video, watermarked</li><li>2 song options</li><li>Standard resolution</li><li>Shareable link</li></ul><a class="btn btn-ghost" href="/app">Start free</a></div>
+      <div class="tier featured"><div class="badge">Most popular</div><div class="tier-name">Single gift</div><div class="tier-price">$12<span style="font-size:32px">.99</span><span class="unit">one-time</span></div><div class="tier-tag">cheaper than a card &amp; flowers</div><ul><li>One full HD video, no watermark</li><li><strong>4 custom song options</strong></li><li>Permanent, beautiful link</li><li>Download for keepsake</li><li>Optional printed QR card +$5</li></ul><a class="btn btn-primary" href="/app">Make one <span class="arr">→</span></a></div>
+      <div class="tier"><div class="tier-name">Unlimited</div><div class="tier-price">$29<span style="font-size:32px">.99</span><span class="unit">/year</span></div><div class="tier-tag">for the gifter in the family</div><ul><li>Unlimited videos &amp; songs</li><li>Priority generation queue</li><li>Early access to new occasions</li><li>Genre packs (gospel, R&amp;B, country)</li><li>Save &amp; reuse subjects</li></ul><a class="btn btn-ghost" href="/app">Go unlimited</a></div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section-light bleed" id="faq" style="padding-top:0">
+  <div class="inner">
+    <div class="section-head">
+      <h2>The <em>questions</em><br>everyone asks first.</h2>
+      <p class="blurb">Yes, you can edit it. Yes, your photos are private. Yes, the song is actually custom.</p>
+    </div>
+    <div class="faq">
+      <details open><summary>How long does it actually take?</summary><p>Most gifts are ready in 8–12 minutes. We email you the moment yours is finished, and the link works forever — so you can review it before sending, no rush.</p></details>
+      <details><summary>Are the songs really custom?</summary><p>Yes. We generate four original songs per gift, with lyrics written from your answers — their name, your memory, your inside jokes. No stock library, no templates.</p></details>
+      <details><summary>What about my photos? Are they private?</summary><p>Your uploads are encrypted, never used to train anything, and you can delete them at any time. Recipient pages are unlisted by default — only people with the exact link can view. See our <a href="/privacy" style="color:var(--accent-deep);text-decoration:underline">Privacy Policy</a> for details.</p></details>
+      <details><summary>Can I edit it after it's made?</summary><p>Yes. Reorder photos, swap clips, regenerate the song, or change the title — all from your dashboard. Premium plans get unlimited regenerations.</p></details>
+      <details><summary>What if I don't love what you make?</summary><p>You see everything before you pay. The free tier lets you generate a watermarked preview — only upgrade if it's a "yes."</p></details>
+      <details><summary>Does the recipient need an account?</summary><p>No. They tap the link and the gift plays. That's it. No signup, no app, no friction.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final-bg bleed" id="start">
+  <div class="inner">
+    <h2>The gift you'll be remembered<br>for, <em>not the one they'll re-gift.</em></h2>
+    <p>It takes ten minutes to start. Mother's Day is May 10 — don't be the kid who forgets again.</p>
+    <div class="final-cta-row">
+      <a class="btn btn-primary" href="/app">Start a gift <span class="arr">→</span></a>
+      <a class="btn btn-ghost" href="#examples">See more examples</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer-bg bleed">
+  <div class="inner">
+    <div class="foot">
+      <div>
+        <div class="foot-brand">SongReels<span class="dot"></span></div>
+        <p class="foot-mini">Personalized AI video and music for the moments worth remembering.</p>
+      </div>
+      <div class="foot-cols">
+        <div class="foot-col">
+          <h4>Product</h4>
+          <a href="#occasions">Occasions</a>
+          <a href="#how">How it works</a>
+          <a href="#examples">Examples</a>
+          <a href="#pricing">Pricing</a>
+        </div>
+        <div class="foot-col">
+          <h4>Company</h4>
+          <a href="#">About</a>
+          <a href="mailto:testing@creativeadbundance.com">Contact</a>
+          <a href="#faq">FAQ</a>
+        </div>
+        <div class="foot-col">
+          <h4>Legal</h4>
+          <a href="/privacy">Privacy Policy</a>
+          <a href="/terms">Terms of Service</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 SongReels — Made with care.</span>
+      <div class="foot-legal">
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   PAGE SCRIPTS
+   ═══════════════════════════════════════════════════════════════════════ */
+(function(){
+  const nav = document.getElementById('nav');
+  if (!nav) return;
+  document.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 8), {passive:true});
+})();
+
+(function(){
+  function buildWave(el, count, min, max){
+    if(!el) return;
+    let html = '';
+    for(let i=0;i<count;i++){
+      const h = min + Math.abs(Math.sin(i*0.85)+Math.cos(i*0.31))*((max-min)/2.4)+Math.random()*((max-min)/3);
+      const v = Math.min(max,Math.max(min,h));
+      const op = 0.45+(i<count*0.35?0.45:0.1);
+      html+=`<span style="height:${v.toFixed(1)}px;opacity:${op}"></span>`;
+    }
+    el.innerHTML=html;
+  }
+  buildWave(document.getElementById('wave'),38,4,22);
+  buildWave(document.getElementById('wave-mini'),28,2,14);
+})();
+
+(function(){
+  const words=['mom','dad','Sarah','grandma','her','him'];
+  const el=document.getElementById('cycler');
+  if(!el) return;
+  let i=0;
+  setInterval(()=>{
+    i=(i+1)%words.length;
+    el.style.opacity='0';el.style.transform='translateY(6px)';el.style.transition='opacity .25s,transform .25s';
+    setTimeout(()=>{el.textContent=words[i];el.style.opacity='1';el.style.transform='translateY(0)';},250);
+  },2400);
+})();
+</script>
+</body>
+</html>

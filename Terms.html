@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terms and Conditions — SongReels</title>
+<meta name="description" content="The terms governing your use of SongReels.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FAF6F0;--bg-2:#F4EFE6;--paper:#FFFCF6;
+  --ink:#2A1F18;--ink-soft:#6F5E50;--ink-faint:#9B8C7E;
+  --rule:#E5DDD0;--rule-soft:#EFE8DC;
+  --accent:#B85844;--accent-deep:#9A4434;--accent-soft:#F2D9D0;
+  --serif:'Instrument Serif','Times New Roman',serif;
+  --sans:'DM Sans',ui-sans-serif,system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
+body{font-size:16px;line-height:1.65}
+a{color:var(--accent-deep);text-decoration:underline;text-underline-offset:2px;text-decoration-thickness:1px}
+a:hover{color:var(--ink)}
+/* NAV */
+.nav{position:sticky;top:0;z-index:30;background:color-mix(in oklab,var(--bg) 90%,transparent);backdrop-filter:saturate(150%) blur(10px);border-bottom:1px solid var(--rule-soft)}
+.nav-row{max-width:900px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
+.brand{font-family:var(--serif);font-size:22px;letter-spacing:-.01em;display:flex;align-items:baseline;gap:8px}
+.brand .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);transform:translateY(-3px)}
+.nav-links{display:flex;gap:24px;align-items:center;font-size:14px}
+.nav-links a{color:var(--ink-soft);text-decoration:none}
+.nav-links a:hover{color:var(--ink)}
+/* CONTENT */
+main{max-width:780px;margin:0 auto;padding:64px 32px 96px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft);display:block;margin-bottom:18px}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(40px,5.5vw,62px);line-height:1.02;letter-spacing:-.02em;margin-bottom:18px}
+h1 em{font-style:italic;color:var(--accent-deep)}
+.lede{font-size:18px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;max-width:620px}
+.updated{font-family:var(--mono);font-size:12px;color:var(--ink-faint);letter-spacing:.06em;margin-bottom:48px}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(26px,3vw,34px);line-height:1.15;letter-spacing:-.015em;margin-top:56px;margin-bottom:18px}
+h2 em{font-style:italic;color:var(--accent-deep)}
+h2:first-of-type{margin-top:0}
+h3{font-family:var(--sans);font-weight:600;font-size:16px;letter-spacing:.01em;margin-top:28px;margin-bottom:10px;color:var(--ink)}
+p{margin-bottom:14px;color:var(--ink);line-height:1.7}
+p.soft{color:var(--ink-soft)}
+ul,ol{margin:14px 0 14px 24px;color:var(--ink);line-height:1.7}
+li{margin-bottom:8px}
+strong{font-weight:600;color:var(--ink)}
+.callout{background:var(--paper);border:1px solid var(--rule-soft);border-radius:14px;padding:20px 24px;margin:24px 0;display:flex;gap:14px;align-items:flex-start}
+.callout svg{flex-shrink:0;color:var(--accent-deep);margin-top:3px}
+.callout p{margin-bottom:0;font-size:15px;line-height:1.6}
+.callout.warning{background:rgba(184,88,68,.06);border-color:rgba(184,88,68,.2)}
+.callout.warning p{color:var(--ink)}
+.contact-card{background:var(--paper);border:1px solid var(--rule);border-radius:14px;padding:24px 28px;margin-top:40px}
+.contact-card h3{font-family:var(--serif);font-size:22px;font-weight:400;margin-top:0;margin-bottom:6px;color:var(--ink)}
+.contact-card p{margin-bottom:6px;font-size:15px}
+.contact-card a{font-family:var(--mono);font-size:14px}
+.toc{background:var(--paper);border:1px solid var(--rule-soft);border-radius:14px;padding:20px 24px;margin-bottom:48px}
+.toc-title{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:12px}
+.toc ol{margin:0 0 0 24px;padding:0}
+.toc li{margin-bottom:6px;font-size:14px}
+.toc a{color:var(--ink);text-decoration:none}
+.toc a:hover{color:var(--accent-deep);text-decoration:underline}
+.caps-clause{background:var(--bg-2);border-left:3px solid var(--accent);padding:16px 20px;margin:18px 0;font-size:14px;line-height:1.6;border-radius:0 8px 8px 0}
+.caps-clause p{margin-bottom:0;text-transform:uppercase;letter-spacing:.02em;color:var(--ink-soft);font-weight:500}
+footer{border-top:1px solid var(--rule-soft);background:var(--paper);padding:36px 0;margin-top:64px}
+.footer-row{max-width:900px;margin:0 auto;padding:0 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+.footer-brand{font-family:var(--serif);font-size:16px;color:var(--ink-soft)}
+.footer-links{display:flex;gap:24px;font-size:13px}
+.footer-links a{color:var(--ink-soft);text-decoration:none;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;font-size:11px}
+.footer-links a:hover{color:var(--ink)}
+@media(max-width:640px){
+  main{padding:40px 24px 72px}
+  h1{font-size:36px}
+  h2{font-size:24px}
+}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-row">
+    <a href="/" style="text-decoration:none;color:inherit"><div class="brand">SongReels<span class="dot"></span></div></a>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms" style="color:var(--ink)">Terms</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <span class="eyebrow">Legal</span>
+  <h1>Terms and <em>Conditions</em></h1>
+  <p class="lede">The rules and agreements that govern your use of SongReels. Please read carefully — by using the service, you agree to these terms.</p>
+  <p class="updated">Last updated: May 28, 2026</p>
+
+  <div class="toc">
+    <div class="toc-title">On this page</div>
+    <ol>
+      <li><a href="#acceptance">Acceptance of these terms</a></li>
+      <li><a href="#service">What SongReels does</a></li>
+      <li><a href="#account">Your account</a></li>
+      <li><a href="#content">Your content and our rights</a></li>
+      <li><a href="#prohibited">What you can't upload or do</a></li>
+      <li><a href="#ai">AI-generated content</a></li>
+      <li><a href="#payment">Pricing and payment</a></li>
+      <li><a href="#refunds">Refunds</a></li>
+      <li><a href="#sharing">Sharing and shareable links</a></li>
+      <li><a href="#ip">Our intellectual property</a></li>
+      <li><a href="#third-party">Third-party services</a></li>
+      <li><a href="#termination">Suspending or terminating accounts</a></li>
+      <li><a href="#disclaimers">Disclaimers</a></li>
+      <li><a href="#liability">Limitation of liability</a></li>
+      <li><a href="#indemnity">Indemnification</a></li>
+      <li><a href="#disputes">Disputes and governing law</a></li>
+      <li><a href="#changes">Changes to these terms</a></li>
+      <li><a href="#contact">Contact us</a></li>
+    </ol>
+  </div>
+
+  <h2 id="acceptance">Acceptance of <em>these terms</em></h2>
+  <p>By creating an account, signing in, or using SongReels in any way, you agree to be bound by these Terms and Conditions ("Terms") and our <a href="/privacy">Privacy Policy</a>. If you don't agree, don't use the service.</p>
+  <p>You must be at least 13 years old to use SongReels. If you're between 13 and 18 (or the age of legal majority in your jurisdiction), you must have a parent or guardian's permission and they must agree to these Terms on your behalf.</p>
+  <p>If you're using SongReels on behalf of a company or other organization, you confirm you have authority to bind that organization to these Terms.</p>
+
+  <h2 id="service">What SongReels <em>does</em></h2>
+  <p>SongReels is an AI-powered service that takes photos, video clips, and details you provide, and produces a custom music video as a gift. The service uses third-party AI systems for:</p>
+  <ul>
+    <li>Analyzing your uploaded visual content</li>
+    <li>Writing a custom script and song lyrics</li>
+    <li>Composing original music</li>
+    <li>Rendering the final video</li>
+  </ul>
+  <p>The output is a personalized, AI-generated music video delivered as a shareable link, typically in 9:16 vertical format suitable for social sharing or messaging apps.</p>
+
+  <h2 id="account">Your <em>account</em></h2>
+  <p>You sign in using Google. By doing so, you authorize us to receive your email, name, and profile picture from Google. You're responsible for:</p>
+  <ul>
+    <li>Maintaining the confidentiality of the Google account linked to your SongReels account</li>
+    <li>All activity that occurs under your account</li>
+    <li>Notifying us immediately if you suspect unauthorized access</li>
+  </ul>
+  <p>We may suspend or terminate accounts at our discretion if we believe they're being used in violation of these Terms (see <a href="#termination">Termination</a>).</p>
+
+  <h2 id="content">Your content and <em>our rights</em></h2>
+  
+  <h3>You own your content</h3>
+  <p>The photos, videos, descriptions, theme text, and any other material you upload or provide to SongReels (your "Content") remains yours. We don't claim ownership of it.</p>
+
+  <h3>License you grant us</h3>
+  <p>By submitting Content to SongReels, you grant us a worldwide, non-exclusive, royalty-free license to:</p>
+  <ul>
+    <li>Store and host your Content on our servers and those of our subprocessors</li>
+    <li>Process your Content through AI systems to generate your gift</li>
+    <li>Display your Content back to you in the app</li>
+    <li>Render your Content into the final music video</li>
+    <li>Distribute the final video via the shareable link you create</li>
+  </ul>
+  <p>This license exists only to deliver the service you've requested. It does not grant us the right to publicly publish, advertise with, or otherwise commercially exploit your Content outside of generating your SongReel.</p>
+
+  <h3>Your representations about Content</h3>
+  <p>You represent and warrant that:</p>
+  <ul>
+    <li>You either own all rights to the Content you upload, or have explicit permission from all rights holders</li>
+    <li>You have the consent of every identifiable person shown in your photos or videos (or their parent/guardian if a minor) to use their likeness for this purpose</li>
+    <li>Your Content doesn't infringe any copyright, trademark, publicity right, or other right</li>
+    <li>Your Content doesn't violate any law</li>
+  </ul>
+
+  <h2 id="prohibited">What you <em>can't</em> upload or do</h2>
+  <p>You agree NOT to upload, generate, or use SongReels to create content that:</p>
+  <ul>
+    <li>Depicts sexual content involving minors, or any content that sexualizes minors</li>
+    <li>Depicts any person without their consent in a way they would find harmful, defamatory, or harassing</li>
+    <li>Includes intimate, sexual, or nude imagery of real people (even with consent — SongReels is not designed for this)</li>
+    <li>Promotes violence, hate, terrorism, self-harm, or illegal activity</li>
+    <li>Harasses, threatens, or impersonates anyone</li>
+    <li>Infringes copyright (e.g. using copyrighted music as background, including copyrighted artwork)</li>
+    <li>Contains scams, phishing attempts, malicious links, or fraud</li>
+    <li>Violates any applicable law in your jurisdiction or ours</li>
+  </ul>
+
+  <p>You also agree NOT to:</p>
+  <ul>
+    <li>Reverse-engineer, decompile, or attempt to extract source code from the service</li>
+    <li>Use automated tools (bots, scrapers, crawlers) to access the service except those we explicitly permit</li>
+    <li>Resell, sublicense, or commercially redistribute SongReel outputs without our permission</li>
+    <li>Attempt to defeat security measures, rate limits, or access controls</li>
+    <li>Use the service to train competing AI models</li>
+    <li>Impersonate another user or create accounts under false identities</li>
+  </ul>
+
+  <div class="callout warning">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 1l8 16H2L10 1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><line x1="10" y1="7" x2="10" y2="11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="10" cy="13" r="0.6" fill="currentColor"/></svg>
+    <p><strong>Violation consequences:</strong> If you violate any of the above, we may immediately suspend or delete your account, remove your Content, and report you to law enforcement if applicable. We're not obligated to give a refund in these cases.</p>
+  </div>
+
+  <h2 id="ai">AI-generated <em>content</em></h2>
+  <p>SongReels generates content using AI systems. You should understand:</p>
+  <ul>
+    <li><strong>Output is AI-generated.</strong> The lyrics, script, song, and video are produced by AI based on your inputs. Output quality varies.</li>
+    <li><strong>Output may contain errors.</strong> AI can produce inaccurate, awkward, or unexpected results. The review step before song generation exists so you can edit before committing.</li>
+    <li><strong>Output is not unique.</strong> Different users with similar inputs could receive similar outputs. We don't guarantee uniqueness.</li>
+    <li><strong>You are responsible for what you publish.</strong> If you share your SongReel, you accept responsibility for the content as a whole, even though AI helped generate parts of it.</li>
+  </ul>
+  <p>Ownership of AI-generated content is a legally evolving area. As between you and us, you are entitled to use the final video you've created for personal, non-commercial purposes. Commercial use of AI-generated outputs may have additional restrictions depending on the jurisdiction; consult a lawyer if you intend commercial use.</p>
+
+  <h2 id="payment">Pricing and <em>payment</em></h2>
+  <p>SongReels offers tiered pricing based on the song length you choose:</p>
+  <ul>
+    <li><strong>Chorus</strong> (~1 minute): $5</li>
+    <li><strong>Full Song</strong> (~3 minutes): $15</li>
+    <li><strong>Epic</strong> (~6 minutes): $30</li>
+  </ul>
+  <p>Prices are in US dollars and exclude any applicable taxes. You authorize us to charge your selected payment method for the full amount when you place an order. Payment is processed by our payment processor, not by us directly; their terms also apply.</p>
+  <p>We may change pricing at any time. Changes won't affect orders already placed.</p>
+
+  <h2 id="refunds">Refunds</h2>
+  <p>Because each SongReel is custom-made using significant compute resources, refunds are limited. We offer refunds in the following cases:</p>
+  <ul>
+    <li><strong>Service failure:</strong> If your SongReel fails to generate due to a technical issue on our side and we can't deliver within 48 hours, we'll fully refund you</li>
+    <li><strong>Quality issues:</strong> If the final video has significant defects (corrupted file, missing audio, blank visuals) that aren't due to your Content, contact us within 7 days for a regeneration or refund</li>
+  </ul>
+  <p>We do NOT offer refunds for:</p>
+  <ul>
+    <li>Personal taste — "I don't like the lyrics" after you approved them at the review step</li>
+    <li>Changes of mind after the song has been composed</li>
+    <li>Issues caused by uploads that violate our content guidelines</li>
+    <li>Suno's AI making a song longer or shorter than the tier average (we cap and trim, but exact duration isn't guaranteed)</li>
+  </ul>
+  <p>Refund requests: email <a href="mailto:hello@songreels.ai">hello@songreels.ai</a> within 14 days of purchase. We respond within 5 business days.</p>
+
+  <h2 id="sharing">Sharing and <em>shareable links</em></h2>
+  <p>When your SongReel is complete, you receive a shareable link. By sharing this link, you're publishing the video to whoever you send it to. We don't control or moderate what happens once you share it.</p>
+  <p>Shareable links are publicly accessible to anyone who has the URL. We don't add password protection by default. If you want a private link, contact us and we may be able to disable a specific URL.</p>
+  <p>You can request a link be disabled at any time by emailing us.</p>
+
+  <h2 id="ip">Our <em>intellectual property</em></h2>
+  <p>Excluding your Content and the SongReel videos you create:</p>
+  <ul>
+    <li>The SongReels brand, name, logo, and visual identity are owned by us</li>
+    <li>The software, code, and infrastructure powering the service are owned by us or licensed to us</li>
+    <li>The website design, layout, and copy are owned by us</li>
+  </ul>
+  <p>You may not copy, modify, distribute, or create derivative works of any of the above without our written permission.</p>
+
+  <h2 id="third-party">Third-party <em>services</em></h2>
+  <p>SongReels relies on third-party services including Google (sign-in, Gemini AI), Anthropic (Claude AI), Suno (music generation), Creatomate (video rendering), Supabase (database and storage), Backblaze (file storage), and others. Each has its own terms of service that may also apply to your use.</p>
+  <p>We're not responsible for outages, errors, or policy changes by these third parties. If a third-party service goes down or changes in a way that prevents us from delivering your SongReel, see <a href="#refunds">Refunds</a>.</p>
+
+  <h2 id="termination">Suspending or <em>terminating accounts</em></h2>
+  <p>You can delete your account at any time by emailing us. We'll process deletion within 30 days.</p>
+  <p>We may suspend or terminate your account immediately if:</p>
+  <ul>
+    <li>You violate these Terms</li>
+    <li>You use the service to create harmful, illegal, or abusive content</li>
+    <li>Your use creates legal risk or harm to us or to other users</li>
+    <li>We're required to do so by law</li>
+  </ul>
+  <p>Upon termination, you lose access to your account, your in-progress gifts are cancelled, and any final videos you created may be deleted. We may, but are not obligated to, give you advance notice.</p>
+
+  <h2 id="disclaimers">Disclaimers</h2>
+  <div class="caps-clause">
+    <p>The service is provided "as is" and "as available," without warranties of any kind, express or implied. We disclaim all warranties including merchantability, fitness for a particular purpose, non-infringement, and any warranties arising from course of dealing or usage of trade.</p>
+  </div>
+  <div class="caps-clause">
+    <p>We do not warrant that the service will be uninterrupted, error-free, secure, or that defects will be corrected. We do not warrant the accuracy, completeness, or quality of any AI-generated content.</p>
+  </div>
+  <div class="caps-clause">
+    <p>Some jurisdictions don't allow disclaimers of certain warranties, so portions of the above may not apply to you.</p>
+  </div>
+
+  <h2 id="liability">Limitation of <em>liability</em></h2>
+  <div class="caps-clause">
+    <p>To the maximum extent permitted by law, in no event shall SongReels, its operators, employees, or affiliates be liable for any indirect, incidental, special, consequential, or punitive damages, including without limitation loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of (or inability to access or use) the service.</p>
+  </div>
+  <div class="caps-clause">
+    <p>Our total liability to you for any claim arising out of or relating to these Terms or the service shall not exceed the greater of (a) the amount you paid us in the 12 months preceding the claim, or (b) $100 USD.</p>
+  </div>
+
+  <h2 id="indemnity">Indemnification</h2>
+  <p>You agree to indemnify and hold harmless SongReels and its operators from and against any claims, damages, losses, liabilities, costs, and expenses (including reasonable attorneys' fees) arising out of:</p>
+  <ul>
+    <li>Your Content (including any infringement or rights claims)</li>
+    <li>Your use of the service</li>
+    <li>Your violation of these Terms</li>
+    <li>Your violation of any third party's rights</li>
+  </ul>
+
+  <h2 id="disputes">Disputes and <em>governing law</em></h2>
+  <p>These Terms are governed by the laws of the jurisdiction in which SongReels is based, without regard to conflict-of-law principles. Any disputes arising under these Terms shall be resolved through informal negotiation first, and if that fails, through binding arbitration or in the appropriate courts of that jurisdiction.</p>
+  <p>To the extent permitted by law, you and SongReels each waive the right to a trial by jury and the right to participate in a class action.</p>
+  <p>If any portion of these Terms is held unenforceable, the remainder remains in effect.</p>
+
+  <h2 id="changes">Changes to <em>these terms</em></h2>
+  <p>We may update these Terms from time to time. When we make material changes, we'll update the "Last updated" date and notify you by email or via a prominent notice in the app.</p>
+  <p>Continued use of SongReels after a change means you accept the updated Terms. If you don't agree with the new Terms, your remedy is to stop using the service and delete your account.</p>
+
+  <h2 id="contact">Contact <em>us</em></h2>
+  <div class="contact-card">
+    <h3>Questions about these terms?</h3>
+    <p class="soft">Email us with any concerns, refund requests, or legal inquiries.</p>
+    <p style="margin-top:14px"><a href="mailto:hello@songreels.ai">hello@songreels.ai</a></p>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-row">
+    <div class="footer-brand">SongReels · made for moments that matter</div>
+    <div class="footer-links">
+      <a href="/">Home</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="mailto:hello@songreels.ai">Contact</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

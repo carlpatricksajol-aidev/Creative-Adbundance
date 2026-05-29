@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings — SongReels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg: oklch(0.97 0.012 75);--bg-2: oklch(0.94 0.020 70);--paper: oklch(0.99 0.008 80);
+  --ink: oklch(0.18 0.018 50);--ink-soft: oklch(0.42 0.014 50);--ink-faint: oklch(0.62 0.010 60);
+  --rule: oklch(0.86 0.014 70);--rule-soft: oklch(0.91 0.012 75);
+  --accent: oklch(0.60 0.135 28);--accent-deep: oklch(0.48 0.13 28);--accent-soft: oklch(0.92 0.048 30);
+  --night: oklch(0.16 0.02 270);--night-ink: oklch(0.95 0.008 80);
+  --serif:'Instrument Serif','Times New Roman',serif;--sans:'DM Sans',ui-sans-serif,system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
+  --maxw:920px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+body{font-size:16px;line-height:1.55}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+input{font:inherit;color:inherit;background:transparent;border:0;outline:0;width:100%}
+.wrap{max-width:1240px;margin:0 auto;padding:0 32px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft);font-weight:500}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:11px 18px;border-radius:999px;font-weight:500;font-size:14px;transition:transform .15s, background .2s, color .2s, border-color .2s;cursor:pointer}
+.btn-primary{background:var(--ink);color:var(--paper)}
+.btn-primary:hover{background:var(--accent-deep);color:#fff;transform:translateY(-1px)}
+.btn-accent{background:var(--accent);color:#fff}
+.btn-accent:hover{background:var(--accent-deep);transform:translateY(-1px)}
+.btn-ghost{color:var(--ink);border:1px solid var(--rule)}
+.btn-ghost:hover{border-color:var(--ink)}
+.btn-sm{padding:8px 14px;font-size:13px}
+.btn-danger{color:oklch(0.50 0.16 25);border:1px solid oklch(0.50 0.16 25 / .3)}
+.btn-danger:hover{background:oklch(0.50 0.16 25 / .08);border-color:oklch(0.50 0.16 25)}
+.btn .arr{font-family:var(--serif);font-size:18px;line-height:1;transform:translateY(-1px)}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:50;background:color-mix(in oklch, var(--bg) 88%, transparent);backdrop-filter:saturate(150%) blur(12px);-webkit-backdrop-filter:saturate(150%) blur(12px);border-bottom:1px solid var(--rule-soft)}
+.nav-row{display:flex;align-items:center;justify-content:space-between;height:66px;gap:24px}
+.brand{display:flex;align-items:baseline;gap:8px;font-family:var(--serif);font-size:24px;letter-spacing:-.01em}
+.brand .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);transform:translateY(-3px)}
+.nav-tabs{display:flex;gap:4px;margin-left:8px}
+.nav-tab{padding:8px 16px;font-size:14px;color:var(--ink-soft);font-weight:500;border-radius:999px;transition:all .15s}
+.nav-tab:hover{color:var(--ink);background:var(--bg-2)}
+.nav-tab.active{color:var(--ink);background:var(--paper);box-shadow:0 1px 3px rgba(40,20,15,.06),0 0 0 1px var(--rule-soft)}
+@media (max-width:720px){.nav-tabs{display:none}}
+.nav-right{display:flex;align-items:center;gap:14px;margin-left:auto}
+.nav-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg, oklch(0.78 0.10 30), oklch(0.55 0.14 18));display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--serif);font-size:16px;font-style:italic;border:1px solid var(--rule)}
+
+.page{padding:48px 0 96px}
+.settings-wrap{max-width:var(--maxw);margin:0 auto;padding:0 32px}
+.head{margin-bottom:36px}
+.head h1{font-family:var(--serif);font-weight:400;font-size:clamp(40px,5vw,56px);line-height:1.02;letter-spacing:-.022em}
+.head h1 em{font-style:italic;color:var(--accent-deep)}
+
+.layout{display:grid;grid-template-columns:200px 1fr;gap:48px;align-items:flex-start}
+@media (max-width:760px){.layout{grid-template-columns:1fr;gap:28px}}
+
+/* side nav */
+.side{position:sticky;top:90px;display:flex;flex-direction:column;gap:2px}
+@media (max-width:760px){.side{position:static;flex-direction:row;overflow-x:auto;gap:6px}}
+.side-link{padding:10px 14px;border-radius:10px;font-size:14px;color:var(--ink-soft);font-weight:500;transition:all .15s;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.side-link:hover{color:var(--ink);background:var(--bg-2)}
+.side-link.active{color:var(--ink);background:var(--paper);box-shadow:0 0 0 1px var(--rule-soft)}
+.side-link svg{width:15px;height:15px;color:var(--ink-faint)}
+.side-link.active svg{color:var(--accent-deep)}
+
+/* cards */
+.card{background:var(--paper);border:1px solid var(--rule-soft);border-radius:18px;padding:28px 30px;margin-bottom:18px}
+.card h2{font-family:var(--serif);font-size:24px;font-weight:400;letter-spacing:-.012em;margin-bottom:4px}
+.card .card-sub{font-size:13.5px;color:var(--ink-soft);margin-bottom:22px}
+
+.row{display:flex;align-items:center;gap:16px;padding:16px 0;border-top:1px solid var(--rule-soft)}
+.row:first-of-type{border-top:0;padding-top:0}
+.row .lab{flex:0 0 150px;font-size:13.5px;color:var(--ink-soft);font-weight:500}
+.row .val{flex:1}
+.field{padding:11px 14px;border:1px solid var(--rule);border-radius:10px;background:var(--bg);transition:border-color .15s, box-shadow .15s}
+.field:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);background:var(--paper)}
+.field input{font-size:14.5px}
+
+/* avatar block */
+.avatar-row{display:flex;align-items:center;gap:18px;padding-bottom:22px;border-bottom:1px solid var(--rule-soft);margin-bottom:22px}
+.avatar-lg{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg, oklch(0.78 0.10 30), oklch(0.55 0.14 18));display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--serif);font-style:italic;font-size:28px;flex-shrink:0;border:1px solid var(--rule)}
+
+/* toggle rows */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;border-top:1px solid var(--rule-soft)}
+.toggle-row:first-of-type{border-top:0;padding-top:0}
+.toggle-row .tr-info .t{font-size:14.5px;font-weight:500}
+.toggle-row .tr-info .s{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
+.tog{width:42px;height:24px;border-radius:999px;background:var(--rule);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.tog::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.tog.on{background:var(--accent)}
+.tog.on::after{left:20px}
+
+/* plan / billing */
+.plan-card{display:flex;align-items:center;gap:18px;padding:20px;background:var(--bg-2);border-radius:14px;margin-bottom:16px}
+.plan-icon{width:54px;height:54px;border-radius:13px;background:var(--night);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
+.plan-icon .n{font-family:var(--serif);font-style:italic;font-size:24px;color:oklch(0.82 0.10 38)}
+.plan-icon .l{font-family:var(--mono);font-size:7px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-top:2px}
+.plan-info{flex:1}
+.plan-info .t{font-size:16px;font-weight:600}
+.plan-info .s{font-size:13px;color:var(--ink-soft);margin-top:2px}
+.credits-track{height:8px;background:var(--rule-soft);border-radius:999px;overflow:hidden;position:relative;margin-top:12px}
+.credits-fill{position:absolute;inset:0 38% 0 0;background:linear-gradient(90deg, var(--accent), oklch(0.70 0.13 45));border-radius:999px}
+
+.pay-method{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1px solid var(--rule-soft);border-radius:12px}
+.card-chip{width:42px;height:28px;border-radius:5px;background:var(--bg-2);border:1px solid var(--rule);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;color:var(--ink-soft);flex-shrink:0}
+.pay-method .pm-info{flex:1}
+.pay-method .pm-info .t{font-size:14px;font-weight:500}
+.pay-method .pm-info .s{font-size:12px;color:var(--ink-soft)}
+
+.invoices{margin-top:8px}
+.invoice{display:flex;align-items:center;gap:14px;padding:13px 0;border-top:1px solid var(--rule-soft);font-size:13.5px}
+.invoice:first-of-type{border-top:0}
+.invoice .inv-date{flex:0 0 110px;color:var(--ink-soft);font-family:var(--mono);font-size:11.5px;letter-spacing:.04em}
+.invoice .inv-desc{flex:1;font-weight:500}
+.invoice .inv-amt{font-family:var(--serif);font-size:16px}
+.invoice .inv-dl{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-deep)}
+.invoice .inv-dl:hover{text-decoration:underline}
+
+.card-foot{margin-top:22px;padding-top:20px;border-top:1px solid var(--rule-soft);display:flex;justify-content:flex-end;gap:10px}
+.danger-zone{border-color:oklch(0.50 0.16 25 / .25)}
+.danger-zone h2{color:oklch(0.45 0.16 25)}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-row">
+    <div class="brand">SongReels<span class="dot"></span></div>
+    <nav class="nav-tabs">
+      <a class="nav-tab" href="Dashboard.html">My Reels</a>
+      <a class="nav-tab" href="Templates.html">Templates</a>
+      <a class="nav-tab active" href="Settings.html">Settings</a>
+    </nav>
+    <div class="nav-right">
+      <a class="btn btn-accent btn-sm" href="Gift Creation Flow.html">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        New Reel
+      </a>
+      <div class="nav-avatar">M</div>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="settings-wrap">
+    <div class="head">
+      <span class="eyebrow">Settings</span>
+      <h1>Your <em>account.</em></h1>
+    </div>
+
+    <div class="layout">
+
+      <!-- side nav -->
+      <nav class="side" id="sideNav">
+        <a class="side-link active" data-sec="profile">
+          <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 14c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.5"/></svg>
+          Profile
+        </a>
+        <a class="side-link" data-sec="billing">
+          <svg viewBox="0 0 16 16" fill="none"><rect x="1.5" y="3.5" width="13" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 6.5h13" stroke="currentColor" stroke-width="1.5"/></svg>
+          Plan &amp; billing
+        </a>
+        <a class="side-link" data-sec="notif">
+          <svg viewBox="0 0 16 16" fill="none"><path d="M4 7a4 4 0 018 0c0 4 1.5 5 1.5 5h-11S4 11 4 7z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6.5 14a1.5 1.5 0 003 0" stroke="currentColor" stroke-width="1.5"/></svg>
+          Notifications
+        </a>
+        <a class="side-link" data-sec="privacy">
+          <svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5l5.5 2.2v3.8c0 3.3-2.4 5.8-5.5 6.5-3.1-.7-5.5-3.2-5.5-6.5V3.7L8 1.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          Privacy &amp; data
+        </a>
+      </nav>
+
+      <!-- panels -->
+      <div class="panels">
+
+        <!-- PROFILE -->
+        <section data-panel="profile">
+          <div class="card">
+            <h2>Profile</h2>
+            <p class="card-sub">How you show up across SongReels.</p>
+            <div class="avatar-row">
+              <div class="avatar-lg">M</div>
+              <div>
+                <button class="btn btn-ghost btn-sm">Change photo</button>
+                <div style="font-size:12px;color:var(--ink-faint);margin-top:8px">JPG or PNG · max 2MB</div>
+              </div>
+            </div>
+            <div class="row"><span class="lab">Full name</span><span class="val"><div class="field"><input type="text" value="Marcus Reed"></div></span></div>
+            <div class="row"><span class="lab">Email</span><span class="val"><div class="field"><input type="email" value="marcus@email.com"></div></span></div>
+            <div class="row"><span class="lab">Phone</span><span class="val"><div class="field"><input type="tel" value="+1 (555) 014-2231"></div></span></div>
+            <div class="card-foot"><button class="btn btn-ghost btn-sm">Cancel</button><button class="btn btn-primary btn-sm">Save changes</button></div>
+          </div>
+        </section>
+
+        <!-- BILLING -->
+        <section data-panel="billing" hidden>
+          <div class="card">
+            <h2>Your plan</h2>
+            <p class="card-sub">Credits are spent only when you send a reel.</p>
+            <div class="plan-card">
+              <div class="plan-icon"><span class="n">8</span><span class="l">pack</span></div>
+              <div class="plan-info">
+                <div class="t">Family pack</div>
+                <div class="s">5 of 8 credits remaining · renews June 14</div>
+                <div class="credits-track"><div class="credits-fill"></div></div>
+              </div>
+            </div>
+            <div class="card-foot" style="border:0;padding-top:0;margin-top:4px"><a class="btn btn-accent btn-sm" href="Checkout.html?pack=family">Buy more credits <span class="arr">→</span></a></div>
+          </div>
+
+          <div class="card">
+            <h2>Payment method</h2>
+            <p class="card-sub">Used for credit purchases.</p>
+            <div class="pay-method">
+              <div class="card-chip">VISA</div>
+              <div class="pm-info"><div class="t">Visa ending 4242</div><div class="s">Expires 04 / 28</div></div>
+              <button class="btn btn-ghost btn-sm">Update</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Billing history</h2>
+            <p class="card-sub">Your past credit purchases.</p>
+            <div class="invoices">
+              <div class="invoice"><span class="inv-date">May 29, 2026</span><span class="inv-desc">Family pack · 8 credits</span><span class="inv-amt">$63.72</span><a class="inv-dl" href="Receipt.html?pack=family">PDF</a></div>
+              <div class="invoice"><span class="inv-date">Feb 14, 2026</span><span class="inv-desc">Starter pack · 3 credits</span><span class="inv-amt">$31.32</span><a class="inv-dl" href="Receipt.html?pack=starter">PDF</a></div>
+              <div class="invoice"><span class="inv-date">Dec 09, 2025</span><span class="inv-desc">Family pack · 8 credits</span><span class="inv-amt">$63.72</span><a class="inv-dl" href="Receipt.html?pack=family">PDF</a></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- NOTIFICATIONS -->
+        <section data-panel="notif" hidden>
+          <div class="card">
+            <h2>Notifications</h2>
+            <p class="card-sub">We'll only reach out about your reels.</p>
+            <div class="toggle-row"><div class="tr-info"><div class="t">Reel opened</div><div class="s">When a recipient opens a gift you sent</div></div><div class="tog on" data-toggle></div></div>
+            <div class="toggle-row"><div class="tr-info"><div class="t">View milestones</div><div class="s">When a reel passes 10, 25, 50 views</div></div><div class="tog on" data-toggle></div></div>
+            <div class="toggle-row"><div class="tr-info"><div class="t">Reel ready</div><div class="s">When your songs finish generating</div></div><div class="tog on" data-toggle></div></div>
+            <div class="toggle-row"><div class="tr-info"><div class="t">Occasion reminders</div><div class="s">A nudge a week before key dates</div></div><div class="tog on" data-toggle></div></div>
+            <div class="toggle-row"><div class="tr-info"><div class="t">Product news</div><div class="s">New occasions, song styles, features</div></div><div class="tog" data-toggle></div></div>
+          </div>
+        </section>
+
+        <!-- PRIVACY -->
+        <section data-panel="privacy" hidden>
+          <div class="card">
+            <h2>Privacy &amp; data</h2>
+            <p class="card-sub">You're in control of everything you upload.</p>
+            <div class="toggle-row"><div class="tr-info"><div class="t">Unlisted reels by default</div><div class="s">Only people with the link can view</div></div><div class="tog on" data-toggle></div></div>
+            <div class="toggle-row"><div class="tr-info"><div class="t">Let recipients react</div><div class="s">Allow a thank-you reaction back to you</div></div><div class="tog on" data-toggle></div></div>
+            <div class="toggle-row"><div class="tr-info"><div class="t">Save subjects for reuse</div><div class="s">Remember people so you can gift again faster</div></div><div class="tog" data-toggle></div></div>
+            <div class="card-foot"><button class="btn btn-ghost btn-sm">Download my data</button></div>
+          </div>
+
+          <div class="card danger-zone">
+            <h2>Danger zone</h2>
+            <p class="card-sub">Permanent actions. These can't be undone.</p>
+            <div class="toggle-row" style="border:0;padding-top:0"><div class="tr-info"><div class="t">Delete all reels &amp; uploads</div><div class="s">Wipes every reel, photo, and song within 24 hours</div></div><button class="btn btn-danger btn-sm">Delete data</button></div>
+            <div class="toggle-row"><div class="tr-info"><div class="t">Close account</div><div class="s">Cancels your account and forfeits remaining credits</div></div><button class="btn btn-danger btn-sm">Close account</button></div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+(function(){
+  const links=document.querySelectorAll('#sideNav .side-link');
+  const panels=document.querySelectorAll('[data-panel]');
+  links.forEach(l=>l.addEventListener('click',e=>{
+    e.preventDefault();
+    links.forEach(x=>x.classList.remove('active'));l.classList.add('active');
+    const sec=l.dataset.sec;
+    panels.forEach(p=>p.hidden=(p.dataset.panel!==sec));
+    window.scrollTo({top:0,behavior:'smooth'});
+  }));
+  document.querySelectorAll('[data-toggle]').forEach(t=>t.addEventListener('click',()=>t.classList.toggle('on')));
+})();
+</script>
+
+</body>
+</html>
