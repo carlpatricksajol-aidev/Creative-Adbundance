@@ -1,10 +1,12 @@
 {
   "rewrites": [
-    { "source": "/app",       "destination": "/Songreels_Form.html" },
-    { "source": "/dashboard", "destination": "/Dashboard.html" },
-    { "source": "/privacy",   "destination": "/Privacy_Policy.html" },
-    { "source": "/terms",     "destination": "/Terms.html" },
-    { "source": "/contact",   "destination": "/Contact.html" },
-    { "source": "/",          "destination": "/Landing_Page.html" }
+    { "source": "/app",        "destination": "/Songreels_Form.html" },
+    { "source": "/dashboard",  "destination": "/Dashboard.html" },
+    { "source": "/settings",   "destination": "/Settings.html" },
+    { "source": "/templates",  "destination": "/Templates.html" },
+    { "source": "/privacy",    "destination": "/Privacy_Policy.html" },
+    { "source": "/terms",      "destination": "/Terms.html" },
+    { "source": "/contact",    "destination": "/Contact.html" },
+    { "source": "/",           "destination": "/Landing_Page.html" }
   ]
 }

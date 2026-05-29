@@ -98,7 +98,37 @@ body {
 .brand .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); transform: translateY(-3px); }
 .nav-links { display: flex; gap: 28px; align-items: center; font-size: 14px; color: var(--ink-soft); }
 .nav-links a:hover { color: var(--ink); }
-@media (max-width: 720px) { .nav-links { display: none; } }
+.nav-cta { display: flex; align-items: center; gap: 10px; }
+
+/* hamburger */
+.ham { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 6px; border-radius: 8px; transition: background .15s; background: none; border: none; }
+.ham:hover { background: var(--bg-2); }
+.ham span { display: block; width: 20px; height: 1.5px; background: var(--ink); border-radius: 2px; transition: transform .25s, opacity .2s; }
+.ham.open span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+.ham.open span:nth-child(2) { opacity: 0; }
+.ham.open span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+/* mobile drawer */
+.mobile-menu {
+  display: none;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 90;
+  background: var(--bg);
+  padding: 80px 32px 40px;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+.mobile-menu.open { display: flex; }
+.mobile-menu a { font-family: var(--serif); font-size: 32px; color: var(--ink); padding: 12px 0; border-bottom: 1px solid var(--rule-soft); text-decoration: none; transition: color .15s; }
+.mobile-menu a:hover { color: var(--accent-deep); }
+.mobile-menu .m-cta { margin-top: 24px; border-bottom: none; }
+
+@media (max-width: 720px) {
+  .nav-links { display: none; }
+  .ham { display: flex; }
+  .nav-cta .btn { display: none; }
+}
 
 /* ── HERO ──────────────────────────────────────── */
 .hero { background: var(--bg); padding: 60px 0 96px; overflow: hidden; }
@@ -345,18 +375,30 @@ body {
 <!-- NAV -->
 <header class="nav bleed" id="nav">
   <div class="inner nav-row">
-    <div class="brand">SongReels<span class="dot"></span></div>
+    <a class="brand" href="/" style="text-decoration:none;color:inherit">SongReels<span class="dot"></span></a>
     <nav class="nav-links">
       <a href="#occasions">Occasions</a>
       <a href="#how">How it works</a>
       <a href="#examples">Examples</a>
       <a href="#pricing">Pricing</a>
     </nav>
-    <div>
+    <div class="nav-cta">
       <a class="btn btn-primary" href="/app">Make one <span class="arr">→</span></a>
+      <button class="ham" id="ham" onclick="toggleMobileMenu()" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </div>
 </header>
+
+<!-- MOBILE MENU DRAWER -->
+<nav class="mobile-menu" id="mobile-menu">
+  <a href="#occasions" onclick="closeMobileMenu()">Occasions</a>
+  <a href="#how" onclick="closeMobileMenu()">How it works</a>
+  <a href="#examples" onclick="closeMobileMenu()">Examples</a>
+  <a href="#pricing" onclick="closeMobileMenu()">Pricing</a>
+  <a class="btn btn-primary m-cta" href="/app" style="justify-content:center;font-size:17px;margin-top:auto">Make one <span class="arr">→</span></a>
+</nav>
 
 <!-- HERO -->
 <section class="hero bleed">
@@ -619,6 +661,19 @@ body {
   if (!nav) return;
   document.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 8), {passive:true});
 })();
+
+function toggleMobileMenu() {
+  const menu = document.getElementById('mobile-menu');
+  const ham  = document.getElementById('ham');
+  const open = menu.classList.toggle('open');
+  ham.classList.toggle('open', open);
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+function closeMobileMenu() {
+  document.getElementById('mobile-menu').classList.remove('open');
+  document.getElementById('ham').classList.remove('open');
+  document.body.style.overflow = '';
+}
 
 (function(){
   function buildWave(el, count, min, max){
