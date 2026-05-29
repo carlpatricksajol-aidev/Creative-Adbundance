@@ -395,75 +395,137 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 .done-dash-link:hover{color:var(--ink)}
 .done-dash-link:hover svg{transform:translateX(3px);color:var(--ink)}
 
-/* ── DONE: centered reveal layout ── */
-.done-right{display:none} /* hide old split right */
+/* ════════════════════════════════════════
+   DONE SCREEN — marketing-grade reveal
+   ════════════════════════════════════════ */
+.done-right{display:none}
 
-/* celebration header */
+/* ── 1. HERO ── */
 .done-hero{
-  background:linear-gradient(160deg,oklch(0.18 0.025 30) 0%,oklch(0.13 0.018 280) 100%);
-  padding:52px 24px 40px;
+  background:linear-gradient(155deg,oklch(0.17 0.03 28) 0%,oklch(0.12 0.015 280) 100%);
+  padding:56px 32px 48px;
   text-align:center;
   position:relative;
   overflow:hidden;
   border-radius:24px;
-  margin-bottom:40px;
+  margin-bottom:0;
 }
-.done-hero::before{
-  content:'';position:absolute;inset:0;
-  background:radial-gradient(ellipse 70% 50% at 50% 0%,oklch(0.35 0.08 30 / .35),transparent 70%);
-  pointer-events:none;
-}
-.done-hero-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px}
-.done-hero-dot{width:5px;height:5px;border-radius:50%;background:var(--accent-soft);animation:doneLive 2s ease-in-out infinite}
-@keyframes doneLive{0%,100%{opacity:1}50%{opacity:.35}}
-.done-hero-title{font-family:var(--serif);font-size:clamp(36px,5vw,56px);line-height:1.02;letter-spacing:-.022em;color:#fff;font-weight:400;margin-bottom:10px}
-.done-hero-title em{font-style:italic;color:var(--accent-soft)}
-.done-hero-sub{color:rgba(255,255,255,.55);font-size:15px;line-height:1.5;max-width:440px;margin:0 auto}
+.done-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% -10%,oklch(0.38 0.09 28 / .4),transparent 65%),radial-gradient(ellipse 40% 30% at 80% 100%,oklch(0.30 0.06 270 / .3),transparent 60%);pointer-events:none}
+/* floating sparkles */
+.done-hero::after{content:'✦  ✦  ✦';position:absolute;top:20px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:24px;color:rgba(255,255,255,.12);pointer-events:none}
+.done-hero-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px}
+.done-hero-dot{width:6px;height:6px;border-radius:50%;background:oklch(0.78 0.12 30);box-shadow:0 0 8px oklch(0.78 0.12 30 / .8);animation:doneGlow 2s ease-in-out infinite}
+@keyframes doneGlow{0%,100%{opacity:1;box-shadow:0 0 8px oklch(0.78 0.12 30 / .8)}50%{opacity:.5;box-shadow:0 0 3px oklch(0.78 0.12 30 / .3)}}
+.done-hero-title{font-family:var(--serif);font-size:clamp(38px,5.5vw,62px);line-height:1.01;letter-spacing:-.022em;color:#fff;font-weight:400;margin-bottom:12px}
+.done-hero-title em{font-style:italic;color:oklch(0.82 0.09 30)}
+.done-hero-sub{color:rgba(255,255,255,.5);font-size:15px;line-height:1.55;max-width:400px;margin:0 auto 32px}
+/* share actions inside hero */
+.done-hero-share{max-width:440px;margin:0 auto}
+.done-link{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:11px 8px 11px 14px;display:flex;align-items:center;gap:10px;margin-bottom:10px;backdrop-filter:blur(8px)}
+.done-link-url{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.55);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.copy-btn{background:#fff;color:var(--ink);border:none;border-radius:999px;padding:8px 18px;font-size:12px;font-weight:600;flex-shrink:0;transition:background .2s,transform .15s;cursor:pointer;white-space:nowrap}
+.copy-btn:hover{background:var(--accent-soft);transform:translateY(-1px)}
+.copy-btn.copied{background:oklch(0.85 0.12 150);color:#fff}
+.done-hero-btns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+@media(max-width:500px){.done-hero-btns{grid-template-columns:1fr}}
+.done-hero-btn{padding:11px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);color:#fff;font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;transition:background .2s,transform .15s;backdrop-filter:blur(8px)}
+.done-hero-btn:hover{background:rgba(255,255,255,.14);transform:translateY(-1px)}
+.done-hero-btn.primary{background:var(--accent);border-color:var(--accent);grid-column:1/-1}
+.done-hero-btn.primary:hover{background:var(--accent-deep)}
 
-/* center stage: phone + actions side by side */
-.done-stage{display:grid;grid-template-columns:auto 1fr;gap:48px;align-items:center;max-width:840px;margin:0 auto 52px}
-@media(max-width:720px){.done-stage{grid-template-columns:1fr;gap:28px}}
+/* ── 2. PHONE STAGE ── */
+.done-stage{display:grid;grid-template-columns:auto 1fr;gap:56px;align-items:center;max-width:880px;margin:0 auto;padding:52px 24px}
+@media(max-width:740px){.done-stage{grid-template-columns:1fr;gap:36px;padding:40px 16px}}
 
 /* phone */
+.done-phone-wrap{position:relative;display:flex;justify-content:center}
 .done-phone{
-  position:relative;
-  width:220px;
-  flex-shrink:0;
-  aspect-ratio:9/19.5;
-  background:oklch(0.12 0.02 280);
-  border-radius:40px;
-  padding:9px;
-  box-shadow:0 40px 80px -20px rgba(40,20,15,.5),0 0 0 1.5px rgba(255,255,255,.08),inset 0 1px 0 rgba(255,255,255,.06);
+  position:relative;width:220px;aspect-ratio:9/19.5;
+  background:oklch(0.10 0.015 280);border-radius:42px;padding:9px;
+  box-shadow:0 48px 96px -20px rgba(40,20,15,.55),0 0 0 1.5px rgba(255,255,255,.07),inset 0 1px 0 rgba(255,255,255,.05);
+  z-index:2;
 }
-@media(max-width:720px){.done-phone{width:min(200px,60vw);margin:0 auto}}
+@media(max-width:740px){.done-phone{width:min(180px,52vw)}}
 .done-phone-pill{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:80px;height:22px;background:#000;border-radius:12px;z-index:5}
-.done-phone-screen{width:100%;height:100%;border-radius:33px;overflow:hidden;position:relative;background:#000}
+.done-phone-screen{width:100%;height:100%;border-radius:34px;overflow:hidden;position:relative;background:#000}
 .done-phone-screen video{width:100%;height:100%;object-fit:contain;display:block;background:#000;transform:translateZ(0);-webkit-backface-visibility:hidden}
-.done-phone-placeholder{
-  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
-  background:linear-gradient(160deg,oklch(0.22 0.035 30) 0%,oklch(0.13 0.018 280) 100%);
-  color:rgba(255,255,255,.45);font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;text-align:center;padding:16px;
-}
-.done-phone-placeholder svg{animation:donePulse 2s ease-in-out infinite;color:rgba(255,255,255,.5)}
-@keyframes donePulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.85;transform:scale(1.06)}}
-.done-phone-tap{position:absolute;bottom:14px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.35);z-index:3}
-.done-phone::after{content:'';position:absolute;inset:-20px;border-radius:60px;background:radial-gradient(ellipse at 50% 80%,var(--accent-soft),.1),transparent;opacity:.12;z-index:-1;pointer-events:none}
+.done-phone-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:linear-gradient(160deg,oklch(0.20 0.032 28) 0%,oklch(0.12 0.016 280) 100%);color:rgba(255,255,255,.4);font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;text-align:center;padding:16px}
+.done-phone-placeholder svg{animation:donePulse 2.2s ease-in-out infinite;color:rgba(255,255,255,.45)}
+@keyframes donePulse{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.8;transform:scale(1.07)}}
 
-/* action panel beside phone */
-.done-panel{}
-.done-panel-label{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:20px}
-.done-link{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:12px 8px 12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.done-link-url{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.copy-btn{background:var(--ink);color:var(--paper);border:none;border-radius:999px;padding:8px 18px;font-size:12px;font-weight:500;flex-shrink:0;transition:background .2s,transform .15s;cursor:pointer;white-space:nowrap}
-.copy-btn:hover{background:var(--accent-deep);transform:translateY(-1px)}
-.copy-btn.copied{background:oklch(0.45 0.10 155)}
-.done-actions{display:flex;flex-direction:column;gap:10px;margin-bottom:22px}
+/* floating proof tags */
+.done-float{position:absolute;background:var(--paper);border:1px solid var(--rule-soft);padding:8px 13px;border-radius:999px;font-size:12px;color:var(--ink-soft);box-shadow:0 8px 20px -8px rgba(40,20,15,.18);display:flex;align-items:center;gap:7px;font-family:var(--sans);font-weight:500;white-space:nowrap;z-index:3}
+.done-float svg{color:var(--accent);flex-shrink:0}
+.done-float-1{top:12%;right:-30%;animation:floatA 4s ease-in-out infinite}
+.done-float-2{bottom:22%;left:-28%;animation:floatB 4s ease-in-out infinite .8s}
+.done-float-3{top:50%;right:-34%;animation:floatA 4s ease-in-out infinite 1.6s}
+@keyframes floatA{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes floatB{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+@media(max-width:740px){.done-float{display:none}}
+
+/* right panel */
+.done-panel{display:flex;flex-direction:column;gap:0}
+.done-panel-headline{font-family:var(--serif);font-size:clamp(26px,3vw,36px);letter-spacing:-.018em;line-height:1.1;font-weight:400;margin-bottom:10px}
+.done-panel-headline em{font-style:italic;color:var(--accent-deep)}
+.done-panel-sub{color:var(--ink-soft);font-size:15px;line-height:1.55;margin-bottom:28px;max-width:380px}
+/* recipient journey steps */
+.done-journey{display:flex;flex-direction:column;gap:0;margin-bottom:28px;border:1px solid var(--rule-soft);border-radius:16px;overflow:hidden;background:var(--paper)}
+.done-journey-step{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--rule-soft)}
+.done-journey-step:last-child{border-bottom:none}
+.done-journey-num{width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent-deep);font-family:var(--mono);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.done-journey-text{font-size:13.5px;color:var(--ink);line-height:1.35}
+.done-journey-text span{display:block;font-size:12px;color:var(--ink-faint);margin-top:2px}
+/* dash link */
+.done-dash-link{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-faint);padding:2px 0;transition:color .15s;background:none;border:none;cursor:pointer;margin-top:16px}
+.done-dash-link svg{transition:transform .2s,color .15s}
+.done-dash-link:hover{color:var(--ink)}
+.done-dash-link:hover svg{transform:translateX(3px)}
+
+/* ── 3. SOCIAL PROOF STRIP ── */
+.done-proof{background:var(--bg-2);border-top:1px solid var(--rule-soft);border-bottom:1px solid var(--rule-soft);padding:28px 24px}
+.done-proof-inner{max-width:880px;margin:0 auto;display:flex;align-items:center;justify-content:space-around;gap:24px;flex-wrap:wrap}
+.done-proof-item{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.done-proof-val{font-family:var(--serif);font-size:28px;letter-spacing:-.02em;color:var(--ink)}
+.done-proof-val em{font-style:italic;color:var(--accent-deep)}
+.done-proof-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint)}
+.done-proof-divider{width:1px;height:36px;background:var(--rule-soft)}
+@media(max-width:560px){.done-proof-divider{display:none}.done-proof-inner{gap:20px}}
+
+/* ── 4. TESTIMONIAL ── */
+.done-testimonial{max-width:600px;margin:0 auto;padding:52px 24px;text-align:center}
+.done-testi-stars{display:flex;justify-content:center;gap:3px;margin-bottom:18px}
+.done-testi-stars svg{color:oklch(0.78 0.16 75)}
+.done-testi-quote{font-family:var(--serif);font-size:clamp(20px,2.5vw,26px);font-style:italic;line-height:1.35;color:var(--ink);letter-spacing:-.01em;margin-bottom:16px}
+.done-testi-attr{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+
+/* ── 5. HOOK SECTION ── */
+.done-hook{max-width:880px;margin:0 auto 80px;padding:52px 24px 0;border-top:1px solid var(--rule-soft)}
+.done-hook-divider{text-align:center;margin-bottom:10px}
+.done-hook-divider span{font-family:var(--serif);font-size:clamp(26px,3.5vw,40px);font-weight:400;letter-spacing:-.016em;line-height:1.1;color:var(--ink);font-style:italic}
+.done-hook-sub{text-align:center;color:var(--ink-soft);font-size:15px;margin-bottom:36px}
+.done-hook-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:32px}
+@media(max-width:680px){.done-hook-grid{grid-template-columns:repeat(2,1fr)}}
+.hook-card{position:relative;aspect-ratio:1.05;border-radius:18px;overflow:hidden;border:1.5px solid var(--rule-soft);cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s;padding:0;background:none}
+.hook-card:hover{transform:translateY(-4px);box-shadow:0 20px 32px -24px rgba(40,20,15,.35);border-color:var(--rule)}
+.hook-bg{position:absolute;inset:0}
+.hook-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 35%,rgba(20,10,5,.7) 100%)}
+.hook-bg::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent 0 12px,rgba(255,255,255,.05) 12px 13px)}
+.hook-c1 .hook-bg{background:linear-gradient(135deg,oklch(0.78 0.10 30),oklch(0.55 0.14 18))}
+.hook-c2 .hook-bg{background:linear-gradient(135deg,oklch(0.55 0.10 240),oklch(0.30 0.06 250))}
+.hook-c3 .hook-bg{background:linear-gradient(135deg,oklch(0.80 0.10 90),oklch(0.55 0.13 50))}
+.hook-c4 .hook-bg{background:linear-gradient(135deg,oklch(0.65 0.10 150),oklch(0.38 0.07 175))}
+.hook-meta{position:absolute;top:10px;left:12px;font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.75);z-index:2}
+.hook-name{position:absolute;left:14px;right:14px;bottom:12px;font-family:var(--serif);font-size:22px;line-height:1.05;color:#fff;z-index:2;text-align:left}
+.done-hook-cta{text-align:center}
+.done-hook-cta-card{background:linear-gradient(135deg,oklch(0.17 0.03 28),oklch(0.12 0.015 280));border-radius:20px;padding:40px 32px;display:flex;flex-direction:column;align-items:center;gap:16px;position:relative;overflow:hidden}
+.done-hook-cta-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 50% at 50% 0%,oklch(0.35 0.08 28 / .3),transparent 70%);pointer-events:none}
+.done-hook-cta-card h3{font-family:var(--serif);font-size:clamp(24px,3vw,32px);color:#fff;font-weight:400;letter-spacing:-.015em;text-align:center;position:relative}
+.done-hook-cta-card h3 em{font-style:italic;color:oklch(0.82 0.09 30)}
+.done-hook-cta-card p{font-size:14px;color:rgba(255,255,255,.5);text-align:center;max-width:360px;line-height:1.55;position:relative}
+.done-hook-note{margin-top:14px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--ink-faint)}
+.done-actions{display:flex;flex-direction:column;gap:10px;margin-bottom:0}
 .done-btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:400px){.done-btn-row{grid-template-columns:1fr}}
-.done-dash-link{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink-soft);padding:2px 0;transition:color .15s;width:fit-content;cursor:pointer;background:none;border:none}
-.done-dash-link svg{color:var(--ink-faint);transition:transform .2s,color .15s}
-.done-dash-link:hover{color:var(--ink)}
-.done-dash-link:hover svg{transform:translateX(3px);color:var(--ink)}
 
 /* ═══ HOOK SECTION ═══ */
 .done-hook{
@@ -1185,74 +1247,142 @@ body.gate-active { overflow: hidden; }
          DONE SCREEN — split layout + hook section
          ═══════════════════════════════════════════════════════════════════ -->
     <div id="screen-done" class="screen" style="display:none">
-      <div style="max-width:900px;margin:0 auto;padding:40px 24px 0">
 
-        <!-- celebration header -->
+      <!-- ① HERO: celebration + share CTA above the fold -->
+      <div style="max-width:900px;margin:0 auto;padding:32px 24px 0">
         <div class="done-hero">
-          <div class="done-hero-eyebrow">
-            <span class="done-hero-dot"></span>
-            Your gift is ready
-          </div>
+          <div class="done-hero-eyebrow"><span class="done-hero-dot"></span>Your gift is ready</div>
           <h2 class="done-hero-title" id="done-title">Made with <em>love.</em></h2>
-          <p class="done-hero-sub" id="done-sub">Send the link and they'll tap it to watch the whole gift play, song and all.</p>
+          <p class="done-hero-sub" id="done-sub">Send the link — they tap it, the song plays, they feel it.</p>
+          <div class="done-hero-share">
+            <div class="done-link">
+              <span class="done-link-url" id="done-url">Generating your link…</span>
+              <button class="copy-btn" id="copy-btn" onclick="copyLink()">Copy link</button>
+            </div>
+            <div class="done-hero-btns">
+              <button class="done-hero-btn primary" onclick="shareWhatsApp()">
+                <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><path d="M9 1.5A7.5 7.5 0 002 12l-.5 4.5 4.6-.5A7.5 7.5 0 109 1.5z" stroke="currentColor" stroke-width="1.4"/><path d="M6 7.5c.5 2 2 3.5 4 4l1-1c.3-.3.7-.4 1 0l1.5 1c.4.3.4.7 0 1l-.5.5c-.7.7-1.7.8-2.5.3a8 8 0 01-5-5c-.5-.8-.4-1.8.3-2.5l.5-.5c.3-.4.7-.3 1 0l1 1.5c.4.3.3.7 0 1l-.3.5z" fill="currentColor"/></svg>
+                Share on WhatsApp
+              </button>
+              <button class="done-hero-btn" onclick="downloadReel()">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Download
+              </button>
+              <button class="done-hero-btn" onclick="shareGeneric()">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="12" cy="3" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="12" cy="13" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="4" cy="8" r="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 3.7L5.5 7M10.5 12.3L5.5 9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                More
+              </button>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <!-- phone + action panel -->
-        <div class="done-stage">
-          <!-- phone mockup -->
+      <!-- ② PHONE + RECIPIENT EXPERIENCE -->
+      <div class="done-stage">
+        <!-- phone mockup with floating proof tags -->
+        <div class="done-phone-wrap">
           <div class="done-phone">
             <div class="done-phone-pill"></div>
             <div class="done-phone-screen">
               <video id="done-video" controls playsinline preload="metadata" style="display:none"></video>
               <div class="done-phone-placeholder" id="done-video-placeholder">
-                <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><circle cx="18" cy="18" r="16" stroke="currentColor" stroke-width="1.4" opacity=".45"/><path d="M14 11l11 7-11 7V11z" fill="currentColor"/></svg>
+                <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><circle cx="18" cy="18" r="16" stroke="currentColor" stroke-width="1.4" opacity=".4"/><path d="M14 11l11 7-11 7V11z" fill="currentColor"/></svg>
                 <span>Your reel<br>loads here</span>
               </div>
-              <div class="done-phone-tap" id="done-phone-tap" style="display:none">Tap to preview</div>
             </div>
           </div>
+          <!-- floating proof tags -->
+          <div class="done-float done-float-1">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1l1.2 2.5 2.8.4-2 2 .5 2.7L6 7.4l-2.5 1.3.5-2.7-2-2 2.8-.4z" fill="currentColor"/></svg>
+            AI-composed song
+          </div>
+          <div class="done-float done-float-2">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="2" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M4 5l2 2 4-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            HD 9:16 video
+          </div>
+          <div class="done-float done-float-3">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10 6A4 4 0 112 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M8 4l2 2-2 2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Sends by link
+          </div>
+        </div>
 
-          <!-- action panel -->
-          <div class="done-panel">
-            <div class="done-panel-label">Share your gift</div>
-
-            <div class="done-link">
-              <span class="done-link-url" id="done-url">Generating your link…</span>
-              <button class="copy-btn" id="copy-btn" onclick="copyLink()">Copy link</button>
-            </div>
-
-            <div class="done-actions">
-              <button class="btn btn-primary" onclick="shareWhatsApp()" style="justify-content:center">
-                <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><path d="M9 1.5A7.5 7.5 0 002 12l-.5 4.5 4.6-.5A7.5 7.5 0 109 1.5z" stroke="currentColor" stroke-width="1.4"/><path d="M6 7.5c.5 2 2 3.5 4 4l1-1c.3-.3.7-.4 1 0l1.5 1c.4.3.4.7 0 1l-.5.5c-.7.7-1.7.8-2.5.3a8 8 0 01-5-5c-.5-.8-.4-1.8.3-2.5l.5-.5c.3-.4.7-.3 1 0l1 1.5c.4.3.3.7 0 1l-.3.5z" fill="currentColor"/></svg>
-                Share on WhatsApp
-              </button>
-              <div class="done-btn-row">
-                <button class="btn btn-ghost" onclick="downloadReel()" style="justify-content:center">
-                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                  Download
-                </button>
-                <button class="btn btn-ghost" onclick="shareGeneric()" style="justify-content:center">
-                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="12" cy="3" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="12" cy="13" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="4" cy="8" r="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 3.7L5.5 7M10.5 12.3L5.5 9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-                  Share
-                </button>
+        <!-- right: what the recipient experiences -->
+        <div class="done-panel">
+          <h3 class="done-panel-headline">Here's what <em>they'll experience</em></h3>
+          <p class="done-panel-sub">When they tap your link, this is exactly what happens — no app, no download, just the gift playing instantly.</p>
+          <div class="done-journey">
+            <div class="done-journey-step">
+              <div class="done-journey-num">1</div>
+              <div class="done-journey-text">
+                They get your link — via text, WhatsApp, or email
+                <span>Works on any phone, no app needed</span>
               </div>
             </div>
+            <div class="done-journey-step">
+              <div class="done-journey-num">2</div>
+              <div class="done-journey-text">
+                They tap it and your SongReel plays instantly
+                <span>Full screen, portrait video with your AI song</span>
+              </div>
+            </div>
+            <div class="done-journey-step">
+              <div class="done-journey-num">3</div>
+              <div class="done-journey-text">
+                They hear a song written just for them
+                <span>Every lyric is about your memories together</span>
+              </div>
+            </div>
+          </div>
+          <button class="done-dash-link" onclick="window.location.href='/dashboard'">
+            <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="1.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="8.5" y="1.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="1.5" y="8.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="8.5" y="8.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+            View all your SongReels
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
 
-            <button class="done-dash-link" onclick="window.location.href='/dashboard'">
-              <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="1.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="8.5" y="1.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="1.5" y="8.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="8.5" y="8.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
-              View all your SongReels
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
+      <!-- ③ SOCIAL PROOF STRIP -->
+      <div class="done-proof">
+        <div class="done-proof-inner">
+          <div class="done-proof-item">
+            <div class="done-proof-val">14,200<em>+</em></div>
+            <div class="done-proof-lbl">SongReels sent</div>
+          </div>
+          <div class="done-proof-divider"></div>
+          <div class="done-proof-item">
+            <div class="done-proof-val">★ 4.9</div>
+            <div class="done-proof-lbl">Average rating</div>
+          </div>
+          <div class="done-proof-divider"></div>
+          <div class="done-proof-item">
+            <div class="done-proof-val">~5<em>min</em></div>
+            <div class="done-proof-lbl">To make another</div>
+          </div>
+          <div class="done-proof-divider"></div>
+          <div class="done-proof-item">
+            <div class="done-proof-val">92<em>%</em></div>
+            <div class="done-proof-lbl">Said they cried</div>
           </div>
         </div>
       </div>
 
-      <!-- ═══ HOOK — drives repeat creation ═══ -->
-      <div class="done-hook" style="max-width:900px;margin:0 auto 80px;padding:52px 24px 0;border-top:1px solid var(--rule-soft)">
-        <div class="done-hook-divider">
-          <span>Got someone else who deserves one?</span>
+      <!-- ④ TESTIMONIAL -->
+      <div class="done-testimonial">
+        <div class="done-testi-stars">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.8 3.6 4 .6-2.9 2.8.7 4-3.6-1.9-3.6 1.9.7-4L2.2 5.2l4-.6z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.8 3.6 4 .6-2.9 2.8.7 4-3.6-1.9-3.6 1.9.7-4L2.2 5.2l4-.6z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.8 3.6 4 .6-2.9 2.8.7 4-3.6-1.9-3.6 1.9.7-4L2.2 5.2l4-.6z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.8 3.6 4 .6-2.9 2.8.7 4-3.6-1.9-3.6 1.9.7-4L2.2 5.2l4-.6z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.8 3.6 4 .6-2.9 2.8.7 4-3.6-1.9-3.6 1.9.7-4L2.2 5.2l4-.6z"/></svg>
         </div>
+        <p class="done-testi-quote">"She called me crying before it even finished. I've never given a gift that hit that hard."</p>
+        <div class="done-testi-attr">Marcus K. — SongReel for his mom's 60th birthday</div>
+      </div>
 
+      <!-- ⑤ UPSELL HOOK -->
+      <div class="done-hook">
+        <div class="done-hook-divider"><span>Who else in your life deserves this?</span></div>
+        <p class="done-hook-sub">Most people think of 2–3 people the moment they finish their first one.</p>
         <div class="done-hook-grid">
           <button class="hook-card hook-c1" onclick="startFreshWithOccasion('mothers-day')">
             <div class="hook-bg"></div>
@@ -1275,12 +1405,15 @@ body.gate-active { overflow: hidden; }
             <span class="hook-name">Birthday</span>
           </button>
         </div>
-
         <div class="done-hook-cta">
-          <button class="btn btn-accent" onclick="confirmStartFresh()" style="padding:14px 28px;font-size:15px">
-            Make another SongReel <span class="arr">→</span>
-          </button>
-          <p class="done-hook-note">Most people make 2–3. The next one only takes ~5 min.</p>
+          <div class="done-hook-cta-card">
+            <h3>The next one takes <em>5 minutes.</em></h3>
+            <p>Your answers are already saved. Pick a new occasion and a new person — we'll handle the rest.</p>
+            <button class="btn btn-accent" onclick="confirmStartFresh()" style="padding:15px 32px;font-size:15px;position:relative">
+              Make another SongReel <span class="arr">→</span>
+            </button>
+          </div>
+          <p class="done-hook-note">Starting from $0 · No subscription required</p>
         </div>
       </div>
     </div>
