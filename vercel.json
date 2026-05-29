@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/app", "destination": "/Songreels_Form.html" },
+    { "source": "/dashboard", "destination": "/Dashboard.html" },
     { "source": "/", "destination": "/Landing_Page.html" }
   ]
 }

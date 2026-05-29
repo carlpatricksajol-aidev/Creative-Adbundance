@@ -328,6 +328,12 @@ body {
   :root { --pad: 20px; }
 }
 </style>
+<script>
+  // If Supabase redirects back here after Google OAuth, forward to /app with the full hash intact
+  if (window.location.hash && window.location.hash.includes('access_token')) {
+    window.location.replace('/app' + window.location.hash);
+  }
+</script>
 </head>
 <body>
 
