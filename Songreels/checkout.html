@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkout — SongReels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --pink:#FF2D55;--orange:#FF9500;--yellow:#FFCC00;--purple:#5856D6;--green:#34C759;
+  --ink:#221019;--ink-soft:#6b5560;--ink-faint:#9a8790;
+  --cream:#FFF7F0;--cream-2:#FFF1E8;--paper:#ffffff;--card:#fff;--night:#1c0f16;
+  --line:#f2e6df;--line-soft:#f7eee7;
+  --grad:linear-gradient(135deg,#FF2D55 0%,#FF6A3D 48%,#FFB300 100%);
+  --grad-soft:linear-gradient(135deg,#FFE7EC 0%,#FFF1E0 100%);
+  --disp:'Fredoka',system-ui,sans-serif;--body:'Nunito',system-ui,sans-serif;
+  --maxw:1000px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--cream);color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased}
+body{font-size:16px;line-height:1.55;font-weight:500;min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+input{font:inherit;color:inherit;background:transparent;border:0;width:100%;outline:none}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 32px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:var(--disp);font-weight:600;font-size:16px;padding:15px 26px;border-radius:999px;line-height:1;white-space:nowrap;cursor:pointer;transition:transform .15s ease,box-shadow .2s}
+.btn:hover{transform:translateY(-2px)}
+.btn-grad{background:var(--grad);color:#fff;box-shadow:0 12px 26px -10px rgba(255,45,85,.6)}
+.btn-soft{background:#fff;color:var(--pink);border:1.5px solid var(--line);box-shadow:0 6px 16px -8px rgba(34,16,25,.25)}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:30;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(255,247,240,.82);border-bottom:1px solid rgba(242,230,223,.7)}
+.nav .wrap{display:flex;align-items:center;justify-content:space-between;height:72px;max-width:var(--maxw)}
+.brand{font-family:var(--disp);font-weight:700;font-size:23px;display:flex;align-items:center;gap:7px}
+.nav .back{font-family:var(--disp);font-weight:500;font-size:14.5px;color:var(--ink-soft);display:flex;align-items:center;gap:7px}
+.nav .back:hover{color:var(--pink)}
+
+/* layout */
+main{flex:1;padding:48px 0 80px}
+.kicker{font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--pink)}
+.page-h1{font-family:var(--disp);font-weight:600;font-size:clamp(34px,5vw,48px);line-height:1.04;letter-spacing:-.02em;margin-top:8px}
+.page-h1 .hl{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.grid{display:grid;grid-template-columns:1fr .9fr;gap:26px;margin-top:36px;align-items:start}
+@media(max-width:820px){.grid{grid-template-columns:1fr}.summary{order:-1}}
+
+.card{background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:0 24px 50px -34px rgba(34,16,25,.4)}
+
+/* summary */
+.summary{padding:30px 30px 26px}
+.summary .lab{font-family:var(--disp);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:16px}
+.pack{display:flex;align-items:center;gap:16px;padding-bottom:22px;border-bottom:1px solid var(--line-soft)}
+.pack .ico{width:62px;height:62px;border-radius:18px;background:var(--grad-soft);display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0}
+.pack .nm{font-family:var(--disp);font-weight:600;font-size:22px;line-height:1.1}
+.pack .badge{display:inline-block;margin-top:5px;font-family:var(--disp);font-weight:600;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--pink);background:#FFE7EC;padding:4px 10px;border-radius:999px}
+.feat-list{list-style:none;margin:20px 0 0;display:flex;flex-direction:column;gap:11px}
+.feat-list li{display:flex;gap:10px;align-items:center;font-size:15px;font-weight:700;color:var(--ink-soft)}
+.feat-list li .ck{color:var(--green);flex-shrink:0}
+.totals{margin-top:24px;padding-top:20px;border-top:1px solid var(--line-soft);display:flex;flex-direction:column;gap:9px}
+.totals .row{display:flex;justify-content:space-between;font-size:14.5px;font-weight:700;color:var(--ink-soft)}
+.totals .row.grand{margin-top:6px;align-items:baseline}
+.totals .row.grand .t{font-family:var(--disp);font-weight:600;font-size:15px;color:var(--ink)}
+.totals .row.grand .v{font-family:var(--disp);font-weight:700;font-size:32px;color:var(--ink)}
+.guarantee{margin-top:18px;display:flex;gap:10px;align-items:flex-start;background:var(--cream-2);border-radius:14px;padding:13px 15px;font-size:13px;font-weight:600;color:var(--ink-soft);line-height:1.5}
+
+/* payment */
+.pay{padding:30px}
+.pay h2{font-family:var(--disp);font-weight:600;font-size:24px;letter-spacing:-.01em;margin-bottom:4px}
+.pay .sub{font-size:14px;font-weight:600;color:var(--ink-soft);margin-bottom:24px}
+.field{margin-bottom:16px}
+.field label{display:block;font-family:var(--disp);font-weight:600;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px}
+.ctl{padding:14px 16px;border:1.5px solid var(--line);border-radius:14px;background:var(--cream);transition:border-color .15s,background .15s,box-shadow .15s;display:flex;align-items:center;gap:10px}
+.ctl:focus-within{border-color:var(--pink);background:#fff;box-shadow:0 0 0 4px color-mix(in oklab,var(--pink) 14%,transparent)}
+.ctl input{font-size:15.5px;font-weight:600}
+.ctl input::placeholder{color:var(--ink-faint);font-weight:600}
+.ctl .brandmark{font-family:var(--disp);font-weight:700;font-size:13px;color:var(--ink-faint);flex-shrink:0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pay-btn{margin-top:8px;width:100%;padding:16px;border-radius:999px;background:var(--grad);color:#fff;font-family:var(--disp);font-weight:600;font-size:16px;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 14px 30px -12px rgba(255,45,85,.6);transition:transform .15s,filter .2s}
+.pay-btn:hover:not(:disabled){transform:translateY(-2px);filter:brightness(1.04)}
+.pay-btn:disabled{opacity:.6;cursor:not-allowed}
+.secure{margin-top:14px;text-align:center;font-size:12.5px;font-weight:600;color:var(--ink-faint);display:flex;align-items:center;justify-content:center;gap:7px}
+
+/* success */
+.success{display:none;text-align:center;padding:20px 0}
+.success.shown{display:block;animation:fade .4s ease}
+@keyframes fade{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.success .ico{width:74px;height:74px;border-radius:50%;background:rgba(52,199,89,.16);color:var(--green);display:flex;align-items:center;justify-content:center;margin:0 auto 22px}
+.success h2{font-family:var(--disp);font-weight:600;font-size:30px;letter-spacing:-.015em;line-height:1.1}
+.success p{margin:14px auto 24px;color:var(--ink-soft);font-weight:600;font-size:15.5px;max-width:360px;line-height:1.55}
+
+/* footer */
+footer{background:var(--night);color:rgba(255,255,255,.5);padding:26px 0;font-size:12.5px;font-weight:600}
+footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;max-width:var(--maxw)}
+footer a{color:rgba(255,255,255,.7)}
+footer a:hover{color:#fff}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="index.html">SongReels <span>🎶</span></a>
+    <a class="back" href="index.html#pricing"><span>←</span> Back to pricing</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <span class="kicker">Checkout</span>
+    <h1 class="page-h1">Almost <span class="hl">yours</span> 🎁</h1>
+
+    <div class="grid">
+
+      <!-- PAYMENT -->
+      <div class="card pay">
+        <div id="payInner">
+          <h2>Payment details</h2>
+          <p class="sub">One-time charge. No subscription, cancel-anytime not required.</p>
+          <form id="payForm" novalidate>
+            <div class="field">
+              <label for="card">Card number</label>
+              <div class="ctl"><input id="card" inputmode="numeric" placeholder="1234 1234 1234 1234" required><span class="brandmark">VISA</span></div>
+            </div>
+            <div class="row2">
+              <div class="field">
+                <label for="exp">Expiry</label>
+                <div class="ctl"><input id="exp" inputmode="numeric" placeholder="MM / YY" required></div>
+              </div>
+              <div class="field">
+                <label for="cvc">CVC</label>
+                <div class="ctl"><input id="cvc" inputmode="numeric" placeholder="123" required></div>
+              </div>
+            </div>
+            <div class="field">
+              <label for="cname">Name on card</label>
+              <div class="ctl"><input id="cname" placeholder="Marcus Bell" required></div>
+            </div>
+            <button type="submit" class="pay-btn" id="payBtn">Pay <span id="payAmt">$9.99</span> &amp; continue <span>→</span></button>
+            <div class="secure">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="2" y="6" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M4.5 6V4a2.5 2.5 0 0 1 5 0v2" stroke="currentColor" stroke-width="1.4"/></svg>
+              Secured by Stripe · 256-bit SSL
+            </div>
+          </form>
+        </div>
+        <div class="success" id="success">
+          <div class="ico"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M4 16l8 8L28 8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <h2>You're all set 🎉</h2>
+          <p>Your <strong id="okPack">SongReel</strong> is ready to make. Let's create something they'll save forever.</p>
+          <a class="btn btn-grad" href="create.html">Start creating <span>→</span></a>
+        </div>
+      </div>
+
+      <!-- ORDER SUMMARY -->
+      <div class="card summary">
+        <div class="lab">Order summary</div>
+        <div class="pack">
+          <div class="ico" id="packIco">🎵</div>
+          <div>
+            <div class="nm" id="packName">Single SongReel</div>
+            <span class="badge" id="packBadge" style="display:none">⭐ Most popular</span>
+          </div>
+        </div>
+        <ul class="feat-list" id="packFeats"></ul>
+        <div class="totals">
+          <div class="row"><span id="subLabel">Single SongReel</span><span id="subVal">$9.99</span></div>
+          <div class="row"><span>Tax</span><span>Calculated at payment</span></div>
+          <div class="row grand"><span class="t">Total due today</span><span class="v" id="grandVal">$9.99</span></div>
+        </div>
+        <div class="guarantee">
+          <span>💛</span>
+          <span>Preview everything free before you ever pay — you only land here when it's a yes.</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 SongReels — Made with 💛</span>
+    <span><a href="terms.html">Terms</a> · <a href="privacy.html">Privacy</a> · <a href="contact.html">Help</a></span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  // ----- Pack catalog -----
+  const PACKS = {
+    single: { name:'Single SongReel', icon:'🎵', price:9.99, badge:false,
+      feats:['1 custom SongReel','4 original song options','HD video download','Shareable link, lasts forever'] },
+    family: { name:'Family Pack', icon:'💛', price:39.99, badge:true,
+      feats:['5 SongReels','Use them anytime','Save $10 vs. singles','HD downloads + shareable links'] },
+    memory: { name:'Memory Pack', icon:'📼', price:69.99, badge:false,
+      feats:['10 SongReels','Use them anytime','Save $30 vs. singles','HD downloads + shareable links'] }
+  };
+  const money = n => '$' + n.toFixed(2);
+  const params = new URLSearchParams(location.search);
+  const key = (params.get('pack') || 'single').toLowerCase();
+  const pack = PACKS[key] || PACKS.single;
+
+  // ----- Render summary -----
+  document.getElementById('packName').textContent = pack.name;
+  document.getElementById('packIco').textContent  = pack.icon;
+  document.getElementById('subLabel').textContent = pack.name;
+  document.getElementById('subVal').textContent   = money(pack.price);
+  document.getElementById('grandVal').textContent = money(pack.price);
+  document.getElementById('payAmt').textContent   = money(pack.price);
+  document.getElementById('okPack').textContent   = pack.name;
+  document.getElementById('packBadge').style.display = pack.badge ? 'inline-block' : 'none';
+  document.getElementById('packFeats').innerHTML = pack.feats.map(f =>
+    '<li><svg class="ck" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' + f + '</li>'
+  ).join('');
+
+  // ----- Payment (UI-only — real Stripe hook goes here) -----
+  const form    = document.getElementById('payForm');
+  const payBtn  = document.getElementById('payBtn');
+  const success = document.getElementById('success');
+  const payInner= document.getElementById('payInner');
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    let ok = true;
+    form.querySelectorAll('[required]').forEach(el => {
+      const ctl = el.closest('.ctl');
+      ctl.style.borderColor = '';
+      ctl.style.boxShadow = '';
+      if (!el.value.trim()) {
+        ok = false;
+        ctl.style.borderColor = 'var(--pink)';
+        ctl.style.boxShadow = '0 0 0 4px color-mix(in oklab,var(--pink) 14%,transparent)';
+      }
+    });
+    if (!ok) return;
+
+    payBtn.disabled = true;
+    payBtn.innerHTML = 'Processing…';
+
+    // TODO: replace with real Stripe Checkout / payment-intent confirmation.
+    setTimeout(() => {
+      payInner.style.display = 'none';
+      success.classList.add('shown');
+    }, 900);
+  });
+})();
+</script>
+</body>
+</html>

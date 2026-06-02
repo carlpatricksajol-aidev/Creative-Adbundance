@@ -7,16 +7,17 @@
 <meta name="description" content="The terms governing your use of SongReels.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#FAF6F0;--bg-2:#F4EFE6;--paper:#FFFCF6;
-  --ink:#2A1F18;--ink-soft:#6F5E50;--ink-faint:#9B8C7E;
-  --rule:#E5DDD0;--rule-soft:#EFE8DC;
-  --accent:#B85844;--accent-deep:#9A4434;--accent-soft:#F2D9D0;
-  --serif:'Instrument Serif','Times New Roman',serif;
-  --sans:'DM Sans',ui-sans-serif,system-ui,sans-serif;
-  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --bg:#FFF7F0;--bg-2:#FFF1E8;--paper:#FFFFFF;
+  --ink:#221019;--ink-soft:#6b5560;--ink-faint:#9a8790;
+  --rule:#f2e6df;--rule-soft:#f7eee7;
+  --accent:#FF2D55;--accent-deep:#E01E45;--accent-soft:#FFE0E8;
+  --grad:linear-gradient(135deg,#FF2D55 0%,#FF6A3D 48%,#FFB300 100%);
+  --serif:'Fredoka',system-ui,sans-serif;
+  --sans:'Nunito',system-ui,sans-serif;
+  --mono:'Fredoka',system-ui,sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
@@ -75,17 +76,38 @@ footer{border-top:1px solid var(--rule-soft);background:var(--paper);padding:36p
   h1{font-size:36px}
   h2{font-size:24px}
 }
+/* ===== Sunset Pop polish ===== */
+body{font-weight:500}
+h1{font-weight:600;letter-spacing:-.022em}
+h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{font-weight:600}
+h2 em{font-style:normal;color:var(--accent)}
+h3{font-weight:600}
+a{font-weight:700;text-decoration:none}
+a:hover{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.brand{font-weight:700;align-items:center;gap:7px}
+.nav-links{font-family:var(--serif);font-weight:500}
+.nav-links a.active{color:var(--accent)}
+.eyebrow{font-weight:600;color:var(--accent)}
+.lede{font-weight:600}
+.toc-title,.footer-brand,.footer-links a,.contact-card a{font-family:var(--serif);font-weight:600}
+.callout,.contact-card,.toc{border-radius:18px;box-shadow:0 16px 32px -28px rgba(34,16,25,.4)}
+.callout svg{color:var(--accent)}
+.caps-clause{border-radius:0 12px 12px 0}
+table{border-radius:14px;overflow:hidden;border:1px solid var(--rule)}
+.callout.warning{background:#FFF4E9;border-color:#FFE0BD}
+.callout.warning svg{color:#FF9500}
 </style>
 </head>
 <body>
 
 <header class="nav">
   <div class="nav-row">
-    <a href="/" style="text-decoration:none;color:inherit"><div class="brand">SongReels<span class="dot"></span></div></a>
+    <a href="index.html"><div class="brand">SongReels <span>🎶</span></div></a>
     <div class="nav-links">
-      <a href="/">Home</a>
-      <a href="/privacy">Privacy</a>
-      <a href="/terms" style="color:var(--ink)">Terms</a>
+      <a href="index.html">Home</a>
+      <a href="privacy.html">Privacy</a>
+      <a class="active" href="terms.html">Terms</a>
     </div>
   </div>
 </header>
@@ -121,7 +143,7 @@ footer{border-top:1px solid var(--rule-soft);background:var(--paper);padding:36p
   </div>
 
   <h2 id="acceptance">Acceptance of <em>these terms</em></h2>
-  <p>By creating an account, signing in, or using SongReels in any way, you agree to be bound by these Terms and Conditions ("Terms") and our <a href="/privacy">Privacy Policy</a>. If you don't agree, don't use the service.</p>
+  <p>By creating an account, signing in, or using SongReels in any way, you agree to be bound by these Terms and Conditions ("Terms") and our <a href="privacy.html">Privacy Policy</a>. If you don't agree, don't use the service.</p>
   <p>You must be at least 13 years old to use SongReels. If you're between 13 and 18 (or the age of legal majority in your jurisdiction), you must have a parent or guardian's permission and they must agree to these Terms on your behalf.</p>
   <p>If you're using SongReels on behalf of a company or other organization, you confirm you have authority to bind that organization to these Terms.</p>
 
@@ -310,12 +332,12 @@ footer{border-top:1px solid var(--rule-soft);background:var(--paper);padding:36p
   <div class="footer-row">
     <div class="footer-brand">SongReels · made for moments that matter</div>
     <div class="footer-links">
-      <a href="/">Home</a>
-      <a href="/app">Start a gift</a>
-      <a href="/privacy">Privacy</a>
-      <a href="/terms">Terms</a>
-      <a href="/contact">Contact</a>
-      <a href="/contact">Help</a>
+      <a href="index.html">Home</a>
+      <a href="create.html">Start a gift</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+      <a href="contact.html">Contact</a>
+      <a href="contact.html">Help</a>
     </div>
   </div>
 </footer>

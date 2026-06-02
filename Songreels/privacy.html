@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — SongReels</title>
+<meta name="description" content="How SongReels collects, uses, and protects your data.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FFF7F0;--bg-2:#FFF1E8;--paper:#FFFFFF;
+  --ink:#221019;--ink-soft:#6b5560;--ink-faint:#9a8790;
+  --rule:#f2e6df;--rule-soft:#f7eee7;
+  --accent:#FF2D55;--accent-deep:#E01E45;--accent-soft:#FFE0E8;
+  --grad:linear-gradient(135deg,#FF2D55 0%,#FF6A3D 48%,#FFB300 100%);
+  --serif:'Fredoka',system-ui,sans-serif;
+  --sans:'Nunito',system-ui,sans-serif;
+  --mono:'Fredoka',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
+body{font-size:16px;line-height:1.65}
+a{color:var(--accent-deep);text-decoration:underline;text-underline-offset:2px;text-decoration-thickness:1px}
+a:hover{color:var(--ink)}
+/* NAV */
+.nav{position:sticky;top:0;z-index:30;background:color-mix(in oklab,var(--bg) 90%,transparent);backdrop-filter:saturate(150%) blur(10px);border-bottom:1px solid var(--rule-soft)}
+.nav-row{max-width:900px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
+.brand{font-family:var(--serif);font-size:22px;letter-spacing:-.01em;display:flex;align-items:baseline;gap:8px}
+.brand .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);transform:translateY(-3px)}
+.nav-links{display:flex;gap:24px;align-items:center;font-size:14px}
+.nav-links a{color:var(--ink-soft);text-decoration:none}
+.nav-links a:hover{color:var(--ink)}
+/* CONTENT */
+main{max-width:780px;margin:0 auto;padding:64px 32px 96px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft);display:block;margin-bottom:18px}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(40px,5.5vw,62px);line-height:1.02;letter-spacing:-.02em;margin-bottom:18px}
+h1 em{font-style:italic;color:var(--accent-deep)}
+.lede{font-size:18px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;max-width:620px}
+.updated{font-family:var(--mono);font-size:12px;color:var(--ink-faint);letter-spacing:.06em;margin-bottom:48px}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(26px,3vw,34px);line-height:1.15;letter-spacing:-.015em;margin-top:56px;margin-bottom:18px}
+h2 em{font-style:italic;color:var(--accent-deep)}
+h2:first-of-type{margin-top:0}
+h3{font-family:var(--sans);font-weight:600;font-size:16px;letter-spacing:.01em;margin-top:28px;margin-bottom:10px;color:var(--ink)}
+p{margin-bottom:14px;color:var(--ink);line-height:1.7}
+p.soft{color:var(--ink-soft)}
+ul,ol{margin:14px 0 14px 24px;color:var(--ink);line-height:1.7}
+li{margin-bottom:8px}
+strong{font-weight:600;color:var(--ink)}
+.callout{background:var(--paper);border:1px solid var(--rule-soft);border-radius:14px;padding:20px 24px;margin:24px 0;display:flex;gap:14px;align-items:flex-start}
+.callout svg{flex-shrink:0;color:var(--accent-deep);margin-top:3px}
+.callout p{margin-bottom:0;font-size:15px;line-height:1.6}
+.contact-card{background:var(--paper);border:1px solid var(--rule);border-radius:14px;padding:24px 28px;margin-top:40px}
+.contact-card h3{font-family:var(--serif);font-size:22px;font-weight:400;margin-top:0;margin-bottom:6px;color:var(--ink)}
+.contact-card p{margin-bottom:6px;font-size:15px}
+.contact-card a{font-family:var(--mono);font-size:14px}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+table th,table td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+table th{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);font-weight:500;background:var(--bg-2)}
+table td{color:var(--ink);line-height:1.5}
+.toc{background:var(--paper);border:1px solid var(--rule-soft);border-radius:14px;padding:20px 24px;margin-bottom:48px}
+.toc-title{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:12px}
+.toc ol{margin:0 0 0 24px;padding:0}
+.toc li{margin-bottom:6px;font-size:14px}
+.toc a{color:var(--ink);text-decoration:none}
+.toc a:hover{color:var(--accent-deep);text-decoration:underline}
+footer{border-top:1px solid var(--rule-soft);background:var(--paper);padding:36px 0;margin-top:64px}
+.footer-row{max-width:900px;margin:0 auto;padding:0 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+.footer-brand{font-family:var(--serif);font-size:16px;color:var(--ink-soft)}
+.footer-links{display:flex;gap:24px;font-size:13px}
+.footer-links a{color:var(--ink-soft);text-decoration:none;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;font-size:11px}
+.footer-links a:hover{color:var(--ink)}
+@media(max-width:640px){
+  main{padding:40px 24px 72px}
+  h1{font-size:36px}
+  h2{font-size:24px}
+}
+/* ===== Sunset Pop polish ===== */
+body{font-weight:500}
+h1{font-weight:600;letter-spacing:-.022em}
+h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{font-weight:600}
+h2 em{font-style:normal;color:var(--accent)}
+h3{font-weight:600}
+a{font-weight:700;text-decoration:none}
+a:hover{text-decoration:underline;text-underline-offset:3px}
+.brand{font-weight:700;align-items:center;gap:7px}
+.nav-links{font-family:var(--serif);font-weight:500}
+.nav-links a.active{color:var(--accent)}
+.eyebrow{font-weight:600;color:var(--accent)}
+.lede{font-weight:600}
+.toc-title,.footer-brand,.footer-links a,.contact-card a{font-family:var(--serif);font-weight:600}
+.callout,.contact-card,.toc{border-radius:18px;box-shadow:0 16px 32px -28px rgba(34,16,25,.4)}
+.callout svg{color:var(--accent)}
+table{border-radius:14px;overflow:hidden;border:1px solid var(--rule)}
+.callout.warning{background:#FFF4E9;border-color:#FFE0BD}
+.callout.warning svg{color:#FF9500}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-row">
+    <a href="index.html"><div class="brand">SongReels <span>🎶</span></div></a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a class="active" href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <span class="eyebrow">Legal</span>
+  <h1>Privacy <em>Policy</em></h1>
+  <p class="lede">How we collect, use, and protect the information you share when you create a SongReel.</p>
+  <p class="updated">Last updated: May 28, 2026</p>
+
+  <div class="toc">
+    <div class="toc-title">On this page</div>
+    <ol>
+      <li><a href="#summary">The short version</a></li>
+      <li><a href="#who">Who we are</a></li>
+      <li><a href="#info">Information we collect</a></li>
+      <li><a href="#how">How we use your information</a></li>
+      <li><a href="#sharing">Who we share data with</a></li>
+      <li><a href="#ai">AI processing of your content</a></li>
+      <li><a href="#storage">Where your data is stored</a></li>
+      <li><a href="#retention">How long we keep data</a></li>
+      <li><a href="#rights">Your rights</a></li>
+      <li><a href="#cookies">Cookies and tracking</a></li>
+      <li><a href="#children">Children's privacy</a></li>
+      <li><a href="#changes">Changes to this policy</a></li>
+      <li><a href="#contact">Contact us</a></li>
+    </ol>
+  </div>
+
+  <h2 id="summary">The short <em>version</em></h2>
+  <div class="callout">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8.5" stroke="currentColor" stroke-width="1.6"/><path d="M10 5.5v5M10 13.5v.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    <p>You give us photos, videos, and a few details about someone you love. We use AI to turn them into a custom song and music video. We don't sell your data, we don't train AI models on your content, and you can delete everything anytime by emailing us.</p>
+  </div>
+
+  <h2 id="who">Who <em>we are</em></h2>
+  <p>SongReels is operated by the SongReels team. We make AI-generated personalized music videos as gifts. When this policy says "we," "us," or "SongReels," that's who we mean. When it says "you," that means anyone who creates an account or uses our service.</p>
+  <p>Our website is <strong>songreels.ai</strong>. If you have questions about anything in this policy, email us at <a href="mailto:hello@songreels.ai">hello@songreels.ai</a>.</p>
+
+  <h2 id="info">Information <em>we collect</em></h2>
+  
+  <h3>Information you give us directly</h3>
+  <p>When you sign up and use SongReels, you give us:</p>
+  <ul>
+    <li><strong>Account info:</strong> your name, email address, and profile picture, via Google Sign-In</li>
+    <li><strong>Recipient details:</strong> the name of the person your gift is for, the occasion, and any theme or story you write to inspire the song</li>
+    <li><strong>Media files:</strong> the photos and video clips you upload (up to 20 files, max 100 MB per video, 25 MB per photo)</li>
+    <li><strong>Descriptions:</strong> the text you type or speak to describe each clip</li>
+    <li><strong>Song preferences:</strong> genre, mood slider value, song length tier, and any focus text</li>
+    <li><strong>Edits:</strong> any changes you make to the AI-generated script or lyrics during review</li>
+  </ul>
+
+  <h3>Information we collect automatically</h3>
+  <ul>
+    <li><strong>Usage data:</strong> what steps you complete, how long generation takes, which features you use</li>
+    <li><strong>Device info:</strong> browser type, operating system, screen size, IP address (for security and analytics)</li>
+    <li><strong>Error logs:</strong> if something breaks, we log it so we can fix it</li>
+  </ul>
+
+  <h3>Information from Google Sign-In</h3>
+  <p>When you sign in with Google, we receive your email, full name, profile picture URL, and Google account ID. We don't access your Google Drive, Gmail, contacts, calendar, or anything else from your Google account. We only use these credentials to recognize you across sessions.</p>
+
+  <h2 id="how">How we <em>use your information</em></h2>
+  <p>We use your information to:</p>
+  <ul>
+    <li><strong>Create your SongReel:</strong> we analyze your uploaded media with AI to understand what's in each clip, write a custom song script and lyrics, compose the music, and render the final video</li>
+    <li><strong>Show you your past gifts:</strong> so you can come back and re-share or create new ones</li>
+    <li><strong>Improve the service:</strong> understand which features work, where users get stuck, what to build next</li>
+    <li><strong>Support you:</strong> respond to questions, troubleshoot issues, send important account or service updates</li>
+    <li><strong>Comply with law:</strong> respond to lawful requests from government authorities, prevent fraud, enforce our terms</li>
+  </ul>
+
+  <p><strong>We do NOT use your information to:</strong></p>
+  <ul>
+    <li>Train AI models — your photos, videos, and lyrics are never used as training data for any AI system, by us or by any of our processors</li>
+    <li>Send marketing emails to people who haven't opted in</li>
+    <li>Sell or rent your data to anyone, ever</li>
+    <li>Identify individuals in photos using facial recognition (we don't run any biometric identification)</li>
+  </ul>
+
+  <h2 id="sharing">Who we <em>share data with</em></h2>
+  <p>We share the minimum amount of data needed with trusted service providers (called "subprocessors") that help us deliver SongReels. We have contracts with each of them requiring them to protect your data and use it only for the purpose we hired them for.</p>
+
+  <table>
+    <thead><tr><th>Service</th><th>What they get</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Supabase</td><td>Account info, your uploaded media, generated content</td><td>Database, file storage, authentication</td></tr>
+      <tr><td>Google Cloud (Gemini)</td><td>Uploaded video and photo files</td><td>Visual analysis to understand each clip's content</td></tr>
+      <tr><td>Anthropic (Claude)</td><td>Clip descriptions, recipient details, theme text</td><td>Writing the song script and lyrics</td></tr>
+      <tr><td>Suno AI (via sunoapi.org)</td><td>Generated lyrics and song style preferences</td><td>Composing the original song audio</td></tr>
+      <tr><td>Creatomate</td><td>Uploaded media URLs, generated audio URL</td><td>Rendering the final music video</td></tr>
+      <tr><td>Backblaze B2</td><td>Final rendered videos</td><td>Hosting the shareable final video</td></tr>
+      <tr><td>Hostinger</td><td>Encrypted server traffic</td><td>Hosting the workflow infrastructure</td></tr>
+    </tbody>
+  </table>
+
+  <p>We may also share data with:</p>
+  <ul>
+    <li><strong>Law enforcement</strong> when legally required by court order or subpoena</li>
+    <li><strong>Business successors</strong> if SongReels is acquired or merged (you would be notified)</li>
+  </ul>
+
+  <h2 id="ai">AI processing of <em>your content</em></h2>
+  <p>SongReels relies on third-party AI systems. Here's what each one sees and does:</p>
+
+  <h3>Google Gemini (clip analysis)</h3>
+  <p>We upload your video and photo files to Google's Files API and ask Gemini to describe what it sees in each clip (objects, actions, mood). Google retains these files for up to 48 hours before automatic deletion. Per Google's API terms, content submitted to the Gemini API is not used to train Google's AI models.</p>
+
+  <h3>Anthropic Claude (lyrics and script writing)</h3>
+  <p>We send Claude the recipient's name, occasion, theme, and per-clip text descriptions. Claude generates the script and song lyrics. Per Anthropic's API terms, this data is not used to train Claude models and is retained for a limited period for abuse monitoring.</p>
+
+  <h3>Suno (song composition)</h3>
+  <p>We send the final approved lyrics and style preferences to Suno's API to compose original music. The composed song is delivered back to us and stored alongside your job.</p>
+
+  <h3>Creatomate (video rendering)</h3>
+  <p>Creatomate receives the URLs to your media files and the generated song, and assembles them into the final 9:16 vertical video. Creatomate does not retain rendered output beyond the storage period required for delivery.</p>
+
+  <div class="callout">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 1l8 16H2L10 1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><line x1="10" y1="7" x2="10" y2="11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="10" cy="13" r="0.6" fill="currentColor"/></svg>
+    <p><strong>Important:</strong> By using SongReels, your uploaded media passes through the third-party AI services listed above. We've chosen each one because their terms of service prohibit training on customer data, but you should only upload photos and videos you have the right to share.</p>
+  </div>
+
+  <h2 id="storage">Where your <em>data is stored</em></h2>
+  <p>Your account info, uploaded media, generated content, and final videos are stored in:</p>
+  <ul>
+    <li><strong>Supabase</strong> (account info, generated content metadata) — hosted on AWS infrastructure in the United States</li>
+    <li><strong>Supabase Storage</strong> (your uploaded photos and videos) — hosted on AWS infrastructure</li>
+    <li><strong>Backblaze B2</strong> (final rendered videos) — US-based</li>
+  </ul>
+  <p>If you are accessing SongReels from outside the United States, your data will be transferred to and processed in the US. By using the service you consent to this transfer.</p>
+
+  <h2 id="retention">How long we <em>keep data</em></h2>
+  <table>
+    <thead><tr><th>What</th><th>How long</th></tr></thead>
+    <tbody>
+      <tr><td>Your account (email, name, login records)</td><td>Until you delete your account or request removal</td></tr>
+      <tr><td>Your uploaded photos and videos</td><td>30 days after job completion, then automatically deleted</td></tr>
+      <tr><td>Final rendered videos</td><td>1 year after creation, or until you delete</td></tr>
+      <tr><td>Generated scripts and lyrics</td><td>Same as your account, or until you delete the gift</td></tr>
+      <tr><td>Server logs (for security and debugging)</td><td>90 days, then automatically purged</td></tr>
+      <tr><td>Files uploaded to Google Gemini for analysis</td><td>48 hours maximum (auto-deleted by Google)</td></tr>
+    </tbody>
+  </table>
+  <p>You can request earlier deletion at any time by emailing us.</p>
+
+  <h2 id="rights">Your <em>rights</em></h2>
+  <p>You have the right to:</p>
+  <ul>
+    <li><strong>Access</strong> the personal data we hold about you</li>
+    <li><strong>Correct</strong> any data that's inaccurate</li>
+    <li><strong>Delete</strong> your account and all associated data ("right to be forgotten")</li>
+    <li><strong>Export</strong> a copy of your data in a portable format</li>
+    <li><strong>Object</strong> to certain uses of your data</li>
+    <li><strong>Withdraw consent</strong> for any processing that's based on consent</li>
+  </ul>
+  <p>To exercise any of these rights, email us at <a href="mailto:hello@songreels.ai">hello@songreels.ai</a> from the address associated with your account. We'll respond within 30 days.</p>
+
+  <p>If you're in the European Union, United Kingdom, or California, you have additional rights under GDPR, UK-GDPR, or CCPA respectively. The rights above cover the substance of those rights; specific procedures may differ. Contact us if you'd like to invoke any region-specific protections.</p>
+
+  <h2 id="cookies">Cookies and <em>tracking</em></h2>
+  <p>We use a small number of essential cookies and browser storage items:</p>
+  <ul>
+    <li><strong>Auth session cookies</strong> from Supabase, to keep you signed in</li>
+    <li><strong>sessionStorage</strong> in your browser, to remember your current gift-in-progress so you don't lose your work if you reload</li>
+  </ul>
+  <p>We do <strong>not</strong> use third-party advertising cookies, tracking pixels, or analytics that share data with ad networks.</p>
+
+  <h2 id="children">Children's <em>privacy</em></h2>
+  <p>SongReels is not intended for children under 13. We do not knowingly collect personal information from children under 13. If you believe a child has provided us with personal information, please email us and we will delete it promptly.</p>
+  <p>Some clips may show children (the recipient or family members in your uploads). By uploading such media, you confirm you have the legal right to do so and that you are the parent, guardian, or have permission from the parent or guardian of any minor depicted.</p>
+
+  <h2 id="changes">Changes to <em>this policy</em></h2>
+  <p>We may update this Privacy Policy from time to time. When we make material changes, we'll update the "Last updated" date at the top and, for significant changes, notify you by email or via a prominent notice in the app.</p>
+  <p>Continued use of SongReels after a change means you accept the updated policy.</p>
+
+  <h2 id="contact">Contact <em>us</em></h2>
+  <div class="contact-card">
+    <h3>Questions about this policy?</h3>
+    <p class="soft">Email us anytime. We aim to respond within 2 business days.</p>
+    <p style="margin-top:14px"><a href="mailto:hello@songreels.ai">hello@songreels.ai</a></p>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-row">
+    <div class="footer-brand">SongReels · made for moments that matter</div>
+    <div class="footer-links">
+      <a href="index.html">Home</a>
+      <a href="create.html">Start a gift</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+      <a href="contact.html">Contact</a>
+      <a href="contact.html">Help</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

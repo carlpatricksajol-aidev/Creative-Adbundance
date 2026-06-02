@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SongReels — the gift they'll save forever</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --pink:#FF2D55;--orange:#FF9500;--yellow:#FFCC00;--purple:#5856D6;--green:#34C759;
+  --ink:#221019;--ink-soft:#6b5560;--ink-faint:#9a8790;
+  --cream:#FFF7F0;--card:#fff;--line:#f2e6df;
+  --grad:linear-gradient(135deg,#FF2D55 0%,#FF6A3D 48%,#FFB300 100%);
+  --grad-soft:linear-gradient(135deg,#FFE7EC 0%,#FFF1E0 100%);
+  --disp:'Fredoka',system-ui,sans-serif;--body:'Nunito',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--cream);color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased}
+body{font-size:16px;line-height:1.55;font-weight:500;overflow-x:hidden}
+img{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+.wrap{max-width:1180px;margin:0 auto;padding:0 50px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:var(--disp);font-weight:600;font-size:16px;padding:15px 26px;border-radius:999px;line-height:1;white-space:nowrap;transition:transform .15s ease,box-shadow .2s}
+.btn:hover{transform:translateY(-2px)}
+.btn-grad{background:var(--grad);color:#fff;box-shadow:0 12px 26px -10px rgba(255,45,85,.6)}
+.btn-soft{background:#fff;color:var(--pink);box-shadow:0 6px 16px -8px rgba(34,16,25,.25);border:1.5px solid var(--line)}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:40;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(255,247,240,.82);border-bottom:1px solid rgba(242,230,223,.7)}
+.nav .wrap{display:flex;align-items:center;justify-content:space-between;height:74px}
+.brand{font-family:var(--disp);font-weight:700;font-size:24px;display:flex;align-items:center;gap:7px}
+.nav-links{display:flex;gap:30px;font-family:var(--disp);font-weight:500;font-size:16px;color:var(--ink-soft);white-space:nowrap}
+.nav-links a:hover{color:var(--pink)}
+.nav .btn{padding:12px 22px}
+
+/* hero */
+.hero{padding:72px 0 64px}
+.hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:60px;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--line);color:var(--ink-soft);font-family:var(--disp);font-weight:500;font-size:13px;letter-spacing:.02em;padding:9px 16px;border-radius:999px;box-shadow:0 4px 12px -7px rgba(34,16,25,.25)}
+.hero h1{font-family:var(--disp);font-weight:600;font-size:64px;line-height:1.02;letter-spacing:-.02em;margin-top:22px}
+.hero h1 .hl{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .lede{margin-top:22px;max-width:480px;color:var(--ink-soft);font-size:18.5px;font-weight:600;line-height:1.55}
+.hero .cta-row{margin-top:30px;display:flex;gap:13px}
+.hero .trust{margin-top:28px;display:flex;align-items:center;gap:10px;font-size:14.5px;color:var(--ink-soft);font-weight:700}
+.stars{color:var(--orange);letter-spacing:1px}
+.avatars{display:flex}
+.avatars span{width:30px;height:30px;border-radius:50%;border:2.5px solid var(--cream);margin-left:-9px;background-size:cover}
+.avatars span:first-child{margin-left:0}
+
+/* hero showcase */
+.show-stage{position:relative;display:flex;justify-content:center}
+.showcard{width:330px;background:#11070d;border-radius:34px;padding:10px;box-shadow:0 40px 80px -28px rgba(255,45,85,.5),0 18px 40px -20px rgba(34,16,25,.4)}
+.showcard .scr{border-radius:26px;overflow:hidden;background:#1c0f16}
+.show-vid{aspect-ratio:4/5;position:relative;background:linear-gradient(180deg,transparent 35%,rgba(20,5,10,.55)),url('https://picsum.photos/seed/srpop-mom/700/880') center/cover}
+.show-vid .topcap{position:absolute;top:15px;left:15px;right:15px;display:flex;justify-content:space-between;align-items:center}
+.show-tag{background:rgba(255,255,255,.92);color:var(--pink);font-family:var(--disp);font-weight:600;font-size:12.5px;padding:6px 13px;border-radius:999px}
+.show-live{background:rgba(0,0,0,.35);color:#fff;font-size:11px;font-weight:700;letter-spacing:.06em;padding:6px 11px;border-radius:999px;backdrop-filter:blur(4px)}
+.play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.95);display:flex;align-items:center;justify-content:center;box-shadow:0 14px 34px rgba(0,0,0,.35)}
+.show-cap{position:absolute;left:16px;right:16px;bottom:15px;color:#fff}
+.show-cap .for{font-size:11.5px;font-weight:700;opacity:.85;letter-spacing:.04em;text-transform:uppercase}
+.show-cap .ttl{font-family:var(--disp);font-weight:600;font-size:22px;line-height:1.08;margin-top:4px}
+.show-bar{display:flex;align-items:center;gap:11px;padding:14px 15px;background:#fff}
+.show-bar .mini{width:38px;height:38px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 6px 14px -6px rgba(255,45,85,.7)}
+.wave{display:flex;align-items:center;gap:2.5px;height:26px;flex:1}
+.wave span{display:block;width:3px;border-radius:2px;background:linear-gradient(180deg,var(--pink),var(--orange))}
+.show-bar .dur{font-family:var(--disp);font-weight:600;font-size:13px;color:var(--ink-soft)}
+.float{position:absolute;background:#fff;border:1.5px solid var(--line);border-radius:999px;padding:10px 15px;font-family:var(--disp);font-weight:500;font-size:14px;color:var(--ink-soft);display:flex;align-items:center;gap:7px;white-space:nowrap;box-shadow:0 12px 26px -12px rgba(34,16,25,.3)}
+.f1{top:13%;left:-34px}
+.f2{bottom:16%;left:-18px}
+
+/* section heads */
+.sec{padding:84px 0}
+.kicker{font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--pink);text-align:center}
+.sec h2{font-family:var(--disp);font-weight:600;font-size:46px;line-height:1.06;letter-spacing:-.02em;text-align:center;margin-top:10px}
+.sec .sub{text-align:center;color:var(--ink-soft);font-weight:600;max-width:540px;margin:16px auto 0;font-size:17px}
+
+/* occasions */
+.occ-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:48px}
+.occ{position:relative;border-radius:22px;padding:22px;min-height:175px;display:flex;flex-direction:column;justify-content:space-between;color:#fff;overflow:hidden;box-shadow:0 16px 32px -20px rgba(34,16,25,.5);transition:transform .2s}
+.occ:hover{transform:translateY(-5px)}
+.occ .emoji{font-size:40px;line-height:1}
+.occ .nm{font-family:var(--disp);font-weight:600;font-size:22px;line-height:1.05}
+.occ .dt{font-size:12.5px;font-weight:700;opacity:.9;margin-top:3px}
+.o1{background:linear-gradient(150deg,#FF5E7E,#FF2D55)}.o2{background:linear-gradient(150deg,#5AA0FF,#3B6FE0)}.o3{background:linear-gradient(150deg,#FFB73D,#FF8A00)}.o4{background:linear-gradient(150deg,#FF6B9D,#E84393)}.o5{background:linear-gradient(150deg,#8E8BFF,#5856D6)}.o6{background:linear-gradient(150deg,#34C759,#1C9E45)}.o7{background:linear-gradient(150deg,#9aa6c2,#6b7894)}
+.occ-more{border:1.5px dashed #ffc2cf;background:#fff;color:var(--pink);align-items:center;justify-content:center;text-align:center;gap:10px;font-family:var(--disp);box-shadow:none}
+.occ-more .emoji{font-size:34px}
+.occ-more .t{font-weight:600;font-size:21px;color:var(--pink)}
+.occ-more .s{font-size:13px;color:var(--ink-soft);font-weight:600;line-height:1.35}
+
+/* how */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:48px}
+.step{background:#fff;border-radius:24px;padding:28px;box-shadow:0 16px 34px -22px rgba(34,16,25,.4);border:1px solid var(--line)}
+.step .num{width:48px;height:48px;border-radius:16px;background:var(--grad-soft);display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-weight:700;font-size:24px;color:var(--pink)}
+.step h3{font-family:var(--disp);font-weight:600;font-size:23px;margin-top:18px}
+.step p{color:var(--ink-soft);font-weight:600;font-size:15px;margin-top:8px;line-height:1.5}
+.step .extra{margin-top:16px}
+.chiprow{display:flex;flex-wrap:wrap;gap:7px}
+.chip{background:#fff7f0;border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:700;color:var(--ink-soft)}
+.chip.on{background:var(--grad);color:#fff;border-color:transparent}
+.qbubble{background:#fff7f0;border-radius:16px;padding:14px 16px}
+.qbubble .q{font-weight:800;font-size:13px}
+.qbubble .a{font-family:var(--disp);font-weight:500;font-style:italic;font-size:15.5px;color:var(--ink-soft);margin-top:5px}
+.thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.thumbs .t{aspect-ratio:1;border-radius:11px;background-size:cover;background-position:center}
+.thumbs .t.add{background:#fff7f0;border:1.5px dashed #ffc2cf;display:flex;align-items:center;justify-content:center;color:var(--pink);font-family:var(--disp);font-weight:700;font-size:22px}
+
+/* examples */
+.ex-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:48px}
+.ex{background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 16px 32px -22px rgba(34,16,25,.45);border:1px solid var(--line)}
+.ex .top{aspect-ratio:4/3;position:relative;background-size:cover;background-position:center}
+.ex1 .top{background-image:linear-gradient(180deg,transparent 40%,rgba(20,5,10,.6)),url('https://picsum.photos/seed/srpop-ex1/600/450')}
+.ex2 .top{background-image:linear-gradient(180deg,transparent 40%,rgba(20,5,10,.6)),url('https://picsum.photos/seed/srpop-ex2/600/450')}
+.ex3 .top{background-image:linear-gradient(180deg,transparent 40%,rgba(20,5,10,.6)),url('https://picsum.photos/seed/srpop-ex3/600/450')}
+.ex .top .show-tag{position:absolute;top:14px;left:14px}
+.ex .top .play{width:54px;height:54px}
+.ex .top .cap{position:absolute;left:16px;bottom:14px;color:#fff}
+.ex .top .cap .for{font-size:11px;font-weight:700;opacity:.85;text-transform:uppercase}
+.ex .top .cap .nm{font-family:var(--disp);font-weight:600;font-size:21px;line-height:1.05;margin-top:3px}
+.ex .body{padding:20px}
+.ex .quote{font-family:var(--disp);font-weight:500;font-style:italic;font-size:17px;line-height:1.42}
+.ex .m{margin-top:14px;display:flex;justify-content:space-between;font-size:11.5px;font-weight:800;color:var(--ink-faint)}
+
+/* recipient */
+.recip{background:linear-gradient(160deg,#2a1018 0%,#5a1f2e 55%,#b3324d 100%);position:relative;overflow:hidden}
+.recip::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 80% 10%,rgba(255,150,90,.4),transparent 50%),radial-gradient(ellipse at 10% 90%,rgba(120,90,255,.35),transparent 50%)}
+.recip .wrap{position:relative;display:grid;grid-template-columns:1fr .85fr;gap:70px;align-items:center;padding-top:84px;padding-bottom:84px}
+.recip .kicker{text-align:left;color:#ffb38f}
+.recip h2{font-family:var(--disp);font-weight:600;font-size:46px;line-height:1.05;color:#fff;margin-top:10px}
+.recip .blurb{color:rgba(255,255,255,.78);font-size:18px;font-weight:600;margin-top:18px;max-width:440px}
+.feat{margin-top:30px;display:flex;flex-direction:column;gap:16px}
+.feat .f{display:flex;gap:15px;align-items:flex-start;color:#fff}
+.feat .f .e{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.feat .f strong{font-family:var(--disp);font-weight:600;font-size:18px;display:block}
+.feat .f p{color:rgba(255,255,255,.72);font-size:14.5px;font-weight:600;margin-top:2px}
+.recip-stage{display:flex;justify-content:center}
+.recip-mini{width:270px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(14px);border-radius:26px;padding:22px 20px}
+.recip-mini .url{font-size:12.5px;font-weight:700;color:#ffd0a8;margin-bottom:16px}
+.recip-mini .hl{font-family:var(--disp);font-weight:500;font-style:italic;font-size:34px;line-height:1.02;color:#fff}
+.recip-mini .hl small{display:block;font-size:17px;color:rgba(255,255,255,.78);margin-top:6px}
+.recip-mini .ctl{margin-top:22px;display:flex;align-items:center;gap:11px;background:rgba(255,255,255,.1);border-radius:16px;padding:11px 13px}
+.recip-mini .ctl .pb{width:34px;height:34px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.recip-mini .ctl .st{font-family:var(--disp);font-weight:500;font-size:14px;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+
+/* pricing */
+.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:48px;align-items:start}
+.tier{background:#fff;border-radius:26px;padding:30px;border:1.5px solid var(--line);box-shadow:0 16px 32px -24px rgba(34,16,25,.4);position:relative}
+.tier.feat{border-color:transparent;background:var(--grad);color:#fff;box-shadow:0 24px 44px -18px rgba(255,45,85,.6);transform:scale(1.04)}
+.tier .tn{font-family:var(--disp);font-weight:600;font-size:14px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint)}
+.tier.feat .tn{color:rgba(255,255,255,.85)}
+.tier .badge{position:absolute;top:24px;right:24px;background:#fff;color:var(--pink);font-family:var(--disp);font-weight:600;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;padding:6px 13px;border-radius:999px}
+.tier .pr{font-family:var(--disp);font-weight:700;font-size:54px;line-height:1;margin-top:12px}
+.tier .pr small{font-size:22px}
+.tier ul{list-style:none;margin:20px 0 0;display:flex;flex-direction:column;gap:10px}
+.tier li{display:flex;gap:9px;align-items:center;font-size:15.5px;font-weight:700;color:var(--ink-soft)}
+.tier.feat li{color:rgba(255,255,255,.92)}
+.tier .btn{margin-top:24px;width:100%}
+
+/* faq */
+.faq{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:48px}
+.faq details{background:#fff;border-radius:18px;border:1px solid var(--line);overflow:hidden;height:fit-content}
+.faq summary{list-style:none;cursor:pointer;padding:20px 22px;font-family:var(--disp);font-weight:600;font-size:18px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary .ic{width:28px;height:28px;border-radius:50%;background:var(--grad-soft);color:var(--pink);display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-weight:700;flex-shrink:0;transition:transform .2s}
+.faq details[open] summary .ic{transform:rotate(45deg)}
+.faq p{padding:0 22px 20px;color:var(--ink-soft);font-weight:600;font-size:14.5px;line-height:1.55}
+
+/* final */
+.final{text-align:center;padding:96px 0;background:var(--grad);color:#fff;position:relative;overflow:hidden}
+.final::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,.3),transparent 55%)}
+.final>*{position:relative}
+.final .e{font-size:48px}
+.final h2{font-family:var(--disp);font-weight:600;font-size:56px;line-height:1.04;margin-top:12px;letter-spacing:-.02em}
+.final p{font-weight:600;font-size:19px;margin-top:16px;color:rgba(255,255,255,.9);max-width:480px;margin-left:auto;margin-right:auto}
+.final .btn{margin-top:30px;background:#fff;color:var(--pink);box-shadow:0 14px 30px -12px rgba(0,0,0,.4)}
+
+/* footer */
+footer{background:#1c0f16;color:#fff;padding:60px 0 36px}
+footer .wrap{display:flex;justify-content:space-between;gap:40px;flex-wrap:wrap}
+footer .fb{font-family:var(--disp);font-weight:700;font-size:24px;display:flex;align-items:center;gap:7px}
+footer .fm{color:rgba(255,255,255,.55);font-size:14.5px;font-weight:600;margin-top:10px;max-width:280px}
+footer .cols{display:flex;gap:56px}
+footer .cols h4{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.4);font-weight:800;margin-bottom:14px}
+footer .cols a{display:block;font-size:14px;font-weight:600;color:rgba(255,255,255,.78);margin-bottom:9px}
+footer .cols a:hover{color:#fff}
+footer .fbar{max-width:1180px;margin:44px auto 0;padding:24px 50px 0;border-top:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.4)}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="index.html">SongReels <span>🎶</span></a>
+    <nav class="nav-links"><a href="#occasions">Occasions</a><a href="#how">How it works</a><a href="#examples">Examples</a><a href="#pricing">Pricing</a><a href="contact.html">Contact</a></nav>
+    <a class="btn btn-grad" href="create.html">Make one →</a>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <span class="pill">🎁 Personalized video &amp; song · made in minutes</span>
+      <h1>The gift they'll<br><span class="hl">save forever</span> 💝</h1>
+      <p class="lede">Upload a few photos, answer a couple of questions, and we'll make a custom video + original song for someone you love — ready in minutes.</p>
+      <div class="cta-row">
+        <a class="btn btn-grad" href="create.html">Start a gift →</a>
+        <a class="btn btn-soft" href="#examples">▶ Watch an example</a>
+      </div>
+      <div class="trust">
+        <div class="avatars">
+          <span style="background-image:url('https://picsum.photos/seed/sra1/60')"></span>
+          <span style="background-image:url('https://picsum.photos/seed/sra2/60')"></span>
+          <span style="background-image:url('https://picsum.photos/seed/sra3/60')"></span>
+          <span style="background-image:url('https://picsum.photos/seed/sra4/60')"></span>
+        </div>
+        <span class="stars">★★★★★</span>
+        <span>Loved by 40,000+ families</span>
+      </div>
+    </div>
+    <div class="show-stage">
+      <div class="float f1">⚡ Ready in ~8 min</div>
+      <div class="float f2">🎵 4 song styles</div>
+      <div class="showcard">
+        <div class="scr">
+          <div class="show-vid">
+            <div class="topcap"><span class="show-tag">For Mom 💐</span><span class="show-live">1:34</span></div>
+            <div class="play"><svg width="19" height="22" viewBox="0 0 19 22"><path d="M0 0v22l19-11z" fill="#FF2D55"/></svg></div>
+            <div class="show-cap"><div class="for">From Marcus &amp; the kids</div><div class="ttl">"All the years you held us"</div></div>
+          </div>
+          <div class="show-bar">
+            <div class="mini"><svg width="10" height="12" viewBox="0 0 10 12"><path d="M0 0v12l10-6z" fill="#fff"/></svg></div>
+            <div class="wave" id="wave"></div>
+            <div class="dur">2:18</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="occasions">
+  <div class="wrap">
+    <div class="kicker">For every moment</div>
+    <h2>The greeting card they'll never toss 💌</h2>
+    <div class="occ-grid">
+      <div class="occ o1"><span class="emoji">💐</span><div><div class="nm">Mother's Day</div><div class="dt">May 10</div></div></div>
+      <div class="occ o2"><span class="emoji">🎣</span><div><div class="nm">Father's Day</div><div class="dt">June 21</div></div></div>
+      <div class="occ o3"><span class="emoji">🎂</span><div><div class="nm">Birthday</div><div class="dt">Any date</div></div></div>
+      <div class="occ o4"><span class="emoji">💍</span><div><div class="nm">Anniversary</div><div class="dt">Any date</div></div></div>
+      <div class="occ o5"><span class="emoji">🎓</span><div><div class="nm">Graduation</div><div class="dt">May / June</div></div></div>
+      <div class="occ o6"><span class="emoji">🎄</span><div><div class="nm">Christmas</div><div class="dt">Holiday</div></div></div>
+      <div class="occ o7"><span class="emoji">🕊️</span><div><div class="nm">Memorial</div><div class="dt">In memory</div></div></div>
+      <a class="occ occ-more" href="templates.html"><span class="emoji">✨</span><div class="t">All occasions →</div><div class="s">weddings, new babies,<br>just because</div></a>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="how" style="background:var(--grad-soft)">
+  <div class="wrap">
+    <div class="kicker">How it works</div>
+    <h2>Three taps to tears of joy 🥹</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="num">1</div><h3>Pick the occasion</h3>
+        <p>We set the tone, pacing and song style to match — not a one-size template.</p>
+        <div class="extra chiprow"><span class="chip on">Mother's Day</span><span class="chip">Birthday</span><span class="chip">Anniversary</span></div>
+      </div>
+      <div class="step">
+        <div class="num">2</div><h3>Tell us about them</h3>
+        <p>Five short questions, like texting a friend. Their name, a memory, an inside joke.</p>
+        <div class="extra qbubble"><div class="q">A memory you share with her?</div><div class="a">"The summer she taught me to drive in the church lot."</div></div>
+      </div>
+      <div class="step">
+        <div class="num">3</div><h3>Add your photos</h3>
+        <p>5–20 pics from your phone. We handle pacing, color, and 4 custom songs.</p>
+        <div class="extra thumbs">
+          <div class="t" style="background-image:url('https://picsum.photos/seed/srt1/120')"></div>
+          <div class="t" style="background-image:url('https://picsum.photos/seed/srt2/120')"></div>
+          <div class="t" style="background-image:url('https://picsum.photos/seed/srt3/120')"></div>
+          <div class="t add">+</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="examples">
+  <div class="wrap">
+    <div class="kicker">Real ones</div>
+    <h2>Gifts that made them cry (happy) 😭</h2>
+    <div class="ex-grid">
+      <article class="ex ex1">
+        <div class="top"><span class="show-tag">Mother's Day 💐</span><div class="play"><svg width="16" height="18" viewBox="0 0 16 18"><path d="M0 0v18l16-9z" fill="#FF2D55"/></svg></div><div class="cap"><div class="for">For Cynthia · from Marcus</div><div class="nm">"All the years you held us"</div></div></div>
+        <div class="body"><p class="quote">"My mom called me crying within thirty seconds. She made my dad watch it twice."</p><div class="m"><span>16 PHOTOS · 1:34</span><span>SOFT FOLK</span></div></div>
+      </article>
+      <article class="ex ex2">
+        <div class="top"><span class="show-tag">60th Birthday 🎂</span><div class="play"><svg width="16" height="18" viewBox="0 0 16 18"><path d="M0 0v18l16-9z" fill="#FF2D55"/></svg></div><div class="cap"><div class="for">For Robert · from his kids</div><div class="nm">"Six decades, still our hero"</div></div></div>
+        <div class="body"><p class="quote">"We played it at his surprise party on the projector. Whole room was a wreck."</p><div class="m"><span>22 PHOTOS · 2:08</span><span>UPBEAT GOSPEL</span></div></div>
+      </article>
+      <article class="ex ex3">
+        <div class="top"><span class="show-tag">25th Anniversary 💍</span><div class="play"><svg width="16" height="18" viewBox="0 0 16 18"><path d="M0 0v18l16-9z" fill="#FF2D55"/></svg></div><div class="cap"><div class="for">For Eleanor &amp; James</div><div class="nm">"How you two happened"</div></div></div>
+        <div class="body"><p class="quote">"25 years married and they acted like teenagers watching it. Dad won't admit he cried."</p><div class="m"><span>18 PHOTOS · 1:52</span><span>WARM ACOUSTIC</span></div></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="recip" id="recipient">
+  <div class="wrap">
+    <div>
+      <div class="kicker">The recipient page</div>
+      <h2>The link they tap<br>is the whole gift ✨</h2>
+      <p class="blurb">No login, no app. Just a beautiful full-screen page with their name, their video, their song — built to feel like unwrapping something.</p>
+      <div class="feat">
+        <div class="f"><span class="e">👋</span><div><strong>Their name, first</strong><p>"This was made for you, Mom." The page knows who they are.</p></div></div>
+        <div class="f"><span class="e">▶️</span><div><strong>Plays itself</strong><p>Video and song roll automatically — they just sit and watch.</p></div></div>
+        <div class="f"><span class="e">♾️</span><div><strong>Lives forever at one URL</strong><p>Save it, screenshot it, share it — revisit it every year.</p></div></div>
+      </div>
+    </div>
+    <div class="recip-stage">
+      <div class="recip-mini">
+        <div class="url">songreels.com/for/<b>sarah</b></div>
+        <div class="hl">Sarah,<small>your kids made you something.</small></div>
+        <div class="ctl"><div class="pb"><svg width="10" height="12" viewBox="0 0 10 12"><path d="M0 0v12l10-6z" fill="#1c0f16"/></svg></div><div class="st">"All the years you held us"</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="pricing">
+  <div class="wrap">
+    <div class="kicker">Pricing</div>
+    <h2>Cheaper than flowers. Lasts a lot longer 🌷</h2>
+    <div class="tiers">
+      <div class="tier">
+        <div class="tn">Single SongReel</div><div class="pr">$9<small>.99</small></div>
+        <ul><li>✅ 1 SongReel</li><li>✅ 4 song options</li><li>✅ HD download</li><li>✅ Shareable link</li></ul>
+        <a class="btn btn-soft" href="checkout.html?pack=single">Make one</a>
+      </div>
+      <div class="tier feat">
+        <span class="badge">⭐ Most popular</span>
+        <div class="tn">Family Pack</div><div class="pr">$39<small>.99</small></div>
+        <ul><li>💛 5 SongReels</li><li>💛 Use anytime</li><li>💛 Save $10</li></ul>
+        <a class="btn btn-soft" href="checkout.html?pack=family">Get the pack →</a>
+      </div>
+      <div class="tier">
+        <div class="tn">Memory Pack</div><div class="pr">$69<small>.99</small></div>
+        <ul><li>✅ 10 SongReels</li><li>✅ Use anytime</li><li>✅ Save $30</li></ul>
+        <a class="btn btn-soft" href="checkout.html?pack=memory">Get the pack</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="faq" style="background:var(--grad-soft)">
+  <div class="wrap">
+    <div class="kicker">Good to know</div>
+    <h2>Questions everyone asks first 🤔</h2>
+    <div class="faq">
+      <details open><summary>How long does it take?<span class="ic">+</span></summary><p>Most gifts are ready in 8–12 minutes. We email you the moment yours is done, and the link works forever.</p></details>
+      <details><summary>Are the songs really custom?<span class="ic">+</span></summary><p>Yes! Four original songs per gift, lyrics written from your answers. No stock library.</p></details>
+      <details><summary>Are my photos private?<span class="ic">+</span></summary><p>Encrypted, never used to train anything, deletable anytime. Recipient pages are unlisted by default.</p></details>
+      <details><summary>Can I edit it after?<span class="ic">+</span></summary><p>Yep — reorder photos, swap clips, regenerate the song, or change the title from your dashboard.</p></details>
+      <details><summary>What if I don't love it?<span class="ic">+</span></summary><p>You see everything before you pay. Free watermarked preview — upgrade only if it's a "yes."</p></details>
+      <details><summary>Does the recipient need an account?<span class="ic">+</span></summary><p>Nope. They tap the link and the gift plays. No signup, no app.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="final" id="start">
+  <div class="wrap">
+    <div class="e">🎁</div>
+    <h2>Give them a moment<br>they'll never forget</h2>
+    <p>Create a SongReel in minutes — the gift you'll be remembered for, not the one they'll re-gift.</p>
+    <a class="btn" href="create.html">Start a gift →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <div class="fb">SongReels <span>🎶</span></div>
+      <div class="fm">Personalized video &amp; music for the moments worth remembering.</div>
+    </div>
+    <div class="cols">
+      <div><h4>Product</h4><a href="create.html">Start a gift</a><a href="templates.html">Templates</a><a href="index.html#occasions">Occasions</a><a href="index.html#pricing">Pricing</a></div>
+      <div><h4>Company</h4><a href="contact.html">Contact</a><a href="contact.html">Help center</a></div>
+      <div><h4>Resources</h4><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div>
+    </div>
+  </div>
+  <div class="fbar"><span>© 2026 SongReels — Made with 💛</span><span>Hand-built · Not a stock template</span></div>
+</footer>
+
+<script>
+(function(){var w=document.getElementById('wave');if(w){var h='';for(var i=0;i<30;i++){var v=6+Math.abs(Math.sin(i*0.8)+Math.cos(i*0.3))*9+Math.random()*5;var op=i<10?1:0.4;h+='<span style="height:'+v.toFixed(1)+'px;opacity:'+op+'"></span>';}w.innerHTML=h;}})();
+</script>
+</body>
+</html>

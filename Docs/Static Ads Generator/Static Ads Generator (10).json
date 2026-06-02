@@ -1,0 +1,709 @@
+{
+  "name": "Static Ads Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "Static-Ads",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        960,
+        224
+      ],
+      "id": "fb8b6da6-bc29-4f2e-a453-48c35fdb594a",
+      "name": "Webhook",
+      "webhookId": "edf8d739-de7b-4dfe-8ce5-85bda8ed6787"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appvCkX59PBphJGOd",
+          "mode": "list",
+          "cachedResultName": "Creative Adbundance - Batch Records",
+          "cachedResultUrl": "https://airtable.com/appvCkX59PBphJGOd"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblE6i41y5UUCLbVV",
+          "mode": "list",
+          "cachedResultName": "CreativeOS Templates",
+          "cachedResultUrl": "https://airtable.com/appvCkX59PBphJGOd/tblE6i41y5UUCLbVV"
+        },
+        "filterByFormula": "={{ \n  (() => {\n    const p = String($('Webhook').first().json.platforms || '').toLowerCase();\n    if (p.indexOf('9:16') > -1 || p.indexOf('vertical') > -1) return '={aspect_ratio} = \"9:16\"';\n    if (p.indexOf('16:9') > -1 || p.indexOf('youtube') > -1 || p.indexOf('1.91') > -1) return '={aspect_ratio} = \"16:9\"';\n    return '={aspect_ratio} = \"1:1\"';\n  })()\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1824,
+        224
+      ],
+      "id": "ce9a506e-2eb9-4507-b547-df9be867ae0c",
+      "name": "Search records",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "UfTNeWodYY5xgpMW",
+          "name": "Intake Form"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer fef7e0d9d3bd971d5f1ebe1ec8318a1e"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-image-2-image-to-image\",\n  \"input\": {\n    \"prompt\": {{ JSON.stringify($json.prompt) }},\n    \"input_urls\": {{ JSON.stringify($json.input_urls) }},\n    \"aspect_ratio\": {{ JSON.stringify($json.aspect_ratio || '1:1') }}\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3104,
+        224
+      ],
+      "id": "2ca98131-bb2e-4814-b5d8-cd7aab6757f4",
+      "name": "Create KIE AI Task"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3312,
+        224
+      ],
+      "id": "f68f8c53-d773-4efd-8a54-5a1d30c5903f",
+      "name": "Wait",
+      "webhookId": "545568dc-4281-492b-b3d8-0ce3651aa7f7"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.kie.ai/api/v1/jobs/recordInfo?taskId={{ $('Create KIE AI Task').item.json.data.taskId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer fef7e0d9d3bd971d5f1ebe1ec8318a1e"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3520,
+        224
+      ],
+      "id": "7a5583ab-a5ba-4978-8bed-e07f0824792b",
+      "name": "Poll Task Status"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "8e7e54ac-cbe9-4ecc-bcfe-fb142e6f011b",
+              "leftValue": "={{ $json.data.state }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3728,
+        224
+      ],
+      "id": "9238007b-71bf-433b-ba19-abcf55d1a3d0",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "// The If node's input has resultJson as a STRING that needs parsing\nconst pollResponse = $input.first().json;\n\nlet imageUrl = null;\n\ntry {\n  // Path 1: data.resultJson is a JSON string (KIE AI's actual shape)\n  if (pollResponse?.data?.resultJson) {\n    const parsed = typeof pollResponse.data.resultJson === 'string'\n      ? JSON.parse(pollResponse.data.resultJson)\n      : pollResponse.data.resultJson;\n    imageUrl = parsed?.resultUrls?.[0] || null;\n  }\n\n  // Fallbacks just in case the shape changes\n  if (!imageUrl) {\n    imageUrl =\n      pollResponse?.data?.resultUrls?.[0] ||\n      pollResponse?.resultUrls?.[0] ||\n      null;\n  }\n} catch (e) {\n  throw new Error('Failed to parse resultJson: ' + e.message + ' | Raw: ' + JSON.stringify(pollResponse?.data?.resultJson).slice(0, 300));\n}\n\nif (!imageUrl) {\n  throw new Error('No image URL found in poll response: ' + JSON.stringify(pollResponse).slice(0, 300));\n}\n\n// Grab metadata from THIS iteration of the loop, not the first item of the upstream node\nconst source = $('Loop Over Items').item.json;\n\nreturn [{\n  json: {\n    imageUrl,\n    variant_index: source.variant_index,\n    template_index: source.template_index,\n    template_url: source.template_url,\n    aspect_ratio: source.aspect_ratio || '1:1',\n    platform_label: source.platform_label || ''\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3952,
+        224
+      ],
+      "id": "269ebe4a-a125-4153-bc5d-fc13fdb52d3a",
+      "name": "Extract Image URL"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2672,
+        224
+      ],
+      "id": "169696a9-6a30-409f-b219-6273448d64f6",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xakngjsybyytldyqfsmi.supabase.co/rest/v1/static_ads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhha25nanN5Ynl5dGxkeXFmc21pIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODg3MDAyNSwiZXhwIjoyMDk0NDQ2MDI1fQ.crQy79p1Udn2NmDBi45TvpoUs2CkrCLqPL-fXexJ4uQ"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhha25nanN5Ynl5dGxkeXFmc21pIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODg3MDAyNSwiZXhwIjoyMDk0NDQ2MDI1fQ.crQy79p1Udn2NmDBi45TvpoUs2CkrCLqPL-fXexJ4uQ"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"brand_name\": {{ JSON.stringify($('Webhook').first().json.body.client_name || '') }},\n  \"image_url\": {{ JSON.stringify($json.imageUrl || '') }},\n  \"variant_index\": {{ JSON.stringify($json.variant_index ?? 1) }},\n  \"template_index\": {{ JSON.stringify($json.template_index ?? 1) }},\n  \"platform\": {{ JSON.stringify($json.platform_label || '') }},\n  \"aspect_ratio\": {{ JSON.stringify($json.aspect_ratio || '1:1') }},\n  \"run_id\": {{ JSON.stringify($('Webhook').first().json.body.submitted_at || '') }},\n  \"qa_score\": {{ JSON.stringify($json.qa_score ?? null) }},\n  \"qa_flags\": {{ JSON.stringify($json.qa_flags || []) }},\n  \"qa_notes\": {{ JSON.stringify($json.qa_notes || '') }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4576,
+        224
+      ],
+      "id": "e42eb269-d6bf-433b-bd60-cbae8f514507",
+      "name": "Post to supabase"
+    },
+    {
+      "parameters": {
+        "jsCode": "const templates = $input.all();\n\n// From Shuffle Templates, Webhook json is nested under .body\nconst webhookBody = $('Webhook').first().json.body || {};\nconst count = parseInt(webhookBody.static_ads_count) || 1;\nconst sampleSize = Math.min(count * 3, templates.length);\n\nconst arr = templates.slice();\nfor (var i = arr.length - 1; i > 0; i--) {\n  var j = Math.floor(Math.random() * (i + 1));\n  var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;\n}\n\nreturn arr.slice(0, sampleSize);"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2032,
+        224
+      ],
+      "id": "7a13efaf-365e-4c84-956e-4f0e811957af",
+      "name": "Shuffle Templates"
+    },
+    {
+      "parameters": {
+        "jsCode": "const templates = $input.all();\n\n// From Pick Templates, Webhook json is nested under .body\nconst webhookBody = $('Webhook').first().json.body || {};\nconst count = parseInt(webhookBody.static_ads_count) || 1;\n\nconst referenceUrls = Array.isArray(webhookBody.reference_urls)\n  ? webhookBody.reference_urls.filter(Boolean)\n  : [];\nconst refCount = referenceUrls.length;\n\nconst refSlots = Math.min(refCount, count);\nconst airtableSlots = count - refSlots;\n\nconst arr = templates.slice();\nfor (var i = arr.length - 1; i > 0; i--) {\n  var j = Math.floor(Math.random() * (i + 1));\n  var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;\n}\nconst airtablePicked = arr.slice(0, Math.min(airtableSlots, arr.length));\n\nconst result = [];\n\nfor (var r = 0; r < refSlots; r++) {\n  result.push({\n    json: {\n      template_id: 'ref_' + r,\n      template_url: referenceUrls[r],\n      is_ref_slot: true,\n      ref_index: r\n    }\n  });\n}\n\nairtablePicked.forEach(function(entry) {\n  result.push({\n    json: {\n      template_id: String(entry.json.id),\n      template_url: String(entry.json.template_image[0].url),\n      is_ref_slot: false,\n      ref_index: -1\n    }\n  });\n});\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        224
+      ],
+      "id": "9e8a18e6-705c-411f-a5a4-5b0990d04960",
+      "name": "Pick Templates"
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhook = $('Webhook').first().json;\nconst body = webhook.body || {};  // nested under .body from this node's position\nconst brain = $('Search Brand Brain').first().json;\n\n// === ASPECT RATIO + PLATFORM LABEL ===\nconst platformsRaw = String(body.platforms || '').toLowerCase();\nlet aspectRatio = '1:1';\nif (platformsRaw.indexOf('9:16') > -1 || platformsRaw.indexOf('vertical') > -1) aspectRatio = '9:16';\nelse if (platformsRaw.indexOf('16:9') > -1 || platformsRaw.indexOf('youtube') > -1) aspectRatio = '16:9';\nelse if (platformsRaw.indexOf('1.91') > -1 || platformsRaw.indexOf('horizontal') > -1) aspectRatio = '16:9';\nconst platformLabel = String(body.platforms || '').split(',')[0].trim() || 'Meta / TikTok — Square (1:1)';\n\n// === REFERENCES ===\nconst decode = $('Decode Reference').first().json;\nconst referenceUrls = (decode && Array.isArray(decode.reference_urls))\n  ? decode.reference_urls.filter(Boolean)\n  : [];\nconst refCount = referenceUrls.length;\n\n// === LOGOS ===\nconst logoUrls = (Array.isArray(brain.logo_urls) ? brain.logo_urls : [])\n  .map(function(l){ return (l && l.url) ? String(l.url) : null; })\n  .filter(Boolean);\nconst primaryLogo = logoUrls[0] || null;\n\n// === PRODUCTS (multi-select aware) ===\nlet productImageUrls = [];\nif (Array.isArray(body.product_image_urls) && body.product_image_urls.length) {\n  productImageUrls = body.product_image_urls.map(String).filter(Boolean);\n} else if (body.product_image_url) {\n  productImageUrls = [String(body.product_image_url)];\n}\n\nlet productNames = [];\nif (Array.isArray(body.product_names) && body.product_names.length) {\n  productNames = body.product_names.map(String).filter(Boolean);\n} else if (body.product_name) {\n  productNames = String(body.product_name).split(',').map(function(s){ return s.trim(); }).filter(Boolean);\n}\n\nconst isServiceBrand = productImageUrls.length === 0;\nconst isMultiProduct = productImageUrls.length > 1;\nconst productCount = productImageUrls.length;\n\n// === KIE AI IMAGE BUDGET ===\n// Max 16 images total per task.\n// Slot 0: template or reference (always 1)\n// Slots 1..P: products (mandatory — cap to fit budget)\n// Slot last: logo (mandatory if exists)\nconst logoSlots = primaryLogo ? 1 : 0;\nconst maxProductSlots = 16 - 1 - logoSlots; // e.g. 16 - 1 - 1 = 14\nproductImageUrls = productImageUrls.slice(0, maxProductSlots);\n\n// === TEMPLATE ITEMS from Pick Templates ===\n// Pick Templates already assigned:\n//   is_ref_slot: true  → template_url IS the user reference → reference is input_urls[0]\n//   is_ref_slot: false → template_url is Airtable template  → Airtable image is input_urls[0]\nconst workItems = $input.all();\n\n// === INPUT_URLS BUILDER ===\nfunction buildInputUrls(item) {\n  const urls = [item.template_url]; // always first — ref or airtable depending on slot type\n  productImageUrls.forEach(function(u){ urls.push(u); });\n  if (primaryLogo) urls.push(primaryLogo);\n  return urls;\n}\n\n// === GUARDRAILS ===\nconst brandTypeGuardrail = isServiceBrand\n  ? [\n      'BRAND TYPE: SERVICE / B2B - No physical product.',\n      '- DO NOT place brand name on random objects (cups, clothing, bags, packaging, signs).',\n      '- Brand name appears ONLY in the designated logo zone, headline, and CTA.',\n      '- Visual must represent the service outcome - clean workspace, documents, professional environment.'\n    ].join('\\n')\n  : isMultiProduct\n    ? [\n        'BRAND TYPE: PRODUCT - Multiple products provided as visual hero.',\n        '- ' + productCount + ' product images supplied: ' + productNames.join(', '),\n        '- Feature ALL provided products. Either: (a) hero + supporting cast layout, or (b) product line-up / collection arrangement.',\n        '- Use the EXACT product images provided - same shape, label, packaging, colors. Do NOT reimagine, replace, or merge into a single composite.',\n        '- DO NOT swap in similar-looking products from training data.',\n        '- DO NOT alter packaging text, label copy, ingredient lists, or product names. Render product packaging exactly as shown.',\n        '- Brand name appears ONLY in the designated logo zone.'\n      ].join('\\n')\n    : [\n        'BRAND TYPE: PRODUCT - Feature the provided product image as the visual hero.',\n        '- Use the EXACT product - same shape, label, packaging, colors. Do NOT reimagine or replace.',\n        '- DO NOT alter packaging text, label copy, ingredient lists, or product names. Render product packaging exactly as shown.',\n        '- DO NOT swap in similar-looking products from training data.',\n        '- Brand name appears ONLY in the designated logo zone.'\n      ].join('\\n');\n\nconst brandIsolationRule = [\n  'BRAND ISOLATION:',\n  '- This ad is for \"' + String(body.client_name || '') + '\" ONLY.',\n  '- DO NOT pull assets, products, packaging, color schemes, or visual cues from any sister brand or parent company.',\n  '- The provided product images and logo are the ONLY visual sources of truth for this brand identity.'\n].join('\\n');\n\nconst logoRules = primaryLogo\n  ? [\n      'LOGO RULES:',\n      '- Use the EXACT logo image provided as input. Do NOT stretch, recolor, restyle, or reinterpret.',\n      '- Logo appears in ONE place only - the designated logo zone.',\n      '- Maintain original logo aspect ratio. No distortion, no skewing.'\n    ].join('\\n')\n  : 'LOGO RULES: No logo image provided. Render the brand name as clean typography in the logo zone only.';\n\nconst typographyRules = [\n  'TYPOGRAPHY RULES:',\n  '- Headline is the LARGEST text element, readable when scaled to a 200px thumbnail.',\n  '- Visual hierarchy: HEADLINE > subhead > CTA > legal / disclaimer.',\n  '- CTA button must be clearly emphasized with strong contrast.',\n  '- Maximum 3 text elements unless the concept format (Notes/iMessage/review) requires more.',\n  '- If the target persona is a senior demographic, scale body text 20% larger than default.',\n  '- No em dashes in any visible text. Use commas or colons instead.',\n  '- No gibberish text anywhere. Every visible word must be a real, intentional word.',\n  '- Any legal disclaimer must be a single small footer line (8pt or smaller). Never larger.'\n].join('\\n');\n\nconst iconRules = [\n  'ICON / UI RULES:',\n  '- All icons must be clean, vector-style, single-line or simple-fill.',\n  '- No blurry, fuzzy, sketched, or hand-drawn icon styles.',\n  '- Checkmarks, arrows, and trust badges must be sharp and legible at full size.'\n].join('\\n');\n\nconst conceptPreservationRule = [\n  'CONCEPT PRESERVATION (CRITICAL):',\n  'The source image at input_urls[0] carries a specific CONCEPT FORMAT. Identify it and preserve it.',\n  'Common valid concepts for DR static ads include:',\n  '- iOS push notification (lock-screen mock with app icon, title, body, Skip/CTA buttons)',\n  '- iOS Notes app screenshot (Notes header, title, bulleted checklist, orange CTA button)',\n  '- iMessage toggle comparison (two iOS-style toggle rows showing pain vs solution)',\n  '- Handwritten kid note / sticky note (paper texture, marker handwriting, casual)',\n  '- Whiteboard line-drawing story (\"This is [Name]. [Story].\" stick figures)',\n  '- Real-world billboard / out-of-home mockup (product on actual billboard with sky)',\n  '- Customer review screenshot (5-star card with name, review text, optional photo)',\n  '- Lifestyle hero with feature checklist (product photo + 3-4 checkmark bullets)',\n  '- Bold typography on dark background (large stencil text, single price anchor)',\n  '- Gift box reveal (product emerging from wrapped present, numbered steps)',\n  '- Family testimonial with sticker callouts (photo + quote bubble + feature stickers)',\n  '',\n  'PICK ONE. Stay inside it. Do NOT mix concepts in a single ad.',\n  '',\n  'THIS IS NOT A BROCHURE. Hard rules:',\n  '- ONE hook (the headline). ONE primary visual. ONE CTA.',\n  '- Do NOT show 3 product variants side-by-side as equal heroes. Pick a hero.',\n  '- Do NOT fill the canvas with 5+ feature icons in a row.',\n  '- Do NOT include a large legal disclaimer block. If legal text is needed, single 8pt footer line ONLY.',\n  '- The CTA must be the most prominent click target, not the 4th step in a flow.'\n].join('\\n');\n\nconst hallucinationGuardrail = [\n  'ANTI-HALLUCINATION RULES:',\n  '- No floating objects. Every object must rest on a surface or be held/supported logically.',\n  '- No extra decorative artifacts not present in the source or supplied images.',\n  '- No invented packaging variations, label changes, or fake product variants.',\n  '- No fake awards, fake review counts, or fake press logos unless explicitly provided in the brand brain.',\n  '- Realistic physics, shadows, and reflections only.',\n  '- No broken anatomy if humans are present (correct count of fingers, eyes, limbs).'\n].join('\\n');\n\n// === BRAND BRAIN FIELDS ===\nconst targetPersona = brain.target_personas ? String(brain.target_personas).slice(0, 800) : '';\nconst corePainPoints = brain.core_pain_points ? String(brain.core_pain_points).slice(0, 600) : '';\nconst productBenefits = brain.product_benefits ? String(brain.product_benefits).slice(0, 600) : '';\nconst brandGuidelines = brain.brand_guidelines ? String(brain.brand_guidelines).slice(0, 1500) : '';\nconst creativeBoundaries = brain.creative_boundaries ? String(brain.creative_boundaries).slice(0, 800) : '';\n\nconst angles = [\n  'Lead with the core problem and pain point. Pain-first hook.',\n  'Lead with the solution, outcome, and key benefit. Benefit-first hook.',\n  'Lead with social proof, credibility, and trust. Trust-first hook.'\n];\n\nconst result = [];\n\nworkItems.forEach(function(entry, tplIdx) {\n  const item = entry.json;\n  const isRefSlot = item.is_ref_slot === true;\n  const inputUrls = buildInputUrls(item);\n\n  // SOURCE MODE is per-item: ref slots use the uploaded reference as the creative source,\n  // airtable slots use the template for layout only.\n  const sourceModeBlock = isRefSlot\n    ? [\n        'SOURCE MODE: USER REFERENCE AD',\n        'The image at input_urls[0] is a REFERENCE AD uploaded by the user as creative direction.',\n        '- Use this reference for layout, style, tone, visual treatment, and concept format.',\n        '- Match the reference precisely: composition, typography style, color treatment, photographic mood.',\n        '- Replace all CONTENT (brand name, product, copy, logo) with THIS brand\\'s assets.',\n        '- The reference is the creative source of truth. Do NOT reinterpret, modernise, or improve it.',\n        '- This reference was chosen because it represents a style direction the client wants to explore.'\n      ].join('\\n')\n    : [\n        'SOURCE MODE: AD TEMPLATE',\n        'The image at input_urls[0] is a layout TEMPLATE from our creative library.',\n        '- Keep the exact layout, composition, and design structure of the template.',\n        '- Replace all visual content, colors, copy, and imagery to match THIS brand.',\n        '- The template is for layout reference only — do NOT keep its original copy or images.'\n      ].join('\\n');\n\n  angles.forEach(function(angle, vIdx) {\n    const lines = [\n      'Transform this source image into a static, performance-ready DR ad creative.',\n      '',\n      'BRAND: ' + String(body.client_name || ''),\n      productNames.length ? 'PRODUCT(S): ' + productNames.join(', ') : '',\n      'BRAND TONE: ' + String(brain.brand_tone || ''),\n      'KEY OFFER: ' + String(brain.key_offer || ''),\n      productBenefits ? 'KEY BENEFITS: ' + productBenefits : '',\n      targetPersona ? 'TARGET PERSONA: ' + targetPersona : '',\n      corePainPoints ? 'CORE PAIN POINTS: ' + corePainPoints : '',\n      'BRIEF: ' + String(body.brief || ''),\n      '',\n      sourceModeBlock,\n      '',\n      brandTypeGuardrail,\n      '',\n      'COPY ANGLE: ' + angle,\n      '',\n      brandIsolationRule,\n      '',\n      logoRules,\n      '',\n      typographyRules,\n      '',\n      iconRules,\n      '',\n      conceptPreservationRule,\n      '',\n      hallucinationGuardrail,\n      brandGuidelines ? '\\nBRAND GUIDELINES:\\n' + brandGuidelines : '',\n      creativeBoundaries ? '\\nCREATIVE BOUNDARIES (do NOT do these):\\n' + creativeBoundaries : '',\n      '',\n      'FINAL CHECK before output:',\n      '1. Is the brand name in ONLY one place (the logo zone)?',\n      '2. Is each product image the EXACT one provided (no swaps, no hallucinated packaging)?',\n      '3. Is the headline the largest text element?',\n      '4. Are all icons sharp and clean?',\n      '5. Are there ANY floating objects or hallucinated elements? Remove them.',\n      '6. Did you stay inside ONE concept format? No mixing.',\n      '7. Is this ONE hook, ONE visual, ONE CTA? Not a brochure?',\n      '8. Is any legal text limited to a single 8pt footer line?',\n      isRefSlot ? '9. Does the output match the reference\\'s style and feel precisely?' : null\n    ].filter(Boolean);\n\n    result.push({\n      json: {\n        template_url: item.template_url,\n        template_index: tplIdx + 1,\n        input_urls: inputUrls,\n        prompt: lines.join('\\n'),\n        variant_index: vIdx + 1,\n        is_reference_based: isRefSlot,\n        aspect_ratio: aspectRatio,\n        platform_label: platformLabel\n      }\n    });\n  });\n});\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2448,
+        224
+      ],
+      "id": "db3c5db4-d153-46fc-bbd4-1a3f166dec1f",
+      "name": "Build KIE AI Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer <OPENROUTER_API_KEY>"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"anthropic/claude-haiku-4.5\",\n  \"max_tokens\": 400,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": {{ JSON.stringify($json.imageUrl) }}\n          }\n        },\n        {\n          \"type\": \"text\",\n          \"text\": {{ JSON.stringify(\n            'You are reviewing an AI-generated static ad for the brand \"' + ($('Search Brand Brain').first().json.client_name || 'Unknown') + '\". ' +\n            'The brand uses this logo: ' + (($('Search Brand Brain').first().json.logo_urls?.[0]?.url) || 'N/A') + '. ' +\n            ($('Webhook').first().json.body.product_image_url ? 'The product reference is: ' + $('Webhook').first().json.body.product_image_url + '. ' : '') +\n            'Respond ONLY with a JSON object in this exact shape, no markdown, no prose:\\n\\n' +\n            '{\\n' +\n            '  \"score\": <integer 1-10, where 10 = production-ready, 1 = unusable>,\\n' +\n            '  \"flags\": [<any of: \"logo_distorted\", \"logo_missing\", \"duplicate_logo\", \"packaging_wrong\", \"text_garbled\", \"fake_text\", \"floating_objects\", \"broken_anatomy\", \"text_too_small\", \"weak_hierarchy\", \"color_off_brand\", \"disclaimer_missing\", \"hallucinated_elements\">],\\n' +\n            '  \"notes\": \"<one short sentence on the main issue, or \\\\\"looks good\\\\\">\"\\n' +\n            '}\\n\\n' +\n            'Be strict. If a human designer would need to fix anything before shipping it, flag it. Score 8+ only for ads that are genuinely ship-ready.'\n          ) }}\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4160,
+        224
+      ],
+      "id": "e4b9e382-ad94-4696-a0c4-72cebc0fb3e0",
+      "name": "QA Pass"
+    },
+    {
+      "parameters": {
+        "jsCode": "const upstream = $('Extract Image URL').item.json;\nconst qaResponse = $input.first().json;\n\n// Always start with safe defaults\nlet qa = { score: null, flags: [], notes: '' };\n\ntry {\n  const rawText = qaResponse?.choices?.[0]?.message?.content || '';\n  if (rawText) {\n    const cleaned = rawText.replace(/```json|```/g, '').trim();\n    const parsed = JSON.parse(cleaned);\n    qa.score = typeof parsed.score === 'number' ? parsed.score : null;\n    qa.flags = Array.isArray(parsed.flags) ? parsed.flags : [];\n    qa.notes = typeof parsed.notes === 'string' ? parsed.notes : '';\n  }\n} catch (e) {\n  qa.notes = 'QA parse failed: ' + e.message;\n}\n\nreturn [{\n  json: {\n    imageUrl: upstream.imageUrl,\n    variant_index: upstream.variant_index,\n    template_index: upstream.template_index,\n    template_url: upstream.template_url,\n    aspect_ratio: upstream.aspect_ratio,\n    platform_label: upstream.platform_label,\n    qa_score: qa.score,\n    qa_flags: qa.flags,\n    qa_notes: qa.notes\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4368,
+        224
+      ],
+      "id": "931da824-861b-4811-b892-b93120277c37",
+      "name": "Merge QA"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f1331bd7-9696-4791-8e23-73015581e04c",
+              "leftValue": "={{ $('Decode Reference').item.json.has_reference }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1584,
+        224
+      ],
+      "id": "090ec980-62a1-41ef-97b1-63e447a9514c",
+      "name": "Has Reference?"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appvCkX59PBphJGOd",
+          "mode": "list",
+          "cachedResultName": "Creative Adbundance - Batch Records",
+          "cachedResultUrl": "https://airtable.com/appvCkX59PBphJGOd"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblIqcPJRvpQhS4AM",
+          "mode": "list",
+          "cachedResultName": "Brand Brain",
+          "cachedResultUrl": "https://airtable.com/appvCkX59PBphJGOd/tblIqcPJRvpQhS4AM"
+        },
+        "filterByFormula": "={client_name} = \"{{ $('Webhook').item.json.body.client_name }}\"",
+        "options": {
+          "fields": [
+            "brand_guidelines",
+            "logo_urls",
+            "product_benefits",
+            "target_personas",
+            "key_offer",
+            "brand_tone",
+            "core_pain_points",
+            "creative_boundaries",
+            "compliance_notes",
+            "brand_kit_id",
+            "product_id",
+            "industry"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1392,
+        224
+      ],
+      "id": "285b55d2-6f46-40f1-a90a-3e5631807a6c",
+      "name": "Search Brand Brain",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "UfTNeWodYY5xgpMW",
+          "name": "Intake Form"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst brain = $('Search Brand Brain').first().json;\nconst body = $('Webhook').first().json.body || {};\n\n// Map variant_index to angle\nconst angleMap = {\n  1: 'Lead with the core frustration and pain point the audience feels right now. Pain-first hook.',\n  2: 'Lead with the outcome, relief, and key benefit they will get. Benefit-first hook.',\n  3: 'Lead with social proof, credibility, and trust signals. Authority-first hook.'\n};\nconst angleDirection = angleMap[item.variant_index] || angleMap[1];\n\nconst copyPrompt = `You are a direct response copywriter for performance ads.\n\nBRAND: ${body.client_name || ''}\nBRIEF: ${body.brief || ''}\nBRAND TONE: ${brain.brand_tone || ''}\nKEY OFFER: ${brain.key_offer || ''}\nTARGET AUDIENCE: ${brain.target_personas || ''}\nANGLE: ${angleDirection}\n\nWrite ad copy with EXACTLY this structure:\n- HEADLINE: 4-7 words. ALL CAPS. One strong hook. No em dashes.\n- SUBLINE: 8-14 words. Sentence case. Supports the headline directly.\n- CTA: 3-5 words. Action-driven button text.\n\nRules: Maximum 3 text elements. No bullet lists. No feature lists. Headline must be dominant.\n\nReturn ONLY valid JSON: {\"headline\": \"...\", \"subline\": \"...\", \"cta\": \"...\"}`;\n\nlet copy;\ntry {\n  const response = await this.helpers.httpRequest({\n    method: 'POST',\n    url: 'https://openrouter.ai/api/v1/chat/completions',\n    headers: {\n      'Content-Type': 'application/json',\n      'Authorization': 'Bearer <OPENROUTER_API_KEY>'\n    },\n    body: JSON.stringify({\n      model: 'anthropic/claude-sonnet-4',\n      max_tokens: 300,\n      messages: [{ role: 'user', content: copyPrompt }]\n    })\n  });\n\n  const raw = response.choices[0].message.content;\n  copy = JSON.parse(raw.replace(/```json\\n?/g,'').replace(/```/g,'').trim());\n} catch(e) {\n  copy = {\n    headline: 'FIND YOUR SOLUTION.',\n    subline: 'Trusted options reviewed by independent experts.',\n    cta: 'Compare Now'\n  };\n}\n\n// Append generated copy to the existing prompt — don't replace it\nconst enhancedPrompt = item.prompt +\n  '\\n\\n━━ EXACT COPY TO RENDER ━━\\n' +\n  'HEADLINE (render large, bold, dominant): ' + copy.headline + '\\n' +\n  'SUBLINE (render smaller, below headline): ' + copy.subline + '\\n' +\n  'CTA BUTTON: ' + copy.cta + '\\n\\n' +\n  'CRITICAL: Render ONLY these 3 text elements. No additional copy. No bullet lists. No feature lists.';\n\nreturn [{\n  json: {\n    ...item,\n    prompt: enhancedPrompt,\n    generated_headline: copy.headline,\n    generated_subline: copy.subline,\n    generated_cta: copy.cta\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2896,
+        224
+      ],
+      "id": "87833ac8-1e81-4cb7-b15d-bfb6eaff4986",
+      "name": "Generate Ad Copy"
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhook = $input.first().json;\nconst body = webhook.body || {};\n\n// URLs already uploaded by the browser — just read them\nconst referenceUrls = Array.isArray(body.reference_urls)\n  ? body.reference_urls.filter(Boolean)\n  : [];\n\nreturn [{\n  json: {\n    has_reference: referenceUrls.length > 0,\n    reference_urls: referenceUrls,\n    reference_url: referenceUrls[0] || null,\n    reference_count: referenceUrls.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        224
+      ],
+      "id": "a98569bc-2c0a-44ad-95b0-62685cc49ced",
+      "name": "Decode Reference"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n-i3t9.srv1486031.hstgr.cloud",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+            "content-length": "1744",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-US,en;q=0.9,fil;q=0.8",
+            "content-type": "application/json",
+            "origin": "https://form.creativeadbundance.com",
+            "priority": "u=1, i",
+            "referer": "https://form.creativeadbundance.com/",
+            "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"Windows\"",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "x-forwarded-for": "2001:fd8:4601:5d00:14ab:846b:de0a:fb27",
+            "x-forwarded-host": "n8n-i3t9.srv1486031.hstgr.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "srv1486031",
+            "x-real-ip": "2001:fd8:4601:5d00:14ab:846b:de0a:fb27"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "submitted_at": "2026-05-28T19:17:13.044Z",
+            "client_name": "Golf Carts of ATX",
+            "static_ads_count": "5",
+            "platforms": "Meta / TikTok — Square (1:1)",
+            "brief": "Focus on families and getting the most out of summer. Customize exactly how you want Delivered anywhere in the U.S. 4.7⭐ Trusted by 1,000+ happy customers Built and ready in weeks",
+            "references": "",
+            "product_names": [
+              "NIU GT – White"
+            ],
+            "product_image_urls": [
+              "https://xakngjsybyytldyqfsmi.supabase.co/storage/v1/object/public/product-images/golfcartsofatx/niu-gt-white.webp"
+            ],
+            "products": [
+              {
+                "id": "079b42fd-b369-4251-87cf-c89ac2aa7d2c",
+                "name": "NIU GT – White",
+                "image_url": "https://xakngjsybyytldyqfsmi.supabase.co/storage/v1/object/public/product-images/golfcartsofatx/niu-gt-white.webp"
+              }
+            ],
+            "product_name": "NIU GT – White",
+            "product_image_url": "https://xakngjsybyytldyqfsmi.supabase.co/storage/v1/object/public/product-images/golfcartsofatx/niu-gt-white.webp",
+            "reference_urls": [
+              "https://xakngjsybyytldyqfsmi.supabase.co/storage/v1/object/public/ad-references/ref_1779995780364_8ht97o.png",
+              "https://xakngjsybyytldyqfsmi.supabase.co/storage/v1/object/public/ad-references/ref_1779995784566_5zwxhm.png",
+              "https://xakngjsybyytldyqfsmi.supabase.co/storage/v1/object/public/ad-references/ref_1779995788060_4tvsx0.jpg",
+              "https://xakngjsybyytldyqfsmi.supabase.co/storage/v1/object/public/ad-references/ref_1779995792197_sx4cpz.png",
+              "https://xakngjsybyytldyqfsmi.supabase.co/storage/v1/object/public/ad-references/ref_1779995795986_1toqal.png",
+              "https://xakngjsybyytldyqfsmi.supabase.co/storage/v1/object/public/ad-references/ref_1779995806909_86qsti.png"
+            ],
+            "reference_filenames": "007_Static_Organic MCT_Sipping_V2_S.png, 006_Static_Pure C8 MCT_Calendar Routine_V1_S.png, 45.jpg, 1.png, 11.png, 2074.png"
+          },
+          "webhookUrl": "https://n8n-i3t9.srv1486031.hstgr.cloud/webhook/Static-Ads",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Decode Reference",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records": {
+      "main": [
+        [
+          {
+            "node": "Shuffle Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create KIE AI Task": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Poll Task Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll Task Status": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Extract Image URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Generate Ad Copy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Image URL": {
+      "main": [
+        [
+          {
+            "node": "QA Pass",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to supabase": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shuffle Templates": {
+      "main": [
+        [
+          {
+            "node": "Pick Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Templates": {
+      "main": [
+        [
+          {
+            "node": "Build KIE AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build KIE AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QA Pass": {
+      "main": [
+        [
+          {
+            "node": "Merge QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge QA": {
+      "main": [
+        [
+          {
+            "node": "Post to supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Reference?": {
+      "main": [
+        [
+          {
+            "node": "Search records",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Search records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Brand Brain": {
+      "main": [
+        [
+          {
+            "node": "Has Reference?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Ad Copy": {
+      "main": [
+        [
+          {
+            "node": "Create KIE AI Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decode Reference": {
+      "main": [
+        [
+          {
+            "node": "Search Brand Brain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "5fc2634a-4797-4b8e-9459-6d49c9359bae",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "29c272fec598c2a9d636527624f11763d373b621f8616bf452282ae6600529f3"
+  },
+  "id": "soOGlM7HLPbHupJI",
+  "tags": []
+}
