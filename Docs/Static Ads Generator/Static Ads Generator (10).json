@@ -183,7 +183,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhha25nanN5Ynl5dGxkeXFmc21pIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODg3MDAyNSwiZXhwIjoyMDk0NDQ2MDI1fQ.crQy79p1Udn2NmDBi45TvpoUs2CkrCLqPL-fXexJ4uQ"
+              "value": "Bearer <SUPABASE_SERVICE_ROLE_KEY>"
             },
             {
               "name": "Content-Type",
@@ -195,7 +195,7 @@
             },
             {
               "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhha25nanN5Ynl5dGxkeXFmc21pIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODg3MDAyNSwiZXhwIjoyMDk0NDQ2MDI1fQ.crQy79p1Udn2NmDBi45TvpoUs2CkrCLqPL-fXexJ4uQ"
+              "value": "<SUPABASE_SERVICE_ROLE_KEY>"
             }
           ]
         },
