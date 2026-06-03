@@ -10,6 +10,7 @@
     { "source": "/terms.html",     "destination": "/terms",     "permanent": true }
   ],
   "rewrites": [
+    { "source": "/api/(.*)",  "destination": "/api/$1" },
     { "source": "/",          "destination": "/Songreels/index.html" },
     { "source": "/app",       "destination": "/Songreels/create.html" },
     { "source": "/create",    "destination": "/Songreels/create.html" },

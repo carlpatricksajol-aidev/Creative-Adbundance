@@ -1651,29 +1651,42 @@ async function setUser(user) {
   bindDurationPicker();
   document.getElementById('clip-file-input').addEventListener('change', handleClipAdd);
 
-  // Returning from Shopify payment → skip checkout, resume straight at the upload step
+  // Returning from Shopify payment → VERIFY the order server-side before unlocking upload
   const _paidParams = new URLSearchParams(location.search);
-  if (_paidParams.get('paid') === '1' || loadSession('pending_pay')) {
-    const occ = loadSession('pending_occasion');
-    const flds = loadSession('pending_fields');
-    // plan: from the return link (?plan= or ?amount=), else from what they picked pre-payment
-    let pln = _paidParams.get('plan');
-    if (!pln) {
-      const amt = parseFloat(_paidParams.get('amount') || '');
-      if (amt >= 69) pln = 'memory'; else if (amt >= 39) pln = 'family'; else if (amt >= 9) pln = 'single';
+  if (_paidParams.get('paid') === '1' || _paidParams.get('token') || loadSession('pending_pay')) {
+    const token = _paidParams.get('token') || loadSession('pending_token') || '';
+    const email = (S.user && S.user.email) || '';
+    const verifyOnce = async () => {
+      try {
+        const r = await fetch('/api/verify-payment?token=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(email));
+        return await r.json();
+      } catch (e) { return { paid: false }; }
+    };
+    let v = await verifyOnce();
+    // the webhook can lag a few seconds — retry briefly before giving up
+    for (let i = 0; i < 4 && !(v && v.paid); i++) { await new Promise(r => setTimeout(r, 1500)); v = await verifyOnce(); }
+
+    if (_paidParams.get('paid') || _paidParams.get('token')) history.replaceState({}, '', location.pathname);
+
+    if (v && v.paid) {
+      const occ = loadSession('pending_occasion');
+      const flds = loadSession('pending_fields');
+      if (occ) S.occasion = occ;
+      if (flds && typeof flds === 'object') S.fields = flds;
+      S.selectedPlan = v.plan || loadSession('pending_plan') || 'single';
+      S.paid = true;
+      S.paidAmount = v.amount;
+      try { ['pending_pay','pending_occasion','pending_fields','pending_plan','pending_token'].forEach(k => sessionStorage.removeItem('hr_' + k)); } catch(e){}
+      S.currentSlide = 1;
+      updateSlideshow();
+      showScreen('slideshow');
+      return;
+    } else {
+      // Could NOT confirm a real paid order → do not unlock; restart the order.
+      try { sessionStorage.removeItem('hr_pending_pay'); } catch(e){}
+      alert("We couldn't confirm your payment yet. If you just paid, wait a few seconds and reopen the link from your order confirmation email.");
+      // falls through to the normal flow below (occasion → … → checkout)
     }
-    pln = pln || loadSession('pending_plan');
-    if (occ) S.occasion = occ;
-    if (flds && typeof flds === 'object') S.fields = flds;
-    if (pln) S.selectedPlan = pln;
-    S.paid = true;
-    S.paidAmount = _paidParams.get('amount') || null;
-    try { ['pending_pay','pending_occasion','pending_fields','pending_plan'].forEach(k => sessionStorage.removeItem('hr_' + k)); } catch(e){}
-    if (_paidParams.get('paid')) history.replaceState({}, '', location.pathname);
-    S.currentSlide = 1;
-    updateSlideshow();
-    showScreen('slideshow');
-    return;
   }
 
   const savedJobId  = loadSession('job_id');
@@ -1849,19 +1862,25 @@ const SHOPIFY = {
     memory: '45413096914991'
   }
 };
-function shopifyCartUrl(plan){
+function shopifyCartUrl(plan, token){
   const vid = SHOPIFY.packs[plan] || SHOPIFY.packs.single;
-  return 'https://' + SHOPIFY.domain + '/cart/' + vid + ':1';
+  // sr_token rides along as a cart attribute → lands on the order → recorded by the webhook.
+  let url = 'https://' + SHOPIFY.domain + '/cart/' + vid + ':1?attributes[sr_token]=' + encodeURIComponent(token || '');
+  if (S.user && S.user.email) url += '&checkout[email]=' + encodeURIComponent(S.user.email);
+  return url;
 }
 
 function completePayment() {
-  // Save the buyer's answers, then send them to Shopify to pay BEFORE uploading.
+  // Save the buyer's answers + a one-time claim token, then pay on Shopify BEFORE uploading.
   const plan = S.selectedPlan || 'single';
+  const token = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+              : (Date.now().toString(36) + Math.random().toString(36).slice(2));
   saveSession('pending_occasion', S.occasion);
   saveSession('pending_fields', S.fields);
   saveSession('pending_plan', plan);
+  saveSession('pending_token', token);
   saveSession('pending_pay', true);
-  window.location.href = shopifyCartUrl(plan);
+  window.location.href = shopifyCartUrl(plan, token);
 }
 
 function handleExpressPay(provider) {
