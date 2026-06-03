@@ -17,23 +17,24 @@ module.exports = async (req, res) => {
 
   const headers = { apikey: SR, Authorization: `Bearer ${SR}` };
 
-  // Find a paid, unclaimed order — by token first (unguessable), else by email.
-  const filter = token
-    ? `token=eq.${encodeURIComponent(token)}`
-    : `email=eq.${encodeURIComponent(email)}`;
-  const url = `${SUPABASE_URL}/rest/v1/paid_orders?${filter}&status=eq.paid&claimed=eq.false&order=created_at.desc&limit=1`;
+  // Find a paid, unclaimed order. Try token first (unguessable); if that doesn't
+  // match (e.g. a stale token from an earlier attempt), fall back to email.
+  async function findOrder(field, op, value) {
+    const u = `${SUPABASE_URL}/rest/v1/paid_orders?${field}=${op}.${encodeURIComponent(value)}&status=eq.paid&claimed=eq.false&order=created_at.desc&limit=1`;
+    const r = await fetch(u, { headers });
+    const rows = await r.json();
+    return (Array.isArray(rows) && rows.length) ? rows[0] : null;
+  }
 
-  let rows;
+  let row = null;
   try {
-    const r = await fetch(url, { headers });
-    rows = await r.json();
+    if (token) row = await findOrder('token', 'eq', token);
+    if (!row && email) row = await findOrder('email', 'ilike', email); // ilike = case-insensitive
   } catch (e) {
     res.status(200).json({ paid: false, error: 'lookup failed' });
     return;
   }
-  if (!Array.isArray(rows) || rows.length === 0) { res.status(200).json({ paid: false }); return; }
-
-  const row = rows[0];
+  if (!row) { res.status(200).json({ paid: false }); return; }
 
   // Claim it (single-use). Guard on claimed=false so concurrent calls can't double-claim.
   try {

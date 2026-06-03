@@ -1743,7 +1743,13 @@ async function signInWithGoogle() {
   const btn = document.getElementById('google-btn');
   btn.textContent = 'Redirecting...'; btn.disabled = true;
   const redirectTo = window.location.origin + '/app';
-  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo,
+      queryParams: { prompt: 'select_account' } // always show Google's "Choose an account" so users can switch
+    }
+  });
   if (error) {
     document.getElementById('auth-err').textContent = error.message;
     document.getElementById('auth-err').style.display = 'block';
