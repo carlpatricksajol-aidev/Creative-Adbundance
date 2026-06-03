@@ -41,7 +41,7 @@ module.exports = async (req, res) => {
         apikey: SR,
         Authorization: `Bearer ${SR}`,
         'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates,return=minimal'
+        Prefer: 'resolution=ignore-duplicates,return=representation'
       },
       body: JSON.stringify({
         order_id: order.id,
@@ -53,9 +53,25 @@ module.exports = async (req, res) => {
         status: 'paid'
       })
     });
+    let inserted = [];
+    try { inserted = await r.json(); } catch (e) {}
     if (!r.ok) {
-      const t = await r.text();
-      console.error('[shopify-webhook] supabase insert failed', r.status, t);
+      console.error('[shopify-webhook] supabase insert failed', r.status, JSON.stringify(inserted));
+    }
+    // Top up credits ONLY for a brand-new order (ignore-duplicates returns [] on a repeat
+    // webhook delivery), so Shopify retries can't double-credit. single=1, family=5, memory=10.
+    if (r.ok && Array.isArray(inserted) && inserted.length > 0 && email) {
+      const PLAN_CREDITS = { single: 1, family: 5, memory: 10 };
+      const credits = PLAN_CREDITS[plan] || 1;
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/rpc/add_credits`, {
+          method: 'POST',
+          headers: { apikey: SR, Authorization: `Bearer ${SR}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ p_email: email, p_amount: credits })
+        });
+      } catch (e) {
+        console.error('[shopify-webhook] add_credits failed', e);
+      }
     }
   } catch (e) {
     console.error('[shopify-webhook] error', e);

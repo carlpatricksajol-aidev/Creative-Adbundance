@@ -1651,38 +1651,28 @@ async function setUser(user) {
   bindDurationPicker();
   document.getElementById('clip-file-input').addEventListener('change', handleClipAdd);
 
-  // Returning from Shopify payment → VERIFY the order server-side before unlocking upload
+  // Returning from Shopify payment → wait for the webhook to add credits, then resume at upload
   const _paidParams = new URLSearchParams(location.search);
   if (_paidParams.get('paid') === '1' || _paidParams.get('token') || loadSession('pending_pay')) {
-    const token = _paidParams.get('token') || loadSession('pending_token') || '';
-    const email = (S.user && S.user.email) || '';
-    const verifyOnce = async () => {
-      try {
-        const r = await fetch('/api/verify-payment?token=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(email) + '&_=' + Date.now(), { cache: 'no-store' });
-        return await r.json();
-      } catch (e) { return { paid: false }; }
-    };
-    let v = await verifyOnce();
-    // the webhook can lag a few seconds — retry briefly before giving up
-    for (let i = 0; i < 4 && !(v && v.paid); i++) { await new Promise(r => setTimeout(r, 1500)); v = await verifyOnce(); }
-
     if (_paidParams.get('paid') || _paidParams.get('token')) history.replaceState({}, '', location.pathname);
 
-    if (v && v.paid) {
+    let bal = await getCredits();
+    // the webhook can lag a few seconds before credits land — poll briefly
+    for (let i = 0; i < 5 && bal < 1; i++) { await new Promise(r => setTimeout(r, 1500)); bal = await getCredits(); }
+
+    if (bal >= 1) {
       const occ = loadSession('pending_occasion');
       const flds = loadSession('pending_fields');
       if (occ) S.occasion = occ;
       if (flds && typeof flds === 'object') S.fields = flds;
-      S.selectedPlan = v.plan || loadSession('pending_plan') || 'single';
-      S.paid = true;
-      S.paidAmount = v.amount;
+      S.selectedPlan = loadSession('pending_plan') || S.selectedPlan;
       try { ['pending_pay','pending_occasion','pending_fields','pending_plan','pending_token'].forEach(k => sessionStorage.removeItem('hr_' + k)); } catch(e){}
       S.currentSlide = 1;
       updateSlideshow();
       showScreen('slideshow');
       return;
     } else {
-      // Could NOT confirm a real paid order → do not unlock; restart the order.
+      // Credits haven't landed yet → don't unlock; let them retry.
       try { sessionStorage.removeItem('hr_pending_pay'); } catch(e){}
       alert("We couldn't confirm your payment yet. If you just paid, wait a few seconds and reopen the link from your order confirmation email.");
       // falls through to the normal flow below (occasion → … → checkout)
@@ -1823,12 +1813,38 @@ function goTo(n) {
   showScreen(String(n));
 }
 
-function goToCheckout() {
+// ----- Credits helpers (a paid plan = N credits; 1 credit per SongReel) -----
+async function srToken() {
+  try { const { data: { session } } = await sb.auth.getSession(); return (session && session.access_token) || ''; }
+  catch (e) { return ''; }
+}
+async function getCredits() {
+  const t = await srToken(); if (!t) return 0;
+  try {
+    const r = await fetch('/api/credits?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + t }, cache: 'no-store' });
+    const d = await r.json();
+    return (d && typeof d.credits === 'number') ? d.credits : 0;
+  } catch (e) { return 0; }
+}
+async function consumeCredit() {
+  const t = await srToken(); if (!t) return { ok: false, credits: 0 };
+  try {
+    const r = await fetch('/api/credits', { method: 'POST', headers: { Authorization: 'Bearer ' + t }, cache: 'no-store' });
+    return await r.json();
+  } catch (e) { return { ok: false, credits: 0 }; }
+}
+
+async function goToCheckout() {
   if (!S.fields['f-name'] || !S.fields['f-theme']) {
     alert('Please answer both questions before continuing.');
     return;
   }
-  // Populate order summary with what user entered
+  // Already have credits (e.g. a 5- or 10-pack)? Skip checkout → straight to upload.
+  if (await getCredits() >= 1) {
+    S.currentSlide = 1; updateSlideshow(); showScreen('slideshow');
+    return;
+  }
+  // No credits → show checkout to buy a plan.
   const name = S.fields['f-name'] || '';
   const occLabels = {
     'mothers-day':"Mother's Day",'fathers-day':"Father's Day",
@@ -2324,6 +2340,9 @@ async function submitJob() {
   saveSession('job_id', job.id);
   saveSession('job_status', 'processing');
   saveSession('job_created_at', Date.now());
+  // Deduct 1 credit (submit-to-generate). Gated earlier, but enforce before generating.
+  const _cc = await consumeCredit();
+  if (!_cc.ok) { showProcErr("You're out of SongReel credits — please purchase a plan to create another."); return; }
   try {
     await fetch(C.N8N_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ job_id: job.id }) });
   } catch(e) { console.warn('n8n trigger failed:', e); }
