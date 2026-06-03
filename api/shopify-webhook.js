@@ -61,6 +61,30 @@ module.exports = async (req, res) => {
     console.error('[shopify-webhook] error', e);
   }
 
+  // ---- Send the "continue" email INSTANTLY via Resend (bypasses Shopify's slow email) ----
+  if (process.env.RESEND_API_KEY && email) {
+    const link = 'https://www.songreels.ai/create?paid=1&token=' + encodeURIComponent(token || '') +
+                 '&amount=' + encodeURIComponent(amount);
+    const from = process.env.RESEND_FROM || 'SongReels <noreply@songreels.ai>';
+    const html =
+      '<div style="font-family:Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#221019">' +
+        '<h2 style="font-size:22px">Payment received — let\'s make your SongReel 🎵</h2>' +
+        '<p style="font-size:15px;line-height:1.6">Thanks! Your order is confirmed. Tap below to upload your photos and create your gift.</p>' +
+        '<p><a href="' + link + '" style="display:inline-block;margin:16px 0;padding:14px 28px;background:#FF2D55;color:#fff;border-radius:999px;font-weight:700;text-decoration:none;font-size:15px">🎵 Go back &amp; create your SongReel →</a></p>' +
+        '<p style="color:#9a8790;font-size:12px;line-height:1.5">If the button doesn\'t work, paste this link:<br>' + link + '</p>' +
+      '</div>';
+    try {
+      const er = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from, to: [email], subject: 'Your SongReel is ready to create 🎵', html })
+      });
+      if (!er.ok) console.error('[shopify-webhook] resend failed', er.status, await er.text());
+    } catch (e) {
+      console.error('[shopify-webhook] resend error', e);
+    }
+  }
+
   // Always 200 so Shopify doesn't retry-storm; errors are logged above.
   res.status(200).json({ ok: true });
 };
