@@ -94,14 +94,23 @@ footer{background:var(--night);color:rgba(255,255,255,.5);padding:26px 0;font-si
 footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;max-width:var(--maxw)}
 footer a{color:rgba(255,255,255,.7)}
 footer a:hover{color:#fff}
+@media(max-width:560px){
+  .wrap{padding:0 20px}
+  .nav .wrap{height:64px}
+  main{padding:32px 0 64px}
+  .page-h1{font-size:34px}
+  .summary,.pay{padding:24px 20px}
+  .pack .ico{width:54px;height:54px;font-size:28px}
+  footer .wrap{flex-direction:column;gap:8px;text-align:center;justify-content:center}
+}
 </style>
 </head>
 <body>
 
 <header class="nav">
   <div class="wrap">
-    <a class="brand" href="index.html">SongReels <span>🎶</span></a>
-    <a class="back" href="index.html#pricing"><span>←</span> Back to pricing</a>
+    <a class="brand" href="/">SongReels <span>🎶</span></a>
+    <a class="back" href="/#pricing"><span>←</span> Back to pricing</a>
   </div>
 </header>
 
@@ -147,7 +156,7 @@ footer a:hover{color:#fff}
           <div class="ico"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M4 16l8 8L28 8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <h2>You're all set 🎉</h2>
           <p>Your <strong id="okPack">SongReel</strong> is ready to make. Let's create something they'll save forever.</p>
-          <a class="btn btn-grad" href="create.html">Start creating <span>→</span></a>
+          <a class="btn btn-grad" href="/create">Start creating <span>→</span></a>
         </div>
       </div>
 
@@ -180,7 +189,7 @@ footer a:hover{color:#fff}
 <footer>
   <div class="wrap">
     <span>© 2026 SongReels — Made with 💛</span>
-    <span><a href="terms.html">Terms</a> · <a href="privacy.html">Privacy</a> · <a href="contact.html">Help</a></span>
+    <span><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/contact">Help</a></span>
   </div>
 </footer>
 

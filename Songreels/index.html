@@ -186,15 +186,63 @@ footer .cols h4{font-size:11px;letter-spacing:.12em;text-transform:uppercase;col
 footer .cols a{display:block;font-size:14px;font-weight:600;color:rgba(255,255,255,.78);margin-bottom:9px}
 footer .cols a:hover{color:#fff}
 footer .fbar{max-width:1180px;margin:44px auto 0;padding:24px 50px 0;border-top:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.4)}
+
+/* ===================== Responsive ===================== */
+@media(max-width:1024px){
+  .wrap{padding:0 32px}
+  .hero h1{font-size:54px}
+  .sec h2{font-size:40px}
+  .occ-grid{grid-template-columns:repeat(2,1fr)}
+  footer .fbar{padding-left:32px;padding-right:32px}
+}
+@media(max-width:880px){
+  .nav-links{display:none}
+  .hero{padding:48px 0 56px}
+  .hero .wrap{grid-template-columns:1fr;gap:44px}
+  .hero .lede{max-width:none}
+  .show-stage{order:-1}
+  .recip .wrap{grid-template-columns:1fr;gap:48px;padding-top:64px;padding-bottom:64px}
+  .steps{grid-template-columns:1fr;gap:14px}
+  .ex-grid{grid-template-columns:1fr 1fr}
+  .faq{grid-template-columns:1fr}
+  .tiers{grid-template-columns:1fr;max-width:440px;margin-left:auto;margin-right:auto}
+  .tier.feat{transform:none}
+}
+@media(max-width:640px){
+  .wrap{padding:0 20px}
+  .nav .wrap{height:64px}
+  .brand{font-size:21px}
+  .sec{padding:56px 0}
+  .hero h1{font-size:clamp(38px,11vw,48px)}
+  .sec h2{font-size:clamp(28px,7vw,34px)}
+  .sec .sub{font-size:16px}
+  .hero .cta-row{flex-direction:column;align-items:stretch}
+  .hero .cta-row .btn{width:100%}
+  .occ-grid{gap:12px}
+  .ex-grid{grid-template-columns:1fr}
+  .final{padding:64px 0}
+  .final h2{font-size:clamp(34px,9vw,44px)}
+  .final p{font-size:17px}
+  .showcard{width:min(300px,82vw)}
+  .float{font-size:12px;padding:8px 12px}
+  .f1{left:-6px;top:5%}
+  .f2{left:-2px;bottom:8%}
+  footer .wrap{flex-direction:column;gap:28px}
+  footer .cols{gap:32px 40px;flex-wrap:wrap}
+  footer .fbar{flex-direction:column;gap:10px;padding-left:20px;padding-right:20px}
+}
+@media(max-width:380px){
+  .occ-grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
 
 <header class="nav">
   <div class="wrap">
-    <a class="brand" href="index.html">SongReels <span>🎶</span></a>
-    <nav class="nav-links"><a href="#occasions">Occasions</a><a href="#how">How it works</a><a href="#examples">Examples</a><a href="#pricing">Pricing</a><a href="contact.html">Contact</a></nav>
-    <a class="btn btn-grad" href="create.html">Make one →</a>
+    <a class="brand" href="/">SongReels <span>🎶</span></a>
+    <nav class="nav-links"><a href="#occasions">Occasions</a><a href="#how">How it works</a><a href="#examples">Examples</a><a href="#pricing">Pricing</a><a href="/contact">Contact</a></nav>
+    <a class="btn btn-grad" href="/create">Make one →</a>
   </div>
 </header>
 
@@ -205,7 +253,7 @@ footer .fbar{max-width:1180px;margin:44px auto 0;padding:24px 50px 0;border-top:
       <h1>The gift they'll<br><span class="hl">save forever</span> 💝</h1>
       <p class="lede">Upload a few photos, answer a couple of questions, and we'll make a custom video + original song for someone you love — ready in minutes.</p>
       <div class="cta-row">
-        <a class="btn btn-grad" href="create.html">Start a gift →</a>
+        <a class="btn btn-grad" href="/create">Start a gift →</a>
         <a class="btn btn-soft" href="#examples">▶ Watch an example</a>
       </div>
       <div class="trust">
@@ -252,7 +300,7 @@ footer .fbar{max-width:1180px;margin:44px auto 0;padding:24px 50px 0;border-top:
       <div class="occ o5"><span class="emoji">🎓</span><div><div class="nm">Graduation</div><div class="dt">May / June</div></div></div>
       <div class="occ o6"><span class="emoji">🎄</span><div><div class="nm">Christmas</div><div class="dt">Holiday</div></div></div>
       <div class="occ o7"><span class="emoji">🕊️</span><div><div class="nm">Memorial</div><div class="dt">In memory</div></div></div>
-      <a class="occ occ-more" href="templates.html"><span class="emoji">✨</span><div class="t">All occasions →</div><div class="s">weddings, new babies,<br>just because</div></a>
+      <a class="occ occ-more" href="/templates"><span class="emoji">✨</span><div class="t">All occasions →</div><div class="s">weddings, new babies,<br>just because</div></a>
     </div>
   </div>
 </section>
@@ -337,18 +385,18 @@ footer .fbar{max-width:1180px;margin:44px auto 0;padding:24px 50px 0;border-top:
       <div class="tier">
         <div class="tn">Single SongReel</div><div class="pr">$9<small>.99</small></div>
         <ul><li>✅ 1 SongReel</li><li>✅ 4 song options</li><li>✅ HD download</li><li>✅ Shareable link</li></ul>
-        <a class="btn btn-soft" href="checkout.html?pack=single">Make one</a>
+        <a class="btn btn-soft" href="/checkout?pack=single">Make one</a>
       </div>
       <div class="tier feat">
         <span class="badge">⭐ Most popular</span>
         <div class="tn">Family Pack</div><div class="pr">$39<small>.99</small></div>
         <ul><li>💛 5 SongReels</li><li>💛 Use anytime</li><li>💛 Save $10</li></ul>
-        <a class="btn btn-soft" href="checkout.html?pack=family">Get the pack →</a>
+        <a class="btn btn-soft" href="/checkout?pack=family">Get the pack →</a>
       </div>
       <div class="tier">
         <div class="tn">Memory Pack</div><div class="pr">$69<small>.99</small></div>
         <ul><li>✅ 10 SongReels</li><li>✅ Use anytime</li><li>✅ Save $30</li></ul>
-        <a class="btn btn-soft" href="checkout.html?pack=memory">Get the pack</a>
+        <a class="btn btn-soft" href="/checkout?pack=memory">Get the pack</a>
       </div>
     </div>
   </div>
@@ -374,7 +422,7 @@ footer .fbar{max-width:1180px;margin:44px auto 0;padding:24px 50px 0;border-top:
     <div class="e">🎁</div>
     <h2>Give them a moment<br>they'll never forget</h2>
     <p>Create a SongReel in minutes — the gift you'll be remembered for, not the one they'll re-gift.</p>
-    <a class="btn" href="create.html">Start a gift →</a>
+    <a class="btn" href="/create">Start a gift →</a>
   </div>
 </section>
 
@@ -385,9 +433,9 @@ footer .fbar{max-width:1180px;margin:44px auto 0;padding:24px 50px 0;border-top:
       <div class="fm">Personalized video &amp; music for the moments worth remembering.</div>
     </div>
     <div class="cols">
-      <div><h4>Product</h4><a href="create.html">Start a gift</a><a href="templates.html">Templates</a><a href="index.html#occasions">Occasions</a><a href="index.html#pricing">Pricing</a></div>
-      <div><h4>Company</h4><a href="contact.html">Contact</a><a href="contact.html">Help center</a></div>
-      <div><h4>Resources</h4><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div>
+      <div><h4>Product</h4><a href="/create">Start a gift</a><a href="/templates">Templates</a><a href="/#occasions">Occasions</a><a href="/#pricing">Pricing</a></div>
+      <div><h4>Company</h4><a href="/contact">Contact</a><a href="/contact">Help center</a></div>
+      <div><h4>Resources</h4><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div>
     </div>
   </div>
   <div class="fbar"><span>© 2026 SongReels — Made with 💛</span><span>Hand-built · Not a stock template</span></div>

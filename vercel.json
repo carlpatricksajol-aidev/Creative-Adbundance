@@ -1,4 +1,14 @@
 {
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/index.html",     "destination": "/",          "permanent": true },
+    { "source": "/create.html",    "destination": "/create",    "permanent": true },
+    { "source": "/checkout.html",  "destination": "/checkout",  "permanent": true },
+    { "source": "/templates.html", "destination": "/templates", "permanent": true },
+    { "source": "/contact.html",   "destination": "/contact",   "permanent": true },
+    { "source": "/privacy.html",   "destination": "/privacy",   "permanent": true },
+    { "source": "/terms.html",     "destination": "/terms",     "permanent": true }
+  ],
   "rewrites": [
     { "source": "/",          "destination": "/Songreels/index.html" },
     { "source": "/app",       "destination": "/Songreels/create.html" },

@@ -297,8 +297,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 @media(max-width:860px){#screen-checkout .ckout-right{order:-1}}
 
 /* plan cards */
-.ckout-plans{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
-@media(max-width:500px){.ckout-plans{grid-template-columns:1fr}}
+.ckout-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+@media(max-width:560px){.ckout-plans{grid-template-columns:1fr}}
 .ckout-plan{position:relative;padding:20px;border:1.5px solid var(--rule-soft);border-radius:18px;background:var(--paper);text-align:left;cursor:pointer;transition:border-color .2s,box-shadow .2s,background .2s}
 .ckout-plan:hover{border-color:var(--rule)}
 .ckout-plan.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);background:var(--paper)}
@@ -971,31 +971,44 @@ body.gate-active { overflow: hidden; }
         <!-- LEFT: plans + payment -->
         <div class="ckout-left">
           <div class="ckout-plans">
-            <!-- Free plan -->
-            <button class="ckout-plan" id="plan-free" onclick="selectPlan('free')">
+            <!-- Single -->
+            <button class="ckout-plan sel" id="plan-single" onclick="selectPlan('single')">
               <div class="plan-sel-ring"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-              <div class="plan-name">Free trial</div>
-              <div class="plan-price">$0</div>
-              <p class="plan-desc">Try the full flow, get a watermarked result.</p>
+              <div class="plan-name">Single SongReel</div>
+              <div class="plan-price">$9<span>.99 one-time</span></div>
+              <p class="plan-desc">One custom gift, start to finish.</p>
               <ul class="plan-feats">
-                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>1 video, watermarked</li>
-                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>2 song styles</li>
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>1 SongReel</li>
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>4 custom song styles</li>
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Full HD download</li>
                 <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Shareable link</li>
-                <li class="muted"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 2l9 9M11 2L2 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>No download</li>
               </ul>
             </button>
-            <!-- Paid plan -->
-            <button class="ckout-plan sel" id="plan-paid" onclick="selectPlan('paid')">
+            <!-- Family -->
+            <button class="ckout-plan" id="plan-family" onclick="selectPlan('family')">
               <div class="plan-badge">Most popular</div>
               <div class="plan-sel-ring"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-              <div class="plan-name">Single gift</div>
-              <div class="plan-price">$12<span>.99 one-time</span></div>
-              <p class="plan-desc">Full HD, no watermark. The real gift.</p>
+              <div class="plan-name">Family Pack</div>
+              <div class="plan-price">$39<span>.99 one-time</span></div>
+              <p class="plan-desc">Five gifts — use them anytime.</p>
               <ul class="plan-feats">
-                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Full HD, no watermark</li>
-                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>4 custom song styles</li>
-                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Permanent shareable link</li>
-                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Download for keepsake</li>
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>5 SongReels</li>
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Use anytime</li>
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Save $10 vs. singles</li>
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>HD + shareable links</li>
+              </ul>
+            </button>
+            <!-- Memory -->
+            <button class="ckout-plan" id="plan-memory" onclick="selectPlan('memory')">
+              <div class="plan-sel-ring"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="plan-name">Memory Pack</div>
+              <div class="plan-price">$69<span>.99 one-time</span></div>
+              <p class="plan-desc">Ten gifts for the whole family.</p>
+              <ul class="plan-feats">
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>10 SongReels</li>
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Use anytime</li>
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Save $30 vs. singles</li>
+                <li><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>HD + shareable links</li>
               </ul>
             </button>
           </div>
@@ -1034,7 +1047,7 @@ body.gate-active { overflow: hidden; }
             </div>
             <button class="ckout-pay-btn" onclick="completePayment()">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="5" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M1 8h14" stroke="currentColor" stroke-width="1.4"/><path d="M5 3V2a3 3 0 016 0v1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-              Pay $12.99 &amp; continue
+              Pay <span id="ckout-pay-amt">$9.99</span> &amp; continue
             </button>
             <div class="ckout-secure">
               <svg width="11" height="12" viewBox="0 0 11 12" fill="none"><rect x=".8" y="4.5" width="9.4" height="7" rx="1.2" stroke="currentColor" stroke-width="1.2"/><path d="M3 4.5V3a2.5 2.5 0 015 0v1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
@@ -1042,13 +1055,7 @@ body.gate-active { overflow: hidden; }
             </div>
           </div>
 
-          <!-- Free CTA -->
-          <div id="ckout-free-cta" class="ckout-free-cta" style="display:none">
-            <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="completePayment()">
-              Start free — continue <span class="arr">→</span>
-            </button>
-            <p>Your video will have a SongReels watermark. You can upgrade from your dashboard anytime.</p>
-          </div>
+          <!-- (single-tier paid pricing — no free plan) -->
         </div>
 
         <!-- RIGHT: order summary -->
@@ -1079,7 +1086,7 @@ body.gate-active { overflow: hidden; }
             </div>
             <div class="ckout-total">
               <span class="ckout-total-label">Total</span>
-              <span class="ckout-total-price" id="ckout-total-price">$12.99</span>
+              <span class="ckout-total-price" id="ckout-total-price">$9.99</span>
             </div>
             <div class="ckout-guarantee">
               <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1L2 3.5v4c0 3.5 2.5 5.5 5.5 6.5 3-1 5.5-3 5.5-6.5v-4L7.5 1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M5 7.5l1.5 1.5 3.5-3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -1436,7 +1443,7 @@ body.gate-active { overflow: hidden; }
               Make another SongReel <span class="arr">→</span>
             </button>
           </div>
-          <p class="done-hook-note">Starting from $0 · No subscription required</p>
+          <p class="done-hook-note">Starting at $9.99 · No subscription required</p>
         </div>
       </div>
     </div>
@@ -1818,18 +1825,22 @@ function goToCheckout() {
   if (el && name) el.textContent = 'A gift for ' + name;
   const occEl = document.getElementById('ckout-occasion-val');
   if (occEl) occEl.textContent = occ;
-  selectPlan('paid');
+  selectPlan('single');
   showScreen('checkout');
 }
 
 function selectPlan(plan) {
   S.selectedPlan = plan;
-  document.getElementById('plan-free').classList.toggle('sel', plan === 'free');
-  document.getElementById('plan-paid').classList.toggle('sel', plan === 'paid');
-  document.getElementById('ckout-payment').style.display  = plan === 'paid'  ? 'block' : 'none';
-  document.getElementById('ckout-free-cta').style.display = plan === 'free' ? 'block' : 'none';
-  const priceEl = document.getElementById('ckout-total-price');
-  if (priceEl) priceEl.textContent = plan === 'paid' ? '$12.99' : '$0';
+  const prices = { single: '$9.99', family: '$39.99', memory: '$69.99' };
+  ['single','family','memory'].forEach(p => {
+    const el = document.getElementById('plan-' + p);
+    if (el) el.classList.toggle('sel', p === plan);
+  });
+  const price = prices[plan] || prices.single;
+  const totalEl = document.getElementById('ckout-total-price');
+  if (totalEl) totalEl.textContent = price;
+  const amtEl = document.getElementById('ckout-pay-amt');
+  if (amtEl) amtEl.textContent = price;
 }
 
 function completePayment() {
