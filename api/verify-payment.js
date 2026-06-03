@@ -6,6 +6,7 @@
 // Returns: { paid: true, plan, amount, order_number }  |  { paid: false }
 
 module.exports = async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, max-age=0'); // never cache — retries must re-query live
   const token = ((req.query && req.query.token) || '').toString().trim();
   const email = ((req.query && req.query.email) || '').toString().trim().toLowerCase();
   if (!token && !email) { res.status(400).json({ paid: false, error: 'missing token/email' }); return; }

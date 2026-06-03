@@ -1658,7 +1658,7 @@ async function setUser(user) {
     const email = (S.user && S.user.email) || '';
     const verifyOnce = async () => {
       try {
-        const r = await fetch('/api/verify-payment?token=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(email));
+        const r = await fetch('/api/verify-payment?token=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(email) + '&_=' + Date.now(), { cache: 'no-store' });
         return await r.json();
       } catch (e) { return { paid: false }; }
     };
