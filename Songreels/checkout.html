@@ -124,13 +124,13 @@ footer a:hover{color:#fff}
       <!-- PAYMENT -->
       <div class="card pay">
         <h2>Secure checkout</h2>
-        <p class="sub">Finish your purchase on our secure Shopify checkout — credit card, Apple&nbsp;Pay, Google&nbsp;Pay and Shop&nbsp;Pay all supported.</p>
+        <p class="sub">Finish your purchase on our secure Stripe checkout — credit card, Apple&nbsp;Pay &amp; Google&nbsp;Pay supported.</p>
         <button type="button" class="pay-btn" id="payBtn">Continue to secure checkout <span>→</span></button>
         <div class="secure">
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="2" y="6" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M4.5 6V4a2.5 2.5 0 0 1 5 0v2" stroke="currentColor" stroke-width="1.4"/></svg>
-          Powered by Shopify · 256-bit SSL encryption
+          Powered by Stripe · 256-bit SSL encryption
         </div>
-        <p style="margin-top:14px;font-size:12.5px;font-weight:600;color:var(--ink-faint);text-align:center;line-height:1.5">You'll be taken to Shopify to enter payment details safely — your card never touches our site.</p>
+        <p style="margin-top:14px;font-size:12.5px;font-weight:600;color:var(--ink-faint);text-align:center;line-height:1.5">You'll be taken to Stripe to enter payment details safely — your card never touches our site.</p>
       </div>
 
       <!-- ORDER SUMMARY -->
@@ -193,29 +193,21 @@ footer a:hover{color:#fff}
     '<li><svg class="ck" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' + f + '</li>'
   ).join('');
 
-  // ----- Shopify checkout handoff -----
-  // Real payment happens on Shopify's hosted checkout. Cart permalink sends the
-  // buyer straight to Shopify's payment page for the selected plan's variant.
-  const SHOPIFY = {
-    domain: '8vii1c-jj.myshopify.com',
-    packs: {
-      single: { handle: 'single-songreel', variantId: '45413093638191' },
-      family: { handle: 'family-pack',     variantId: '45413095604271' },
-      memory: { handle: 'memory-pack',     variantId: '45413096914991' }
-    }
+  // ----- Stripe checkout handoff -----
+  // Each link is a Stripe Payment Link whose "after payment" redirect points to
+  // https://www.songreels.ai/create?paid=1 → Stripe sends the buyer straight to the
+  // create flow, where their credits (added by the Stripe webhook) unlock the build.
+  const STRIPE_LINKS = {
+    single: 'https://buy.stripe.com/REPLACE_SINGLE',  // $9.99  → 1 credit
+    family: 'https://buy.stripe.com/REPLACE_FAMILY',  // $39.99 → 5 credits
+    memory: 'https://buy.stripe.com/REPLACE_MEMORY'   // $69.99 → 10 credits
   };
-  function shopifyUrl(k){
-    const p = SHOPIFY.packs[k] || SHOPIFY.packs.single;
-    return p.variantId
-      ? 'https://' + SHOPIFY.domain + '/cart/' + p.variantId + ':1'  // straight to Shopify checkout
-      : 'https://' + SHOPIFY.domain + '/products/' + p.handle;        // product page (until variantId is set)
-  }
 
   const payBtn = document.getElementById('payBtn');
   payBtn.addEventListener('click', () => {
     payBtn.disabled = true;
     payBtn.innerHTML = 'Redirecting…';
-    window.location.href = shopifyUrl(key);
+    window.location.href = STRIPE_LINKS[key] || STRIPE_LINKS.single;
   });
 })();
 </script>
