@@ -818,6 +818,21 @@ body.gate-active { overflow: hidden; }
 .occ-c8 .occ-bg{background:linear-gradient(135deg,#3FD0D0,#1FA0C0)}
 .done-hero-title em,.done-hook-cta-card h3 em{font-style:normal;color:#FF8FA8}
 .done-hero-dot{background:#FF2D55;box-shadow:0 0 8px rgba(255,45,85,.8)}
+/* ── Themed confirm modal (replaces native confirm()) ── */
+.sr-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(34,16,25,.55);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);padding:20px}
+.sr-modal.show{display:flex}
+.sr-modal-card{background:var(--paper,#fff);border-radius:22px;max-width:440px;width:100%;padding:30px 30px 24px;box-shadow:0 30px 70px -20px rgba(34,16,25,.5);animation:srPop .22s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes srPop{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+.sr-modal-title{font-family:var(--disp,'Fredoka',sans-serif);font-weight:600;font-size:22px;color:var(--ink,#221019);margin:0 0 12px}
+.sr-modal-body{font-family:var(--body,'Nunito',sans-serif);font-size:15px;line-height:1.6;color:var(--ink-soft,#6b5560);white-space:pre-line;margin:0 0 24px}
+.sr-modal-actions{display:flex;gap:12px;justify-content:flex-end}
+.sr-modal-btn{font-family:var(--disp,'Fredoka',sans-serif);font-weight:600;font-size:15px;padding:12px 22px;border-radius:999px;cursor:pointer;border:none;transition:transform .15s,box-shadow .2s,filter .2s}
+.sr-modal-btn:hover{transform:translateY(-1px)}
+.sr-modal-ghost{background:transparent;color:var(--ink-soft,#6b5560);border:1.5px solid var(--rule,#e7dcd5)}
+.sr-modal-ghost:hover{border-color:var(--ink-soft,#6b5560);color:var(--ink,#221019)}
+.sr-modal-primary{background:var(--grad,linear-gradient(135deg,#FF5E7E,#FF2D55));color:#fff;box-shadow:0 12px 26px -10px rgba(255,45,85,.55)}
+.sr-modal-primary:hover{filter:brightness(1.05)}
+@media(max-width:480px){.sr-modal-actions{flex-direction:column-reverse}.sr-modal-btn{width:100%}}
 </style>
 </head>
 <body>
@@ -859,6 +874,18 @@ body.gate-active { overflow: hidden; }
         <p>Turn photos and memories into a cinematic music video, with an AI-composed song made just for them.</p>
       </div>
       <div class="pwgate-foot">SongReels · made for moments that matter</div>
+    </div>
+  </div>
+</div>
+
+<!-- Themed confirm modal (replaces the browser's native confirm dialog) -->
+<div class="sr-modal" id="sr-modal" aria-hidden="true">
+  <div class="sr-modal-card" role="dialog" aria-modal="true" aria-labelledby="sr-modal-title">
+    <h3 class="sr-modal-title" id="sr-modal-title">Heads up</h3>
+    <p class="sr-modal-body" id="sr-modal-body"></p>
+    <div class="sr-modal-actions">
+      <button type="button" class="sr-modal-btn sr-modal-ghost" id="sr-modal-cancel">Go back</button>
+      <button type="button" class="sr-modal-btn sr-modal-primary" id="sr-modal-ok">Continue</button>
     </div>
   </div>
 </div>
@@ -1627,6 +1654,29 @@ function saveSession(key, val) { try { sessionStorage.setItem('hr_' + key, JSON.
 function loadSession(key) { try { const v = sessionStorage.getItem('hr_' + key); return v ? JSON.parse(v) : null; } catch(e) { return null; } }
 function clearSession() { try { ['job_id','job_status','job_resume_url','job_created_at'].forEach(k => sessionStorage.removeItem('hr_' + k)); } catch(e) {} }
 
+// Themed promise-based confirm — drop-in replacement for window.confirm().
+// Resolves true on Continue, false on Go-back / click-outside.
+function showConfirm({ title = 'Heads up', body = '', okText = 'Continue', cancelText = 'Go back' } = {}) {
+  return new Promise((resolve) => {
+    const modal  = document.getElementById('sr-modal');
+    const okBtn  = document.getElementById('sr-modal-ok');
+    const cancel = document.getElementById('sr-modal-cancel');
+    document.getElementById('sr-modal-title').textContent = title;
+    document.getElementById('sr-modal-body').textContent  = body;
+    okBtn.textContent = okText;
+    cancel.textContent = cancelText;
+    modal.classList.add('show');
+    const done = (val) => {
+      modal.classList.remove('show');
+      okBtn.onclick = null; cancel.onclick = null; modal.onclick = null;
+      resolve(val);
+    };
+    okBtn.onclick  = () => done(true);
+    cancel.onclick = () => done(false);
+    modal.onclick  = (e) => { if (e.target === modal) done(false); }; // click backdrop = cancel
+  });
+}
+
 async function initAuth() {
   const { data: { session } } = await sb.auth.getSession();
   if (session) { setUser(session.user); } else { showScreen('auth'); }
@@ -1681,9 +1731,35 @@ async function setUser(user) {
     }
   }
 
-  const savedJobId  = loadSession('job_id');
-  const savedStatus = loadSession('job_status');
-  
+  let savedJobId  = loadSession('job_id');
+  let savedStatus = loadSession('job_status');
+
+  // ── DB-backed resume ─────────────────────────────────────────────────
+  // The database is the source of truth, so an in-progress reel survives a
+  // refresh, a closed tab, or even a different device (same Google account).
+  // sessionStorage is just a fast hint; the query below is authoritative.
+  try {
+    const { data: jobs } = await sb
+      .from('heartreel_jobs')
+      .select('id, status')
+      .eq('user_id', S.user.id)
+      .in('status', ['pending','generating_content','script_ready','generating_music','rendering'])
+      .order('created_at', { ascending: false })
+      .limit(1);
+    const dbJob = jobs && jobs[0];
+    if (dbJob) {
+      savedJobId = dbJob.id;
+      savedStatus = dbJob.status === 'script_ready' ? 'review'
+                  : (dbJob.status === 'generating_music' || dbJob.status === 'rendering') ? 'approved'
+                  : 'processing';
+      saveSession('job_id', savedJobId);
+      saveSession('job_status', savedStatus);
+    } else {
+      // No unfinished reel in the DB → clear any stale session pointer.
+      savedJobId = null; savedStatus = null; clearSession();
+    }
+  } catch (e) { console.warn('Resume query failed, falling back to session:', e); }
+
   if (savedJobId && savedStatus === 'complete') {
     clearSession();
     showScreen('1');
@@ -2340,12 +2416,13 @@ async function submitJob() {
   const tierSecs = S.songLength * 60;
   if (footageSecs < tierSecs - 5) {
     const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0');
-    const proceed = confirm(
-      `Heads up — you chose a ${S.songLength}-minute reel, but your clips add up to about ${fmt(footageSecs)}.\n\n` +
-      `Your reel will match your footage (around ${fmt(footageSecs)}) so there are no long black gaps. ` +
-      `Add more photos or videos if you want the full ${S.songLength} minutes.\n\n` +
-      `Continue with about ${fmt(footageSecs)}?`
-    );
+    const proceed = await showConfirm({
+      title: 'Your reel will match your footage',
+      body: `You chose a ${S.songLength}-minute reel, but your clips add up to about ${fmt(footageSecs)}.\n\n` +
+            `We'll make your reel about ${fmt(footageSecs)} so there are no long black gaps — add more photos or videos if you want the full ${S.songLength} minutes.`,
+      okText: `Continue with ${fmt(footageSecs)}`,
+      cancelText: 'Add more',
+    });
     if (!proceed) return; // they chose to go back and add more footage
   }
 
