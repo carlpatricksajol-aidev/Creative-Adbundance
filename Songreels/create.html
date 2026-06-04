@@ -2331,6 +2331,24 @@ document.getElementById('focus-mic').addEventListener('click', function() {
 async function submitJob() {
   if (S.clips.length === 0) { alert('Please add at least one photo or video clip.'); return; }
   if (S.clips.some(c => c.converting)) { alert('Please wait for processing to finish before submitting.'); return; }
+
+  // ── Footage-vs-tier warning ──────────────────────────────────────────
+  // The reel matches the actual clip footage (capped at the chosen tier), so a
+  // 3-min pick with only ~2:30 of clips makes a ~2:30 reel — never black padding.
+  // If their footage is shorter than the tier they chose, warn but let them continue.
+  const footageSecs = S.clips.reduce((sum, c) => sum + (c.duration || (c.type === 'image' ? C.PHOTO_DURATION : 10)), 0);
+  const tierSecs = S.songLength * 60;
+  if (footageSecs < tierSecs - 5) {
+    const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0');
+    const proceed = confirm(
+      `Heads up — you chose a ${S.songLength}-minute reel, but your clips add up to about ${fmt(footageSecs)}.\n\n` +
+      `Your reel will match your footage (around ${fmt(footageSecs)}) so there are no long black gaps. ` +
+      `Add more photos or videos if you want the full ${S.songLength} minutes.\n\n` +
+      `Continue with about ${fmt(footageSecs)}?`
+    );
+    if (!proceed) return; // they chose to go back and add more footage
+  }
+
   showScreen('proc');
   setLogLine('ll-upload', 'active', 'Saving your clips and photos...');
   S.tempJobId = Date.now() + '-' + (S.user?.id || 'anon').slice(0, 8);
