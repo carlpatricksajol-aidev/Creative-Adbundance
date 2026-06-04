@@ -171,6 +171,30 @@ already has `negativeTags` suppressing intros — **no change needed there.**
 4. Confirm the voice in the finished song matches the selection on 3 runs (this was the
    biggest "off" complaint).
 
+## 5. Lyric-timed sync (v4) — fixes clip/lyric DRIFT
+
+**Problem (verified on the Hawaii reel):** clip ORDER matched the lyrics but TIMING did
+not — the video ran ahead of the vocals (Jeep clip at 0:56, but "driving with the wind in
+your hair" sung at ~1:02 over the couple selfie). Root cause: the body builder timed each
+clip by its Gemini highlight length, ignoring the timestamped lyrics that are already
+computed (Get Timestamped Lyrics → Compute Line Boundaries).
+
+**Fix:** two nodes reworked to slave clip timing to the lyric line timestamps.
+- **Align Clips to Sections (v4)** — builds `aligned_clip_sequence`: each clip pinned to the
+  window `[lyric line start → end]`, gapless (boundaries set on real line start times,
+  proportional clip→line mapping). Falls through to legacy if no clips/lyrics.
+- **Creatomate body builder (v4.1)** — consumes `aligned_clip_sequence` (places clips at their
+  pinned time/duration). Short video clips: footage extended, then last frame holds to fill
+  the window (no gaps). Keeps hard duration cap. Legacy back-to-back stack kept as fallback.
+  Black pre-vocal intro intentionally kept (future: optional greeting-intro upload, PDF Area 4).
+- **v4.1 ending (user-requested):** slow fade-out. `OUTRO_TAIL` (4s) extends the final clip a
+  few seconds into the song's instrumental outro so the picture + music fade **together** over
+  `OUTRO_FADE`/`AUDIO_FADE` (5s each), instead of cutting at the last word. Capped by the real
+  Suno song length + hard cap so there's no silence/overrun. Tuning knobs at top of node.
+
+Full code for both nodes is in the chat transcript (Align v4 + body builder v4.1). Limit:
+section/line-level sync, not word-perfect. Verify via the `Align v4:` log lines.
+
 ## Why this fixes "the audio is off"
 - The **music** now derives from the same emotional read that already drives the lyrics.
 - **Voice** is deterministic, killing the most common mismatch.
