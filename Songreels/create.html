@@ -1836,13 +1836,22 @@ async function consumeCredit() {
   } catch (e) { return { ok: false, credits: 0 }; }
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// BETA PAYMENT SWITCH
+//   true  → testers skip Stripe checkout + credits entirely (free).
+//   false → normal Stripe checkout + credits gate (live payments).
+// The /create page is already behind the beta password gate, so only
+// invited testers can reach this. Flip back to false before public launch.
+// ─────────────────────────────────────────────────────────────────────
+const BYPASS_PAY = true;
+
 async function goToCheckout() {
   if (!S.fields['f-name'] || !S.fields['f-theme']) {
     alert('Please answer both questions before continuing.');
     return;
   }
-  // Already have credits (e.g. a 5- or 10-pack)? Skip checkout → straight to upload.
-  if (await getCredits() >= 1) {
+  // Payment bypassed (beta) OR already have credits → skip checkout, go to upload.
+  if (BYPASS_PAY || await getCredits() >= 1) {
     S.currentSlide = 1; updateSlideshow(); showScreen('slideshow');
     return;
   }
@@ -2369,9 +2378,11 @@ async function submitJob() {
   saveSession('job_id', job.id);
   saveSession('job_status', 'processing');
   saveSession('job_created_at', Date.now());
-  // Deduct 1 credit (submit-to-generate). Gated earlier, but enforce before generating.
-  const _cc = await consumeCredit();
-  if (!_cc.ok) { showProcErr("You're out of SongReel credits — please purchase a plan to create another."); return; }
+  // Deduct 1 credit (submit-to-generate), unless payment is bypassed for beta.
+  if (!BYPASS_PAY) {
+    const _cc = await consumeCredit();
+    if (!_cc.ok) { showProcErr("You're out of SongReel credits — please purchase a plan to create another."); return; }
+  }
   try {
     await fetch(C.N8N_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ job_id: job.id }) });
   } catch(e) { console.warn('n8n trigger failed:', e); }

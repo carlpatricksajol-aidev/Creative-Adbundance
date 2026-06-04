@@ -76,8 +76,8 @@ Total user time: ~5 minutes. No human involvement on the operator side.
 | Creatomate API | `https://api.creatomate.com` |
 | VPS | 187.77.154.60 (Hostinger) |
 | Compressor | `http://localhost:3000/compress` |
-| Compress secret | `34f56b4f2d842f1f8a14f6004d9789af5f14ac762705948d6a0d205cca5d6717` |
-| Gemini API key | `AIzaSyCxn0TzRMrxf5fivFBAGPlUuTXbS2pGv9I` |
+| Compress secret | `<COMPRESS_SECRET — rotate on VPS; keep in env, not committed>` |
+| Gemini API key | `<GEMINI_API_KEY — rotated; keep in env, not committed>` |
 | Site URL (preview) | `https://sites.leadconnectorhq.com/preview/5UZi4PgoXe4b9ZS6WNRP?notrack=true` |
 
 ---
