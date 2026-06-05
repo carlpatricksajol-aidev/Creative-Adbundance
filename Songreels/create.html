@@ -220,7 +220,8 @@ main{flex:1;padding:0 0 80px}
 .clip-desc::placeholder{color:var(--ink-faint)}
 .clip-desc-mic{position:absolute;right:24px;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(184,88,68,.1);transition:all .2s;cursor:pointer}
 .clip-desc-mic:hover{background:rgba(184,88,68,.2)}
-.clip-desc-mic.recording{background:var(--accent)}
+.clip-desc-mic.recording{background:var(--accent);animation:micPulse 1s infinite}
+.clip-desc-mic.recording svg rect,.clip-desc-mic.recording svg path,.clip-desc-mic.recording svg line{stroke:#fff}
 .add-clip-btn{width:100%;background:transparent;border:1.5px dashed var(--rule);border-radius:14px;padding:18px;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--accent-deep);font-size:14px;font-weight:500;transition:all .2s;position:relative;margin-top:4px;cursor:pointer}
 .add-clip-btn:hover{background:var(--accent-soft);border-color:rgba(184,88,68,.4)}
 .add-clip-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
@@ -2124,8 +2125,17 @@ function toggleVoice(btn, targetId) {
     target.value = finalTranscript + interim;
     S.fields[targetId] = target.value; autoResize(target);
   };
-  recognition.onerror = recognition.onend = () => stopVoice();
-  recognition.start();
+  recognition.onerror = (e) => {
+    const err = e && e.error;
+    if (err === 'not-allowed' || err === 'service-not-allowed')
+      alert('Microphone access is blocked. Click the microphone/lock icon in your browser\'s address bar, allow the mic for songreels.ai, then tap the mic again.');
+    else if (err === 'network')
+      alert('Voice typing needs an internet connection and isn\'t available right now. You can type instead.');
+    stopVoice();
+  };
+  recognition.onend = () => stopVoice();
+  try { recognition.start(); }
+  catch(e) { stopVoice(); alert('Couldn\'t start the microphone. Please type your answer instead.'); }
 }
 
 function stopVoice() {
@@ -2294,7 +2304,11 @@ function renderClips() {
       const clickedIdx = parseInt(this.dataset.idx);
       removeClip(clickedIdx);
     });
-    card.querySelector('.clip-desc').addEventListener('input', function() { S.clips[parseInt(this.dataset.idx)].description = this.value; });
+    card.querySelector('.clip-desc').addEventListener('input', function() {
+      S.clips[parseInt(this.dataset.idx)].description = this.value;
+      if (this.value.trim().length >= 6) this.style.borderColor = '';
+      updateClipUI();
+    });
     card.querySelector('.clip-desc-mic').addEventListener('click', function() { toggleClipVoice(this, parseInt(this.dataset.idx)); });
   });
 }
@@ -2302,29 +2316,55 @@ function renderClips() {
 let activeClipMic = null;
 let activeClipRecognition = null;
 
+function stopClipVoice() {
+  if (activeClipRecognition) { try { activeClipRecognition.stop(); } catch(e){} activeClipRecognition = null; }
+  if (activeClipMic) { activeClipMic.classList.remove('recording'); activeClipMic = null; }
+}
+
 function toggleClipVoice(btn, idx) {
-  if (btn.classList.contains('recording')) {
-    if (activeClipRecognition) { try { activeClipRecognition.stop(); } catch(e){} }
-    btn.classList.remove('recording'); activeClipMic = null; activeClipRecognition = null; return;
-  }
+  // Tapping the active mic again → stop.
+  if (btn.classList.contains('recording')) { stopClipVoice(); return; }
+  // Stop anything else that's listening (another clip, or the chat-question mic).
+  stopClipVoice();
+  try { if (typeof stopVoice === 'function') stopVoice(); } catch(e) {}
+
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) { alert('Voice is not supported in this browser.'); return; }
+  if (!SpeechRecognition) {
+    alert('Voice typing needs Chrome, Edge, or Safari. You can still type the description.');
+    return;
+  }
   const recognition = new SpeechRecognition();
-  recognition.continuous = true; recognition.interimResults = true;
+  recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'en-US';
   const ta = document.querySelector('.clip-desc[data-idx="' + idx + '"]');
-  let finalTxt = S.clips[idx].description;
-  recognition.onstart = () => { btn.classList.add('recording'); activeClipMic = btn; activeClipRecognition = recognition; };
+  let finalTxt = (S.clips[idx].description || '');
+  if (finalTxt && !/\s$/.test(finalTxt)) finalTxt += ' ';
+
+  recognition.onstart = () => {
+    btn.classList.add('recording'); activeClipMic = btn; activeClipRecognition = recognition;
+  };
   recognition.onresult = (e) => {
     let interim = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) finalTxt += e.results[i][0].transcript + ' ';
-      else interim = e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
     }
-    if (ta) ta.value = finalTxt + interim;
-    S.clips[idx].description = finalTxt + interim;
+    const val = finalTxt + interim;
+    if (ta) { ta.value = val; if (val.trim().length >= 6) ta.style.borderColor = ''; }
+    S.clips[idx].description = val;
+    updateClipUI();
   };
-  recognition.onerror = recognition.onend = () => { btn.classList.remove('recording'); };
-  recognition.start();
+  recognition.onerror = (e) => {
+    const err = e && e.error;
+    if (err === 'not-allowed' || err === 'service-not-allowed') {
+      alert('Microphone access is blocked. Click the microphone/lock icon in your browser\'s address bar, allow the mic for songreels.ai, then tap the mic again.');
+    } else if (err === 'network') {
+      alert('Voice typing needs an internet connection and isn\'t available right now. You can type the description instead.');
+    } // 'no-speech' / 'aborted' → fail quietly
+    stopClipVoice();
+  };
+  recognition.onend = () => stopClipVoice();
+  try { recognition.start(); }
+  catch(e) { stopClipVoice(); alert('Couldn\'t start the microphone. Please type the description instead.'); }
 }
 
 function removeClip(i) {
@@ -2355,8 +2395,19 @@ function updateClipUI() {
   if (photos > 0 && videos > 0) breakdown = ' (' + photos + ' photo' + (photos > 1 ? 's' : '') + ', ' + videos + ' clip' + (videos > 1 ? 's' : '') + ')';
   else if (photos > 0) breakdown = ' (' + photos + ' photo' + (photos > 1 ? 's' : '') + ')';
   else if (videos > 0) breakdown = ' (' + videos + ' clip' + (videos > 1 ? 's' : '') + ')';
-  counter.textContent = S.clips.length + ' / ' + C.MAX_CLIPS + breakdown + ' · ' + (S.clips.length === 0 ? 'at least 1 required' : 'good to go!');
-  document.getElementById('s3-next').disabled = S.clips.length === 0 || S.clips.some(c => c.converting);
+
+  const converting = S.clips.some(c => c.converting);
+  const missing = S.clips.filter(c => (c.description || '').trim().length < 6).length;
+
+  // A description is REQUIRED on every clip — it's what makes the song personal.
+  let status;
+  if (S.clips.length === 0)   status = 'at least 1 required';
+  else if (converting)        status = 'processing…';
+  else if (missing > 0)       status = missing + ' still need' + (missing === 1 ? 's' : '') + ' a description';
+  else                        status = 'good to go!';
+  counter.textContent = S.clips.length + ' / ' + C.MAX_CLIPS + breakdown + ' · ' + status;
+
+  document.getElementById('s3-next').disabled = S.clips.length === 0 || converting || missing > 0;
   document.getElementById('add-clip-btn').style.display = S.clips.length >= C.MAX_CLIPS ? 'none' : 'flex';
 }
 
