@@ -1155,7 +1155,7 @@ body.gate-active { overflow: hidden; }
       <div class="step-head">
         <span class="eyebrow">Step 4 of 5 · Your clips and photos</span>
         <h1>Upload your <em>videos</em><br>and <em>photos.</em></h1>
-        <p class="lede">Mix photos and video clips, up to 20 files. Videos up to 100 MB each (about 1.5 min); photos up to 25 MB. Describe what is happening in each one so AI can match every moment to the right lyric.</p>
+        <p class="lede">Mix photos and video clips, up to 20 files. Videos up to 100 MB each (about 1.5 min); photos up to 25 MB. <strong>A short description is required for each</strong> — tell us who's in it, what's happening, and why it matters. The more you share, the more personal your song.</p>
       </div>
       <div class="media-type-row">
         <span class="media-type-pill photo">Photos show for 5 seconds each</span>
@@ -1888,6 +1888,24 @@ function showScreen(id) {
 function goTo(n) {
   if (n === 2 && !S.occasion) return;
   if (n === 2) buildChatQuestions();
+  // Continuing from the upload step → every clip MUST be described. The human context
+  // (who's in it, what's happening, why it matters) is what makes the song personal —
+  // without it the AI only has Gemini's visual guess.
+  if (n === 4 && S.clips.length) {
+    const needs = S.clips.filter(c => (c.description || '').trim().length < 6);
+    if (needs.length) {
+      const fields = document.querySelectorAll('#clips-zone .clip-desc');
+      fields.forEach(f => {
+        const d = (S.clips[parseInt(f.dataset.idx)]?.description || '').trim();
+        f.style.borderColor = d.length < 6 ? 'var(--accent)' : '';
+      });
+      const first = Array.from(fields).find(f => (S.clips[parseInt(f.dataset.idx)]?.description || '').trim().length < 6);
+      if (first) { first.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => first.focus(), 300); }
+      alert("Please describe each clip before continuing — tell us who's in it and what's happening. " +
+            "This is what makes the song personal. (" + needs.length + " still " + (needs.length === 1 ? "needs" : "need") + " a description.)");
+      return;
+    }
+  }
   showScreen(String(n));
 }
 
@@ -2241,8 +2259,8 @@ function renderClips() {
     const previewLabel = clip.converting ? 'converting...' : (isImg ? 'tap to view' : 'tap to preview');
     const onClickFn = clip.converting ? '' : (isImg ? "openImgModal('" + clip.blobUrl + "')" : "openVidModal('" + clip.blobUrl + "')");
     const descPh = isImg
-      ? 'Describe this photo, like "Mom holding newborn baby, hospital room, 2006"'
-      : 'Describe what is happening, like "Asher crawling on the floor holding a snack at about 8 months old"';
+      ? 'Who is in this photo and why it matters — e.g. "My wife Natalie holding our son Asher on his first Mother\'s Day"'
+      : 'Who is in it, what are they doing, and why it matters — e.g. "Asher trying to drink Natalie\'s coffee before she gets a sip"';
     card.innerHTML =
       '<div class="clip-top">' +
         '<div class="clip-num">' + (i + 1) + '</div>' +
