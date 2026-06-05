@@ -2431,22 +2431,30 @@ async function submitJob() {
   S.tempJobId = Date.now() + '-' + (S.user?.id || 'anon').slice(0, 8);
   const uploadedClips = [];
   document.getElementById('upload-prog').classList.add('show');
-  for (let i = 0; i < S.clips.length; i++) {
-    const clip = S.clips[i];
-    const label = clip.type === 'image' ? 'Saving photo ' + (i + 1) : 'Saving clip ' + (i + 1);
-    document.getElementById('upload-prog-lbl').textContent = label + ' of ' + S.clips.length + '...';
-    document.getElementById('upload-prog-fill').style.width = Math.round((i / S.clips.length) * 100) + '%';
-    try {
-      const url = await uploadClip(clip.file, i);
-      uploadedClips.push({
-        url,
-        description: clip.description || (clip.type === 'image' ? 'Photo ' + (i + 1) : 'Clip ' + (i + 1)),
-        index: i,
-        duration: clip.duration || (clip.type === 'image' ? C.PHOTO_DURATION : 10),
-        type: clip.type || 'video'
-      });
-    } catch(err) { showProcErr('Upload failed: ' + err.message); return; }
-  }
+  // Upload clips in PARALLEL batches (was one-at-a-time — the slow part). Each upload
+  // is a VPS round-trip for a signed URL + a direct PUT to Supabase; running several at
+  // once keeps the connection saturated instead of idling between clips.
+  const UPLOAD_CONCURRENCY = 4;
+  let uploadDone = 0;
+  const uploadOne = async (clip, i) => {
+    const url = await uploadClip(clip.file, i);
+    uploadDone++;
+    document.getElementById('upload-prog-lbl').textContent = 'Saving ' + uploadDone + ' of ' + S.clips.length + '...';
+    document.getElementById('upload-prog-fill').style.width = Math.round((uploadDone / S.clips.length) * 100) + '%';
+    uploadedClips[i] = {
+      url,
+      description: clip.description || (clip.type === 'image' ? 'Photo ' + (i + 1) : 'Clip ' + (i + 1)),
+      index: i,
+      duration: clip.duration || (clip.type === 'image' ? C.PHOTO_DURATION : 10),
+      type: clip.type || 'video'
+    };
+  };
+  try {
+    for (let start = 0; start < S.clips.length; start += UPLOAD_CONCURRENCY) {
+      const batch = S.clips.slice(start, start + UPLOAD_CONCURRENCY);
+      await Promise.all(batch.map((clip, j) => uploadOne(clip, start + j)));
+    }
+  } catch(err) { showProcErr('Upload failed: ' + err.message); return; }
   document.getElementById('upload-prog-fill').style.width = '100%';
   document.getElementById('upload-prog-lbl').textContent = 'All files saved.';
   document.getElementById('upload-prog').classList.remove('show');
