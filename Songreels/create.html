@@ -871,6 +871,8 @@ body.gate-active { overflow: hidden; }
 .ochip:hover{border-color:var(--accent,#FF2D55);color:var(--ink,#2a1a13)}
 .ochip.on{background:var(--grad,linear-gradient(135deg,#FF5E7E,#FF2D55));border-color:transparent;color:#fff;box-shadow:0 8px 18px -8px rgba(255,45,85,.5)}
 .ochip.solid.on{box-shadow:0 8px 18px -8px rgba(255,45,85,.5)}
+.tin.need input,.tin.need textarea{border-color:var(--accent);background:rgba(255,45,85,.05)}
+.chips.need{outline:2px dashed rgba(255,45,85,.55);outline-offset:6px;border-radius:14px}
 .ai-note{display:flex;gap:14px;align-items:flex-start;margin-top:26px;background:linear-gradient(135deg,rgba(255,94,126,.08),rgba(124,97,255,.08));border:1px solid var(--rule-soft,#ece0d7);border-radius:16px;padding:16px 18px}
 .ai-note .ai-ic{font-size:22px;flex-shrink:0}
 .ai-note strong{display:block;font-family:var(--disp,'Fredoka',sans-serif);font-size:15px;color:var(--ink,#2a1a13);margin-bottom:4px}
@@ -1105,7 +1107,7 @@ body.gate-active { overflow: hidden; }
       <div class="step-head">
         <span class="eyebrow">Step 2 of 5 · About them</span>
         <h1>Tell us about <em>them.</em></h1>
-        <p class="lede">The more we know, the more the song sounds like <em>them</em> — not a template. Nothing here is required, but every detail helps.</p>
+        <p class="lede">The more we know, the more the song sounds like <em>them</em> — not a template. Fill these in so it's truly about them (the inside joke is optional).</p>
       </div>
       <div class="s-body">
         <div class="ab-grid">
@@ -3183,7 +3185,30 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     S.fields['f-memory']   = (get('abMemory') + (joke ? '  Detail only they’d know: ' + joke : '')).trim();
     S.fields['f-feel']     = chipVals('feel').join(', ');
   };
-  window.aboutContinue = function(){ readAboutFields(); showScreen('note'); };
+  /* live-clear the highlight as they fill */
+  ['abName','abMemory'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('input',()=>{ const t=el.closest('.tin'); if(t) t.classList.remove('need'); }); });
+  document.querySelectorAll('#screen-2 .chips').forEach(g=>g.addEventListener('click',()=>g.classList.remove('need')));
+  /* Step 2 fields are REQUIRED (except the explicitly-optional inside joke) */
+  window.aboutContinue = function(){
+    const name=($('abName')?.value||'').trim(), mem=($('abMemory')?.value||'').trim();
+    const rel=chipVals('relation'), desc=chipVals('describe'), feel=chipVals('feel');
+    const missing=[];
+    if(!name) missing.push(['input','abName','their name']);
+    if(!rel.length) missing.push(['chips','relation','your relationship']);
+    if(!desc.length) missing.push(['chips','describe','how you’d describe them']);
+    if(!mem) missing.push(['input','abMemory','a favorite memory']);
+    if(!feel.length) missing.push(['chips','feel','what you want them to feel']);
+    document.querySelectorAll('#screen-2 .tin.need,#screen-2 .chips.need').forEach(x=>x.classList.remove('need'));
+    if(missing.length){
+      missing.forEach(m=>{ if(m[0]==='input'){ const el=$(m[1]); const t=el&&el.closest('.tin'); if(t) t.classList.add('need'); } else { const g=document.querySelector('.chips[data-field="'+m[1]+'"]'); if(g) g.classList.add('need'); } });
+      const f=missing[0]; const tgt=f[0]==='input'?$(f[1]):document.querySelector('.chips[data-field="'+f[1]+'"]');
+      if(tgt) tgt.scrollIntoView({behavior:'smooth',block:'center'});
+      if(f[0]==='input') setTimeout(()=>{ const el=$(f[1]); if(el) el.focus(); },300);
+      alert('Please fill in: '+missing.map(m=>m[2]).join(', ')+'.\nThe more you share, the more the song sounds like them.');
+      return;
+    }
+    readAboutFields(); showScreen('note');
+  };
 
   /* Your note live preview */
   const nf = $('noteFrom'), nb = $('noteBody'), npf = $('npFrom'), npb = $('npBody');
