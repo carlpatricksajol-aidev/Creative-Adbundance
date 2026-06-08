@@ -3307,6 +3307,12 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
            + '<textarea class="cap" data-idx="'+i+'" rows="2" placeholder="What’s happening here? (required)">'+cap+'</textarea></div>';
     }).join('');
     grid.querySelectorAll('.cap').forEach(t => { try { autoResize(t); } catch(e){} });
+    // Paint a real frame for each video so the thumbnail isn't solid black.
+    // Blob URLs are fully local, so seeking is instant; ~10% in (capped 0.5s) skips black intro frames.
+    grid.querySelectorAll('video').forEach(v => {
+      const seek = () => { try { const t = Math.min(0.5, (v.duration || 1) * 0.1) || 0.1; if (Math.abs(v.currentTime - t) > 0.01) v.currentTime = t; } catch(e){} };
+      if (v.readyState >= 1) seek(); else v.addEventListener('loadedmetadata', seek, { once: true });
+    });
     const empty = $('clipEmpty'); if(empty) empty.style.display = (S.clips&&S.clips.length) ? 'none' : 'block';
   };
   window.updateClipUI = function(){
