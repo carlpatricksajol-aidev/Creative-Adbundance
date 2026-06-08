@@ -2347,18 +2347,22 @@ function toggleVoice(btn, targetId) {
   recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'en-US';
   const target = document.getElementById(targetId);
   const status = document.getElementById('rec-' + targetId);
-  let finalTranscript = target.value;
+  // Text already in the field before we start listening — dictation appends after it.
+  const baseText = target.value && !/\s$/.test(target.value) ? target.value + ' ' : target.value;
   recognition.onstart = () => {
     btn.classList.add('recording'); activeMicBtn = btn; activeRecognition = recognition;
     if (status) { status.textContent = '● Recording... speak now'; status.classList.add('show'); }
   };
   recognition.onresult = (e) => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript + ' ';
-      else interim = e.results[i][0].transcript;
+    // Rebuild the whole transcript on every event (never accumulate with +=) so
+    // committed words can't duplicate or vanish — only the trailing guess refines.
+    let finals = '', interim = '';
+    for (let i = 0; i < e.results.length; i++) {
+      const txt = e.results[i][0].transcript;
+      if (e.results[i].isFinal) finals += txt + ' ';
+      else interim += txt;
     }
-    target.value = finalTranscript + interim;
+    target.value = baseText + finals + interim;
     S.fields[targetId] = target.value; autoResize(target);
   };
   recognition.onerror = (e) => {
@@ -2571,19 +2575,21 @@ function toggleClipVoice(btn, idx) {
   const recognition = new SpeechRecognition();
   recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'en-US';
   const ta = document.querySelector('.clip-desc[data-idx="' + idx + '"]');
-  let finalTxt = (S.clips[idx].description || '');
-  if (finalTxt && !/\s$/.test(finalTxt)) finalTxt += ' ';
+  const base = (S.clips[idx].description || '');
+  const baseTxt = base && !/\s$/.test(base) ? base + ' ' : base;
 
   recognition.onstart = () => {
     btn.classList.add('recording'); activeClipMic = btn; activeClipRecognition = recognition;
   };
   recognition.onresult = (e) => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) finalTxt += e.results[i][0].transcript + ' ';
-      else interim += e.results[i][0].transcript;
+    // Rebuild from all results each event so committed words don't duplicate or vanish.
+    let finals = '', interim = '';
+    for (let i = 0; i < e.results.length; i++) {
+      const txt = e.results[i][0].transcript;
+      if (e.results[i].isFinal) finals += txt + ' ';
+      else interim += txt;
     }
-    const val = finalTxt + interim;
+    const val = baseTxt + finals + interim;
     if (ta) { ta.value = val; if (val.trim().length >= 6) ta.style.borderColor = ''; }
     S.clips[idx].description = val;
     updateClipUI();
