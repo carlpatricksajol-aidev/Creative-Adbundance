@@ -869,6 +869,16 @@ body.gate-active { overflow: hidden; }
 .tin .mic-btn:hover{background:var(--accent-soft,rgba(255,45,85,.1));transform:scale(1.06)}
 .tin .mic-btn.recording{background:var(--accent,#ff2d55);color:#fff;animation:micPulse 1s infinite}
 .tin.mic input,.tin.mic textarea{padding-right:54px}
+/* on-brand toast (replaces native alert for validation) */
+.sr-toast-host{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:99999;display:flex;flex-direction:column;gap:10px;width:min(460px,92vw);pointer-events:none}
+.sr-toast{pointer-events:auto;display:flex;gap:11px;align-items:flex-start;background:#fff;border:1px solid var(--rule-soft,#ece0d7);border-left:4px solid var(--accent,#ff2d55);border-radius:14px;padding:13px 14px;box-shadow:0 16px 40px -12px rgba(40,20,10,.32);opacity:0;transform:translateY(-14px) scale(.98);transition:opacity .22s ease,transform .22s ease;font-family:var(--body,'Nunito',sans-serif)}
+.sr-toast.in{opacity:1;transform:translateY(0) scale(1)}
+.sr-toast-ic{font-size:18px;line-height:1.35;flex-shrink:0}
+.sr-toast-body{flex:1;min-width:0}
+.sr-toast-head{font-weight:800;color:var(--ink,#2a1a13);font-size:14px;line-height:1.4}
+.sr-toast-sub{color:var(--ink-soft,#6b574c);font-size:12.5px;margin-top:2px;line-height:1.45}
+.sr-toast-x{flex-shrink:0;border:none;background:transparent;color:var(--ink-faint,#a8978d);font-size:19px;line-height:1;cursor:pointer;padding:0 2px;align-self:flex-start}
+.sr-toast-x:hover{color:var(--ink,#2a1a13)}
 .chips{display:flex;flex-wrap:wrap;gap:9px}
 .ochip{font-family:var(--body,'Nunito',sans-serif);font-weight:600;font-size:14px;padding:9px 16px;border-radius:999px;border:1.5px solid var(--rule,#e7dcd5);background:var(--paper,#fff);color:var(--ink-soft,#6b5560);cursor:pointer;transition:all .15s}
 .ochip:hover{border-color:var(--accent,#FF2D55);color:var(--ink,#2a1a13)}
@@ -2105,7 +2115,7 @@ function goTo(n) {
       fields.forEach(f => { const d = (S.clips[parseInt(f.dataset.idx)]?.description || '').trim(); f.classList.toggle('need', d.length < 4); });
       const first = Array.from(fields).find(f => (S.clips[parseInt(f.dataset.idx)]?.description || '').trim().length < 4);
       if (first) { first.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => first.focus(), 300); }
-      alert("Add a quick line to each clip — who's in it and what's happening. It's what makes the song about them. (" + needs.length + " still " + (needs.length === 1 ? "needs" : "need") + " one.)");
+      srToast("Add a quick line to each clip — who's in it and what's happening.\nIt's what makes the song about them. (" + needs.length + " still " + (needs.length === 1 ? "needs" : "need") + " one.)", '🎬');
       return;
     }
   }
@@ -2273,6 +2283,29 @@ function autoResize(ta) {
   if (!ta || ta.tagName !== 'TEXTAREA') return;
   ta.style.height = 'auto';
   ta.style.height = Math.max(ta.scrollHeight, 52) + 'px';
+}
+
+// On-brand toast — replaces native alert() for validation/notices.
+// First line of `msg` is the bold headline; any lines after it become the subtext.
+function srToast(msg, icon, ms) {
+  let host = document.getElementById('sr-toast-host');
+  if (!host) { host = document.createElement('div'); host.id = 'sr-toast-host'; host.className = 'sr-toast-host'; document.body.appendChild(host); }
+  const t = document.createElement('div'); t.className = 'sr-toast';
+  const lines = String(msg).split('\n').map(s => s.trim()).filter(Boolean);
+  const head = lines.shift() || '';
+  const ic = document.createElement('span'); ic.className = 'sr-toast-ic'; ic.textContent = icon || '✨';
+  const body = document.createElement('div'); body.className = 'sr-toast-body';
+  const h = document.createElement('div'); h.className = 'sr-toast-head'; h.textContent = head; body.appendChild(h);
+  if (lines.length) { const s = document.createElement('div'); s.className = 'sr-toast-sub'; s.textContent = lines.join(' '); body.appendChild(s); }
+  const x = document.createElement('button'); x.className = 'sr-toast-x'; x.type = 'button'; x.setAttribute('aria-label', 'Dismiss'); x.textContent = '×';
+  t.appendChild(ic); t.appendChild(body); t.appendChild(x);
+  host.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('in'));
+  let timer;
+  const close = () => { clearTimeout(timer); t.classList.remove('in'); setTimeout(() => t.remove(), 250); };
+  x.addEventListener('click', close);
+  timer = setTimeout(close, ms || 5200);
+  return t;
 }
 
 function goSlide(n) { S.currentSlide = n; updateSlideshow(); }
@@ -3208,7 +3241,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
       const f=missing[0]; const tgt=f[0]==='input'?$(f[1]):document.querySelector('.chips[data-field="'+f[1]+'"]');
       if(tgt) tgt.scrollIntoView({behavior:'smooth',block:'center'});
       if(f[0]==='input') setTimeout(()=>{ const el=$(f[1]); if(el) el.focus(); },300);
-      alert('Please fill in: '+missing.map(m=>m[2]).join(', ')+'.\nThe more you share, the more the song sounds like them.');
+      srToast('Please fill in: '+missing.map(m=>m[2]).join(', ')+'.\nThe more you share, the more the song sounds like them.', '✍️');
       return;
     }
     readAboutFields(); showScreen('note');
