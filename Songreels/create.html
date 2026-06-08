@@ -3309,7 +3309,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
         : (isImg ? '<img src="'+(c.blobUrl||'')+'" alt="">' : '<video src="'+(c.blobUrl||'')+'" muted playsinline preload="metadata"></video>');
       const cap = (c.description||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       return '<div class="clip2" data-i="'+i+'"><div class="thumb">'+thumb+'<span class="badge-type">'+badge+'</span><span class="rm" data-rm="'+i+'">×</span></div>'
-           + '<textarea class="cap" data-idx="'+i+'" rows="2" placeholder="What’s happening here? (required)">'+cap+'</textarea></div>';
+           + '<textarea class="cap" data-idx="'+i+'" rows="2" placeholder="What’s the best moment in this clip? e.g. “when she blows out the candles” (required)">'+cap+'</textarea></div>';
     }).join('');
     grid.querySelectorAll('.cap').forEach(t => { try { autoResize(t); } catch(e){} });
     // Paint a real frame for each video so the thumbnail isn't solid black.
