@@ -1946,7 +1946,7 @@ async function setUser(user) {
     } else {
       // Credits haven't landed yet → don't unlock; let them retry.
       try { sessionStorage.removeItem('hr_pending_pay'); } catch(e){}
-      alert("We couldn't confirm your payment yet. If you just paid, wait a few seconds and reopen the link from your order confirmation email.");
+      srToast("We couldn't confirm your payment yet.\nIf you just paid, wait a few seconds and reopen the link from your order confirmation email.", '⚠️', 7000);
       // falls through to the normal flow below (occasion → … → checkout)
     }
   }
@@ -2154,7 +2154,7 @@ const BYPASS_PAY = true;
 
 async function goToCheckout() {
   if (!S.fields['f-name'] || !S.fields['f-theme']) {
-    alert('Please answer both questions before continuing.');
+    srToast('Please answer both questions before continuing.', '✍️');
     return;
   }
   // Payment bypassed (beta) OR already have credits → skip checkout, go to upload.
@@ -2232,7 +2232,7 @@ function fmtExpiry(el) {
 
 function goToSlideshow() {
   if (!S.fields['f-name'] || !S.fields['f-theme']) {
-    alert('Please answer both questions before continuing.');
+    srToast('Please answer both questions before continuing.', '✍️');
     return;
   }
   S.currentSlide = 1;
@@ -2342,7 +2342,7 @@ function toggleVoice(btn, targetId) {
   if (btn.classList.contains('recording')) { stopVoice(); return; }
   if (activeMicBtn) stopVoice();
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) { alert('Voice recording is not supported. Try Chrome or Safari.'); return; }
+  if (!SpeechRecognition) { srToast('Voice recording isn\'t supported here.\nTry Chrome, Edge, or Safari.', '🎤'); return; }
   const recognition = new SpeechRecognition();
   recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'en-US';
   const target = document.getElementById(targetId);
@@ -2364,14 +2364,14 @@ function toggleVoice(btn, targetId) {
   recognition.onerror = (e) => {
     const err = e && e.error;
     if (err === 'not-allowed' || err === 'service-not-allowed')
-      alert('Microphone access is blocked. Click the microphone/lock icon in your browser\'s address bar, allow the mic for songreels.ai, then tap the mic again.');
+      srToast('Microphone access is blocked.\nClick the mic/lock icon in your browser\'s address bar, allow the mic for songreels.ai, then tap the mic again.', '🎤', 7000);
     else if (err === 'network')
-      alert('Voice typing needs an internet connection and isn\'t available right now. You can type instead.');
+      srToast('Voice typing needs an internet connection.\nYou can type instead.', '🎤');
     stopVoice();
   };
   recognition.onend = () => stopVoice();
   try { recognition.start(); }
-  catch(e) { stopVoice(); alert('Couldn\'t start the microphone. Please type your answer instead.'); }
+  catch(e) { stopVoice(); srToast('Couldn\'t start the microphone.\nPlease type your answer instead.', '🎤'); }
 }
 
 function stopVoice() {
@@ -2402,7 +2402,7 @@ async function handleClipAdd(e) {
   
   for (const originalFile of files) {
     if (S.clips.length >= C.MAX_CLIPS) { 
-      alert('Max ' + C.MAX_CLIPS + ' files allowed.'); 
+      srToast('You can add up to ' + C.MAX_CLIPS + ' files.', '⚠️');
       return; 
     }
     
@@ -2412,11 +2412,10 @@ async function handleClipAdd(e) {
     
     if (mb > limit) {
       if (isImg) {
-        alert(
-          originalFile.name + ' is ' + mb.toFixed(1) + ' MB.\n\n' +
-          'The max photo size is ' + C.MAX_PHOTO_MB + ' MB. ' +
-          'This is unusual — most phone photos are under 10 MB. ' +
-          'Try a different photo or compress this one first.'
+        srToast(
+          originalFile.name + ' is ' + mb.toFixed(1) + ' MB.\n' +
+          'Max photo size is ' + C.MAX_PHOTO_MB + ' MB — most phone photos are under 10 MB. Try another or compress it first.',
+          '⚠️', 7000
         );
         continue;
       } else {
@@ -2459,7 +2458,7 @@ async function handleClipAdd(e) {
           S.clips.splice(placeholderIdx, 1);
           renderClips();
           updateClipUI();
-          alert('Could not read "' + originalFile.name + '". Try a JPEG or PNG instead.');
+          srToast('Couldn\'t read "' + originalFile.name + '".\nTry a JPEG or PNG instead.', '⚠️');
         }
         continue;
       }
@@ -2566,7 +2565,7 @@ function toggleClipVoice(btn, idx) {
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    alert('Voice typing needs Chrome, Edge, or Safari. You can still type the description.');
+    srToast('Voice typing needs Chrome, Edge, or Safari.\nYou can still type the description.', '🎤');
     return;
   }
   const recognition = new SpeechRecognition();
@@ -2592,15 +2591,15 @@ function toggleClipVoice(btn, idx) {
   recognition.onerror = (e) => {
     const err = e && e.error;
     if (err === 'not-allowed' || err === 'service-not-allowed') {
-      alert('Microphone access is blocked. Click the microphone/lock icon in your browser\'s address bar, allow the mic for songreels.ai, then tap the mic again.');
+      srToast('Microphone access is blocked.\nClick the mic/lock icon in your browser\'s address bar, allow the mic for songreels.ai, then tap the mic again.', '🎤', 7000);
     } else if (err === 'network') {
-      alert('Voice typing needs an internet connection and isn\'t available right now. You can type the description instead.');
+      srToast('Voice typing needs an internet connection.\nYou can type the description instead.', '🎤');
     } // 'no-speech' / 'aborted' → fail quietly
     stopClipVoice();
   };
   recognition.onend = () => stopClipVoice();
   try { recognition.start(); }
-  catch(e) { stopClipVoice(); alert('Couldn\'t start the microphone. Please type the description instead.'); }
+  catch(e) { stopClipVoice(); srToast('Couldn\'t start the microphone.\nPlease type the description instead.', '🎤'); }
 }
 
 function removeClip(i) {
@@ -2710,8 +2709,8 @@ document.getElementById('focus-mic')?.addEventListener('click', function() {
 });
 
 async function submitJob() {
-  if (S.clips.length === 0) { alert('Please add at least one photo or video clip.'); return; }
-  if (S.clips.some(c => c.converting)) { alert('Please wait for processing to finish before submitting.'); return; }
+  if (S.clips.length === 0) { srToast('Add at least one photo or video clip to continue.', '🎬'); return; }
+  if (S.clips.some(c => c.converting)) { srToast('Still processing a file.\nPlease wait for it to finish before submitting.', '⏳'); return; }
 
   // ── Footage-vs-tier warning ──────────────────────────────────────────
   // The reel matches the actual clip footage (capped at the chosen tier), so a
