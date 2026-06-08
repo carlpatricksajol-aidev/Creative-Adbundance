@@ -2017,7 +2017,10 @@ async function setUser(user) {
       pollForScriptReady(savedJobId);
     }
   } else {
-    showScreen('1');
+    // No in-progress reel → try to restore a saved wizard draft (survives refresh).
+    let restored = false;
+    try { if (typeof SR_restoreDraft === 'function') restored = await SR_restoreDraft(); } catch(e) {}
+    if (!restored) showScreen('1');
   }
 }
 
@@ -2061,8 +2064,9 @@ async function signOut() {
   disableBeforeUnloadWarning();
   clearInterval(S.pollTimer); 
   clearSession(); 
+  try { if (typeof SR_clearDraft === 'function') SR_clearDraft(); } catch(e) {}
   await sb.auth.signOut();
-  document.getElementById('app').style.display = 'none'; 
+  document.getElementById('app').style.display = 'none';
   showScreen('auth');
 }
 
@@ -2802,6 +2806,7 @@ async function submitJob() {
   }).select().single();
   if (jobErr) { showProcErr('Failed to create your gift. Please try again.'); return; }
   S.currentJobId = job.id;
+  try { if (typeof SR_clearDraft === 'function') SR_clearDraft(); } catch(e) {}  // wizard inputs are now safe in the job row
   saveSession('job_id', job.id);
   saveSession('job_status', 'processing');
   saveSession('job_created_at', Date.now());
@@ -3376,6 +3381,119 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
 
   /* init the meter / empty state */
   try { renderClips(); updateClipUI(); } catch(e){}
+})();
+</script>
+<script>
+/* ───────────────────────────────────────────────────────────────────
+   DRAFT AUTOSAVE — stops the wizard from resetting on an accidental
+   refresh. Text + selections live in localStorage; clip FILES live in
+   IndexedDB (blobs can't go in localStorage). Restores onto the exact
+   step they were on. Cleared on submit / sign-out. Fully defensive:
+   any failure silently falls back to the normal "start at step 1" flow.
+   ─────────────────────────────────────────────────────────────────── */
+(function(){
+  const LS_KEY = 'sr_draft_v1';
+  const DB_NAME = 'sr_draft_db', STORE = 'clips';
+  const STEPS = ['1','2','note','3','4'];
+  let saveTimer = null, lastClipSig = '', restoring = false;
+
+  const el  = id => document.getElementById(id);
+  const val = id => (el(id)?.value || '');
+  const SS  = () => (typeof S !== 'undefined' ? S : null);
+
+  function currentStep(){
+    const s = document.querySelector('.screen.show');
+    if(!s) return null;
+    const id = s.id.replace('screen-','');
+    return STEPS.includes(id) ? id : null;
+  }
+
+  /* ---- IndexedDB (clip files) ---- */
+  function idb(){ return new Promise((res,rej)=>{ let r; try{ r=indexedDB.open(DB_NAME,1); }catch(e){ return rej(e); }
+    r.onupgradeneeded=()=>{ const db=r.result; if(!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE,{keyPath:'cid'}); };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+  async function idbPut(clips){ try{ const db=await idb(); const tx=db.transaction(STORE,'readwrite'); const st=tx.objectStore(STORE); st.clear();
+    (clips||[]).forEach(c=>{ if(c.file && c.cid) st.put({ cid:c.cid, file:c.file, type:c.type, duration:c.duration }); });
+    return new Promise(r=>{ tx.oncomplete=()=>r(); tx.onerror=()=>r(); tx.onabort=()=>r(); }); }catch(e){} }
+  async function idbGet(){ try{ const db=await idb(); const tx=db.transaction(STORE,'readonly'); const q=tx.objectStore(STORE).getAll();
+    return new Promise(r=>{ q.onsuccess=()=>r(q.result||[]); q.onerror=()=>r([]); }); }catch(e){ return []; } }
+  async function idbClear(){ try{ const db=await idb(); const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).clear(); }catch(e){} }
+
+  /* ---- collect + save ---- */
+  function chipsOn(field){ const g=document.querySelector('.chips[data-field="'+field+'"]'); return g?[...g.querySelectorAll('.ochip.on')].map(b=>b.textContent.trim()):[]; }
+  function collect(){
+    const s = SS() || {};
+    return { v:1, ts:Date.now(), uid:(s.user&&s.user.id)||null, step:currentStep()||'1',
+      occasion:s.occasion||null,
+      inputs:{ abName:val('abName'), abMemory:val('abMemory'), abJoke:val('abJoke'), noteFrom:val('noteFrom'), noteBody:val('noteBody'), artist:val('artist-input'), focus:val('wiz-focus') },
+      chips:{ relation:chipsOn('relation'), describe:chipsOn('describe'), feel:chipsOn('feel') },
+      mood:s.moodPreset||null, vocal:s.vocal||null, genres:s.genres||[],
+      clipMeta:(s.clips||[]).map(c=>({ cid:c.cid, type:c.type, duration:c.duration, description:c.description||'' })) };
+  }
+  function hasContent(d){ return !!(d.occasion || d.inputs.abName || d.inputs.abMemory || d.inputs.noteBody || (d.chips.relation||[]).length || (d.chips.describe||[]).length || (d.clipMeta||[]).length); }
+
+  async function doSave(){
+    if(restoring) return;
+    const s = SS(); if(!s || !s.user) return;        // not signed in yet
+    if(!currentStep()) return;                        // not on a wizard step (auth/proc/review/done)
+    try{
+      (s.clips||[]).forEach(c=>{ if(!c.cid) c.cid='c'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); });
+      const d = collect();
+      if(!hasContent(d)) return;
+      localStorage.setItem(LS_KEY, JSON.stringify(d));
+      const sig=(s.clips||[]).map(c=>c.cid).join('|');
+      if(sig!==lastClipSig){ lastClipSig=sig; await idbPut(s.clips||[]); }
+    }catch(e){}
+  }
+  function schedule(){ clearTimeout(saveTimer); saveTimer=setTimeout(doSave, 500); }
+
+  /* ---- restore ---- */
+  async function restore(){
+    const s = SS(); if(!s) return false;
+    let d; try{ d=JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){}
+    if(!d || d.v!==1) return false;
+    if(d.uid && s.user && d.uid!==s.user.id) return false;                 // a different account
+    if(Date.now()-(d.ts||0) > 7*24*3600*1000){ clearAll(); return false; } // stale > 7 days
+    if(!hasContent(d)) return false;
+    restoring = true;
+    try{
+      if(d.occasion){ s.occasion=d.occasion; document.querySelectorAll('#occ-grid .occ2').forEach(c=>c.classList.toggle('sel', c.dataset.occ===d.occasion)); const s1=el('s1-next'); if(s1) s1.disabled=false; }
+      const setVal=(id,v)=>{ const e=el(id); if(e && v!=null){ e.value=v; try{ e.dispatchEvent(new Event('input',{bubbles:true})); }catch(_){} } };
+      setVal('abName',d.inputs.abName); setVal('abMemory',d.inputs.abMemory); setVal('abJoke',d.inputs.abJoke);
+      setVal('noteFrom',d.inputs.noteFrom); setVal('noteBody',d.inputs.noteBody);
+      setVal('artist-input',d.inputs.artist); setVal('wiz-focus',d.inputs.focus);
+      ['relation','describe','feel'].forEach(f=>{ const g=document.querySelector('.chips[data-field="'+f+'"]'); if(!g) return; const want=d.chips[f]||[]; g.querySelectorAll('.ochip').forEach(b=>b.classList.toggle('on', want.includes(b.textContent.trim()))); });
+      if(typeof readAboutFields==='function') readAboutFields();
+      const MS = (typeof MOODS!=='undefined')?MOODS:[], VS=(typeof VOICES!=='undefined')?VOICES:[];
+      if(d.mood){ s.moodPreset=d.mood; const lbl=MS.find(m=>m.id===d.mood); document.querySelectorAll('#mood-pills .gpill').forEach(p=>p.classList.toggle('sel', !!lbl && p.textContent.trim()===lbl.label)); }
+      if(d.vocal){ s.vocal=d.vocal; const lbl=VS.find(v=>v.id===d.vocal); document.querySelectorAll('#vocal-pills .gpill').forEach(p=>p.classList.toggle('sel', !!lbl && p.textContent.trim()===lbl.label)); }
+      if(Array.isArray(d.genres)){ s.genres=d.genres.slice(0,2); document.querySelectorAll('#genre-pills .gpill').forEach(p=>p.classList.toggle('sel', s.genres.includes(p.textContent.trim()))); }
+      /* clip files back from IndexedDB, ordered + captioned from the draft */
+      const files = await idbGet(); const byCid={}; files.forEach(f=>byCid[f.cid]=f);
+      s.clips = (d.clipMeta||[]).map(m=>{ const f=byCid[m.cid]; if(!f||!f.file) return null;
+        return { cid:m.cid, file:f.file, type:m.type||f.type, duration:m.duration||f.duration, description:m.description||'', blobUrl:URL.createObjectURL(f.file), uploadedUrl:null }; }).filter(Boolean);
+      lastClipSig=(s.clips||[]).map(c=>c.cid).join('|');
+      if(typeof renderClips==='function') renderClips();
+      if(typeof updateClipUI==='function') updateClipUI();
+      const step = STEPS.includes(String(d.step)) ? String(d.step) : '1';
+      showScreen(step);
+      if(typeof srToast==='function') srToast('Welcome back — we saved your progress.\nPick up right where you left off.', '💾', 4500);
+      return true;
+    }catch(e){ console.warn('draft restore failed:', e); return false; }
+    finally{ restoring=false; }
+  }
+
+  function clearAll(){ try{ localStorage.removeItem(LS_KEY); }catch(e){} lastClipSig=''; idbClear(); }
+
+  /* expose for setUser (restore), submitJob + signOut (clear) */
+  window.SR_restoreDraft = restore;
+  window.SR_clearDraft   = clearAll;
+
+  /* ---- triggers: save as they type, pick, navigate; flush on unload ---- */
+  document.addEventListener('input',  schedule, true);
+  document.addEventListener('change', schedule, true);
+  document.addEventListener('click',  schedule, true);
+  window.addEventListener('pagehide', ()=>{ try{ const s=SS(); if(!restoring && s && s.user && currentStep()){ const d=collect(); if(hasContent(d)) localStorage.setItem(LS_KEY, JSON.stringify(d)); } }catch(e){} });
 })();
 </script>
 </body>
