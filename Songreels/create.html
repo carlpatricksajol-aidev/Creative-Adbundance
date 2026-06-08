@@ -1915,11 +1915,28 @@ function showConfirm({ title = 'Heads up', body = '', okText = 'Continue', cance
   });
 }
 
+// Strip OAuth callback params (session token / code) from the address bar so they never
+// linger in the URL or browser history (the back button). Only runs AFTER a session
+// exists, so Supabase has already consumed the URL. The anon key is public; the
+// access_token is the user's session — neither belongs in the address bar.
+function cleanAuthUrl() {
+  try {
+    const hasHashToken = /(access_token|refresh_token|provider_token|expires_in|token_type|id_token)=/.test(location.hash || '');
+    const sp = new URLSearchParams(location.search);
+    const authQ = ['code', 'state', 'error', 'error_description', 'error_code', 'provider_token'];
+    const hadQ = authQ.some(k => sp.has(k));
+    if (!hasHashToken && !hadQ) return;
+    authQ.forEach(k => sp.delete(k));
+    const qs = sp.toString();
+    history.replaceState({}, document.title, location.pathname + (qs ? '?' + qs : ''));
+  } catch(e) {}
+}
+
 async function initAuth() {
   const { data: { session } } = await sb.auth.getSession();
-  if (session) { setUser(session.user); } else { showScreen('auth'); }
+  if (session) { cleanAuthUrl(); setUser(session.user); } else { showScreen('auth'); }
   sb.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_IN' && session && !S.user) { setUser(session.user); }
+    if (event === 'SIGNED_IN' && session && !S.user) { cleanAuthUrl(); setUser(session.user); }
     else if (event === 'TOKEN_REFRESHED' && session && S.user) { S.user = session.user; }
     else if (event === 'SIGNED_OUT') { S.user = null; clearSession(); showScreen('auth'); }
   });
