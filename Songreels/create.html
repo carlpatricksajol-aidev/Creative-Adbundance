@@ -1887,6 +1887,11 @@ function saveSession(key, val) { try { sessionStorage.setItem('hr_' + key, JSON.
 function loadSession(key) { try { const v = sessionStorage.getItem('hr_' + key); return v ? JSON.parse(v) : null; } catch(e) { return null; } }
 function clearSession() { try { ['job_id','job_status','job_resume_url','job_created_at'].forEach(k => sessionStorage.removeItem('hr_' + k)); } catch(e) {} }
 
+// Jobs the user explicitly cancelled/finished on THIS device — never auto-resume them
+// again, even if the DB status update didn't stick (RLS, network, missing column…).
+function dismissJobLocally(id) { if (!id) return; try { const a = JSON.parse(localStorage.getItem('sr_dismissed_jobs') || '[]'); if (!a.includes(id)) { a.push(id); localStorage.setItem('sr_dismissed_jobs', JSON.stringify(a.slice(-50))); } } catch(e) {} }
+function isJobDismissed(id) { try { return JSON.parse(localStorage.getItem('sr_dismissed_jobs') || '[]').includes(id); } catch(e) { return false; } }
+
 // Themed promise-based confirm — drop-in replacement for window.confirm().
 // Resolves true on Continue, false on Go-back / click-outside.
 function showConfirm({ title = 'Heads up', body = '', okText = 'Continue', cancelText = 'Go back' } = {}) {
@@ -1968,19 +1973,22 @@ async function setUser(user) {
   let savedStatus = loadSession('job_status');
 
   // ── DB-backed resume ─────────────────────────────────────────────────
-  // The database is the source of truth, so an in-progress reel survives a
-  // refresh, a closed tab, or even a different device (same Google account).
-  // sessionStorage is just a fast hint; the query below is authoritative.
+  // Resume only the user's MOST RECENT job, and only if it's genuinely still
+  // in progress, recent, and not one they cancelled on this device. This stops
+  // finished / cancelled / old / abandoned jobs from dragging them back forever
+  // (e.g. an unapproved script_ready job resurfacing after they've moved on).
   try {
     const { data: jobs } = await sb
       .from('heartreel_jobs')
-      .select('id, status')
+      .select('id, status, created_at')
       .eq('user_id', S.user.id)
-      .in('status', ['pending','generating_content','script_ready','generating_music','rendering'])
       .order('created_at', { ascending: false })
       .limit(1);
     const dbJob = jobs && jobs[0];
-    if (dbJob) {
+    const IN_PROGRESS = ['pending','generating_content','script_ready','generating_music','rendering'];
+    const RESUME_WINDOW_MS = 24 * 60 * 60 * 1000;   // older than a day → treat as abandoned
+    const fresh = dbJob && dbJob.created_at && (Date.now() - new Date(dbJob.created_at).getTime() < RESUME_WINDOW_MS);
+    if (dbJob && IN_PROGRESS.includes(dbJob.status) && fresh && !isJobDismissed(dbJob.id)) {
       savedJobId = dbJob.id;
       savedStatus = dbJob.status === 'script_ready' ? 'review'
                   : (dbJob.status === 'generating_music' || dbJob.status === 'rendering') ? 'approved'
@@ -1988,7 +1996,7 @@ async function setUser(user) {
       saveSession('job_id', savedJobId);
       saveSession('job_status', savedStatus);
     } else {
-      // No unfinished reel in the DB → clear any stale session pointer.
+      // Latest job is finished / cancelled / old / dismissed → don't resume.
       savedJobId = null; savedStatus = null; clearSession();
     }
   } catch (e) { console.warn('Resume query failed, falling back to session:', e); }
@@ -2964,11 +2972,11 @@ function hideCancelConfirm() { document.getElementById('cancel-modal').classList
 async function cancelJob() {
   hideCancelConfirm();
   disableBeforeUnloadWarning();
+  const jid = S.currentJobId;
+  dismissJobLocally(jid);                 // client guard first — so it can never resume, even if the DB write fails
   try {
-    await sb.from('heartreel_jobs').update({ 
-      status: 'cancelled', 
-      cancelled_at: new Date().toISOString() 
-    }).eq('id', S.currentJobId);
+    // status-only update (no extra columns) so it can't fail on a missing field
+    await sb.from('heartreel_jobs').update({ status: 'cancelled' }).eq('id', jid);
   } catch(e) { console.warn('Cancel update failed:', e); }
   clearSession();
   S.currentJobId = null;
