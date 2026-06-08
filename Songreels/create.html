@@ -820,6 +820,133 @@ body.gate-active { overflow: hidden; }
 .done-hero-title em,.done-hook-cta-card h3 em{font-style:normal;color:#FF8FA8}
 .done-hero-dot{background:#FF2D55;box-shadow:0 0 8px rgba(255,45,85,.8)}
 /* ── Themed confirm modal (replaces native confirm()) ── */
+/* ═══════════════════ REDESIGN · NEW WIZARD (v2) ═══════════════════ */
+.wrap2{max-width:760px;margin:0 auto;padding:8px 20px 120px}
+/* Option A — full landscape width for the redesigned wizard steps */
+#screen-1.wrap,#screen-2.wrap,#screen-note.wrap,#screen-3.wrap,#screen-4.wrap{max-width:1240px}
+.nav-row,.progress-bar-wrap{max-width:1240px}
+.occ-grid2{grid-template-columns:repeat(4,1fr)}
+@media(max-width:980px){#screen-1.wrap,#screen-2.wrap,#screen-note.wrap,#screen-3.wrap,#screen-4.wrap{max-width:760px}}
+.s-eyebrow{font-family:var(--mono,'Nunito',sans-serif);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent-deep,#B85844);font-weight:700}
+.screen.wrap2 h1{font-family:var(--disp,'Fredoka',sans-serif);font-weight:600;font-size:clamp(30px,5vw,44px);line-height:1.08;letter-spacing:-.01em;color:var(--ink,#2a1a13);margin:10px 0 8px}
+.screen.wrap2 h1 em{font-style:normal;background:var(--grad,linear-gradient(135deg,#FF5E7E,#FF2D55));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.s-sub{font-family:var(--body,'Nunito',sans-serif);font-size:16px;line-height:1.55;color:var(--ink-soft,#6b5560);max-width:620px;margin:0 0 26px}
+.s-sub em{font-style:italic;color:var(--ink,#2a1a13)}
+.s-body{margin-top:4px}
+.glabel{display:block;font-family:var(--mono,'Nunito',sans-serif);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink,#2a1a13);font-weight:700;margin-bottom:10px}
+.glabel .hint{font-weight:500;text-transform:none;letter-spacing:0;color:var(--ink-faint,#a8978d);font-size:12px;margin-left:6px}
+
+/* occasion tiles */
+.occ-grid2{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.occ2{position:relative;aspect-ratio:1/.84;border:none;border-radius:20px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:15px;text-align:left;color:#fff;font-family:var(--disp,'Fredoka',sans-serif);font-weight:600;font-size:15px;box-shadow:0 8px 22px -12px rgba(40,20,15,.42);transition:transform .15s,box-shadow .2s}
+.occ2:hover{transform:translateY(-3px);box-shadow:0 16px 34px -14px rgba(40,20,15,.52)}
+.occ2 .obg{position:absolute;inset:0;z-index:0}
+.occ2 .oe{position:relative;z-index:1;font-size:25px;margin-bottom:auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.18))}
+.occ2 .on-nm{position:relative;z-index:1;text-shadow:0 1px 6px rgba(0,0,0,.25)}
+.occ2.sel{outline:3px solid var(--accent,#FF2D55);outline-offset:2px}
+.occ2 .occheck{position:absolute;top:9px;right:9px;z-index:2;width:24px;height:24px;border-radius:50%;background:#fff;color:var(--accent,#FF2D55);display:none;align-items:center;justify-content:center;font-size:13px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.occ2.sel .occheck{display:flex}
+.occ2.occ-other{background:#F1E7DC;color:var(--ink,#3a2a22);align-items:center;justify-content:center;font-size:16px}
+.occ2.occ-other.sel{outline-color:var(--accent,#FF2D55)}
+.g-mothers{background:linear-gradient(140deg,#FF8A5B,#FF4E6A)}
+.g-fathers{background:linear-gradient(140deg,#5AA0FF,#7B61FF)}
+.g-birthday{background:linear-gradient(140deg,#FFB23D,#FF7A3D)}
+.g-anniversary{background:linear-gradient(140deg,#FF6FA5,#B05BFF)}
+.g-graduation{background:linear-gradient(140deg,#4FA8FF,#3B6FE0)}
+.g-wedding{background:linear-gradient(140deg,#A58BFF,#6E5BFF)}
+.g-memorial{background:linear-gradient(140deg,#9FB4C8,#5E7184)}
+
+/* about-them form */
+.ab-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px 24px}
+.ab-field{min-width:0}
+.ab-field.full{grid-column:1/-1}
+.tin{position:relative}
+.tin input,.tin textarea{width:100%;background:var(--bg-2,#fbf4ee);border:1.5px solid var(--rule-soft,#ece0d7);border-radius:14px;padding:13px 15px;font-size:15px;font-family:var(--body,'Nunito',sans-serif);color:var(--ink,#2a1a13);outline:none;transition:border-color .18s,background .18s}
+.tin textarea{min-height:84px;resize:vertical;line-height:1.5}
+.tin input:focus,.tin textarea:focus{border-color:var(--accent,#FF2D55);background:#fff}
+.tin.mic input{padding-right:46px}
+.tin .mic-btn{position:absolute;right:8px;top:8px;width:32px;height:32px;border-radius:50%;border:none;background:var(--accent-soft,rgba(255,45,85,.1));cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
+.chips{display:flex;flex-wrap:wrap;gap:9px}
+.ochip{font-family:var(--body,'Nunito',sans-serif);font-weight:600;font-size:14px;padding:9px 16px;border-radius:999px;border:1.5px solid var(--rule,#e7dcd5);background:var(--paper,#fff);color:var(--ink-soft,#6b5560);cursor:pointer;transition:all .15s}
+.ochip:hover{border-color:var(--accent,#FF2D55);color:var(--ink,#2a1a13)}
+.ochip.on{background:var(--grad,linear-gradient(135deg,#FF5E7E,#FF2D55));border-color:transparent;color:#fff;box-shadow:0 8px 18px -8px rgba(255,45,85,.5)}
+.ochip.solid.on{box-shadow:0 8px 18px -8px rgba(255,45,85,.5)}
+.ai-note{display:flex;gap:14px;align-items:flex-start;margin-top:26px;background:linear-gradient(135deg,rgba(255,94,126,.08),rgba(124,97,255,.08));border:1px solid var(--rule-soft,#ece0d7);border-radius:16px;padding:16px 18px}
+.ai-note .ai-ic{font-size:22px;flex-shrink:0}
+.ai-note strong{display:block;font-family:var(--disp,'Fredoka',sans-serif);font-size:15px;color:var(--ink,#2a1a13);margin-bottom:4px}
+.ai-note p{margin:0;font-size:13.5px;line-height:1.55;color:var(--ink-soft,#6b5560)}
+.ai-note em{font-style:italic;color:var(--ink,#2a1a13)}
+
+/* your note */
+.note-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+.note-preview{background:linear-gradient(160deg,#2a1830,#17101f);border-radius:20px;padding:26px 24px 30px;position:relative;overflow:hidden;min-height:230px;box-shadow:0 18px 40px -18px rgba(20,10,25,.6)}
+.np-lab{font-family:var(--mono,'Nunito',sans-serif);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:18px}
+.np-from{font-family:'Caveat',cursive;font-size:22px;color:#ffd6a0;margin-bottom:10px}
+.np-body{font-family:'Caveat',cursive;font-size:26px;line-height:1.4;color:#fff}
+.np-sign{position:absolute;bottom:18px;right:22px;font-size:26px}
+@media(max-width:680px){.ab-grid,.note-grid{grid-template-columns:1fr}}
+
+/* footage meter (clips) */
+.meter-card{background:var(--paper,#fff);border:1px solid var(--rule-soft,#ece0d7);border-radius:18px;padding:18px 20px;margin-bottom:18px;box-shadow:0 6px 18px -12px rgba(40,20,15,.25)}
+.meter-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.meter-label{font-family:var(--disp,'Fredoka',sans-serif);font-weight:600;font-size:15px;color:var(--ink,#2a1a13)}
+.meter-time{font-family:var(--mono,'Nunito',sans-serif);font-weight:800;font-size:18px;color:var(--ink,#2a1a13)}
+.meter-time .target{font-weight:600;color:var(--ink-faint,#a8978d);font-size:14px}
+.meter-time.done{color:#1C9E45}
+.meter-track{position:relative;height:14px;border-radius:999px;background:var(--bg-2,#f3e9e0);overflow:hidden}
+.meter-fill{height:100%;width:0;border-radius:999px;background:var(--grad,linear-gradient(90deg,#FF5E7E,#FF2D55));transition:width .35s cubic-bezier(.2,.9,.3,1)}
+.meter-fill.done{background:linear-gradient(90deg,#34C759,#1C9E45)}
+.meter-ticks{position:absolute;inset:0;display:flex;justify-content:space-between;pointer-events:none;padding:0 24%}
+.meter-ticks span{width:1px;background:rgba(255,255,255,.5)}
+.meter-status{display:flex;align-items:center;gap:9px;margin-top:12px;font-size:13.5px;color:var(--ink-soft,#6b5560);line-height:1.5}
+.meter-status .dot{width:8px;height:8px;border-radius:50%;background:var(--accent,#FF2D55);flex-shrink:0}
+.meter-status.done .dot{background:#1C9E45}
+.meter-status strong{color:var(--ink,#2a1a13)}
+.add-row{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.add-btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--disp,'Fredoka',sans-serif);font-weight:600;font-size:15px;padding:13px 22px;border-radius:999px;border:none;cursor:pointer;background:var(--grad,linear-gradient(135deg,#FF5E7E,#FF2D55));color:#fff;box-shadow:0 10px 24px -10px rgba(255,45,85,.5)}
+.add-btn.secondary{background:var(--paper,#fff);color:var(--ink,#2a1a13);border:1.5px solid var(--rule,#e7dcd5);box-shadow:none}
+.add-btn .ic{font-size:16px}
+.clip-empty{text-align:center;padding:40px 20px;border:2px dashed var(--rule,#e7dcd5);border-radius:18px;color:var(--ink-soft,#6b5560)}
+.clip-empty .ce-ic{font-size:34px;margin-bottom:8px}
+.clip-empty h3{font-family:var(--disp,'Fredoka',sans-serif);font-size:18px;color:var(--ink,#2a1a13);margin:0 0 6px}
+.clip-empty p{font-size:14px;line-height:1.55;max-width:420px;margin:0 auto}
+.clip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.clip2{background:var(--paper,#fff);border:1px solid var(--rule-soft,#ece0d7);border-radius:14px;overflow:hidden;box-shadow:0 4px 12px -8px rgba(40,20,15,.25)}
+.clip2 .thumb{position:relative;aspect-ratio:9/12;background:#000}
+.clip2 .thumb video,.clip2 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.clip2 .timg{position:absolute;inset:0}
+.clip2 .badge-type{position:absolute;left:7px;bottom:7px;font-family:var(--mono,'Nunito',sans-serif);font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.55);padding:3px 8px;border-radius:999px}
+.clip2 .rm{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;line-height:1}
+.clip2 .cap{width:100%;border:none;border-top:1px solid var(--rule-soft,#ece0d7);padding:9px 11px;font-size:13px;font-family:var(--body,'Nunito',sans-serif);color:var(--ink,#2a1a13);outline:none}
+.clip2 .cap::placeholder{color:var(--ink-faint,#a8978d)}
+.clip2 .cap.need{background:rgba(255,45,85,.06)}
+.clip-meta{margin-top:14px;font-size:13px;color:var(--ink-faint,#a8978d)}
+
+/* vibe / song style */
+.length-banner{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,rgba(255,94,126,.1),rgba(124,97,255,.08));border:1px solid var(--rule-soft,#ece0d7);border-radius:16px;padding:14px 18px;margin-bottom:28px}
+.lb-ic{flex-shrink:0;width:60px;height:60px;border-radius:14px;background:var(--paper,#fff);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 12px -6px rgba(40,20,15,.3)}
+.lb-ic .n{font-family:var(--disp,'Fredoka',sans-serif);font-weight:700;font-size:18px;color:var(--ink,#2a1a13);line-height:1}
+.lb-ic .u{font-family:var(--mono,'Nunito',sans-serif);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint,#a8978d)}
+.lb-tx{flex:1}
+.lb-tx strong{font-family:var(--disp,'Fredoka',sans-serif);font-size:15px;color:var(--ink,#2a1a13)}
+.lb-tx p{margin:2px 0 0;font-size:13px;color:var(--ink-soft,#6b5560)}
+.lb-tag{font-family:var(--mono,'Nunito',sans-serif);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#1C9E45;background:rgba(52,199,89,.12);padding:6px 11px;border-radius:999px;white-space:nowrap}
+.vibe-group{margin-bottom:26px}
+.artist-suggest{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.artist-chip{font-family:var(--body,'Nunito',sans-serif);font-size:13px;font-weight:600;padding:7px 13px;border-radius:999px;border:1.5px solid var(--rule,#e7dcd5);background:var(--paper,#fff);color:var(--ink-soft,#6b5560);cursor:pointer;transition:all .15s}
+.artist-chip:hover{border-color:var(--accent,#FF2D55);color:var(--ink,#2a1a13)}
+.artist-chip .plus{color:var(--accent,#FF2D55);font-weight:800;margin-right:4px}
+
+/* fixed bottom action bar */
+.flow-foot{position:fixed;left:0;right:0;bottom:0;z-index:50;background:rgba(255,251,247,.92);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-top:1px solid var(--rule-soft,#ece0d7)}
+.foot-row{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:14px 20px}
+.btn-back2{font-family:var(--disp,'Fredoka',sans-serif);font-weight:600;font-size:15px;color:var(--ink-soft,#6b5560);background:transparent;border:none;cursor:pointer;padding:8px 6px}
+.foot-hint{flex:1;text-align:center;font-size:13px;color:var(--ink-faint,#a8978d)}
+.btn-next2{font-family:var(--disp,'Fredoka',sans-serif);font-weight:600;font-size:16px;color:#fff;background:var(--grad,linear-gradient(135deg,#FF5E7E,#FF2D55));border:none;border-radius:999px;padding:14px 30px;cursor:pointer;box-shadow:0 12px 28px -10px rgba(255,45,85,.55);transition:filter .2s,opacity .2s}
+.btn-next2:hover{filter:brightness(1.05)}
+.btn-next2:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.btn-next2 .arr{margin-left:4px}
+
 .sr-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(34,16,25,.55);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);padding:20px}
 .sr-modal.show{display:flex}
 .sr-modal-card{background:var(--paper,#fff);border-radius:22px;max-width:440px;width:100%;padding:30px 30px 24px;box-shadow:0 30px 70px -20px rgba(34,16,25,.5);animation:srPop .22s cubic-bezier(.2,.9,.3,1.2)}
@@ -954,18 +1081,18 @@ body.gate-active { overflow: hidden; }
     <div id="screen-1" class="screen wrap">
       <div class="step-head">
         <span class="eyebrow">Step 1 of 5 · Occasion</span>
-        <h1>Who is this <em>for</em><br>and what is the <em>occasion?</em></h1>
-        <p class="lede">We will match the tone, pacing, and song style to the moment.</p>
+        <h1>What's the <em>occasion?</em></h1>
+        <p class="lede">This sets the emotional tone and pacing. You can fine-tune the vibe later.</p>
       </div>
-      <div class="occ-grid" id="occ-grid">
-        <button class="occ-card occ-c1" data-occ="mothers-day"><div class="occ-bg"></div><span class="occ-meta">May</span><span class="occ-name">Mother's Day</span><span class="occ-check"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#B85844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-        <button class="occ-card occ-c2" data-occ="fathers-day"><div class="occ-bg"></div><span class="occ-meta">June</span><span class="occ-name">Father's Day</span><span class="occ-check"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#B85844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-        <button class="occ-card occ-c3" data-occ="birthday"><div class="occ-bg"></div><span class="occ-meta">Any date</span><span class="occ-name">Birthday</span><span class="occ-check"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#B85844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-        <button class="occ-card occ-c4" data-occ="anniversary"><div class="occ-bg"></div><span class="occ-meta">Any date</span><span class="occ-name">Anniversary</span><span class="occ-check"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#B85844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-        <button class="occ-card occ-c5" data-occ="graduation"><div class="occ-bg"></div><span class="occ-meta">May/June</span><span class="occ-name">Graduation</span><span class="occ-check"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#B85844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-        <button class="occ-card occ-c6" data-occ="christmas"><div class="occ-bg"></div><span class="occ-meta">Holiday</span><span class="occ-name">Christmas</span><span class="occ-check"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#B85844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-        <button class="occ-card occ-c7" data-occ="memorial"><div class="occ-bg"></div><span class="occ-meta">In memory</span><span class="occ-name">Memorial</span><span class="occ-check"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#B85844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-        <button class="occ-card occ-c8" data-occ="justbecause"><div class="occ-bg"></div><span class="occ-meta">Custom</span><span class="occ-name">Just because</span><span class="occ-check"><svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#B85844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+      <div class="occ-grid2" id="occ-grid">
+        <button class="occ2" data-occ="mothers-day"><div class="obg g-mothers"></div><span class="oe">💐</span><span class="on-nm">Mother's Day</span><span class="occheck">✓</span></button>
+        <button class="occ2" data-occ="fathers-day"><div class="obg g-fathers"></div><span class="oe">🎣</span><span class="on-nm">Father's Day</span><span class="occheck">✓</span></button>
+        <button class="occ2" data-occ="birthday"><div class="obg g-birthday"></div><span class="oe">🎂</span><span class="on-nm">Birthday</span><span class="occheck">✓</span></button>
+        <button class="occ2" data-occ="anniversary"><div class="obg g-anniversary"></div><span class="oe">💍</span><span class="on-nm">Anniversary</span><span class="occheck">✓</span></button>
+        <button class="occ2" data-occ="graduation"><div class="obg g-graduation"></div><span class="oe">🎓</span><span class="on-nm">Graduation</span><span class="occheck">✓</span></button>
+        <button class="occ2" data-occ="wedding"><div class="obg g-wedding"></div><span class="oe">💒</span><span class="on-nm">Wedding</span><span class="occheck">✓</span></button>
+        <button class="occ2" data-occ="memorial"><div class="obg g-memorial"></div><span class="oe">🕊️</span><span class="on-nm">In memory</span><span class="occheck">✓</span></button>
+        <button class="occ2 occ-other" data-occ="justbecause">Just because ✨<span class="occheck">✓</span></button>
       </div>
       <div class="step-actions">
         <span></span>
@@ -973,21 +1100,91 @@ body.gate-active { overflow: hidden; }
       </div>
     </div>
 
-    <!-- STEP 2: QUESTIONS -->
+    <!-- STEP 2: ABOUT THEM -->
     <div id="screen-2" class="screen wrap" style="display:none">
       <div class="step-head">
         <span class="eyebrow">Step 2 of 5 · About them</span>
         <h1>Tell us about <em>them.</em></h1>
-        <p class="lede">Just two quick questions. Tap the mic to speak instead of type.</p>
+        <p class="lede">The more we know, the more the song sounds like <em>them</em> — not a template. Nothing here is required, but every detail helps.</p>
       </div>
-      <div class="chat" id="chat-questions"></div>
+      <div class="s-body">
+        <div class="ab-grid">
+          <div class="ab-field">
+            <span class="glabel">Their name</span>
+            <div class="tin mic"><input type="text" id="abName" placeholder="e.g. Mom, Cynthia, Grandpa Joe"><button class="mic-btn" type="button" data-target="abName" aria-label="Speak">🎙️</button></div>
+          </div>
+          <div class="ab-field">
+            <span class="glabel">Your relationship</span>
+            <div class="chips" data-single data-field="relation">
+              <button class="ochip" type="button">My mom</button><button class="ochip" type="button">My dad</button><button class="ochip" type="button">My partner</button><button class="ochip" type="button">My friend</button><button class="ochip" type="button">My grandparent</button><button class="ochip" type="button">Someone else</button>
+            </div>
+          </div>
+          <div class="ab-field full">
+            <span class="glabel">How would you describe them? <span class="hint">pick a few</span></span>
+            <div class="chips" data-multi data-field="describe">
+              <button class="ochip" type="button">Warm</button><button class="ochip" type="button">Funny</button><button class="ochip" type="button">Selfless</button><button class="ochip" type="button">Stubborn (lovingly)</button><button class="ochip" type="button">Adventurous</button><button class="ochip" type="button">Quiet strength</button><button class="ochip" type="button">The glue of the family</button><button class="ochip" type="button">Always singing</button><button class="ochip" type="button">A great cook</button><button class="ochip" type="button">Hard worker</button>
+            </div>
+          </div>
+          <div class="ab-field full">
+            <span class="glabel">A favorite memory or two <span class="hint">a moment, a trip, an everyday thing they do</span></span>
+            <div class="tin"><textarea id="abMemory" placeholder="The summer she taught me to drive in the church parking lot. The way he hums while he fixes things."></textarea></div>
+          </div>
+          <div class="ab-field">
+            <span class="glabel">An inside joke or thing only you'd know <span class="hint">optional</span></span>
+            <div class="tin"><textarea id="abJoke" placeholder="She calls everyone 'kiddo.' He's been 'almost done' with the garage since 2009."></textarea></div>
+          </div>
+          <div class="ab-field">
+            <span class="glabel">What do you want them to feel?</span>
+            <div class="chips" data-multi data-field="feel">
+              <button class="ochip" type="button">Loved</button><button class="ochip" type="button">Seen</button><button class="ochip" type="button">Proud</button><button class="ochip" type="button">Nostalgic</button><button class="ochip" type="button">Celebrated</button><button class="ochip" type="button">Missed</button>
+            </div>
+          </div>
+        </div>
+        <div class="ai-note">
+          <div class="ai-ic">✨</div>
+          <div class="ai-tx"><strong>You don't have to write much.</strong><p>Our AI also <em>watches the videos you upload next</em> — it reads the moments, the faces, and the places, then writes lyrics from what it sees and what you've told us here.</p></div>
+        </div>
+      </div>
       <div class="step-actions">
         <button class="btn btn-ghost" onclick="goTo(1)">Back</button>
-        <button class="btn btn-primary" onclick="goToCheckout()">Continue <span class="arr">→</span></button>
+        <button class="btn btn-primary" onclick="aboutContinue()">Continue <span class="arr">→</span></button>
       </div>
     </div>
 
-    <!-- CHECKOUT -->
+    <!-- STEP 3: YOUR NOTE -->
+    <div id="screen-note" class="screen wrap" style="display:none">
+      <div class="step-head">
+        <span class="eyebrow">Step 3 of 5 · Your note</span>
+        <h1>Say it in your <em>own words.</em></h1>
+        <p class="lede">A short handwritten-style note shows on the page when they open their gift. Skip it if the song says enough.</p>
+      </div>
+      <div class="s-body">
+        <div class="note-grid">
+          <div>
+            <div class="ab-field" style="margin-bottom:22px">
+              <span class="glabel">Who's it from?</span>
+              <div class="tin"><input type="text" id="noteFrom" placeholder="Marcus, Jamie & Olivia"></div>
+            </div>
+            <div class="ab-field">
+              <span class="glabel">Your note <span class="hint">optional</span></span>
+              <div class="tin"><textarea id="noteBody" placeholder="Mom — for everything you've done and everything you are. We couldn't put it into words, so we made you a song instead." style="min-height:140px"></textarea></div>
+            </div>
+          </div>
+          <div class="note-preview">
+            <div class="np-lab">Preview · what they'll see</div>
+            <div class="np-from" id="npFrom">From you</div>
+            <div class="np-body" id="npBody">Your note will appear here…</div>
+            <div class="np-sign">💛</div>
+          </div>
+        </div>
+      </div>
+      <div class="step-actions">
+        <button class="btn btn-ghost" onclick="goTo(2)">Back</button>
+        <button class="btn btn-primary" onclick="showScreen('3')">Continue <span class="arr">→</span></button>
+      </div>
+    </div>
+
+    <!-- CHECKOUT (orphaned — payment disabled for beta) -->
     <div id="screen-checkout" class="screen wrap" style="display:none">
       <div class="step-head">
         <span class="eyebrow">Step 3 of 5 · Complete your order</span>
@@ -1151,69 +1348,76 @@ body.gate-active { overflow: hidden; }
       </div>
     </div>
 
-    <!-- STEP 3: CLIPS -->
+    <!-- STEP 4: CLIPS & PHOTOS -->
     <div id="screen-3" class="screen wrap" style="display:none">
       <div class="step-head">
         <span class="eyebrow">Step 4 of 5 · Your clips and photos</span>
-        <h1>Upload your <em>videos</em><br>and <em>photos.</em></h1>
-        <p class="lede">Mix photos and video clips, up to 20 files. Videos up to 100 MB each (about 1.5 min); photos up to 25 MB. <strong>A short description is required for each</strong> — tell us who's in it, what's happening, and why it matters. The more you share, the more personal your song.</p>
+        <h1>Give us enough to <em>fill your song.</em></h1>
+        <p class="lede">Photos hold the screen for ~5 seconds; video clips play their full length. Add enough to cover the song — about 20–25 moments — and describe each so the AI can match it to the right lyric.</p>
       </div>
-      <div class="media-type-row">
-        <span class="media-type-pill photo">Photos show for 5 seconds each</span>
-        <span class="media-type-pill video">Videos play full duration</span>
-      </div>
-      <div class="clips-zone" id="clips-zone"></div>
-      <label class="add-clip-btn" id="add-clip-btn">
-        <input type="file" id="clip-file-input" accept="video/*,image/*" multiple>
-        <span style="font-size:18px;font-family:var(--serif)">+</span>
-        <span>Add a photo or video clip</span>
-      </label>
-      <p class="clips-counter" id="clips-counter">0 / 20 · at least 1 required</p>
-      <div class="upload-prog" id="upload-prog">
-        <div class="upload-prog-bar"><div class="upload-prog-fill" id="upload-prog-fill"></div></div>
-        <p class="upload-prog-lbl" id="upload-prog-lbl">Uploading...</p>
+      <div class="s-body">
+        <div class="meter-card">
+          <div class="meter-top">
+            <span class="meter-label">🎬 Footage for your song</span>
+            <span class="meter-time" id="meterTime">0:00 <span class="target">/ 2:00</span></span>
+          </div>
+          <div class="meter-track"><div class="meter-fill" id="meterFill"></div><div class="meter-ticks"><span></span><span></span><span></span><span></span></div></div>
+          <div class="meter-status" id="meterStatus"><span class="dot"></span><span id="meterMsg">Add photos and clips to start filling your song.</span></div>
+        </div>
+        <div class="add-row">
+          <button class="add-btn" type="button" id="addPhotos"><span class="ic">📷</span> Add photos</button>
+          <button class="add-btn secondary" type="button" id="addVideo"><span class="ic">🎥</span> Add a video clip</button>
+        </div>
+        <input type="file" id="clip-file-input" accept="video/*,image/*" multiple style="display:none">
+        <div class="clip-empty" id="clipEmpty">
+          <div class="ce-ic">🎞️</div>
+          <h3>No moments yet</h3>
+          <p>Tap <strong>Add photos</strong> to pull in a batch, or add video clips one at a time. We'll tally how much of your song is covered.</p>
+        </div>
+        <div class="clip-grid" id="clip-grid-new"></div>
+        <div class="clip-meta" id="clipMeta"></div>
+        <div class="upload-prog" id="upload-prog">
+          <div class="upload-prog-bar"><div class="upload-prog-fill" id="upload-prog-fill"></div></div>
+          <p class="upload-prog-lbl" id="upload-prog-lbl">Uploading...</p>
+        </div>
       </div>
       <div class="step-actions">
-        <button class="btn btn-ghost" onclick="showScreen('slideshow')">Back</button>
+        <button class="btn btn-ghost" onclick="showScreen('note')">Back</button>
         <button class="btn btn-primary" id="s3-next" disabled onclick="goTo(4)">Continue <span class="arr">→</span></button>
       </div>
     </div>
 
-    <!-- STEP 4: SONG STYLE -->
+    <!-- STEP 5: SONG STYLE -->
     <div id="screen-4" class="screen wrap" style="display:none">
       <div class="step-head">
         <span class="eyebrow">Step 5 of 5 · Song style</span>
-        <h1>Pick the <em>vibe</em><br>and <em>length.</em></h1>
-        <p class="lede">Suno AI will compose an original song in this style, timed to your clips.</p>
+        <h1>Now pick the <em>vibe.</em></h1>
+        <p class="lede">We'll compose an original song in this style, timed to the clips you uploaded.</p>
       </div>
-
-      <span class="field-label">Reel length</span>
-      <div class="duration-grid" id="duration-grid">
-        <button class="dur-card" data-mins="1"><span class="dur-label">Chorus</span><span class="dur-desc">One verse and chorus, about 1 min</span></button>
-        <button class="dur-card sel" data-mins="3"><span class="dur-label">Full Song</span><span class="dur-desc">Complete song, about 3 min</span></button>
-        <button class="dur-card" data-mins="6"><span class="dur-label">Epic</span><span class="dur-desc">Extended with bridge, about 6 min</span></button>
+      <div class="s-body">
+        <div class="length-banner">
+          <div class="lb-ic"><span class="n" id="lb-len">2:00</span><span class="u">song</span></div>
+          <div class="lb-tx"><strong>Length matches your footage</strong><p>Set automatically from the clips you added — no need to choose.</p></div>
+          <span class="lb-tag">Matched to your clips</span>
+        </div>
+        <div class="vibe-group"><span class="glabel">Mood</span><div class="genre-pills" id="mood-pills"></div></div>
+        <div class="vibe-group"><span class="glabel">Voice</span><div class="genre-pills" id="vocal-pills"></div></div>
+        <div class="vibe-group"><span class="glabel">Genre <span class="hint">pick up to 2</span></span><div class="genre-pills" id="genre-pills"></div></div>
+        <div class="vibe-group">
+          <span class="glabel">Sounds like… <span class="hint">a favorite artist or band — optional</span></span>
+          <div class="tin mic"><input type="text" id="artist-input" placeholder="e.g. Fleetwood Mac, Adele, John Mayer, Stevie Wonder"><button class="mic-btn" type="button" data-target="artist-input" aria-label="Speak">🎙️</button></div>
+          <div class="artist-suggest" id="artistSuggest">
+            <button class="artist-chip" type="button"><span class="plus">+</span>Taylor Swift</button><button class="artist-chip" type="button"><span class="plus">+</span>John Mayer</button><button class="artist-chip" type="button"><span class="plus">+</span>Adele</button><button class="artist-chip" type="button"><span class="plus">+</span>Coldplay</button><button class="artist-chip" type="button"><span class="plus">+</span>Stevie Wonder</button><button class="artist-chip" type="button"><span class="plus">+</span>Fleetwood Mac</button>
+          </div>
+        </div>
+        <div class="vibe-group" style="margin-bottom:0">
+          <span class="glabel">Anything specific to focus on? <span class="hint">optional</span></span>
+          <div class="tin"><input type="text" id="wiz-focus" placeholder="Their laugh, the trip to Japan, how much they've grown this year…"></div>
+        </div>
       </div>
-
-      <span class="field-label" style="margin-top:28px">Mood</span>
-      <div class="genre-pills" id="mood-pills"></div>
-
-      <span class="field-label">Voice</span>
-      <div class="genre-pills" id="vocal-pills"></div>
-
-      <span class="field-label">Genre (pick up to 2)</span>
-      <div class="genre-pills" id="genre-pills"></div>
-
-      <span class="field-label">Anything specific to focus on? <span style="font-weight:300;text-transform:none;letter-spacing:0;font-family:var(--sans);color:var(--ink-faint)">(optional)</span></span>
-      <div style="position:relative">
-        <input type="text" class="focus-input" id="wiz-focus" placeholder="e.g. Their laugh, the trip to Japan, how they have grown..." style="padding-right:50px">
-        <button class="mic-btn" style="position:absolute;right:12px;top:50%;transform:translateY(-50%)" id="focus-mic" data-target="wiz-focus">
-          <svg width="14" height="18" viewBox="0 0 14 18" fill="none"><rect x="4" y="1" width="6" height="10" rx="3" stroke="var(--accent)" stroke-width="1.5"/><path d="M1 9a6 6 0 0012 0" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/><line x1="7" y1="15" x2="7" y2="17" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/></svg>
-        </button>
-      </div>
-
       <div class="step-actions">
         <button class="btn btn-ghost" onclick="goTo(3)">Back</button>
-        <button class="btn btn-accent" onclick="submitJob()">Generate My Reel <span class="arr">→</span></button>
+        <button class="btn btn-accent" onclick="submitJob()">Generate my reel <span class="arr">→</span></button>
       </div>
     </div>
 
@@ -1868,12 +2072,11 @@ function showScreen(id) {
   
   el.style.display = 'block'; el.classList.add('show');
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  const stepMap  = { '1':16,'2':32,'checkout':48,'slideshow':56,'3':68,'4':84,'proc':93,'review':93,'done':100 };
+  const stepMap  = { '1':16,'2':32,'note':48,'3':66,'4':84,'proc':93,'review':93,'done':100 };
   const labelMap = {
     '1':'Step 1 of 5 · Occasion',
     '2':'Step 2 of 5 · About them',
-    'checkout':'Step 3 of 5 · Complete your order',
-    'slideshow':'How this works',
+    'note':'Step 3 of 5 · Your note',
     '3':'Step 4 of 5 · Clips and photos',
     '4':'Step 5 of 5 · Song style',
     'proc':'Creating...',
@@ -1888,22 +2091,16 @@ function showScreen(id) {
 
 function goTo(n) {
   if (n === 2 && !S.occasion) return;
-  if (n === 2) buildChatQuestions();
-  // Continuing from the upload step → every clip MUST be described. The human context
-  // (who's in it, what's happening, why it matters) is what makes the song personal —
-  // without it the AI only has Gemini's visual guess.
+  // Leaving the clips step (→ song style): every clip needs a short caption so the
+  // AI can match it to the right lyric. This is what makes the song personal.
   if (n === 4 && S.clips.length) {
-    const needs = S.clips.filter(c => (c.description || '').trim().length < 6);
+    const needs = S.clips.filter(c => (c.description || '').trim().length < 4);
     if (needs.length) {
-      const fields = document.querySelectorAll('#clips-zone .clip-desc');
-      fields.forEach(f => {
-        const d = (S.clips[parseInt(f.dataset.idx)]?.description || '').trim();
-        f.style.borderColor = d.length < 6 ? 'var(--accent)' : '';
-      });
-      const first = Array.from(fields).find(f => (S.clips[parseInt(f.dataset.idx)]?.description || '').trim().length < 6);
+      const fields = document.querySelectorAll('#clip-grid-new .cap');
+      fields.forEach(f => { const d = (S.clips[parseInt(f.dataset.idx)]?.description || '').trim(); f.classList.toggle('need', d.length < 4); });
+      const first = Array.from(fields).find(f => (S.clips[parseInt(f.dataset.idx)]?.description || '').trim().length < 4);
       if (first) { first.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => first.focus(), 300); }
-      alert("Please describe each clip before continuing — tell us who's in it and what's happening. " +
-            "This is what makes the song personal. (" + needs.length + " still " + (needs.length === 1 ? "needs" : "need") + " a description.)");
+      alert("Add a quick line to each clip — who's in it and what's happening. It's what makes the song about them. (" + needs.length + " still " + (needs.length === 1 ? "needs" : "need") + " one.)");
       return;
     }
   }
@@ -2029,9 +2226,9 @@ function goToSlideshow() {
 }
 
 function bindOccPicker() {
-  document.querySelectorAll('.occ-card').forEach(card => {
+  document.querySelectorAll('#occ-grid .occ2').forEach(card => {
     card.addEventListener('click', () => {
-      document.querySelectorAll('.occ-card').forEach(c => c.classList.remove('sel'));
+      document.querySelectorAll('#occ-grid .occ2').forEach(c => c.classList.remove('sel'));
       card.classList.add('sel');
       S.occasion = card.dataset.occ;
       document.getElementById('s1-next').disabled = false;
@@ -2469,7 +2666,7 @@ function bindDurationPicker() {
   });
 }
 
-document.getElementById('focus-mic').addEventListener('click', function() {
+document.getElementById('focus-mic')?.addEventListener('click', function() {
   toggleVoice(this, 'wiz-focus');
 });
 
@@ -2482,6 +2679,7 @@ async function submitJob() {
   // 3-min pick with only ~2:30 of clips makes a ~2:30 reel — never black padding.
   // If their footage is shorter than the tier they chose, warn but let them continue.
   const footageSecs = S.clips.reduce((sum, c) => sum + (c.duration || (c.type === 'image' ? C.PHOTO_DURATION : 10)), 0);
+  S.songLength = Math.max(1, Math.min(6, Math.round(footageSecs / 60)));   // footage-driven length (no tier picker)
   const tierSecs = S.songLength * 60;
   if (footageSecs < tierSecs - 5) {
     const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0');
@@ -2540,6 +2738,7 @@ async function submitJob() {
     song_mood:           MOOD_LEGACY[S.moodPreset] ?? 35,
     song_length_mins:    S.songLength,
     custom_focus:        document.getElementById('wiz-focus').value || null,
+    artist_inspiration:  (document.getElementById('artist-input')?.value || '').trim() || null,
     video_clips:         uploadedClips,
     raw_video_url:       uploadedClips[0]?.url || null,
     total_clip_duration: totalDuration,
@@ -2952,6 +3151,118 @@ function closeVidModalBtn() {
 if (localStorage.getItem('songreels_gate_ok') === 'true') {
   initAuth();
 }
+</script>
+
+<!-- ═══════════════ REDESIGN WIRING (v2) — new wizard ↔ existing backend ═══════════════ -->
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  function fmtDur(s){ s = Math.max(0, Math.round(s)); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
+
+  /* chip groups (About-them: relationship / describe / feel) */
+  document.querySelectorAll('.chips[data-single]').forEach(g => {
+    g.addEventListener('click', e => { const b = e.target.closest('.ochip'); if(!b) return;
+      g.querySelectorAll('.ochip').forEach(x => x.classList.toggle('on', x === b)); });
+  });
+  document.querySelectorAll('.chips[data-multi]').forEach(g => {
+    const max = parseInt(g.dataset.max) || 99;
+    g.addEventListener('click', e => { const b = e.target.closest('.ochip'); if(!b) return;
+      if(!b.classList.contains('on') && g.querySelectorAll('.ochip.on').length >= max){
+        const f = g.querySelector('.ochip.on'); if(f) f.classList.remove('on'); }
+      b.classList.toggle('on'); });
+  });
+
+  /* read About-them into S.fields (what the song AI reads) */
+  function chipVals(field){ const g = document.querySelector('.chips[data-field="'+field+'"]'); return g ? [...g.querySelectorAll('.ochip.on')].map(b=>b.textContent.trim()) : []; }
+  window.readAboutFields = function(){
+    const get = id => ($(id)?.value || '').trim();
+    const joke = get('abJoke');
+    S.fields['f-name']     = get('abName');
+    S.fields['f-relation'] = chipVals('relation')[0] || '';
+    S.fields['f-love']     = chipVals('describe').join(', ');
+    S.fields['f-memory']   = (get('abMemory') + (joke ? '  Detail only they’d know: ' + joke : '')).trim();
+    S.fields['f-feel']     = chipVals('feel').join(', ');
+  };
+  window.aboutContinue = function(){ readAboutFields(); showScreen('note'); };
+
+  /* Your note live preview */
+  const nf = $('noteFrom'), nb = $('noteBody'), npf = $('npFrom'), npb = $('npBody');
+  function syncNote(){
+    if(npf) npf.textContent = 'From ' + ((nf.value||'').trim() || 'you');
+    if(npb) npb.textContent = (nb.value||'').trim() || 'Your note will appear here…';
+    if(typeof S !== 'undefined'){ S.fields['note_from'] = (nf?.value||'').trim(); S.fields['note_body'] = (nb?.value||'').trim(); }
+  }
+  if(nf) nf.addEventListener('input', syncNote);
+  if(nb) nb.addEventListener('input', syncNote);
+
+  /* "Sounds like" artist suggestions */
+  const ai = $('artist-input'), as = $('artistSuggest');
+  if(as) as.addEventListener('click', e => { const c = e.target.closest('.artist-chip'); if(!c || !ai) return;
+    const nm = c.textContent.replace('+','').trim();
+    const cur = ai.value.split(',').map(s=>s.trim()).filter(Boolean);
+    if(!cur.includes(nm)) cur.push(nm);
+    ai.value = cur.join(', '); });
+
+  /* mic buttons (new) */
+  document.querySelectorAll('.mic-btn[data-target]').forEach(b => {
+    b.addEventListener('click', () => { if(typeof toggleVoice === 'function') toggleVoice(b, b.dataset.target); });
+  });
+
+  /* Add photos / Add a video clip → the REAL file input (handleClipAdd is bound to its change) */
+  const fileInput = $('clip-file-input');
+  $('addPhotos') && $('addPhotos').addEventListener('click', () => { if(fileInput){ fileInput.accept = 'image/*'; fileInput.value=''; fileInput.click(); } });
+  $('addVideo')  && $('addVideo').addEventListener('click',  () => { if(fileInput){ fileInput.accept = 'video/*'; fileInput.value=''; fileInput.click(); } });
+
+  /* new clip grid + footage meter — override the old renderers so handleClipAdd/removeClip drive these */
+  const TARGET = 120;
+  window.renderClips = function(){
+    const grid = $('clip-grid-new'); if(!grid) return;
+    grid.innerHTML = (S.clips||[]).map((c,i)=>{
+      const isImg = c.type === 'image';
+      const badge = isImg ? '📷 5s' : '🎥 ' + fmtDur(c.duration || 10);
+      const thumb = c.converting
+        ? '<div class="timg" style="background:#1c1c1c;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px">converting…</div>'
+        : (isImg ? '<img src="'+(c.blobUrl||'')+'" alt="">' : '<video src="'+(c.blobUrl||'')+'" muted playsinline preload="metadata"></video>');
+      const cap = (c.description||'').replace(/"/g,'&quot;');
+      return '<div class="clip2" data-i="'+i+'"><div class="thumb">'+thumb+'<span class="badge-type">'+badge+'</span><span class="rm" data-rm="'+i+'">×</span></div>'
+           + '<input class="cap" data-idx="'+i+'" value="'+cap+'" placeholder="What’s happening here?"></div>';
+    }).join('');
+    const empty = $('clipEmpty'); if(empty) empty.style.display = (S.clips&&S.clips.length) ? 'none' : 'block';
+  };
+  window.updateClipUI = function(){
+    const t = (S.clips||[]).reduce((a,c)=>a+(c.duration||(c.type==='image'?5:10)),0);
+    const pct = Math.min(100, t/TARGET*100), done = t >= TARGET;
+    const mf=$('meterFill'); if(mf){ mf.style.width=pct+'%'; mf.classList.toggle('done',done); }
+    const mt=$('meterTime'); if(mt){ mt.classList.toggle('done',done); mt.innerHTML = fmtDur(t)+' <span class="target">/ 2:00'+(done?' ✓':'')+'</span>'; }
+    const ms=$('meterStatus'); if(ms) ms.classList.toggle('done',done);
+    const mm=$('meterMsg'); if(mm){
+      if(!(S.clips&&S.clips.length)) mm.textContent = 'Add photos and clips to start filling your song.';
+      else if(done) mm.innerHTML = '<strong>Nice — enough footage for your full song!</strong> Add more for variety.';
+      else mm.textContent = 'About ' + fmtDur(TARGET-t) + ' to go — a few more photos or clips.';
+    }
+    const cm=$('clipMeta'); if(cm) cm.textContent = (S.clips&&S.clips.length) ? S.clips.length+' moment'+(S.clips.length>1?'s':'')+' · 20–25 recommended for a full song' : '';
+    const next=$('s3-next'); if(next) next.disabled = !(S.clips&&S.clips.length) || (S.clips||[]).some(c=>c.converting);
+    const lb=$('lb-len'); if(lb) lb.textContent = fmtDur(Math.max(60, t));
+  };
+
+  /* clip grid interactions */
+  const cg = $('clip-grid-new');
+  if(cg){
+    cg.addEventListener('click', e => {
+      const rm = e.target.closest('[data-rm]');
+      if(rm){ const i = parseInt(rm.dataset.rm);
+        if(typeof removeClip === 'function') removeClip(i);
+        else { S.clips.splice(i,1); renderClips(); updateClipUI(); }
+        return; }
+      const v = e.target.closest('video'); if(v){ v.paused ? v.play().catch(()=>{}) : v.pause(); }
+    });
+    cg.addEventListener('input', e => { const cap = e.target.closest('.cap'); if(!cap) return;
+      const i = parseInt(cap.dataset.idx); if(S.clips[i]){ S.clips[i].description = cap.value; if(cap.value.trim().length>=4) cap.classList.remove('need'); } });
+  }
+
+  /* init the meter / empty state */
+  try { renderClips(); updateClipUI(); } catch(e){}
+})();
 </script>
 </body>
 </html>

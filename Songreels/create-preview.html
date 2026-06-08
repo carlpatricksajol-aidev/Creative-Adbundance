@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preview · Make a reel — SongReels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#fff; --bg:#FFF7F0; --ink:#2a1a13; --ink-soft:#6b5560; --ink-faint:#a8978d;
+  --rule:#e7dcd5; --rule-soft:#ece0d7; --bg-2:#fbf4ee;
+  --accent:#FF2D55; --accent-deep:#B85844; --accent-soft:rgba(255,45,85,.1);
+  --grad:linear-gradient(135deg,#FF5E7E,#FF2D55);
+  --disp:'Fredoka',sans-serif; --body:'Nunito',sans-serif; --mono:'Nunito',sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:var(--body);color:var(--ink);-webkit-font-smoothing:antialiased}
+
+/* header */
+.flow-top{position:sticky;top:0;z-index:40;background:rgba(255,247,240,.9);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid var(--rule-soft)}
+.flow-bar{max-width:1240px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:14px 36px}
+.flow-brand{font-family:var(--disp);font-weight:700;font-size:20px;color:var(--ink);text-decoration:none}
+.flow-user{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink-soft)}
+.flow-user .av{width:26px;height:26px;border-radius:50%;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-weight:600;font-size:13px}
+.flow-user .out{color:var(--ink-faint);text-decoration:none;font-size:13px}
+.progress{max-width:1240px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:0 36px 12px}
+.pstep{font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--accent-deep);font-weight:700;white-space:nowrap}
+.ptrack{flex:1;height:6px;border-radius:999px;background:var(--bg-2);overflow:hidden}
+.pfill{height:100%;border-radius:999px;background:var(--grad);transition:width .3s}
+.ptotal{font-size:12px;color:var(--ink-faint);white-space:nowrap}
+
+/* screens */
+.flow-main{padding-bottom:110px}
+.flow-wrap{max-width:1240px;margin:0 auto;padding:26px 36px 0}
+.screen{display:none}
+.screen.active{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.s-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent-deep);font-weight:700}
+.screen h1{font-family:var(--disp);font-weight:600;font-size:clamp(30px,5vw,44px);line-height:1.08;letter-spacing:-.01em;margin:10px 0 8px}
+.screen h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.s-sub{font-size:16px;line-height:1.55;color:var(--ink-soft);max-width:620px;margin:0 0 26px}
+.s-sub em{font-style:italic;color:var(--ink)}
+.glabel{display:block;font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin-bottom:10px}
+.glabel .hint{font-weight:500;text-transform:none;letter-spacing:0;color:var(--ink-faint);font-size:12px;margin-left:6px}
+
+/* occasion */
+.occ-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.occ{position:relative;aspect-ratio:1/.84;border:none;border-radius:20px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:15px;text-align:left;color:#fff;font-family:var(--disp);font-weight:600;font-size:15px;box-shadow:0 8px 22px -12px rgba(40,20,15,.42);transition:transform .15s,box-shadow .2s}
+.occ:hover{transform:translateY(-3px);box-shadow:0 16px 34px -14px rgba(40,20,15,.52)}
+.occ .obg{position:absolute;inset:0;z-index:0}
+.occ .oe{position:relative;z-index:1;font-size:25px;margin-bottom:auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.18))}
+.occ .on-nm{position:relative;z-index:1;text-shadow:0 1px 6px rgba(0,0,0,.25)}
+.occ.sel{outline:3px solid var(--accent);outline-offset:2px}
+.occ .occheck{position:absolute;top:9px;right:9px;z-index:2;width:24px;height:24px;border-radius:50%;background:#fff;color:var(--accent);display:none;align-items:center;justify-content:center;font-size:13px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.occ.sel .occheck{display:flex}
+.occ.occ-other{background:#F1E7DC;color:var(--ink);align-items:center;justify-content:center;font-size:16px}
+.g-mothers{background:linear-gradient(140deg,#FF8A5B,#FF4E6A)}.g-fathers{background:linear-gradient(140deg,#5AA0FF,#7B61FF)}.g-birthday{background:linear-gradient(140deg,#FFB23D,#FF7A3D)}.g-anniversary{background:linear-gradient(140deg,#FF6FA5,#B05BFF)}.g-graduation{background:linear-gradient(140deg,#4FA8FF,#3B6FE0)}.g-wedding{background:linear-gradient(140deg,#A58BFF,#6E5BFF)}.g-memorial{background:linear-gradient(140deg,#9FB4C8,#5E7184)}
+
+/* about */
+.ab-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px 24px}
+.ab-field{min-width:0}.ab-field.full{grid-column:1/-1}
+.tin{position:relative}
+.tin input,.tin textarea{width:100%;background:var(--bg-2);border:1.5px solid var(--rule-soft);border-radius:14px;padding:13px 15px;font-size:15px;font-family:var(--body);color:var(--ink);outline:none;transition:border-color .18s,background .18s}
+.tin textarea{min-height:84px;resize:vertical;line-height:1.5}
+.tin input:focus,.tin textarea:focus{border-color:var(--accent);background:#fff}
+.tin.mic input{padding-right:46px}
+.tin .mic-btn{position:absolute;right:8px;top:8px;width:32px;height:32px;border-radius:50%;border:none;background:var(--accent-soft);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
+.chips{display:flex;flex-wrap:wrap;gap:9px}
+.ochip{font-family:var(--body);font-weight:600;font-size:14px;padding:9px 16px;border-radius:999px;border:1.5px solid var(--rule);background:var(--paper);color:var(--ink-soft);cursor:pointer;transition:all .15s}
+.ochip:hover{border-color:var(--accent);color:var(--ink)}
+.ochip.on{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 8px 18px -8px rgba(255,45,85,.5)}
+.ai-note{display:flex;gap:14px;align-items:flex-start;margin-top:26px;background:linear-gradient(135deg,rgba(255,94,126,.08),rgba(124,97,255,.08));border:1px solid var(--rule-soft);border-radius:16px;padding:16px 18px}
+.ai-note .ai-ic{font-size:22px;flex-shrink:0}
+.ai-note strong{display:block;font-family:var(--disp);font-size:15px;margin-bottom:4px}
+.ai-note p{margin:0;font-size:13.5px;line-height:1.55;color:var(--ink-soft)}
+.ai-note em{font-style:italic;color:var(--ink)}
+
+/* note */
+.note-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+.note-preview{background:linear-gradient(160deg,#2a1830,#17101f);border-radius:20px;padding:26px 24px 30px;position:relative;overflow:hidden;min-height:230px;box-shadow:0 18px 40px -18px rgba(20,10,25,.6)}
+.np-lab{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:18px}
+.np-from{font-family:'Caveat',cursive;font-size:22px;color:#ffd6a0;margin-bottom:10px}
+.np-body{font-family:'Caveat',cursive;font-size:26px;line-height:1.4;color:#fff}
+.np-sign{position:absolute;bottom:18px;right:22px;font-size:26px}
+@media(max-width:680px){.ab-grid,.note-grid{grid-template-columns:1fr}}
+
+/* clips */
+.meter-card{background:var(--paper);border:1px solid var(--rule-soft);border-radius:18px;padding:18px 20px;margin-bottom:18px;box-shadow:0 6px 18px -12px rgba(40,20,15,.25)}
+.meter-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.meter-label{font-family:var(--disp);font-weight:600;font-size:15px}
+.meter-time{font-family:var(--mono);font-weight:800;font-size:18px}
+.meter-time .target{font-weight:600;color:var(--ink-faint);font-size:14px}
+.meter-time.done{color:#1C9E45}
+.meter-track{position:relative;height:14px;border-radius:999px;background:var(--bg-2);overflow:hidden}
+.meter-fill{height:100%;width:0;border-radius:999px;background:var(--grad);transition:width .35s cubic-bezier(.2,.9,.3,1)}
+.meter-fill.done{background:linear-gradient(90deg,#34C759,#1C9E45)}
+.meter-ticks{position:absolute;inset:0;display:flex;justify-content:space-between;pointer-events:none;padding:0 24%}
+.meter-ticks span{width:1px;background:rgba(255,255,255,.5)}
+.meter-status{display:flex;align-items:center;gap:9px;margin-top:12px;font-size:13.5px;color:var(--ink-soft);line-height:1.5}
+.meter-status .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.meter-status.done .dot{background:#1C9E45}
+.meter-status strong{color:var(--ink)}
+.add-row{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.add-btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--disp);font-weight:600;font-size:15px;padding:13px 22px;border-radius:999px;border:none;cursor:pointer;background:var(--grad);color:#fff;box-shadow:0 10px 24px -10px rgba(255,45,85,.5)}
+.add-btn.secondary{background:var(--paper);color:var(--ink);border:1.5px solid var(--rule);box-shadow:none}
+.clip-empty{text-align:center;padding:40px 20px;border:2px dashed var(--rule);border-radius:18px;color:var(--ink-soft)}
+.clip-empty .ce-ic{font-size:34px;margin-bottom:8px}
+.clip-empty h3{font-family:var(--disp);font-size:18px;margin:0 0 6px}
+.clip-empty p{font-size:14px;line-height:1.55;max-width:420px;margin:0 auto}
+.clip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.clip{background:var(--paper);border:1px solid var(--rule-soft);border-radius:14px;overflow:hidden;box-shadow:0 4px 12px -8px rgba(40,20,15,.25)}
+.clip .thumb{position:relative;aspect-ratio:9/12}
+.clip .timg{position:absolute;inset:0}
+.clip .badge-type{position:absolute;left:7px;bottom:7px;font-family:var(--mono);font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.55);padding:3px 8px;border-radius:999px}
+.clip .rm{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer}
+.clip .cap{width:100%;border:none;border-top:1px solid var(--rule-soft);padding:9px 11px;font-size:13px;font-family:var(--body);color:var(--ink);outline:none}
+.clip-meta{margin-top:14px;font-size:13px;color:var(--ink-faint)}
+
+/* vibe */
+.length-banner{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,rgba(255,94,126,.1),rgba(124,97,255,.08));border:1px solid var(--rule-soft);border-radius:16px;padding:14px 18px;margin-bottom:28px}
+.lb-ic{flex-shrink:0;width:60px;height:60px;border-radius:14px;background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 12px -6px rgba(40,20,15,.3)}
+.lb-ic .n{font-family:var(--disp);font-weight:700;font-size:18px;line-height:1}
+.lb-ic .u{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+.lb-tx{flex:1}.lb-tx strong{font-family:var(--disp);font-size:15px}.lb-tx p{margin:2px 0 0;font-size:13px;color:var(--ink-soft)}
+.lb-tag{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#1C9E45;background:rgba(52,199,89,.12);padding:6px 11px;border-radius:999px;white-space:nowrap}
+.vibe-group{margin-bottom:26px}
+.artist-suggest{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.artist-chip{font-family:var(--body);font-size:13px;font-weight:600;padding:7px 13px;border-radius:999px;border:1.5px solid var(--rule);background:var(--paper);color:var(--ink-soft);cursor:pointer;transition:all .15s}
+.artist-chip:hover{border-color:var(--accent);color:var(--ink)}
+.artist-chip .plus{color:var(--accent);font-weight:800;margin-right:4px}
+
+/* footer */
+.flow-foot{position:fixed;left:0;right:0;bottom:0;z-index:50;background:rgba(255,247,240,.92);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-top:1px solid var(--rule-soft)}
+.foot-row{max-width:1240px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:14px 36px}
+.btn-back{font-family:var(--disp);font-weight:600;font-size:15px;color:var(--ink-soft);background:transparent;border:none;cursor:pointer;padding:8px 6px}
+.foot-hint{flex:1;text-align:center;font-size:13px;color:var(--ink-faint)}
+.btn-next{font-family:var(--disp);font-weight:600;font-size:16px;color:#fff;background:var(--grad);border:none;border-radius:999px;padding:14px 30px;cursor:pointer;box-shadow:0 12px 28px -10px rgba(255,45,85,.55);transition:filter .2s,opacity .2s}
+.btn-next:hover{filter:brightness(1.05)}
+.btn-next:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.btn-next .arr{margin-left:4px}
+.preview-flag{max-width:1240px;margin:14px auto 0;padding:8px 36px;font-size:12px;color:var(--ink-faint);text-align:center}
+
+/* full landscape width: the heading stays on top, the form spreads across the width */
+.occ-grid{grid-template-columns:repeat(4,1fr)}
+.s-sub{max-width:760px}
+</style>
+</head>
+<body>
+
+<header class="flow-top">
+  <div class="flow-bar">
+    <a class="flow-brand" href="#">SongReels 🎶</a>
+    <div class="flow-user"><span class="av">C</span><span>carlx</span><a class="out" href="#">Sign out</a></div>
+  </div>
+  <div class="progress">
+    <span class="pstep" id="pStep">Step 1 of 5 · Occasion</span>
+    <div class="ptrack"><div class="pfill" id="pFill" style="width:20%"></div></div>
+    <span class="ptotal">~5 min total</span>
+  </div>
+</header>
+
+<main class="flow-main">
+  <div class="flow-wrap">
+
+    <section class="screen active" data-screen="1">
+      <span class="s-eyebrow">Step 1 of 5 · The occasion</span>
+      <h1>What's the <em>occasion?</em></h1>
+      <p class="s-sub">This sets the emotional tone and pacing. You can fine-tune the vibe later.</p>
+      <div class="occ-grid" id="occGrid">
+        <button class="occ"><div class="obg g-mothers"></div><span class="oe">💐</span><span class="on-nm">Mother's Day</span><span class="occheck">✓</span></button>
+        <button class="occ"><div class="obg g-fathers"></div><span class="oe">🎣</span><span class="on-nm">Father's Day</span><span class="occheck">✓</span></button>
+        <button class="occ"><div class="obg g-birthday"></div><span class="oe">🎂</span><span class="on-nm">Birthday</span><span class="occheck">✓</span></button>
+        <button class="occ"><div class="obg g-anniversary"></div><span class="oe">💍</span><span class="on-nm">Anniversary</span><span class="occheck">✓</span></button>
+        <button class="occ"><div class="obg g-graduation"></div><span class="oe">🎓</span><span class="on-nm">Graduation</span><span class="occheck">✓</span></button>
+        <button class="occ"><div class="obg g-wedding"></div><span class="oe">💒</span><span class="on-nm">Wedding</span><span class="occheck">✓</span></button>
+        <button class="occ"><div class="obg g-memorial"></div><span class="oe">🕊️</span><span class="on-nm">In memory</span><span class="occheck">✓</span></button>
+        <button class="occ occ-other">Just because ✨<span class="occheck">✓</span></button>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="2">
+      <span class="s-eyebrow">Step 2 of 5 · About them</span>
+      <h1>Tell us about <em>them.</em></h1>
+      <p class="s-sub">The more we know, the more the song sounds like <em>them</em> — not a template. Nothing here is required, but every detail helps.</p>
+      <div class="ab-grid">
+        <div class="ab-field"><span class="glabel">Their name</span><div class="tin mic"><input placeholder="e.g. Mom, Cynthia, Grandpa Joe"><button class="mic-btn">🎙️</button></div></div>
+        <div class="ab-field"><span class="glabel">Your relationship</span><div class="chips" data-single><button class="ochip">My mom</button><button class="ochip">My dad</button><button class="ochip">My partner</button><button class="ochip">My friend</button><button class="ochip">My grandparent</button><button class="ochip">Someone else</button></div></div>
+        <div class="ab-field full"><span class="glabel">How would you describe them? <span class="hint">pick a few</span></span><div class="chips" data-multi><button class="ochip">Warm</button><button class="ochip">Funny</button><button class="ochip">Selfless</button><button class="ochip">Stubborn (lovingly)</button><button class="ochip">Adventurous</button><button class="ochip">Quiet strength</button><button class="ochip">The glue of the family</button><button class="ochip">Always singing</button><button class="ochip">A great cook</button><button class="ochip">Hard worker</button></div></div>
+        <div class="ab-field full"><span class="glabel">A favorite memory or two <span class="hint">a moment, a trip, an everyday thing</span></span><div class="tin"><textarea placeholder="The summer she taught me to drive in the church parking lot. The way he hums while he fixes things."></textarea></div></div>
+        <div class="ab-field"><span class="glabel">An inside joke or thing only you'd know <span class="hint">optional</span></span><div class="tin"><textarea placeholder="She calls everyone 'kiddo.' He's been 'almost done' with the garage since 2009."></textarea></div></div>
+        <div class="ab-field"><span class="glabel">What do you want them to feel?</span><div class="chips" data-multi><button class="ochip">Loved</button><button class="ochip">Seen</button><button class="ochip">Proud</button><button class="ochip">Nostalgic</button><button class="ochip">Celebrated</button><button class="ochip">Missed</button></div></div>
+      </div>
+      <div class="ai-note"><div class="ai-ic">✨</div><div class="ai-tx"><strong>You don't have to write much.</strong><p>Our AI also <em>watches the videos you upload next</em> — it reads the moments, the faces, and the places, then writes lyrics from what it sees and what you've told us here.</p></div></div>
+    </section>
+
+    <section class="screen" data-screen="3">
+      <span class="s-eyebrow">Step 3 of 5 · Your note</span>
+      <h1>Say it in your <em>own words.</em></h1>
+      <p class="s-sub">A short handwritten-style note shows on the page when they open their gift. Skip it if the song says enough.</p>
+      <div class="note-grid">
+        <div>
+          <div class="ab-field" style="margin-bottom:22px"><span class="glabel">Who's it from?</span><div class="tin"><input id="noteFrom" placeholder="Marcus, Jamie & Olivia"></div></div>
+          <div class="ab-field"><span class="glabel">Your note <span class="hint">optional</span></span><div class="tin"><textarea id="noteBody" placeholder="Mom — for everything you've done and everything you are. We couldn't put it into words, so we made you a song instead." style="min-height:140px"></textarea></div></div>
+        </div>
+        <div class="note-preview">
+          <div class="np-lab">Preview · what they'll see</div>
+          <div class="np-from" id="npFrom">From you</div>
+          <div class="np-body" id="npBody">Your note will appear here…</div>
+          <div class="np-sign">💛</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="4">
+      <span class="s-eyebrow">Step 4 of 5 · Your clips &amp; photos</span>
+      <h1>Give us enough to <em>fill your song.</em></h1>
+      <p class="s-sub">Photos hold the screen for ~5 seconds; video clips play their full length. Add enough to cover the song — about 20–25 moments — and describe each so the AI can match it to the right lyric.</p>
+      <div class="meter-card">
+        <div class="meter-top"><span class="meter-label">🎬 Footage for your song</span><span class="meter-time" id="meterTime">0:00 <span class="target">/ 2:00</span></span></div>
+        <div class="meter-track"><div class="meter-fill" id="meterFill"></div><div class="meter-ticks"><span></span><span></span><span></span><span></span></div></div>
+        <div class="meter-status" id="meterStatus"><span class="dot"></span><span id="meterMsg">Add photos and clips to start filling your song.</span></div>
+      </div>
+      <div class="add-row"><button class="add-btn" id="addPhotos">📷 Add photos</button><button class="add-btn secondary" id="addVideo">🎥 Add a video clip</button></div>
+      <div class="clip-empty" id="clipEmpty"><div class="ce-ic">🎞️</div><h3>No moments yet</h3><p>Tap <strong>Add photos</strong> to pull in a batch, or add video clips one at a time.</p></div>
+      <div class="clip-grid" id="clipGrid"></div>
+      <div class="clip-meta" id="clipMeta"></div>
+    </section>
+
+    <section class="screen" data-screen="5">
+      <span class="s-eyebrow">Step 5 of 5 · Song style</span>
+      <h1>Now pick the <em>vibe.</em></h1>
+      <p class="s-sub">We'll compose an original song in this style, timed to the clips you uploaded.</p>
+      <div class="length-banner"><div class="lb-ic"><span class="n" id="lbLen">2:00</span><span class="u">song</span></div><div class="lb-tx"><strong>Length matches your footage</strong><p>Set automatically from the clips you added — no need to choose.</p></div><span class="lb-tag">Matched to your clips</span></div>
+      <div class="vibe-group"><span class="glabel">Mood</span><div class="chips" data-single><button class="ochip">Tender</button><button class="ochip">Nostalgic</button><button class="ochip">Joyful</button><button class="ochip">Cinematic</button><button class="ochip">Uplifting</button><button class="ochip">Playful</button></div></div>
+      <div class="vibe-group"><span class="glabel">Voice</span><div class="chips" data-single><button class="ochip">Female</button><button class="ochip">Male</button><button class="ochip">Either</button></div></div>
+      <div class="vibe-group"><span class="glabel">Genre <span class="hint">pick up to 2</span></span><div class="chips" data-multi data-max="2"><button class="ochip">Folk</button><button class="ochip">R&amp;B</button><button class="ochip">Country</button><button class="ochip">Pop</button><button class="ochip">Rock</button><button class="ochip">Indie</button><button class="ochip">Gospel</button><button class="ochip">Classical</button><button class="ochip">Hip Hop</button><button class="ochip">Jazz</button></div></div>
+      <div class="vibe-group"><span class="glabel">Sounds like… <span class="hint">a favorite artist or band — optional</span></span><div class="tin mic"><input id="artistInput" placeholder="e.g. Fleetwood Mac, Adele, John Mayer, Stevie Wonder"><button class="mic-btn">🎙️</button></div><div class="artist-suggest" id="artistSuggest"><button class="artist-chip"><span class="plus">+</span>Taylor Swift</button><button class="artist-chip"><span class="plus">+</span>John Mayer</button><button class="artist-chip"><span class="plus">+</span>Adele</button><button class="artist-chip"><span class="plus">+</span>Coldplay</button><button class="artist-chip"><span class="plus">+</span>Stevie Wonder</button><button class="artist-chip"><span class="plus">+</span>Fleetwood Mac</button></div></div>
+      <div class="vibe-group" style="margin-bottom:0"><span class="glabel">Anything specific to focus on? <span class="hint">optional</span></span><div class="tin"><input placeholder="Their laugh, the trip to Japan, how much they've grown this year…"></div></div>
+    </section>
+
+  </div>
+  <p class="preview-flag">⚠️ Preview only — buttons are demo. The live page (create.html) does the real uploads + song generation.</p>
+</main>
+
+<footer class="flow-foot">
+  <div class="foot-row">
+    <button class="btn-back" id="backBtn" style="visibility:hidden">‹ Back</button>
+    <span class="foot-hint" id="footHint"></span>
+    <button class="btn-next" id="nextBtn">Continue <span class="arr">→</span></button>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const LABELS=['Occasion','About them','Your note','Clips & photos','Song style'];
+  const screens=[...document.querySelectorAll('.screen')];
+  const pStep=document.getElementById('pStep'),pFill=document.getElementById('pFill');
+  const backBtn=document.getElementById('backBtn'),nextBtn=document.getElementById('nextBtn');
+  let cur=0;
+  function render(){
+    screens.forEach((s,i)=>s.classList.toggle('active',i===cur));
+    pStep.textContent='Step '+(cur+1)+' of 5 · '+LABELS[cur];
+    pFill.style.width=((cur+1)/5*100)+'%';
+    backBtn.style.visibility=cur===0?'hidden':'visible';
+    nextBtn.innerHTML=cur===screens.length-1?'Generate my reel <span class="arr">→</span>':'Continue <span class="arr">→</span>';
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  backBtn.onclick=()=>{cur=Math.max(0,cur-1);render();};
+  nextBtn.onclick=()=>{if(cur===screens.length-1){nextBtn.innerHTML='Composing… 🎶';return;}cur=Math.min(screens.length-1,cur+1);render();};
+
+  document.querySelectorAll('.chips[data-single]').forEach(g=>g.addEventListener('click',e=>{const b=e.target.closest('.ochip');if(!b)return;g.querySelectorAll('.ochip').forEach(x=>x.classList.toggle('on',x===b));}));
+  document.querySelectorAll('.chips[data-multi]').forEach(g=>{const max=parseInt(g.dataset.max)||99;g.addEventListener('click',e=>{const b=e.target.closest('.ochip');if(!b)return;if(!b.classList.contains('on')&&g.querySelectorAll('.ochip.on').length>=max){const f=g.querySelector('.ochip.on');if(f)f.classList.remove('on');}b.classList.toggle('on');});});
+  document.getElementById('occGrid').addEventListener('click',e=>{const o=e.target.closest('.occ');if(!o)return;document.querySelectorAll('#occGrid .occ').forEach(x=>x.classList.toggle('sel',x===o));});
+
+  const nf=document.getElementById('noteFrom'),nb=document.getElementById('noteBody'),npf=document.getElementById('npFrom'),npb=document.getElementById('npBody');
+  nf.oninput=()=>npf.textContent='From '+(nf.value.trim()||'you');
+  nb.oninput=()=>npb.textContent=nb.value.trim()||'Your note will appear here…';
+  const ai=document.getElementById('artistInput');
+  document.getElementById('artistSuggest').addEventListener('click',e=>{const c=e.target.closest('.artist-chip');if(!c)return;const nm=c.textContent.replace('+','').trim();const a=ai.value.split(',').map(s=>s.trim()).filter(Boolean);if(!a.includes(nm))a.push(nm);ai.value=a.join(', ');});
+
+  const TARGET=120,PG=['linear-gradient(135deg,#FF5E7E,#FF2D55)','linear-gradient(135deg,#34C759,#1C9E45)','linear-gradient(135deg,#FF6B9D,#E84393)','linear-gradient(135deg,#FFC27A,#FF9500)','linear-gradient(135deg,#5AA0FF,#3B6FE0)','linear-gradient(135deg,#8E8BFF,#5856D6)','linear-gradient(135deg,#FFB73D,#FF8A00)','linear-gradient(135deg,#4FC4D6,#2E8FA8)'];
+  const grid=document.getElementById('clipGrid'),empty=document.getElementById('clipEmpty'),meterFill=document.getElementById('meterFill'),meterTime=document.getElementById('meterTime'),meterStatus=document.getElementById('meterStatus'),meterMsg=document.getElementById('meterMsg'),clipMeta=document.getElementById('clipMeta'),lbLen=document.getElementById('lbLen');
+  let clips=[],pi=0;
+  const fmt=s=>Math.floor(s/60)+':'+String(Math.round(s)%60).padStart(2,'0');
+  const total=()=>clips.reduce((a,c)=>a+c.dur,0);
+  function meter(){const t=total(),pct=Math.min(100,t/TARGET*100),done=t>=TARGET;meterFill.style.width=pct+'%';meterFill.classList.toggle('done',done);meterTime.classList.toggle('done',done);meterTime.innerHTML=fmt(t)+' <span class="target">/ 2:00'+(done?' ✓':'')+'</span>';meterStatus.classList.toggle('done',done);if(!clips.length)meterMsg.textContent='Add photos and clips to start filling your song.';else if(done)meterMsg.innerHTML='<strong>Nice — enough footage for your full song!</strong> Add more for variety.';else meterMsg.textContent='About '+fmt(TARGET-t)+' to go — a few more photos or clips.';clipMeta.textContent=clips.length?clips.length+' moment'+(clips.length>1?'s':'')+' · 20–25 recommended':'';empty.style.display=clips.length?'none':'block';lbLen.textContent=fmt(Math.max(60,t));}
+  function paint(){grid.innerHTML=clips.map((c,i)=>'<div class="clip"><div class="thumb"><div class="timg" style="background:'+c.bg+'"></div><span class="badge-type">'+(c.type==='video'?'🎥 '+fmt(c.dur):'📷 5s')+'</span><span class="rm" data-rm="'+i+'">×</span></div><input class="cap" value="'+c.cap.replace(/"/g,'&quot;')+'" placeholder="What’s happening here?" data-cap="'+i+'"></div>').join('');}
+  function add(type){const dur=type==='video'?[6,7,8,9,10][pi%5]:5;clips.push({type,dur,cap:'',bg:PG[pi%PG.length]});pi++;paint();meter();}
+  document.getElementById('addPhotos').onclick=()=>{for(let k=0;k<3;k++)add('photo');};
+  document.getElementById('addVideo').onclick=()=>add('video');
+  grid.addEventListener('click',e=>{const rm=e.target.closest('[data-rm]');if(!rm)return;clips.splice(+rm.dataset.rm,1);paint();meter();});
+  grid.addEventListener('input',e=>{const c=e.target.closest('[data-cap]');if(!c)return;clips[+c.dataset.cap].cap=c.value;});
+  meter();render();
+})();
+</script>
+</body>
+</html>
