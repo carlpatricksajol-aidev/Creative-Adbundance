@@ -925,16 +925,26 @@ body.gate-active { overflow: hidden; }
 .clip-empty .ce-ic{font-size:34px;margin-bottom:8px}
 .clip-empty h3{font-family:var(--disp,'Fredoka',sans-serif);font-size:18px;color:var(--ink,#2a1a13);margin:0 0 6px}
 .clip-empty p{font-size:14px;line-height:1.55;max-width:420px;margin:0 auto}
-.clip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.clip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px}
 .clip2{background:var(--paper,#fff);border:1px solid var(--rule-soft,#ece0d7);border-radius:14px;overflow:hidden;box-shadow:0 4px 12px -8px rgba(40,20,15,.25)}
-.clip2 .thumb{position:relative;aspect-ratio:9/12;background:#000}
+.clip2 .thumb{position:relative;aspect-ratio:9/12;background:#000;cursor:pointer}
 .clip2 .thumb video,.clip2 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .clip2 .timg{position:absolute;inset:0}
-.clip2 .badge-type{position:absolute;left:7px;bottom:7px;font-family:var(--mono,'Nunito',sans-serif);font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.55);padding:3px 8px;border-radius:999px}
-.clip2 .rm{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;line-height:1}
-.clip2 .cap{width:100%;border:none;border-top:1px solid var(--rule-soft,#ece0d7);padding:9px 11px;font-size:13px;font-family:var(--body,'Nunito',sans-serif);color:var(--ink,#2a1a13);outline:none}
+.clip2 .badge-type{position:absolute;left:7px;bottom:7px;font-family:var(--mono,'Nunito',sans-serif);font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.55);padding:3px 8px;border-radius:999px;z-index:2}
+.clip2 .rm{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;line-height:1;z-index:4}
+.clip2 .cap{width:100%;border:none;border-top:1px solid var(--rule-soft,#ece0d7);padding:10px 12px;font-size:13.5px;font-family:var(--body,'Nunito',sans-serif);color:var(--ink,#2a1a13);outline:none;display:block;box-sizing:border-box;resize:vertical;min-height:56px;line-height:1.45}
 .clip2 .cap::placeholder{color:var(--ink-faint,#a8978d)}
 .clip2 .cap.need{background:rgba(255,45,85,.06)}
+.clip2 .thumb::after{content:"🔍 Tap to preview";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--body,'Nunito',sans-serif);font-weight:800;font-size:12px;background:rgba(0,0,0,.34);opacity:0;transition:opacity .15s;pointer-events:none;z-index:1}
+.clip2 .thumb:hover::after{opacity:1}
+/* clip preview lightbox */
+.sr-lightbox{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(12,6,4,.82);opacity:0;transition:opacity .2s}
+.sr-lightbox.in{opacity:1}
+.sr-lightbox-inner{display:flex;flex-direction:column;align-items:center;gap:12px;max-width:92vw;max-height:90vh}
+.sr-lightbox-media{max-width:92vw;max-height:80vh;border-radius:14px;box-shadow:0 24px 70px -20px rgba(0,0,0,.7);background:#000;display:block}
+.sr-lightbox-cap{max-width:680px;color:#fff;font-family:var(--body,'Nunito',sans-serif);font-size:15px;line-height:1.5;text-align:center;background:rgba(0,0,0,.4);padding:9px 16px;border-radius:12px}
+.sr-lightbox-x{position:fixed;top:18px;right:22px;width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,.16);color:#fff;font-size:26px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.sr-lightbox-x:hover{background:rgba(255,255,255,.3)}
 .clip-meta{margin-top:14px;font-size:13px;color:var(--ink-faint,#a8978d)}
 
 /* vibe / song style */
@@ -3290,10 +3300,11 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
       const thumb = c.converting
         ? '<div class="timg" style="background:#1c1c1c;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px">converting…</div>'
         : (isImg ? '<img src="'+(c.blobUrl||'')+'" alt="">' : '<video src="'+(c.blobUrl||'')+'" muted playsinline preload="metadata"></video>');
-      const cap = (c.description||'').replace(/"/g,'&quot;');
+      const cap = (c.description||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       return '<div class="clip2" data-i="'+i+'"><div class="thumb">'+thumb+'<span class="badge-type">'+badge+'</span><span class="rm" data-rm="'+i+'">×</span></div>'
-           + '<input class="cap" data-idx="'+i+'" value="'+cap+'" placeholder="What’s happening here? (required)"></div>';
+           + '<textarea class="cap" data-idx="'+i+'" rows="2" placeholder="What’s happening here? (required)">'+cap+'</textarea></div>';
     }).join('');
+    grid.querySelectorAll('.cap').forEach(t => { try { autoResize(t); } catch(e){} });
     const empty = $('clipEmpty'); if(empty) empty.style.display = (S.clips&&S.clips.length) ? 'none' : 'block';
   };
   window.updateClipUI = function(){
@@ -3312,6 +3323,30 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     const lb=$('lb-len'); if(lb) lb.textContent = fmtDur(Math.max(60, t));
   };
 
+  /* tap a clip → full-screen preview (image, or playable video) */
+  function openClipPreview(i){
+    const c = (S.clips||[])[i]; if(!c || c.converting || !c.blobUrl) return;
+    const old = document.getElementById('sr-lightbox'); if(old) old.remove();
+    const ov = document.createElement('div'); ov.id='sr-lightbox'; ov.className='sr-lightbox';
+    const inner = document.createElement('div'); inner.className='sr-lightbox-inner';
+    let media;
+    if(c.type==='image'){ media=document.createElement('img'); media.src=c.blobUrl; media.alt=''; }
+    else { media=document.createElement('video'); media.src=c.blobUrl; media.controls=true; media.autoplay=true; media.playsInline=true; }
+    media.className='sr-lightbox-media';
+    inner.appendChild(media);
+    const capTxt=(c.description||'').trim();
+    if(capTxt){ const cc=document.createElement('div'); cc.className='sr-lightbox-cap'; cc.textContent=capTxt; inner.appendChild(cc); }
+    const x=document.createElement('button'); x.className='sr-lightbox-x'; x.type='button'; x.setAttribute('aria-label','Close'); x.textContent='×';
+    ov.appendChild(inner); ov.appendChild(x);
+    document.body.appendChild(ov);
+    requestAnimationFrame(()=>ov.classList.add('in'));
+    function close(){ try{ if(media.tagName==='VIDEO') media.pause(); }catch(e){} ov.classList.remove('in'); document.removeEventListener('keydown',onKey); setTimeout(()=>ov.remove(),200); }
+    function onKey(e){ if(e.key==='Escape') close(); }
+    x.addEventListener('click', close);
+    ov.addEventListener('click', e=>{ if(e.target===ov) close(); });
+    document.addEventListener('keydown', onKey);
+  }
+
   /* clip grid interactions */
   const cg = $('clip-grid-new');
   if(cg){
@@ -3321,9 +3356,13 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
         if(typeof removeClip === 'function') removeClip(i);
         else { S.clips.splice(i,1); renderClips(); updateClipUI(); }
         return; }
-      const v = e.target.closest('video'); if(v){ v.paused ? v.play().catch(()=>{}) : v.pause(); }
+      if(e.target.closest('.cap')) return;                 // editing the caption — don't open preview
+      const card = e.target.closest('.clip2'); if(!card) return;
+      if(!e.target.closest('.thumb')) return;              // only the photo/video opens the preview
+      openClipPreview(parseInt(card.dataset.i));
     });
     cg.addEventListener('input', e => { const cap = e.target.closest('.cap'); if(!cap) return;
+      try { autoResize(cap); } catch(e2){}
       const i = parseInt(cap.dataset.idx); if(S.clips[i]){ S.clips[i].description = cap.value; if(cap.value.trim().length>=4) cap.classList.remove('need'); } });
   }
 
