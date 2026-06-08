@@ -1864,6 +1864,7 @@ const C = {
   MAX_PHOTO_MB:   25,
   MAX_CLIPS:      20,
   PHOTO_DURATION: 5,
+  MAX_VIDEO_SECS: 180,   // 3-minute cap per video (the AI extracts highlights from long clips anyway)
 };
 
 const sb = window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_KEY);
@@ -2494,11 +2495,19 @@ async function handleClipAdd(e) {
     if (!isImg) {
       const vid = document.createElement('video');
       vid.src = blobUrl;
-      const idx = S.clips.length - 1;
+      const clipRef = S.clips[S.clips.length - 1];
       vid.onloadedmetadata = () => {
-        S.clips[idx].duration = Math.round(vid.duration);
-        const badge = document.getElementById('dur-' + idx);
-        if (badge) badge.textContent = formatDur(S.clips[idx].duration);
+        const secs = Math.round(vid.duration);
+        // 3-minute per-video cap — longer clips bog down processing, and the AI only needs a highlight.
+        if (secs > C.MAX_VIDEO_SECS) {
+          const pos = S.clips.indexOf(clipRef);
+          if (pos !== -1) { try { URL.revokeObjectURL(clipRef.blobUrl); } catch(e) {} S.clips.splice(pos, 1); }
+          renderClips(); updateClipUI();
+          srToast('Videos must be 3 minutes or shorter.\n"' + ((clipRef.file && clipRef.file.name) || 'That clip') + '" is ' + formatDur(secs) + ' — trim it first, then re-add.', '⚠️', 7000);
+          return;
+        }
+        clipRef.duration = secs;
+        renderClips(); updateClipUI();   // refresh the badge + meter/floor now the real length is known
       };
     }
     renderClips();
@@ -3321,24 +3330,26 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     const empty = $('clipEmpty'); if(empty) empty.style.display = (S.clips&&S.clips.length) ? 'none' : 'block';
   };
   window.updateClipUI = function(){
-    // The AI trims long videos to their best moments, so reel length is ESTIMATED by
-    // capping each video's contribution (HL_EST) — a 3-min upload shows ~highlight-sized
-    // here, not a scary 16:00 raw total. Real length is decided by the highlights Gemini finds.
+    // Meter measures RAW footage and gates Continue at a 2:00 minimum (owner's rule: a reel
+    // from < 2:00 of footage is too thin). lb-len shows the highlight-based song-length
+    // estimate (long videos are trimmed to their best moments by the AI, capped at HL_EST).
     const HL_EST = 15;
+    const rawDur = c => c.type==='image' ? (c.duration||5) : (c.duration||10);
     const effDur = c => c.type==='image' ? (c.duration||5) : Math.min(c.duration||10, HL_EST);
-    const t = (S.clips||[]).reduce((a,c)=>a+effDur(c),0);
-    const pct = Math.min(100, t/TARGET*100), done = t >= TARGET;
-    const mf=$('meterFill'); if(mf){ mf.style.width=pct+'%'; mf.classList.toggle('done',done); }
-    const mt=$('meterTime'); if(mt){ mt.classList.toggle('done',done); mt.innerHTML = fmtDur(t)+' <span class="target">/ 2:00'+(done?' ✓':'')+'</span>'; }
-    const ms=$('meterStatus'); if(ms) ms.classList.toggle('done',done);
+    const raw = (S.clips||[]).reduce((a,c)=>a+rawDur(c),0);   // real footage → meter + 2:00 floor
+    const est = (S.clips||[]).reduce((a,c)=>a+effDur(c),0);   // highlight estimate → song length
+    const pct = Math.min(100, raw/TARGET*100), met = raw >= TARGET;
+    const mf=$('meterFill'); if(mf){ mf.style.width=pct+'%'; mf.classList.toggle('done',met); }
+    const mt=$('meterTime'); if(mt){ mt.classList.toggle('done',met); mt.innerHTML = fmtDur(raw)+' <span class="target">/ 2:00 min'+(met?' ✓':'')+'</span>'; }
+    const ms=$('meterStatus'); if(ms) ms.classList.toggle('done',met);
     const mm=$('meterMsg'); if(mm){
-      if(!(S.clips&&S.clips.length)) mm.textContent = 'Add photos and clips to start filling your song.';
-      else if(done) mm.innerHTML = '<strong>Nice — enough footage for your full song!</strong> Add more for variety.';
-      else mm.textContent = 'About ' + fmtDur(TARGET-t) + ' to go — a few more photos or clips.';
+      if(!(S.clips&&S.clips.length)) mm.textContent = 'Add photos and clips — you need at least 2:00 of footage to continue.';
+      else if(!met) mm.textContent = 'About ' + fmtDur(TARGET-raw) + ' more to reach the 2:00 minimum.';
+      else mm.innerHTML = '<strong>Nice — enough to continue!</strong> Add more moments for variety.';
     }
-    const cm=$('clipMeta'); if(cm) cm.textContent = (S.clips&&S.clips.length) ? S.clips.length+' moment'+(S.clips.length>1?'s':'')+' · 20–25 recommended for a full song' : '';
-    const next=$('s3-next'); if(next) next.disabled = !(S.clips&&S.clips.length) || (S.clips||[]).some(c=>c.converting);
-    const lb=$('lb-len'); if(lb) lb.textContent = '~' + fmtDur(Math.max(60, t));
+    const cm=$('clipMeta'); if(cm) cm.textContent = (S.clips&&S.clips.length) ? S.clips.length+' moment'+(S.clips.length>1?'s':'')+' · 15–25 recommended for a full song' : '';
+    const next=$('s3-next'); if(next) next.disabled = !(S.clips&&S.clips.length) || (S.clips||[]).some(c=>c.converting) || raw < TARGET;
+    const lb=$('lb-len'); if(lb) lb.textContent = '~' + fmtDur(Math.max(60, est));
   };
 
   /* tap a clip → full-screen preview (image, or playable video) */
