@@ -1380,7 +1380,7 @@ body.gate-active { overflow: hidden; }
       <div class="step-head">
         <span class="eyebrow">Step 4 of 5 · Your clips and photos</span>
         <h1>Give us enough to <em>fill your song.</em></h1>
-        <p class="lede">Photos hold the screen for ~5 seconds; video clips play their full length. Add enough to cover the song — about 20–25 moments — and describe each so the AI can match it to the right lyric.</p>
+        <p class="lede">Photos hold the screen for ~5 seconds. For videos, our AI finds and features the best moments — so a long clip becomes its highlights, not the whole thing. Add about 15–25 moments, and in each caption tell us the best bit so the AI knows what to feature.</p>
       </div>
       <div class="s-body">
         <div class="meter-card">
@@ -1424,7 +1424,7 @@ body.gate-active { overflow: hidden; }
       <div class="s-body">
         <div class="length-banner">
           <div class="lb-ic"><span class="n" id="lb-len">2:00</span><span class="u">song</span></div>
-          <div class="lb-tx"><strong>Length matches your footage</strong><p>Set automatically from the clips you added — no need to choose.</p></div>
+          <div class="lb-tx"><strong>Length set from your best moments</strong><p>Our AI trims long videos to their highlights, then sizes the song to match — no need to choose.</p></div>
           <span class="lb-tag">Matched to your clips</span>
         </div>
         <div class="vibe-group"><span class="glabel">Mood</span><div class="genre-pills" id="mood-pills"></div></div>
@@ -3321,7 +3321,12 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     const empty = $('clipEmpty'); if(empty) empty.style.display = (S.clips&&S.clips.length) ? 'none' : 'block';
   };
   window.updateClipUI = function(){
-    const t = (S.clips||[]).reduce((a,c)=>a+(c.duration||(c.type==='image'?5:10)),0);
+    // The AI trims long videos to their best moments, so reel length is ESTIMATED by
+    // capping each video's contribution (HL_EST) — a 3-min upload shows ~highlight-sized
+    // here, not a scary 16:00 raw total. Real length is decided by the highlights Gemini finds.
+    const HL_EST = 15;
+    const effDur = c => c.type==='image' ? (c.duration||5) : Math.min(c.duration||10, HL_EST);
+    const t = (S.clips||[]).reduce((a,c)=>a+effDur(c),0);
     const pct = Math.min(100, t/TARGET*100), done = t >= TARGET;
     const mf=$('meterFill'); if(mf){ mf.style.width=pct+'%'; mf.classList.toggle('done',done); }
     const mt=$('meterTime'); if(mt){ mt.classList.toggle('done',done); mt.innerHTML = fmtDur(t)+' <span class="target">/ 2:00'+(done?' ✓':'')+'</span>'; }
@@ -3333,7 +3338,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     }
     const cm=$('clipMeta'); if(cm) cm.textContent = (S.clips&&S.clips.length) ? S.clips.length+' moment'+(S.clips.length>1?'s':'')+' · 20–25 recommended for a full song' : '';
     const next=$('s3-next'); if(next) next.disabled = !(S.clips&&S.clips.length) || (S.clips||[]).some(c=>c.converting);
-    const lb=$('lb-len'); if(lb) lb.textContent = fmtDur(Math.max(60, t));
+    const lb=$('lb-len'); if(lb) lb.textContent = '~' + fmtDur(Math.max(60, t));
   };
 
   /* tap a clip → full-screen preview (image, or playable video) */
