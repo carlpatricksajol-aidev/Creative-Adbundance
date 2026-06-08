@@ -865,7 +865,10 @@ body.gate-active { overflow: hidden; }
 .tin textarea{min-height:84px;resize:vertical;line-height:1.5}
 .tin input:focus,.tin textarea:focus{border-color:var(--accent,#FF2D55);background:#fff}
 .tin.mic input{padding-right:46px}
-.tin .mic-btn{position:absolute;right:8px;top:8px;width:32px;height:32px;border-radius:50%;border:none;background:var(--accent-soft,rgba(255,45,85,.1));cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
+.tin .mic-btn{position:absolute;right:8px;top:8px;width:38px;height:38px;border-radius:50%;border:1.5px solid var(--accent,#ff2d55);background:#fff;color:var(--accent,#ff2d55);cursor:pointer;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -4px rgba(255,45,85,.45);z-index:3;padding:0;transition:background .15s,transform .12s}
+.tin .mic-btn:hover{background:var(--accent-soft,rgba(255,45,85,.1));transform:scale(1.06)}
+.tin .mic-btn.recording{background:var(--accent,#ff2d55);color:#fff;animation:micPulse 1s infinite}
+.tin.mic input,.tin.mic textarea{padding-right:54px}
 .chips{display:flex;flex-wrap:wrap;gap:9px}
 .ochip{font-family:var(--body,'Nunito',sans-serif);font-weight:600;font-size:14px;padding:9px 16px;border-radius:999px;border:1.5px solid var(--rule,#e7dcd5);background:var(--paper,#fff);color:var(--ink-soft,#6b5560);cursor:pointer;transition:all .15s}
 .ochip:hover{border-color:var(--accent,#FF2D55);color:var(--ink,#2a1a13)}
@@ -1129,11 +1132,11 @@ body.gate-active { overflow: hidden; }
           </div>
           <div class="ab-field full">
             <span class="glabel">A favorite memory or two <span class="hint">a moment, a trip, an everyday thing they do</span></span>
-            <div class="tin"><textarea id="abMemory" placeholder="The summer she taught me to drive in the church parking lot. The way he hums while he fixes things."></textarea></div>
+            <div class="tin mic"><textarea id="abMemory" placeholder="The summer she taught me to drive in the church parking lot. The way he hums while he fixes things."></textarea><button class="mic-btn" type="button" data-target="abMemory" aria-label="Speak">🎙️</button></div>
           </div>
           <div class="ab-field">
             <span class="glabel">An inside joke or thing only you'd know <span class="hint">optional</span></span>
-            <div class="tin"><textarea id="abJoke" placeholder="She calls everyone 'kiddo.' He's been 'almost done' with the garage since 2009."></textarea></div>
+            <div class="tin mic"><textarea id="abJoke" placeholder="She calls everyone 'kiddo.' He's been 'almost done' with the garage since 2009."></textarea><button class="mic-btn" type="button" data-target="abJoke" aria-label="Speak">🎙️</button></div>
           </div>
           <div class="ab-field">
             <span class="glabel">What do you want them to feel?</span>
@@ -1169,7 +1172,7 @@ body.gate-active { overflow: hidden; }
             </div>
             <div class="ab-field">
               <span class="glabel">Your note <span class="hint">optional</span></span>
-              <div class="tin"><textarea id="noteBody" placeholder="Mom — for everything you've done and everything you are. We couldn't put it into words, so we made you a song instead." style="min-height:140px"></textarea></div>
+              <div class="tin mic"><textarea id="noteBody" placeholder="Mom — for everything you've done and everything you are. We couldn't put it into words, so we made you a song instead." style="min-height:140px"></textarea><button class="mic-btn" type="button" data-target="noteBody" aria-label="Speak">🎙️</button></div>
             </div>
           </div>
           <div class="note-preview">
@@ -1414,7 +1417,7 @@ body.gate-active { overflow: hidden; }
         </div>
         <div class="vibe-group" style="margin-bottom:0">
           <span class="glabel">Anything specific to focus on? <span class="hint">optional</span></span>
-          <div class="tin"><input type="text" id="wiz-focus" placeholder="Their laugh, the trip to Japan, how much they've grown this year…"></div>
+          <div class="tin mic"><input type="text" id="wiz-focus" placeholder="Their laugh, the trip to Japan, how much they've grown this year…"><button class="mic-btn" type="button" data-target="wiz-focus" aria-label="Speak">🎙️</button></div>
         </div>
       </div>
       <div class="step-actions">
@@ -2267,6 +2270,7 @@ function buildChatQuestions() {
 }
 
 function autoResize(ta) {
+  if (!ta || ta.tagName !== 'TEXTAREA') return;
   ta.style.height = 'auto';
   ta.style.height = Math.max(ta.scrollHeight, 52) + 'px';
 }
@@ -3250,7 +3254,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
         : (isImg ? '<img src="'+(c.blobUrl||'')+'" alt="">' : '<video src="'+(c.blobUrl||'')+'" muted playsinline preload="metadata"></video>');
       const cap = (c.description||'').replace(/"/g,'&quot;');
       return '<div class="clip2" data-i="'+i+'"><div class="thumb">'+thumb+'<span class="badge-type">'+badge+'</span><span class="rm" data-rm="'+i+'">×</span></div>'
-           + '<input class="cap" data-idx="'+i+'" value="'+cap+'" placeholder="What’s happening here?"></div>';
+           + '<input class="cap" data-idx="'+i+'" value="'+cap+'" placeholder="What’s happening here? (required)"></div>';
     }).join('');
     const empty = $('clipEmpty'); if(empty) empty.style.display = (S.clips&&S.clips.length) ? 'none' : 'block';
   };
