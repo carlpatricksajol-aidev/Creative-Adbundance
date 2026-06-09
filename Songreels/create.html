@@ -452,6 +452,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 .done-phone-screen{width:100%;height:100%;border-radius:34px;overflow:hidden;position:relative;background:#000}
 .done-phone-screen video{width:100%;height:100%;object-fit:contain;display:block;background:#000;transform:translateZ(0);-webkit-backface-visibility:hidden}
 .done-phone-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:linear-gradient(160deg,oklch(0.20 0.032 28) 0%,oklch(0.12 0.016 280) 100%);color:rgba(255,255,255,.4);font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;text-align:center;padding:16px}
+.done-video-cta{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:linear-gradient(to top,rgba(0,0,0,.55),rgba(0,0,0,.12));border:none;cursor:pointer;color:#fff;font-family:var(--body,'Nunito',sans-serif);padding:0}
+.done-video-cta .dvc-play{width:62px;height:62px;border-radius:50%;background:rgba(255,255,255,.94);color:#141414;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 32px -8px rgba(0,0,0,.6);transition:transform .15s;padding-left:3px}
+.done-video-cta:hover .dvc-play{transform:scale(1.07)}
+.done-video-cta .dvc-label{font-weight:800;font-size:13px;text-align:center;line-height:1.25;text-shadow:0 1px 8px rgba(0,0,0,.55)}
 .done-phone-placeholder svg{animation:donePulse 2.2s ease-in-out infinite;color:rgba(255,255,255,.45)}
 @keyframes donePulse{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.8;transform:scale(1.07)}}
 
@@ -1554,6 +1558,10 @@ body.gate-active { overflow: hidden; }
                 <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><circle cx="18" cy="18" r="16" stroke="currentColor" stroke-width="1.4" opacity=".4"/><path d="M14 11l11 7-11 7V11z" fill="currentColor"/></svg>
                 <span>Your reel<br>loads here</span>
               </div>
+              <button type="button" class="done-video-cta" id="done-video-cta" style="display:none" onclick="playDoneVideo()">
+                <span class="dvc-play"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M8 5v14l11-7L8 5z" fill="currentColor"/></svg></span>
+                <span class="dvc-label">Tap to watch<br>your reel</span>
+              </button>
             </div>
           </div>
           <!-- floating proof tags -->
@@ -3029,22 +3037,27 @@ function showDone(job) {
   
   if (job.final_video_url) {
     let videoSwapped = false;
+    const cta = document.getElementById('done-video-cta');
     const swapToVideo = () => {
       if (videoSwapped) return;
       videoSwapped = true;
       videoEl.style.display = 'block';
       placeholder.style.display = 'none';
+      try { if (videoEl.currentTime < 0.1) videoEl.currentTime = 0.3; } catch(e) {}   // paint a real frame, not black
+      if (cta) cta.style.display = 'flex';                                            // big "tap to watch your reel" overlay
     };
-    
+    videoEl.onplay = () => { if (cta) cta.style.display = 'none'; };
+
     videoEl.onloadeddata    = swapToVideo;
     videoEl.oncanplay       = swapToVideo;
     videoEl.onloadedmetadata = swapToVideo;
     videoEl.src = job.final_video_url;
-    
+
     setTimeout(() => { if (!videoSwapped) swapToVideo(); }, 3000);
-    
+
     videoEl.onerror = () => {
       videoEl.style.display = 'none';
+      if (cta) cta.style.display = 'none';
       placeholder.style.display = 'flex';
       placeholder.innerHTML = 
         '<svg width="38" height="38" viewBox="0 0 38 38" fill="none"><circle cx="19" cy="19" r="17" stroke="currentColor" stroke-width="1.5" opacity=".5"/><path d="M13 13l12 12M25 13L13 25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' +
@@ -3057,6 +3070,13 @@ function showDone(job) {
   }
   
   showScreen('done');
+}
+
+function playDoneVideo() {
+  const videoEl = document.getElementById('done-video');
+  const cta = document.getElementById('done-video-cta');
+  if (cta) cta.style.display = 'none';
+  if (videoEl) videoEl.play().catch(() => {});
 }
 
 function copyLink() {
