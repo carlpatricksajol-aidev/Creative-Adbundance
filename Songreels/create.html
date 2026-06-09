@@ -1386,7 +1386,7 @@ body.gate-active { overflow: hidden; }
         <div class="meter-card">
           <div class="meter-top">
             <span class="meter-label">🎬 Footage for your song</span>
-            <span class="meter-time" id="meterTime">0:00 <span class="target">/ 2:00</span></span>
+            <span class="meter-time" id="meterTime">0:00 <span class="target">/ 1:00</span></span>
           </div>
           <div class="meter-track"><div class="meter-fill" id="meterFill"></div><div class="meter-ticks"><span></span><span></span><span></span><span></span></div></div>
           <div class="meter-status" id="meterStatus"><span class="dot"></span><span id="meterMsg">Add photos and clips to start filling your song.</span></div>
@@ -1423,7 +1423,7 @@ body.gate-active { overflow: hidden; }
       </div>
       <div class="s-body">
         <div class="length-banner">
-          <div class="lb-ic"><span class="n" id="lb-len">2:00</span><span class="u">song</span></div>
+          <div class="lb-ic"><span class="n" id="lb-len">1:00</span><span class="u">song</span></div>
           <div class="lb-tx"><strong>Length set from your best moments</strong><p>Our AI trims long videos to their highlights, then sizes the song to match — no need to choose.</p></div>
           <span class="lb-tag">Matched to your clips</span>
         </div>
@@ -3332,7 +3332,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
   $('addVideo')  && $('addVideo').addEventListener('click',  () => { if(fileInput){ fileInput.accept = 'video/*'; fileInput.value=''; fileInput.click(); } });
 
   /* new clip grid + footage meter — override the old renderers so handleClipAdd/removeClip drive these */
-  const TARGET = 120;
+  const TARGET = 60;
   window.renderClips = function(){
     const grid = $('clip-grid-new'); if(!grid) return;
     grid.innerHTML = (S.clips||[]).map((c,i)=>{
@@ -3355,21 +3355,21 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     const empty = $('clipEmpty'); if(empty) empty.style.display = (S.clips&&S.clips.length) ? 'none' : 'block';
   };
   window.updateClipUI = function(){
-    // Meter measures RAW footage and gates Continue at a 2:00 minimum (owner's rule: a reel
-    // from < 2:00 of footage is too thin). lb-len shows the highlight-based song-length
+    // Meter measures RAW footage and gates Continue at a 1:00 minimum (owner's rule: a reel
+    // from < 1:00 of footage is too thin). lb-len shows the highlight-based song-length
     // estimate (long videos are trimmed to their best moments by the AI, capped at HL_EST).
     const HL_EST = 15;
     const rawDur = c => c.type==='image' ? (c.duration||5) : (c.duration||10);
     const effDur = c => c.type==='image' ? (c.duration||5) : Math.min(c.duration||10, HL_EST);
-    const raw = (S.clips||[]).reduce((a,c)=>a+rawDur(c),0);   // real footage → meter + 2:00 floor
+    const raw = (S.clips||[]).reduce((a,c)=>a+rawDur(c),0);   // real footage → meter + 1:00 floor
     const est = (S.clips||[]).reduce((a,c)=>a+effDur(c),0);   // highlight estimate → song length
     const pct = Math.min(100, raw/TARGET*100), met = raw >= TARGET;
     const mf=$('meterFill'); if(mf){ mf.style.width=pct+'%'; mf.classList.toggle('done',met); }
-    const mt=$('meterTime'); if(mt){ mt.classList.toggle('done',met); mt.innerHTML = fmtDur(raw)+' <span class="target">/ 2:00 min'+(met?' ✓':'')+'</span>'; }
+    const mt=$('meterTime'); if(mt){ mt.classList.toggle('done',met); mt.innerHTML = fmtDur(raw)+' <span class="target">/ 1:00 min'+(met?' ✓':'')+'</span>'; }
     const ms=$('meterStatus'); if(ms) ms.classList.toggle('done',met);
     const mm=$('meterMsg'); if(mm){
-      if(!(S.clips&&S.clips.length)) mm.textContent = 'Add photos and clips — you need at least 2:00 of footage to continue.';
-      else if(!met) mm.textContent = 'About ' + fmtDur(TARGET-raw) + ' more to reach the 2:00 minimum.';
+      if(!(S.clips&&S.clips.length)) mm.textContent = 'Add photos and clips — you need at least 1:00 of footage to continue.';
+      else if(!met) mm.textContent = 'About ' + fmtDur(TARGET-raw) + ' more to reach the 1:00 minimum.';
       else mm.innerHTML = '<strong>Nice — enough to continue!</strong> Add more moments for variety.';
     }
     const cm=$('clipMeta'); if(cm) cm.textContent = (S.clips&&S.clips.length) ? S.clips.length+' moment'+(S.clips.length>1?'s':'')+' · 15–25 recommended for a full song' : '';
