@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <!--
-  SONGREELS — "Your reel is ready" email (sent to the CREATOR once the render completes).
+  SONGREELS: "Your reel is ready" email (sent to the CREATOR once the render completes).
   Goes to the address they signed in with (job.user_email). The recipient's email is NOT
   collected in the wizard, so this is a "your gift is ready, here's the link to share" email.
 
   SUBJECT:    Your SongReel for {{recipientName}} is ready 🎵
-  PREHEADER:  Watch your gift and send the link to {{recipientName}} — it plays the moment they tap it.
+  PREHEADER:  Watch your gift and send the link to {{recipientName}}. It plays the moment they tap it.
 
   MERGE TOKENS (fill these from the job row in your email node):
-    {{creatorFirstName}}  – first name of the creator (job.user_name split first word), fallback "there"
-    {{recipientName}}     – who the gift is for (form_data['f-name']), fallback "them"
-    {{reelLink}}          – the shareable link (job.final_video_url)
-    {{reelLinkEncoded}}   – encodeURIComponent(job.final_video_url) — used in the WhatsApp link
+    {{creatorFirstName}}  : first name of the creator (job.user_name split first word), fallback "there"
+    {{recipientName}}     : who the gift is for (form_data['f-name']), fallback "them"
+    {{reelLink}}          : the shareable link (job.final_video_url)
+    {{reelLinkEncoded}}   : encodeURIComponent(job.final_video_url). Used in the WhatsApp link
 
   Email-client safe: table layout, inline styles, no JS, no <video>. The "play card" and
   button are plain links to {{reelLink}} (email can't play video inline). Tested-style markup
@@ -41,7 +41,7 @@
 
   <!-- hidden preheader -->
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;color:#FBF3EC;">
-    Watch your gift and send the link to {{recipientName}} — it plays the moment they tap it.
+    Watch your gift and send the link to {{recipientName}}. It plays the moment they tap it.
   </div>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FBF3EC;">
@@ -62,7 +62,7 @@
             <tr><td class="px" style="padding:34px 40px 6px;">
               <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#FF4D6D;">&#9679;&nbsp; Your gift is ready</div>
               <div class="h1" style="font-family:Georgia,'Times New Roman',serif;font-size:38px;line-height:1.05;color:#2A1A13;font-weight:700;margin-top:12px;">Made for {{recipientName}}.</div>
-              <p style="font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.55;color:#6B574C;margin:14px 0 0;">Hi {{creatorFirstName}} — your custom song and video are done. Watch it below, then send the link to {{recipientName}}. They tap it and the whole gift plays, song and all — no app, no download.</p>
+              <p style="font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.55;color:#6B574C;margin:14px 0 0;">Hi {{creatorFirstName}}, your custom song and video are done. Watch it below, then send the link to {{recipientName}}. They tap it and the whole gift plays, song and all. No app, no download.</p>
             </td></tr>
 
             <!-- play card (clickable → opens the reel) -->
@@ -96,7 +96,7 @@
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;background:#FBF3EC;border-radius:12px;">
                 <tr><td style="padding:13px 16px;font-family:'Courier New',Courier,monospace;font-size:13px;color:#6B574C;word-break:break-all;">{{reelLink}}</td></tr>
               </table>
-              <p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#6B574C;margin:10px 0 0;">Copy that link into a text, WhatsApp, or email — it plays the moment they tap it.</p>
+              <p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#6B574C;margin:10px 0 0;">Copy that link into a text, WhatsApp, or email. It plays the moment they tap it.</p>
               <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:14px;"><tr><td>
                 <a href="https://wa.me/?text=I%20made%20you%20a%20SongReel!%20{{reelLinkEncoded}}" target="_blank" style="display:inline-block;background:#25D366;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;line-height:46px;text-align:center;width:220px;border-radius:24px;">Share on WhatsApp</a>
               </td></tr></table>
@@ -105,7 +105,7 @@
             <!-- reassurance -->
             <tr><td class="px" style="padding:26px 40px 34px;">
               <div style="border-top:1px solid #EFE3D8;padding-top:20px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.6;color:#9A8678;">
-                Made just for {{recipientName}} — every lyric is about your memories together. Something you'd tweak? Just reply to this email and we'll help.
+                Made just for {{recipientName}}. Every lyric is about your memories together. Something you'd tweak? Just reply to this email and we'll help.
               </div>
             </td></tr>
 
