@@ -3093,15 +3093,20 @@ function copyLink() {
   setTimeout(() => { btn.textContent = 'Copy link'; btn.classList.remove('copied'); }, 2200);
 }
 
+function shareMsg() {
+  const n = ((S.fields && S.fields['f-name']) || '').trim();
+  return (n ? n + ', ' : '') + 'I made you a SongReel 🎶 ';
+}
+
 function shareWhatsApp() {
   const url = document.getElementById('done-url').textContent;
-  window.open('https://wa.me/?text=' + encodeURIComponent('I made you a SongReel! ' + url), '_blank');
+  window.open('https://wa.me/?text=' + encodeURIComponent(shareMsg() + url), '_blank');
 }
 
 function shareText() {
   const url = document.getElementById('done-url').textContent;
   if (!url || url === 'Generating your link…') return;
-  window.location.href = 'sms:?&body=' + encodeURIComponent('I made you a little something 🎶 ' + url);
+  window.location.href = 'sms:?&body=' + encodeURIComponent(shareMsg() + url);
 }
 
 function downloadReel() {

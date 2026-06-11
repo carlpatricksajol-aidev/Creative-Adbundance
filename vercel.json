@@ -14,7 +14,7 @@
     { "source": "/",          "destination": "/Songreels/index.html" },
     { "source": "/app",       "destination": "/Songreels/create.html" },
     { "source": "/create",    "destination": "/Songreels/create.html" },
-    { "source": "/r",         "destination": "/Songreels/gift.html" },
+    { "source": "/r",         "destination": "/api/r" },
     { "source": "/gift",      "destination": "/Songreels/gift.html" },
     { "source": "/checkout",  "destination": "/Songreels/checkout.html" },
     { "source": "/templates", "destination": "/Songreels/templates.html" },
