@@ -883,18 +883,6 @@ body.gate-active { overflow: hidden; }
 .sr-toast-sub{color:var(--ink-soft,#6b574c);font-size:12.5px;margin-top:2px;line-height:1.45}
 .sr-toast-x{flex-shrink:0;border:none;background:transparent;color:var(--ink-faint,#a8978d);font-size:19px;line-height:1;cursor:pointer;padding:0 2px;align-self:flex-start}
 .sr-toast-x:hover{color:var(--ink,#2a1a13)}
-/* Send-by-text card on the done screen (shown only when SMS_ENABLED) */
-.sms-card{margin-top:18px;background:var(--paper,#fff);border:1px solid var(--rule-soft,#ece0d7);border-radius:16px;padding:18px;box-shadow:0 10px 26px -18px rgba(40,20,15,.3)}
-.sms-head{font-family:var(--display,'Fredoka',sans-serif);font-weight:700;font-size:16px;color:var(--ink,#2a1a13)}
-.sms-sub{font-size:13px;color:var(--ink-soft,#6b574c);line-height:1.45;margin:5px 0 12px}
-.sms-row{display:flex;gap:10px;flex-wrap:wrap}
-.sms-in{flex:1;min-width:150px;border:1px solid var(--rule-soft,#ece0d7);border-radius:11px;padding:12px 13px;font-size:14px;font-family:var(--body,'Nunito',sans-serif);color:var(--ink,#2a1a13);outline:none;background:var(--cream,#fff7f0);box-sizing:border-box}
-.sms-in:focus{border-color:var(--accent,#ff2d55)}
-.sms-btn{margin-top:12px;width:100%;background:var(--grad,linear-gradient(135deg,#ff2d55,#ff9500));color:#fff;font-family:var(--display,'Fredoka',sans-serif);font-weight:600;font-size:15px;border:0;border-radius:12px;padding:13px;cursor:pointer}
-.sms-btn:disabled{opacity:.6;cursor:default}
-.sms-note{font-size:13px;margin-top:9px;color:var(--ink-soft,#6b574c)}
-.sms-note.ok{color:#1a9d57}
-.sms-note.err{color:var(--accent,#ff2d55)}
 .chips{display:flex;flex-wrap:wrap;gap:9px}
 .ochip{font-family:var(--body,'Nunito',sans-serif);font-weight:600;font-size:14px;padding:9px 16px;border-radius:999px;border:1.5px solid var(--rule,#e7dcd5);background:var(--paper,#fff);color:var(--ink-soft,#6b5560);cursor:pointer;transition:all .15s}
 .ochip:hover{border-color:var(--accent,#FF2D55);color:var(--ink,#2a1a13)}
@@ -1541,9 +1529,13 @@ body.gate-active { overflow: hidden; }
               <button class="copy-btn" id="copy-btn" onclick="copyLink()">Copy link</button>
             </div>
             <div class="done-hero-btns">
-              <button class="done-hero-btn primary" onclick="shareWhatsApp()">
+              <button class="done-hero-btn primary" onclick="shareText()">
+                <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><path d="M2.5 3.5h13v9h-8l-3.5 3v-3h-1.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+                Text the link
+              </button>
+              <button class="done-hero-btn" onclick="shareWhatsApp()">
                 <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><path d="M9 1.5A7.5 7.5 0 002 12l-.5 4.5 4.6-.5A7.5 7.5 0 109 1.5z" stroke="currentColor" stroke-width="1.4"/><path d="M6 7.5c.5 2 2 3.5 4 4l1-1c.3-.3.7-.4 1 0l1.5 1c.4.3.4.7 0 1l-.5.5c-.7.7-1.7.8-2.5.3a8 8 0 01-5-5c-.5-.8-.4-1.8.3-2.5l.5-.5c.3-.4.7-.3 1 0l1 1.5c.4.3.3.7 0 1l-.3.5z" fill="currentColor"/></svg>
-                Share on WhatsApp
+                WhatsApp
               </button>
               <button class="done-hero-btn" onclick="downloadReel()">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -1554,17 +1546,6 @@ body.gate-active { overflow: hidden; }
                 More
               </button>
             </div>
-          </div>
-          <!-- Send by text (hidden until SMS_ENABLED is true) -->
-          <div class="sms-card" id="sms-card" style="display:none">
-            <div class="sms-head">📲 Send it by text</div>
-            <p class="sms-sub">We'll text the gift link. Leave the second box blank and we'll send it to your own number so you can forward it.</p>
-            <div class="sms-row">
-              <input class="sms-in" id="sms-own" type="tel" inputmode="tel" autocomplete="tel" placeholder="Your mobile number">
-              <input class="sms-in" id="sms-to" type="tel" inputmode="tel" autocomplete="off" placeholder="Send straight to them (optional)">
-            </div>
-            <button class="sms-btn" id="sms-send" onclick="sendGiftText()">Send the text</button>
-            <div class="sms-note" id="sms-note"></div>
           </div>
         </div>
       </div>
@@ -1896,7 +1877,6 @@ const C = {
   MAX_CLIPS:      30,
   PHOTO_DURATION: 5,
   MAX_VIDEO_SECS: 180,   // 3-minute cap per video (the AI extracts highlights from long clips anyway)
-  SMS_ENABLED:    false,  // flip to true once Twilio is wired (see api/send-gift.js) to show "Send by text" on the done screen
 };
 
 const sb = window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_KEY);
@@ -3034,7 +3014,8 @@ async function cancelJob() {
 
 function showDone(job) {
   disableBeforeUnloadWarning();
-  const shareUrl = job.final_video_url || (C.SITE_URL + '&reel=' + job.id);
+  const shareUrl = location.origin + '/r?id=' + job.id;   // the gift landing page (preview), not the raw video
+  S.videoUrl = job.final_video_url || '';
   document.getElementById('done-url').textContent = shareUrl;
   
   // Personalize the title with the recipient's name
@@ -3093,34 +3074,7 @@ function showDone(job) {
       '<span>Video link will be<br>available shortly</span>';
   }
   
-  const _smsCard = document.getElementById('sms-card');
-  if (_smsCard) _smsCard.style.display = C.SMS_ENABLED ? 'block' : 'none';
   showScreen('done');
-}
-
-async function sendGiftText() {
-  const ownEl = document.getElementById('sms-own'), toEl = document.getElementById('sms-to');
-  const note = document.getElementById('sms-note'), btn = document.getElementById('sms-send');
-  const own = (ownEl.value || '').trim(), rcpt = (toEl.value || '').trim();
-  const to = rcpt || own;
-  note.className = 'sms-note';
-  if (!own) { note.textContent = 'Add your mobile number first.'; note.className = 'sms-note err'; ownEl.focus(); return; }
-  if (to.replace(/\D/g, '').length < 7) { note.textContent = 'That number looks too short.'; note.className = 'sms-note err'; return; }
-  if (!S.currentJobId) { note.textContent = 'Your reel is not ready yet.'; note.className = 'sms-note err'; return; }
-  const label = btn.textContent; btn.disabled = true; btn.textContent = 'Sending…';
-  try {
-    const token = await srToken();
-    const r = await fetch('/api/send-gift', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ job_id: S.currentJobId, to }),
-    });
-    const d = await r.json().catch(() => ({}));
-    if (r.ok && d.ok) { note.textContent = rcpt ? 'Sent! They will get the text shortly.' : 'Sent! Check your phone.'; note.className = 'sms-note ok'; }
-    else if (d.error === 'sms_not_enabled') { note.textContent = 'Texting is not switched on yet.'; note.className = 'sms-note err'; }
-    else { note.textContent = (d.error || 'Could not send the text. Try again.'); note.className = 'sms-note err'; }
-  } catch (e) { note.textContent = 'Could not send the text. Try again.'; note.className = 'sms-note err'; }
-  btn.disabled = false; btn.textContent = label;
 }
 
 function playDoneVideo() {
@@ -3144,9 +3098,15 @@ function shareWhatsApp() {
   window.open('https://wa.me/?text=' + encodeURIComponent('I made you a SongReel! ' + url), '_blank');
 }
 
-function downloadReel() {
+function shareText() {
   const url = document.getElementById('done-url').textContent;
   if (!url || url === 'Generating your link…') return;
+  window.location.href = 'sms:?&body=' + encodeURIComponent('I made you a little something 🎶 ' + url);
+}
+
+function downloadReel() {
+  const url = S.videoUrl;
+  if (!url) return;
   const a = document.createElement('a');
   a.href = url;
   a.download = 'songreel.mp4';
