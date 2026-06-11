@@ -3158,6 +3158,27 @@ function switchOversizeTab(tab) {
   document.getElementById('oversize-android').style.display = tab === 'android' ? 'block' : 'none';
 }
 
+// Reset the REDESIGNED wizard UI to a blank slate. The old restart code only touched
+// legacy elements, so the new clip grid, meter, About-them fields, chips, occasion tiles
+// and song-style inputs kept their stale values while S was cleared - which is why the
+// clips still showed on screen but Generate said "no clips."
+function clearWizardUI() {
+  try { if (typeof SR_clearDraft === 'function') SR_clearDraft(); } catch(e) {}
+  try { renderClips(); } catch(e) {}      // empties #clip-grid-new to match the now-empty S.clips
+  try { updateClipUI(); } catch(e) {}     // meter back to 0:00, Continue disabled
+  ['abName','abMemory','abJoke','noteFrom','noteBody','artist-input','wiz-focus'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.querySelectorAll('.ochip.on').forEach(c => c.classList.remove('on'));
+  document.querySelectorAll('#occ-grid .occ2.sel').forEach(c => c.classList.remove('sel'));
+  document.querySelectorAll('#genre-pills .gpill.sel').forEach(p => p.classList.remove('sel'));
+  document.querySelectorAll('.tin.need, .chips.need, .cap.need').forEach(x => x.classList.remove('need'));
+  const npf = document.getElementById('npFrom'); if (npf) npf.textContent = 'From you';
+  const npb = document.getElementById('npBody'); if (npb) npb.textContent = 'Your note will appear here…';
+  S.moodPreset = 'tender'; S.vocal = 'either';
+  try { buildMoods(); buildVocals(); } catch(e) {}
+  S.occasion = null;
+  const s1 = document.getElementById('s1-next'); if (s1) s1.disabled = true;
+}
+
 function startFresh() {
   hideFreshConfirm();
   disableBeforeUnloadWarning();
@@ -3165,6 +3186,7 @@ function startFresh() {
   clearInterval(S.pollTimer);
   S.currentJobId = null; S.occasion = null; S.fields = {};
   S.clips = []; S.genres = []; S.songLength = 3;
+  clearWizardUI();
   document.getElementById('proc-err').classList.remove('show');
   
   const videoEl = document.getElementById('done-video');
@@ -3192,6 +3214,7 @@ function startFreshWithOccasion(occasion) {
   S.clips = [];
   S.genres = [];
   S.songLength = 3;
+  clearWizardUI();
   document.getElementById('proc-err').classList.remove('show');
 
   const videoEl = document.getElementById('done-video');
@@ -3201,10 +3224,8 @@ function startFreshWithOccasion(occasion) {
   document.querySelectorAll('.dur-card').forEach(c => c.classList.remove('sel'));
   document.querySelector('.dur-card[data-mins="3"]')?.classList.add('sel');
 
-  // Pre-select the chosen occasion
-  document.querySelectorAll('.occ-card').forEach(c => {
-    c.classList.toggle('sel', c.dataset.occ === occasion);
-  });
+  // Pre-select the chosen occasion (new wizard tiles)
+  document.querySelectorAll('#occ-grid .occ2').forEach(c => c.classList.toggle('sel', c.dataset.occ === occasion));
   S.occasion = occasion;
   document.getElementById('s1-next').disabled = false;
 
