@@ -7,7 +7,8 @@
     { "source": "/templates.html", "destination": "/templates", "permanent": true },
     { "source": "/contact.html",   "destination": "/contact",   "permanent": true },
     { "source": "/privacy.html",   "destination": "/privacy",   "permanent": true },
-    { "source": "/terms.html",     "destination": "/terms",     "permanent": true }
+    { "source": "/terms.html",     "destination": "/terms",     "permanent": true },
+    { "source": "/how-it-arrives.html", "destination": "/how-it-arrives", "permanent": true }
   ],
   "rewrites": [
     { "source": "/api/(.*)",  "destination": "/api/$1" },
@@ -16,6 +17,7 @@
     { "source": "/create",    "destination": "/Songreels/create.html" },
     { "source": "/r",         "destination": "/api/r" },
     { "source": "/gift",      "destination": "/Songreels/gift.html" },
+    { "source": "/how-it-arrives", "destination": "/Songreels/how-it-arrives.html" },
     { "source": "/checkout",  "destination": "/Songreels/checkout.html" },
     { "source": "/templates", "destination": "/Songreels/templates.html" },
     { "source": "/contact",   "destination": "/Songreels/contact.html" },

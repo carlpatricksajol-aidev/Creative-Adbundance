@@ -10,8 +10,11 @@
   MERGE TOKENS (fill these from the job row in your email node):
     {{creatorFirstName}}  : first name of the creator (job.user_name split first word), fallback "there"
     {{recipientName}}     : who the gift is for (form_data['f-name']), fallback "them"
-    {{reelLink}}          : the shareable link (job.final_video_url)
-    {{reelLinkEncoded}}   : encodeURIComponent(job.final_video_url). Used in the WhatsApp link
+    {{reelLink}}          : the shareable LANDING-PAGE link, identical to the website's "share" link:
+                            https://www.songreels.ai/r?id=<job.id>   (NOT the raw .mp4 url)
+                            This is the same /r?id= link the done screen shares, so it shows the
+                            rich preview card and the branded player, never a bare video file.
+    {{reelLinkEncoded}}   : encodeURIComponent("https://www.songreels.ai/r?id=" + job.id). For the WhatsApp link.
 
   Email-client safe: table layout, inline styles, no JS, no <video>. The "play card" and
   button are plain links to {{reelLink}} (email can't play video inline). Tested-style markup
@@ -72,7 +75,7 @@
                   <tr><td align="center" style="padding:52px 20px;background:#17120F;border-radius:16px;">
                     <div style="width:66px;height:66px;line-height:64px;border-radius:50%;background:#ffffff;color:#17120F;font-size:22px;text-align:center;margin:0 auto;">&#9654;</div>
                     <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#ffffff;margin-top:14px;">Tap to watch {{recipientName}}'s reel</div>
-                    <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:rgba(255,255,255,.6);margin-top:4px;">HD &middot; portrait video &middot; your AI song</div>
+                    <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:rgba(255,255,255,.6);margin-top:4px;">HD &middot; portrait video &middot; your custom song</div>
                   </td></tr>
                 </table>
               </a>

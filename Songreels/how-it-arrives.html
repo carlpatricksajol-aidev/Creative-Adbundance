@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the link arrives, SongReels</title>
+<meta name="description" content="When your gift is ready you get a private link to share however you like. Here is how it can land for the person you send it to.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --pink:#FF2D55;--orange:#FF9500;
+  --ink:#221019;--ink-soft:#6b5560;--ink-faint:#9a8790;
+  --cream:#FFF7F0;--cream-2:#FFF1E0;--line:#f2e6df;
+  --grad:linear-gradient(135deg,#FF2D55 0%,#FF6A3D 48%,#FFB300 100%);
+  --disp:'Fredoka',system-ui,sans-serif;--body:'Nunito',system-ui,sans-serif;
+  --night:#1c0f16;--blush:#FFE9EE;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#EDE3D8}
+body{font-family:var(--body);color:var(--ink);font-weight:500;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.eyebrow{font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--pink)}
+/* warm poster fill used by the mock cards */
+.g-mothers{background:linear-gradient(160deg,#5A1530 0%,#B3324D 56%,#FF8A3D 100%)}
+
+.topbar{max-width:1280px;margin:0 auto;padding:26px 32px 0;display:flex;align-items:center;justify-content:space-between}
+.topbar .brand{font-family:var(--disp);font-weight:700;font-size:22px;display:flex;align-items:center;gap:7px}
+.topbar .home{font-family:var(--disp);font-weight:600;font-size:14px;color:var(--ink-soft)}
+.topbar .home:hover{color:var(--pink)}
+
+.page{max-width:1280px;margin:0 auto;padding:34px 32px 80px}
+.page-head{text-align:center;margin-bottom:14px}
+.page-head .eyebrow{display:block;margin-bottom:14px}
+.page-head h1{font-family:var(--disp);font-weight:600;font-size:clamp(36px,5vw,56px);line-height:1.03;letter-spacing:-.02em}
+.page-head h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.page-head p{margin:16px auto 0;font-size:17px;font-weight:600;color:var(--ink-soft);max-width:640px;line-height:1.55}
+
+.opts{margin-top:56px;display:grid;grid-template-columns:repeat(3,1fr);gap:30px;align-items:start}
+@media (max-width:1080px){.opts{grid-template-columns:1fr;max-width:430px;margin-left:auto;margin-right:auto;gap:64px}}
+
+.opt{display:flex;flex-direction:column;align-items:center}
+.opt-tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--disp);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--pink);font-weight:600;background:#fff;border:1px solid var(--line);padding:7px 15px;border-radius:999px;margin-bottom:14px}
+.opt-tag .n{width:19px;height:19px;border-radius:50%;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px}
+.opt h2{font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:-.01em;text-align:center;line-height:1.16;min-height:58px;display:flex;align-items:center;justify-content:center}
+.opt .blurb{margin-top:12px;font-size:14px;font-weight:600;color:var(--ink-soft);text-align:center;line-height:1.5;max-width:34ch;min-height:84px}
+
+/* iPhone frame */
+.phone{margin-top:24px;width:300px;height:620px;background:#0b0b0d;border-radius:46px;padding:11px;box-shadow:0 40px 80px -30px rgba(34,16,25,.55),0 0 0 2px #25252a;position:relative;flex-shrink:0}
+.screen{position:relative;width:100%;height:100%;border-radius:36px;overflow:hidden;background:#000}
+.notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:104px;height:27px;background:#0b0b0d;border-radius:0 0 16px 16px;z-index:40}
+.statusbar{position:absolute;top:0;left:0;right:0;height:48px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 24px 5px;font-size:13px;font-weight:700;z-index:30;font-family:'Nunito',sans-serif}
+.statusbar .r{display:flex;align-items:center;gap:6px;font-size:12px}
+
+.opt-feats{margin-top:22px;display:flex;flex-direction:column;gap:9px;width:300px}
+.opt-feat{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;font-weight:600;color:var(--ink-soft);line-height:1.45}
+.opt-feat .fi{width:22px;height:22px;border-radius:7px;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px}
+.opt-feat strong{color:var(--ink);font-weight:800}
+.opt-best{margin-top:16px;width:300px;background:linear-gradient(135deg,#fff,var(--cream-2));border:1px solid var(--line);border-radius:14px;padding:13px 15px;font-size:13px;font-weight:600;color:var(--ink-soft);line-height:1.5}
+.opt-best strong{font-family:var(--disp);font-weight:600;color:var(--pink);display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px}
+
+/* OPTION 1 — rich message card */
+.msg{position:absolute;inset:0;background:#fff;display:flex;flex-direction:column}
+.msg-nav{padding:52px 16px 12px;background:rgba(249,249,249,.94);backdrop-filter:blur(20px);border-bottom:.5px solid #d8d8dc;display:flex;flex-direction:column;align-items:center;gap:5px;position:relative;z-index:20}
+.msg-nav .back{position:absolute;left:14px;bottom:11px;color:#0B93F6;font-size:25px;line-height:1}
+.msg-nav .av{width:50px;height:50px;border-radius:50%;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-weight:600;font-size:20px}
+.msg-nav .nm{font-size:12px;font-weight:600;color:#000;display:flex;align-items:center;gap:3px}
+.msg-nav .nm .chev{color:#8e8e93;font-size:10px}
+.msg-body{flex:1;padding:16px 14px;display:flex;flex-direction:column;gap:5px;background:#fff;overflow:hidden}
+.msg-time{text-align:center;font-size:11px;color:#8e8e93;font-weight:600;margin-bottom:6px}
+.msg-time b{color:#3c3c43;font-weight:700}
+.b-in{align-self:flex-start;max-width:74%;background:#E9E9EB;color:#000;border-radius:18px;padding:9px 14px;font-size:14.5px;line-height:1.35;border-bottom-left-radius:5px}
+.b-out{align-self:flex-end;max-width:78%;background:#0B93F6;color:#fff;border-radius:18px;padding:9px 14px;font-size:14.5px;line-height:1.35;border-bottom-right-radius:5px}
+.rich{align-self:flex-end;width:80%;margin-top:3px;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.16);border:.5px solid #e4e4e8}
+.rich-poster{height:188px;position:relative;overflow:hidden}
+.rich-poster::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,5,10,.15) 0%,transparent 35%,transparent 55%,rgba(20,5,10,.72))}
+.rich-poster .tag{position:absolute;top:11px;left:11px;z-index:2;background:rgba(255,255,255,.92);color:var(--pink);font-family:var(--disp);font-weight:600;font-size:10px;padding:4px 9px;border-radius:999px}
+.rich-poster .dur{position:absolute;top:11px;right:11px;z-index:2;background:rgba(0,0,0,.42);color:#fff;font-size:9px;font-weight:700;padding:4px 8px;border-radius:999px;backdrop-filter:blur(4px)}
+.rich-poster .play{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);z-index:2;width:54px;height:54px;border-radius:50%;background:rgba(255,255,255,.95);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px rgba(0,0,0,.4)}
+.rich-poster .pcap{position:absolute;left:13px;right:13px;bottom:11px;z-index:2;color:#fff}
+.rich-poster .pcap .for{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;opacity:.9}
+.rich-poster .pcap .ti{font-family:var(--disp);font-weight:500;font-style:italic;font-size:17px;line-height:1.05;margin-top:2px}
+.rich-meta{padding:9px 13px;background:#f6f6f8}
+.rich-meta .t{font-size:12px;font-weight:800;color:#000}
+.rich-meta .u{font-size:11px;color:#8e8e93;font-weight:600;margin-top:1px}
+.msg-input{padding:9px 14px 28px;background:rgba(249,249,249,.94);border-top:.5px solid #d8d8dc;display:flex;align-items:center;gap:9px}
+.msg-input .box{flex:1;border:1px solid #d8d8dc;border-radius:999px;padding:7px 14px;font-size:13px;color:#8e8e93}
+.msg-input .snd{width:30px;height:30px;border-radius:50%;background:#0B93F6;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px}
+
+/* OPTION 2 — lock screen */
+.lock{position:absolute;inset:0;overflow:hidden;color:#fff;background:linear-gradient(165deg,#3a1420 0%,#7a2438 42%,#b3324d 72%,#FF8A3D 100%)}
+.lock::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 75% 12%,rgba(255,190,120,.5),transparent 52%),radial-gradient(ellipse at 15% 88%,rgba(120,80,200,.45),transparent 55%)}
+.lock>*{position:relative;z-index:2}
+.lock-time{text-align:center;margin-top:78px}
+.lock-time .day{font-size:14px;font-weight:700;opacity:.92;letter-spacing:.02em}
+.lock-time .clk{font-family:var(--disp);font-weight:500;font-size:74px;line-height:.96;letter-spacing:-.02em;margin-top:2px}
+.notif{margin:30px 12px 0;background:rgba(40,24,30,.46);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border-radius:20px;padding:13px 14px;display:flex;gap:11px;align-items:flex-start;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.notif .ic{width:38px;height:38px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;box-shadow:0 4px 12px -3px rgba(255,45,85,.7)}
+.notif .nbody{flex:1;min-width:0}
+.notif .ntop{display:flex;justify-content:space-between;align-items:baseline}
+.notif .ntop .app{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;opacity:.85}
+.notif .ntop .tm{font-size:11px;font-weight:600;opacity:.7}
+.notif .nt{font-size:13.5px;font-weight:800;margin-top:3px}
+.notif .nx{font-size:13px;font-weight:600;line-height:1.35;opacity:.92;margin-top:1px}
+.notif-hint{margin:18px auto 0;display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.9}
+.notif-hint .swipe{font-family:var(--disp);font-size:12px;font-weight:500;letter-spacing:.04em}
+.lock-foot{position:absolute;left:0;right:0;bottom:24px;display:flex;justify-content:space-between;padding:0 30px;z-index:2}
+.lock-foot .fb{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.2);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;font-size:17px}
+.lock-bar{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);width:118px;height:5px;border-radius:3px;background:rgba(255,255,255,.6);z-index:3}
+
+/* OPTION 3 — full-screen unwrap */
+.unwrap{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 26%,#5A1530,#1A0A1E 60%,#150810);color:#fff;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 24px;overflow:hidden}
+.unwrap::before{content:'';position:absolute;top:42%;left:50%;width:150%;height:60%;transform:translate(-50%,-50%);background:radial-gradient(circle at 35% 35%,var(--pink),transparent 42%),radial-gradient(circle at 70% 60%,#8E4BD8,transparent 46%),radial-gradient(circle at 50% 82%,#FFB300,transparent 40%);filter:blur(54px);opacity:.55;pointer-events:none}
+.unwrap>*{position:relative;z-index:2}
+.uw-chrome{width:100%;padding:50px 4px 0;display:flex;align-items:center;gap:8px;opacity:.6}
+.uw-chrome .url{flex:1;background:rgba(255,255,255,.12);border-radius:9px;padding:6px 10px;font-size:11px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px}
+.uw-eyebrow{margin-top:46px;font-family:var(--disp);font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:600;display:flex;align-items:center;gap:8px;justify-content:center}
+.uw-eyebrow .pulse{width:7px;height:7px;border-radius:50%;background:#FFB300;box-shadow:0 0 10px #FFB300}
+.uw-from{margin-top:14px;font-size:13px;font-weight:600;opacity:.78;letter-spacing:.02em}
+.uw-cover{margin:26px auto 0;width:172px;height:172px;border-radius:22px;position:relative;overflow:hidden;box-shadow:0 30px 60px -16px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.08) inset}
+.uw-cover::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 50%,rgba(0,0,0,.55))}
+.uw-cover .ct{position:absolute;left:14px;right:14px;bottom:13px;z-index:2;text-align:left;font-family:var(--disp);font-weight:500;font-style:italic;font-size:16px;line-height:1.08}
+.uw-name{margin-top:26px;font-family:'Nunito',sans-serif;font-weight:900;font-size:46px;line-height:.98;letter-spacing:-.03em}
+.uw-name em{font-family:var(--disp);font-style:normal;font-weight:500;color:#FFB300}
+.uw-tag{margin-top:12px;font-size:14px;font-weight:600;opacity:.8;line-height:1.45;max-width:30ch}
+.uw-btn{margin-top:26px;display:inline-flex;align-items:center;gap:10px;background:var(--pink);color:#fff;font-family:var(--disp);font-weight:600;font-size:15px;padding:15px 34px;border-radius:999px;box-shadow:0 14px 36px -8px rgba(255,45,85,.6)}
+.uw-meta{margin-top:14px;font-family:var(--disp);font-size:10px;letter-spacing:.12em;text-transform:uppercase;opacity:.5;font-weight:600}
+.uw-bar{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);width:118px;height:5px;border-radius:3px;background:rgba(255,255,255,.55);z-index:3}
+
+.foot-note{max-width:720px;margin:64px auto 0;text-align:center;font-size:14px;font-weight:600;color:var(--ink-soft);line-height:1.6}
+.foot-note a{color:var(--pink);font-family:var(--disp);font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="/"><div class="brand">SongReels <span>🎶</span></div></a>
+  <a class="home" href="/">Back home</a>
+</div>
+
+<div class="page">
+
+  <div class="page-head">
+    <span class="eyebrow">Recipient experience</span>
+    <h1>How the link <em>arrives</em> 💌</h1>
+    <p>When your gift is ready, you get a private link to share however you like, by text, WhatsApp, email, anywhere. Here are a few ways it can land for the person you send it to, from a tappable preview card to a full screen reveal.</p>
+  </div>
+
+  <div class="opts">
+
+    <!-- OPTION 1 -->
+    <div class="opt">
+      <span class="opt-tag"><span class="n">1</span> In-thread card</span>
+      <h2>A rich card,<br>right in Messages</h2>
+      <p class="blurb">The link unfurls into a big tappable poster with a play button. No app, they just tap and it plays.</p>
+
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="msg">
+            <div class="msg-nav">
+              <span class="back">‹</span>
+              <div class="av">M</div>
+              <div class="nm">Marcus 🎶 <span class="chev">›</span></div>
+            </div>
+            <div class="msg-body">
+              <div class="msg-time"><b>Today</b> 9:41 AM</div>
+              <div class="b-out">Mom, we made you something 💛 Happy Mother's Day. Tap to watch and listen:</div>
+              <div class="rich">
+                <div class="rich-poster g-mothers">
+                  <span class="tag">For Cynthia 💐</span>
+                  <span class="dur">2:18</span>
+                  <div class="play"><svg width="17" height="19" viewBox="0 0 17 19"><path d="M0 0v19l17-9.5z" fill="#FF2D55"/></svg></div>
+                  <div class="pcap"><div class="for">From Marcus, Jamie and Olivia</div><div class="ti">"All the years you held us"</div></div>
+                </div>
+                <div class="rich-meta"><div class="t">A SongReel for Cynthia</div><div class="u">songreels.ai</div></div>
+              </div>
+              <div class="b-in">Oh my goodness 😭😭</div>
+            </div>
+            <div class="msg-input"><div class="box">Text Message</div><div class="snd">↑</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="opt-feats">
+        <div class="opt-feat"><span class="fi">🎬</span><span>The link builds a <strong>rich preview</strong> with the video poster and song title</span></div>
+        <div class="opt-feat"><span class="fi">👆</span><span>One tap plays it <strong>inline or full screen</strong>, no install</span></div>
+        <div class="opt-feat"><span class="fi">💬</span><span>Feels native to the conversation they're already in</span></div>
+      </div>
+      <div class="opt-best"><strong>Best for</strong>Feeling effortless and familiar. It looks like any link a friend would send, just prettier.</div>
+    </div>
+
+    <!-- OPTION 2 -->
+    <div class="opt">
+      <span class="opt-tag"><span class="n">2</span> Lock-screen moment</span>
+      <h2>A nudge on<br>their lock screen</h2>
+      <p class="blurb">It arrives like any message, but the preview is warm and personal, building a beat of anticipation before they tap.</p>
+
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="lock">
+            <div class="statusbar"><span>9:41</span><span class="r">📶 🔋</span></div>
+            <div class="lock-time">
+              <div class="day">Sunday, May 10</div>
+              <div class="clk">9:41</div>
+            </div>
+            <div class="notif">
+              <div class="ic">🎶</div>
+              <div class="nbody">
+                <div class="ntop"><span class="app">Messages</span><span class="tm">now</span></div>
+                <div class="nt">Marcus</div>
+                <div class="nx">Mom, we made you something 💛 Happy Mother's Day. Tap to watch and listen…</div>
+              </div>
+            </div>
+            <div class="notif-hint">
+              <span class="swipe">tap to open</span>
+              <span style="font-size:18px">↑</span>
+            </div>
+            <div class="lock-foot"><div class="fb">🔦</div><div class="fb">📷</div></div>
+            <div class="lock-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="opt-feats">
+        <div class="opt-feat"><span class="fi">🔔</span><span>Lands as a <strong>normal, trusted message</strong> with a high open rate</span></div>
+        <div class="opt-feat"><span class="fi">💛</span><span>Your preview line sets the <strong>emotional tone</strong></span></div>
+        <div class="opt-feat"><span class="fi">✨</span><span>The reveal happens <strong>after</strong> the tap, a little suspense</span></div>
+      </div>
+      <div class="opt-best"><strong>Best for</strong>Less tech savvy recipients, like parents and grandparents, who just open their messages.</div>
+    </div>
+
+    <!-- OPTION 3 -->
+    <div class="opt">
+      <span class="opt-tag"><span class="n">3</span> Full-screen unwrap</span>
+      <h2>A full-screen<br>reveal on tap</h2>
+      <p class="blurb">The link opens a branded full screen "for you" moment. Their name, the cover, one big play button. The gift feels like an event.</p>
+
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="unwrap">
+            <div class="statusbar" style="color:#fff"><span>9:41</span><span class="r">📶 🔋</span></div>
+            <div class="uw-chrome"><div class="url">🔒 songreels.ai/r/cynthia</div></div>
+            <div class="uw-eyebrow"><span class="pulse"></span> New · for you</div>
+            <div class="uw-from">A song from Marcus, Jamie and Olivia</div>
+            <div class="uw-cover g-mothers"><div class="ct">"All the years<br>you held us"</div></div>
+            <div class="uw-name">Cynthia,<br><em>press play</em></div>
+            <div class="uw-tag">Your kids made you a song. 🎶</div>
+            <div class="uw-btn"><svg width="13" height="15" viewBox="0 0 13 15"><path d="M0 0v15l13-7.5z" fill="#fff"/></svg> Play the song</div>
+            <div class="uw-meta">2 min 18 sec · folk</div>
+            <div class="uw-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="opt-feats">
+        <div class="opt-feat"><span class="fi">🎁</span><span>Opens a <strong>dedicated gift page</strong>, not just a video file</span></div>
+        <div class="opt-feat"><span class="fi">👋</span><span>Greets them <strong>by name</strong>, it knows who it's for</span></div>
+        <div class="opt-feat"><span class="fi">♾️</span><span>Lives at a link they can <strong>revisit forever</strong></span></div>
+      </div>
+      <div class="opt-best"><strong>Best for</strong>Maximum wow. The most gift like, shareable, and on brand of the three.</div>
+    </div>
+
+  </div>
+
+  <p class="foot-note">Every gift opens the full screen page when tapped. The card and lock screen are simply how that same link previews inside Messages. <a href="/create">Make one →</a></p>
+</div>
+</body>
+</html>

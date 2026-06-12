@@ -360,7 +360,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 .ckout-guarantee svg{flex-shrink:0;color:var(--accent);margin-top:1px}
 
 /* ═══════════════════════════════════════════════════════════════════════
-   DONE SCREEN — split + hook section
+   DONE SCREEN, split + hook section
    ═══════════════════════════════════════════════════════════════════════ */
 #screen-done{max-width:1200px;margin:0 auto;padding:0 32px;width:100%;box-sizing:border-box}
 
@@ -398,7 +398,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 .done-dash-link:hover svg{transform:translateX(3px);color:var(--ink)}
 
 /* ════════════════════════════════════════
-   DONE SCREEN — marketing-grade reveal
+   DONE SCREEN, marketing-grade reveal
    ════════════════════════════════════════ */
 .done-right{display:none}
 
@@ -612,7 +612,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   PASSWORD GATE — runs BEFORE Google auth; full-viewport, locks scroll
+   PASSWORD GATE, runs BEFORE Google auth; full-viewport, locks scroll
    ═══════════════════════════════════════════════════════════════════════ */
 body.gate-active { overflow: hidden; }
 .pwgate {
@@ -796,7 +796,7 @@ body.gate-active { overflow: hidden; }
   .pwgate-left { padding: 40px 24px; }
   .pwgate-title { font-size: 36px; }
 }
-/* ===== Sunset Pop polish (re-theme overlay — DOM/JS unchanged) ===== */
+/* ===== Sunset Pop polish (re-theme overlay, DOM/JS unchanged) ===== */
 .brand{font-weight:700;align-items:center;gap:7px}
 .btn{font-family:var(--serif);font-weight:600}
 .btn-primary{background:var(--grad);color:#fff;border:none;box-shadow:0 12px 26px -10px rgba(255,45,85,.55)}
@@ -809,7 +809,7 @@ body.gate-active { overflow: hidden; }
 .q-input{background:#fff;border-color:var(--rule)}
 .q-input:focus{border-color:var(--accent)}
 .arr{font-family:var(--serif)}
-/* Fredoka has no true italic — keep display text upright */
+/* Fredoka has no true italic, keep display text upright */
 .brand,.auth-logo,.auth-title,.pho-title,.auth-side-copy h3,.step-head h1,.occ-name,.q-bubble,.q-input,.slide h2,.dur-label,.proc-title,.review-ta,.plan-price,.ckout-summary-title,.ckout-total-price,.done-title,.done-hero-title,.done-panel-headline,.done-proof-val,.done-testi-quote,.done-hook-divider span,.hook-name,.confirm-card h3{font-style:normal}
 .auth-title,.step-head h1,.proc-title,.done-title,.done-hero-title,.done-panel-headline,.confirm-card h3,.slide h2{font-weight:600}
 /* Occasion + done-screen tiles → vivid Sunset Pop palette (was muted oklch) */
@@ -826,7 +826,7 @@ body.gate-active { overflow: hidden; }
 /* ── Themed confirm modal (replaces native confirm()) ── */
 /* ═══════════════════ REDESIGN · NEW WIZARD (v2) ═══════════════════ */
 .wrap2{max-width:760px;margin:0 auto;padding:8px 20px 120px}
-/* Option A — full landscape width for the redesigned wizard steps */
+/* Option A, full landscape width for the redesigned wizard steps */
 #screen-1.wrap,#screen-2.wrap,#screen-note.wrap,#screen-3.wrap,#screen-4.wrap{max-width:1240px}
 .nav-row,.progress-bar-wrap{max-width:1240px}
 .occ-grid2{grid-template-columns:repeat(4,1fr)}
@@ -997,7 +997,7 @@ body.gate-active { overflow: hidden; }
 <body>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     PASSWORD GATE — runs FIRST. If locked, nothing else loads.
+     PASSWORD GATE, runs FIRST. If locked, nothing else loads.
      ═══════════════════════════════════════════════════════════════════ -->
 <div class="pwgate" id="pwgate">
   <div class="pwgate-split">
@@ -1215,7 +1215,7 @@ body.gate-active { overflow: hidden; }
       </div>
     </div>
 
-    <!-- CHECKOUT (orphaned — payment disabled for beta) -->
+    <!-- CHECKOUT (orphaned, payment disabled for beta) -->
     <div id="screen-checkout" class="screen wrap" style="display:none">
       <div class="step-head">
         <span class="eyebrow">Step 3 of 5 · Complete your order</span>
@@ -1283,7 +1283,7 @@ body.gate-active { overflow: hidden; }
             </div>
           </div>
 
-          <!-- (single-tier paid pricing — no free plan) -->
+          <!-- (single-tier paid pricing, no free plan) -->
         </div>
 
         <!-- RIGHT: order summary -->
@@ -1513,7 +1513,7 @@ body.gate-active { overflow: hidden; }
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════════
-         DONE SCREEN — split layout + hook section
+         DONE SCREEN, split layout + hook section
          ═══════════════════════════════════════════════════════════════════ -->
     <div id="screen-done" class="screen" style="display:none">
 
@@ -1777,7 +1777,7 @@ body.gate-active { overflow: hidden; }
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════
-   PASSWORD GATE — Supabase-backed, shared with landing page
+   PASSWORD GATE, Supabase-backed, shared with landing page
    Must pass before Google auth or anything else loads.
    ═══════════════════════════════════════════════════════════════════════ */
 const PWGATE = {
@@ -1789,7 +1789,7 @@ const PWGATE = {
 (function initPwGate(){
   const passed = localStorage.getItem(PWGATE.STORAGE_KEY);
   if (passed === 'true') {
-    // Already authenticated via landing or previous visit — skip gate, run app
+    // Already authenticated via landing or previous visit, skip gate, run app
     return;
   }
   // Show gate, block app from initializing
@@ -1899,12 +1899,12 @@ function saveSession(key, val) { try { sessionStorage.setItem('hr_' + key, JSON.
 function loadSession(key) { try { const v = sessionStorage.getItem('hr_' + key); return v ? JSON.parse(v) : null; } catch(e) { return null; } }
 function clearSession() { try { ['job_id','job_status','job_resume_url','job_created_at'].forEach(k => sessionStorage.removeItem('hr_' + k)); } catch(e) {} }
 
-// Jobs the user explicitly cancelled/finished on THIS device — never auto-resume them
+// Jobs the user explicitly cancelled/finished on THIS device, never auto-resume them
 // again, even if the DB status update didn't stick (RLS, network, missing column…).
 function dismissJobLocally(id) { if (!id) return; try { const a = JSON.parse(localStorage.getItem('sr_dismissed_jobs') || '[]'); if (!a.includes(id)) { a.push(id); localStorage.setItem('sr_dismissed_jobs', JSON.stringify(a.slice(-50))); } } catch(e) {} }
 function isJobDismissed(id) { try { return JSON.parse(localStorage.getItem('sr_dismissed_jobs') || '[]').includes(id); } catch(e) { return false; } }
 
-// Themed promise-based confirm — drop-in replacement for window.confirm().
+// Themed promise-based confirm, drop-in replacement for window.confirm().
 // Resolves true on Continue, false on Go-back / click-outside.
 function showConfirm({ title = 'Heads up', body = '', okText = 'Continue', cancelText = 'Go back' } = {}) {
   return new Promise((resolve) => {
@@ -1930,7 +1930,7 @@ function showConfirm({ title = 'Heads up', body = '', okText = 'Continue', cance
 // Strip OAuth callback params (session token / code) from the address bar so they never
 // linger in the URL or browser history (the back button). Only runs AFTER a session
 // exists, so Supabase has already consumed the URL. The anon key is public; the
-// access_token is the user's session — neither belongs in the address bar.
+// access_token is the user's session, neither belongs in the address bar.
 function cleanAuthUrl() {
   try {
     const hasHashToken = /(access_token|refresh_token|provider_token|expires_in|token_type|id_token)=/.test(location.hash || '');
@@ -1976,7 +1976,7 @@ async function setUser(user) {
     if (_paidParams.get('paid') || _paidParams.get('token')) history.replaceState({}, '', location.pathname);
 
     let bal = await getCredits();
-    // the webhook can lag a few seconds before credits land — poll briefly
+    // the webhook can lag a few seconds before credits land, poll briefly
     for (let i = 0; i < 5 && bal < 1; i++) { await new Promise(r => setTimeout(r, 1500)); bal = await getCredits(); }
 
     if (bal >= 1) {
@@ -2339,7 +2339,7 @@ function autoResize(ta) {
   ta.style.height = Math.max(ta.scrollHeight, 52) + 'px';
 }
 
-// On-brand toast — replaces native alert() for validation/notices.
+// On-brand toast, replaces native alert() for validation/notices.
 // First line of `msg` is the bold headline; any lines after it become the subtext.
 function srToast(msg, icon, ms) {
   let host = document.getElementById('sr-toast-host');
@@ -2401,7 +2401,7 @@ function toggleVoice(btn, targetId) {
   recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'en-US';
   const target = document.getElementById(targetId);
   const status = document.getElementById('rec-' + targetId);
-  // Text already in the field before we start listening — dictation appends after it.
+  // Text already in the field before we start listening, dictation appends after it.
   const baseText = target.value && !/\s$/.test(target.value) ? target.value + ' ' : target.value;
   recognition.onstart = () => {
     btn.classList.add('recording'); activeMicBtn = btn; activeRecognition = recognition;
@@ -2409,7 +2409,7 @@ function toggleVoice(btn, targetId) {
   };
   recognition.onresult = (e) => {
     // Rebuild the whole transcript on every event (never accumulate with +=) so
-    // committed words can't duplicate or vanish — only the trailing guess refines.
+    // committed words can't duplicate or vanish, only the trailing guess refines.
     let finals = '', interim = '';
     for (let i = 0; i < e.results.length; i++) {
       const txt = e.results[i][0].transcript;
@@ -2535,7 +2535,7 @@ async function handleClipAdd(e) {
       const clipRef = S.clips[S.clips.length - 1];
       vid.onloadedmetadata = () => {
         const secs = Math.round(vid.duration);
-        // 3-minute per-video cap — longer clips bog down processing, and the AI only needs a highlight.
+        // 3-minute per-video cap, longer clips bog down processing, and the AI only needs a highlight.
         if (secs > C.MAX_VIDEO_SECS) {
           const pos = S.clips.indexOf(clipRef);
           if (pos !== -1) { try { URL.revokeObjectURL(clipRef.blobUrl); } catch(e) {} S.clips.splice(pos, 1); }
@@ -2702,7 +2702,7 @@ function updateClipUI() {
   const converting = S.clips.some(c => c.converting);
   const missing = S.clips.filter(c => (c.description || '').trim().length < 6).length;
 
-  // A description is REQUIRED on every clip — it's what makes the song personal.
+  // A description is REQUIRED on every clip, it's what makes the song personal.
   let status;
   if (S.clips.length === 0)   status = 'at least 1 required';
   else if (converting)        status = 'processing…';
@@ -2740,7 +2740,7 @@ const VOICES = [
   { id: 'male',   label: 'Male' },
   { id: 'either', label: 'Either' },
 ];
-// Representative 0–100 value so any legacy reader of `song_mood` still works.
+// Representative 0 to 100 value so any legacy reader of `song_mood` still works.
 const MOOD_LEGACY = { tender: 20, nostalgic: 30, cinematic: 25, uplifting: 70, joyful: 85 };
 
 function buildSinglePills(containerId, items, getSel, setSel) {
@@ -2782,7 +2782,7 @@ async function submitJob() {
 
   // ── Footage-vs-tier warning ──────────────────────────────────────────
   // The reel matches the actual clip footage (capped at the chosen tier), so a
-  // 3-min pick with only ~2:30 of clips makes a ~2:30 reel — never black padding.
+  // 3-min pick with only ~2:30 of clips makes a ~2:30 reel, never black padding.
   // If their footage is shorter than the tier they chose, warn but let them continue.
   const footageSecs = S.clips.reduce((sum, c) => sum + (c.duration || (c.type === 'image' ? C.PHOTO_DURATION : 10)), 0);
   S.songLength = Math.max(1, Math.min(6, Math.round(footageSecs / 60)));   // footage-driven length (no tier picker)
@@ -2804,7 +2804,7 @@ async function submitJob() {
   S.tempJobId = Date.now() + '-' + (S.user?.id || 'anon').slice(0, 8);
   const uploadedClips = [];
   document.getElementById('upload-prog').classList.add('show');
-  // Upload clips in PARALLEL batches (was one-at-a-time — the slow part). Each upload
+  // Upload clips in PARALLEL batches (was one-at-a-time, the slow part). Each upload
   // is a VPS round-trip for a signed URL + a direct PUT to Supabase; running several at
   // once keeps the connection saturated instead of idling between clips.
   const UPLOAD_CONCURRENCY = 4;
@@ -3002,7 +3002,7 @@ async function cancelJob() {
   hideCancelConfirm();
   disableBeforeUnloadWarning();
   const jid = S.currentJobId;
-  dismissJobLocally(jid);                 // client guard first — so it can never resume, even if the DB write fails
+  dismissJobLocally(jid);                 // client guard first, so it can never resume, even if the DB write fails
   try {
     // status-only update (no extra columns) so it can't fail on a missing field
     await sb.from('heartreel_jobs').update({ status: 'cancelled' }).eq('id', jid);
@@ -3202,7 +3202,7 @@ function startFresh() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   One-tap restart with pre-selected occasion — from done-screen hook cards.
+   One-tap restart with pre-selected occasion, from done-screen hook cards.
    Skips the confirm modal because the user already made an explicit choice.
    ═══════════════════════════════════════════════════════════════════════ */
 function startFreshWithOccasion(occasion) {
@@ -3305,7 +3305,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
 }
 </script>
 
-<!-- ═══════════════ REDESIGN WIRING (v2) — new wizard ↔ existing backend ═══════════════ -->
+<!-- ═══════════════ REDESIGN WIRING (v2), new wizard ↔ existing backend ═══════════════ -->
 <script>
 (function(){
   const $ = (id) => document.getElementById(id);
@@ -3388,7 +3388,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
   $('addPhotos') && $('addPhotos').addEventListener('click', () => { if(fileInput){ fileInput.accept = 'image/*'; fileInput.value=''; fileInput.click(); } });
   $('addVideo')  && $('addVideo').addEventListener('click',  () => { if(fileInput){ fileInput.accept = 'video/*'; fileInput.value=''; fileInput.click(); } });
 
-  /* new clip grid + footage meter — override the old renderers so handleClipAdd/removeClip drive these */
+  /* new clip grid + footage meter, override the old renderers so handleClipAdd/removeClip drive these */
   const TARGET = 60;
   window.renderClips = function(){
     const grid = $('clip-grid-new'); if(!grid) return;
@@ -3467,7 +3467,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
         if(typeof removeClip === 'function') removeClip(i);
         else { S.clips.splice(i,1); renderClips(); updateClipUI(); }
         return; }
-      if(e.target.closest('.cap')) return;                 // editing the caption — don't open preview
+      if(e.target.closest('.cap')) return;                 // editing the caption, don't open preview
       const card = e.target.closest('.clip2'); if(!card) return;
       if(!e.target.closest('.thumb')) return;              // only the photo/video opens the preview
       openClipPreview(parseInt(card.dataset.i));
@@ -3483,7 +3483,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
 </script>
 <script>
 /* ───────────────────────────────────────────────────────────────────
-   DRAFT AUTOSAVE — stops the wizard from resetting on an accidental
+   DRAFT AUTOSAVE, stops the wizard from resetting on an accidental
    refresh. Text + selections live in localStorage; clip FILES live in
    IndexedDB (blobs can't go in localStorage). Restores onto the exact
    step they were on. Cleared on submit / sign-out. Fully defensive:
