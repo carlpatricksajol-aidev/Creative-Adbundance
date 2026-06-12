@@ -981,6 +981,9 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
 .confetti-piece{position:fixed;top:-14px;z-index:500;width:9px;height:14px;border-radius:2px;pointer-events:none;animation:confFall linear forwards}
 @keyframes confFall{to{transform:translateY(105vh) rotate(680deg);opacity:.85}}
 
+/* small phones: drop the static minutes label so the progress bar never overflows */
+@media(max-width:480px){.progress-bar-wrap span:last-child{display:none}}
+
 /* review moment polish */
 .review-card{transition:box-shadow .25s,border-color .25s}
 .review-card:focus-within{box-shadow:0 16px 40px -26px rgba(255,45,85,.4);border-color:var(--accent)}
