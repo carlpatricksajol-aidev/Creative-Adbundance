@@ -265,17 +265,24 @@ footer{background:var(--night);color:#fff;padding:50px 0 34px;margin-top:auto}
     submitBtn.disabled = true;
     submitBtn.innerHTML = 'Sending…';
 
-    const { error } = await sb.from('contact_inquiries').insert({
-      name:    document.getElementById('name').value.trim(),
-      email:   document.getElementById('email').value.trim(),
-      message: document.getElementById('message').value.trim(),
-    });
+    let sent = false;
+    try {
+      const resp = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name:    document.getElementById('name').value.trim(),
+          email:   document.getElementById('email').value.trim(),
+          message: document.getElementById('message').value.trim(),
+        }),
+      });
+      sent = resp.ok;
+    } catch (err) { console.error(err); }
 
-    if (error) {
+    if (!sent) {
       submitBtn.disabled = false;
       submitBtn.innerHTML = origText;
       alert('Something went wrong, please try again or email us directly at info@songreels.ai.');
-      console.error(error);
       return;
     }
 
