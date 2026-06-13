@@ -1165,6 +1165,14 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
 .sr-modal-primary:hover{filter:brightness(1.05)}
 @media(max-width:480px){.sr-modal-actions{flex-direction:column-reverse}.sr-modal-btn{width:100%}}
 
+/* ═══ ON-SITE STRIPE PAYMENT PANEL ═══ */
+.pay-elt-wrap{background:#fff;border:1.5px solid var(--rule-soft);border-radius:16px;padding:16px;margin:14px 0 14px;box-shadow:0 10px 28px -22px rgba(40,20,15,.4)}
+.pay-elt-idle{display:flex;align-items:center;gap:12px;color:var(--ink-soft);font-size:13.5px;line-height:1.5}
+.pay-elt-idle .pei-ic{width:38px;height:38px;border-radius:12px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
+.pay-err{display:none;color:var(--accent-deep);font-size:13px;font-weight:700;margin:0 2px 10px}
+.pay-err.show{display:block}
+#ckout-pay-btn:disabled{opacity:.65;cursor:wait}
+
 /* ═══ MOBILE POLISH (real-device pass, 2026-06-13) ═══
    Kept at the END of the stylesheet: these override same-specificity base rules
    above (e.g. .length-banner display:flex), and last-rule-wins. */
@@ -1408,7 +1416,7 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
          the no-credits path for public launch — completePayment() → Stripe Payment Links) -->
     <div id="screen-checkout" class="screen wrap" style="display:none">
       <div class="step-head">
-        <span class="eyebrow">Step 3 of 5 · Complete your order</span>
+        <span class="eyebrow">Checkout · Pay once, no subscription</span>
         <h1>Unlock your <em>SongReel.</em></h1>
         <p class="lede">Choose a plan and pay once, then you can upload your clips and we'll compose the song.</p>
       </div>
@@ -1459,17 +1467,25 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
             </button>
           </div>
 
-          <!-- Payment form (paid plan) -->
+          <!-- Payment: on-site Stripe Payment Element (no redirect), falls back to
+               hosted Payment Links if STRIPE_PK isn't configured -->
           <div id="ckout-payment" class="ckout-payment">
             <div class="ckout-payment-title">Payment</div>
-            <p style="font-size:14px;font-weight:600;color:var(--ink-soft);line-height:1.55;margin-bottom:4px">You'll pay securely on our Stripe checkout (card, Apple&nbsp;Pay &amp; Google&nbsp;Pay). Right after payment you'll be brought straight back here to upload your photos.</p>
-            <button class="ckout-pay-btn" onclick="completePayment()">
+            <div class="pay-elt-wrap">
+              <div class="pay-elt-idle" id="pay-elt-idle">
+                <span class="pei-ic">🔒</span>
+                <span>Pay right here with card, Apple&nbsp;Pay, or Google&nbsp;Pay. No redirect, your details go straight to Stripe and never touch our servers.</span>
+              </div>
+              <div id="payment-element"></div>
+            </div>
+            <p class="pay-err" id="pay-err"></p>
+            <button class="ckout-pay-btn" id="ckout-pay-btn" onclick="completePayment()">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="5" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M1 8h14" stroke="currentColor" stroke-width="1.4"/><path d="M5 3V2a3 3 0 016 0v1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-              Pay <span id="ckout-pay-amt">$9.99</span> &amp; continue to checkout
+              <span id="ckout-pay-label">Pay</span>&nbsp;<span id="ckout-pay-amt">$9.99</span><span id="ckout-pay-tail">&nbsp;securely</span>
             </button>
             <div class="ckout-secure">
               <svg width="11" height="12" viewBox="0 0 11 12" fill="none"><rect x=".8" y="4.5" width="9.4" height="7" rx="1.2" stroke="currentColor" stroke-width="1.2"/><path d="M3 4.5V3a2.5 2.5 0 015 0v1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-              Powered by Stripe · 256-bit SSL
+              Powered by Stripe · 256-bit SSL · Card, Apple&nbsp;Pay &amp; Google&nbsp;Pay
             </div>
           </div>
 
@@ -2464,6 +2480,9 @@ async function goToCheckout() {
 }
 
 function selectPlan(plan) {
+  if (S.selectedPlan && S.selectedPlan !== plan && typeof payResetElement === 'function' && payPlanMounted) {
+    payResetElement();   // price changed → tear down the mounted card form
+  }
   S.selectedPlan = plan;
   const prices = { single: '$9.99', family: '$39.99', memory: '$69.99' };
   ['single','family','memory'].forEach(p => {
@@ -2477,18 +2496,78 @@ function selectPlan(plan) {
   if (amtEl) amtEl.textContent = price;
 }
 
-// ----- Stripe checkout handoff: pay FIRST on Stripe, then auto-redirect back to upload -----
-// Each link is a Stripe Payment Link whose "after payment" redirect points to
-// https://www.songreels.ai/create?paid=1  → Stripe sends them straight back here.
+// ----- Stripe checkout -----
+// Preferred: ON-SITE Payment Element (Sunset Pop styled, no redirect) via
+// /api/create-payment-intent. Fallback when STRIPE_PK isn't set or setup fails:
+// hosted Payment Links (redirect out, auto-return to /create?paid=1).
+const STRIPE_PK = 'pk_live_REPLACE_ME';   // Dashboard → Developers → API keys → Publishable key
 const STRIPE_LINKS = {
   single: 'https://buy.stripe.com/aFa5kF2RF2Ur3gP7WAdAk00',  // $9.99  → 1 credit
   family: 'https://buy.stripe.com/4gM5kF1NBbqX9Fd6SwdAk01',  // $39.99 → 5 credits
   memory: 'https://buy.stripe.com/5kQ9AV8bZ1Qn7x5ekYdAk02'   // $69.99 → 10 credits
 };
+const SR_STRIPE_APPEARANCE = {
+  theme: 'stripe',
+  variables: {
+    colorPrimary: '#FF2D55', colorText: '#221019', colorTextSecondary: '#6b5560',
+    colorBackground: '#ffffff', colorDanger: '#E01E45', borderRadius: '12px',
+    fontFamily: 'Nunito, system-ui, sans-serif', fontSizeBase: '15px',
+    focusBoxShadow: '0 0 0 3px rgba(255,45,85,.16)'
+  },
+  rules: {
+    '.Input': { border: '1.5px solid #f2e6df', padding: '12px 14px' },
+    '.Input:focus': { border: '1.5px solid #FF2D55' },
+    '.Label': { fontWeight: '700', fontSize: '11px', letterSpacing: '.08em', textTransform: 'uppercase', color: '#221019' },
+    '.Tab': { border: '1.5px solid #f2e6df', borderRadius: '12px' },
+    '.Tab--selected': { borderColor: '#FF2D55', boxShadow: '0 0 0 3px rgba(255,45,85,.14)' }
+  }
+};
 
-function completePayment() {
-  // Save the buyer's answers, then send them to Stripe to pay BEFORE uploading.
-  const plan = S.selectedPlan || 'single';
+let payStripe = null, payElements = null, payPlanMounted = null, payBusy = false;
+
+function payErr(msg) {
+  const el = document.getElementById('pay-err');
+  if (!el) return;
+  if (msg) { el.textContent = msg; el.classList.add('show'); }
+  else { el.textContent = ''; el.classList.remove('show'); }
+}
+
+// Button states keep #ckout-pay-amt (the price, owned by selectPlan) intact and
+// only swap the words around it: idle "Pay $X securely" / confirm "Confirm $X" / busy text.
+function payState(state) {
+  const lbl = document.getElementById('ckout-pay-label');
+  const amt = document.getElementById('ckout-pay-amt');
+  const tail = document.getElementById('ckout-pay-tail');
+  if (!lbl || !amt || !tail) return;
+  if (state === 'idle')         { lbl.textContent = 'Pay';                      amt.style.display = ''; tail.innerHTML = '&nbsp;securely'; }
+  else if (state === 'confirm') { lbl.textContent = 'Confirm payment ·';        amt.style.display = ''; tail.innerHTML = ''; }
+  else if (state === 'loading') { lbl.textContent = 'Loading secure payment…';  amt.style.display = 'none'; tail.innerHTML = ''; }
+  else if (state === 'busy')    { lbl.textContent = 'Processing…';              amt.style.display = 'none'; tail.innerHTML = ''; }
+}
+
+function payResetElement() {
+  // plan changed after the card form mounted → tear down, price is different
+  try { if (payElements) { const pe = payElements.getElement('payment'); if (pe) pe.unmount(); } } catch (e) {}
+  payElements = null; payPlanMounted = null;
+  const idle = document.getElementById('pay-elt-idle');
+  if (idle) idle.style.display = 'flex';
+  payErr('');
+  payState('idle');
+}
+
+function ensureStripeJs() {
+  return new Promise((resolve, reject) => {
+    if (window.Stripe) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://js.stripe.com/v3/';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Could not load the payment library. Check your connection and try again.'));
+    document.head.appendChild(s);
+  });
+}
+
+function payViaLink(plan) {
+  // hosted fallback: save answers, redirect out, Stripe auto-returns to /create?paid=1
   saveSession('pending_occasion', S.occasion);
   saveSession('pending_fields', S.fields);
   saveSession('pending_plan', plan);
@@ -2497,6 +2576,68 @@ function completePayment() {
   const email = (S.user && S.user.email) || '';
   if (email) url += (url.indexOf('?') >= 0 ? '&' : '?') + 'prefilled_email=' + encodeURIComponent(email);
   window.location.href = url;
+}
+
+async function completePayment() {
+  const plan = S.selectedPlan || 'single';
+  if (!/^pk_(live|test)_/.test(STRIPE_PK) || STRIPE_PK.indexOf('REPLACE') >= 0) { payViaLink(plan); return; }
+  if (payBusy) return;
+  const btn = document.getElementById('ckout-pay-btn');
+  payErr('');
+
+  // ── second click, form is mounted → confirm the payment ──
+  if (payElements && payPlanMounted === plan) {
+    payBusy = true; if (btn) btn.disabled = true;
+    payState('busy');
+    try {
+      saveSession('pending_pay', true);
+      const { error } = await payStripe.confirmPayment({
+        elements: payElements,
+        confirmParams: { return_url: location.origin + '/create?paid=1' }
+      });
+      // only reached on failure (success navigates to return_url)
+      if (error) payErr(error.message || 'Payment didn\'t go through. Please try again.');
+    } catch (e) {
+      payErr('Payment didn\'t go through. Please try again.');
+    }
+    payState('confirm');
+    if (btn) btn.disabled = false;
+    payBusy = false;
+    return;
+  }
+
+  // ── first click (or plan changed) → create the intent + mount the form ──
+  payBusy = true; if (btn) btn.disabled = true;
+  payState('loading');
+  try {
+    await ensureStripeJs();
+    const t = await srToken();
+    if (!t) throw new Error('Please sign in again to continue.');
+    const r = await fetch('/api/create-payment-intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t },
+      body: JSON.stringify({ plan })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.clientSecret) throw new Error('Payment setup failed. Please try again.');
+    payStripe = payStripe || Stripe(STRIPE_PK);
+    payElements = payStripe.elements({
+      clientSecret: d.clientSecret,
+      appearance: SR_STRIPE_APPEARANCE,
+      fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap' }]
+    });
+    const pe = payElements.create('payment', { layout: 'tabs' });
+    const idle = document.getElementById('pay-elt-idle');
+    if (idle) idle.style.display = 'none';
+    pe.mount('#payment-element');
+    payPlanMounted = plan;
+    payState('confirm');
+  } catch (e) {
+    payErr(e.message || 'Payment setup failed. Please try again.');
+    payResetElement();
+  }
+  if (btn) btn.disabled = false;
+  payBusy = false;
 }
 
 function goToSlideshow() {
