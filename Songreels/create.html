@@ -1165,6 +1165,15 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
 .sr-modal-primary:hover{filter:brightness(1.05)}
 @media(max-width:480px){.sr-modal-actions{flex-direction:column-reverse}.sr-modal-btn{width:100%}}
 
+/* ═══ CREDITS BADGE ═══ */
+.nav-credits{display:flex;align-items:center;gap:6px;background:var(--accent-soft);border:1.5px solid rgba(255,45,85,.22);border-radius:999px;padding:5px 13px;font-family:var(--serif);font-weight:600;font-size:13px;color:var(--accent-deep);cursor:pointer;transition:transform .15s,box-shadow .2s;margin-right:4px}
+.nav-credits:hover{transform:translateY(-1px);box-shadow:0 6px 14px -8px rgba(255,45,85,.5)}
+.nav-credits .nc-ic{font-size:12px}
+.nav-credits .nc-lbl{font-family:var(--sans);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.75}
+@media(max-width:560px){.nav-credits .nc-lbl{display:none}.nav-credits{padding:5px 10px}}
+.ckout-balance{background:var(--bg-2);border:1px solid var(--rule-soft);border-radius:12px;padding:10px 14px;font-size:13.5px;color:var(--ink-soft);margin-bottom:12px}
+.ckout-balance strong{color:var(--accent-deep)}
+
 /* ═══ ON-SITE STRIPE PAYMENT PANEL ═══ */
 .pay-elt-wrap{background:#fff;border:1.5px solid var(--rule-soft);border-radius:16px;padding:16px;margin:14px 0 14px;box-shadow:0 10px 28px -22px rgba(40,20,15,.4)}
 .pay-elt-idle{display:flex;align-items:center;gap:12px;color:var(--ink-soft);font-size:13.5px;line-height:1.5}
@@ -1291,6 +1300,9 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
     <div class="nav-row">
       <div class="brand">SongReels <span>🎶</span></div>
       <div class="nav-user" id="nav-user">
+        <button class="nav-credits" id="nav-credits" style="display:none" type="button" onclick="creditsInfo()" title="Your SongReel credits">
+          <span class="nc-ic">🎟️</span><span id="nav-credits-n">0</span><span class="nc-lbl">credits</span>
+        </button>
         <img class="nav-avatar" id="nav-avatar" src="" alt="">
         <span id="nav-name" style="font-size:14px;color:var(--ink-soft)"></span>
         <span class="nav-signout" onclick="signOut()">Sign out</span>
@@ -1471,6 +1483,7 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
                hosted Payment Links if STRIPE_PK isn't configured -->
           <div id="ckout-payment" class="ckout-payment">
             <div class="ckout-payment-title">Payment</div>
+            <div class="ckout-balance" id="ckout-balance" style="display:none"></div>
             <div class="pay-elt-wrap">
               <div class="pay-elt-idle" id="pay-elt-idle">
                 <span class="pei-ic">🔒</span>
@@ -2214,6 +2227,7 @@ async function setUser(user) {
   bindOccPicker();
   bindDurationPicker();
   document.getElementById('clip-file-input').addEventListener('change', handleClipAdd);
+  refreshCreditsBadge();   // fire-and-forget, shows the nav pill once the balance loads
 
   // Returning from Stripe payment → wait for the webhook to add credits, then resume at upload
   const _paidParams = new URLSearchParams(location.search);
@@ -2223,6 +2237,7 @@ async function setUser(user) {
     let bal = await getCredits();
     // the webhook can lag a few seconds before credits land, poll briefly
     for (let i = 0; i < 5 && bal < 1; i++) { await new Promise(r => setTimeout(r, 1500)); bal = await getCredits(); }
+    refreshCreditsBadge(bal);
 
     if (bal >= 1) {
       const occ = loadSession('pending_occasion');
@@ -2376,6 +2391,7 @@ function showScreen(id) {
   const el = document.getElementById('screen-' + id);
   if (!el) return;
   if (id === 'proc') procStart(); else procStop();   // start/stop the studio-session engine with the screen
+  if (id === 'checkout') refreshCreditsBadge();      // balance line stays fresh however checkout is reached
 
   if (id === 'auth') {
     document.body.classList.add('auth-active');
@@ -2441,6 +2457,38 @@ async function consumeCredit() {
     const r = await fetch('/api/credits', { method: 'POST', headers: { Authorization: 'Bearer ' + t }, cache: 'no-store' });
     return await r.json();
   } catch (e) { return { ok: false, credits: 0 }; }
+}
+
+// ----- credits badge (nav pill + checkout balance line) -----
+// Pass a number to skip the API round-trip when the balance is already known.
+let _creditsSeq = 0;
+async function refreshCreditsBadge(known) {
+  const seq = ++_creditsSeq;
+  const wrap = document.getElementById('nav-credits');
+  const num = document.getElementById('nav-credits-n');
+  const bal = (typeof known === 'number') ? known : await getCredits();
+  if (seq !== _creditsSeq) return S.credits;   // a newer refresh already painted, don't clobber it
+  S.credits = bal;
+  if (wrap && num) {
+    num.textContent = bal;
+    // During beta (BYPASS_PAY) generating is free for testers, so a 0 would only
+    // confuse — show the pill once they actually own credits. Post-launch it's
+    // always visible, 0 included.
+    wrap.style.display = (bal > 0 || !BYPASS_PAY) ? 'flex' : 'none';
+  }
+  const ck = document.getElementById('ckout-balance');
+  if (ck) {
+    ck.innerHTML = bal > 0
+      ? 'You have <strong>' + bal + ' credit' + (bal === 1 ? '' : 's') + '</strong> left · 1 credit = 1 SongReel'
+      : 'No credits yet · pick a pack to get started';
+    ck.style.display = 'block';
+  }
+  return bal;
+}
+
+function creditsInfo() {
+  const b = S.credits || 0;
+  srToast('You have ' + b + ' SongReel credit' + (b === 1 ? '' : 's') + '.\nEach SongReel you create uses 1 credit. Packs never expire.', '🎟️');
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -3224,6 +3272,7 @@ async function submitJob() {
   if (!BYPASS_PAY) {
     const _cc = await consumeCredit();
     if (!_cc.ok) { showProcErr("You're out of SongReel credits. Please purchase a plan to create another."); return; }
+    refreshCreditsBadge(_cc.credits);   // pill ticks down as the credit is spent
   }
   try {
     await fetch(C.N8N_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ job_id: job.id }) });
