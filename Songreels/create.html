@@ -984,6 +984,7 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
 /* small phones: drop the static minutes label so the progress bar never overflows */
 @media(max-width:480px){.progress-bar-wrap span:last-child{display:none}}
 
+
 /* review moment polish */
 .review-card{transition:box-shadow .25s,border-color .25s}
 .review-card:focus-within{box-shadow:0 16px 40px -26px rgba(255,45,85,.4);border-color:var(--accent)}
@@ -1163,6 +1164,23 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
 .sr-modal-primary{background:var(--grad,linear-gradient(135deg,#FF5E7E,#FF2D55));color:#fff;box-shadow:0 12px 26px -10px rgba(255,45,85,.55)}
 .sr-modal-primary:hover{filter:brightness(1.05)}
 @media(max-width:480px){.sr-modal-actions{flex-direction:column-reverse}.sr-modal-btn{width:100%}}
+
+/* ═══ MOBILE POLISH (real-device pass, 2026-06-13) ═══
+   Kept at the END of the stylesheet: these override same-specificity base rules
+   above (e.g. .length-banner display:flex), and last-rule-wins. */
+#occ-grid{margin-top:26px}
+@media(max-width:640px){
+  /* the progress bar already says "Step N of 5", don't repeat it below */
+  .step-head{padding:20px 0 0}
+  .step-head .eyebrow{display:none}
+  .step-head .lede{margin-top:10px;font-size:15px}
+  /* occasion tiles: 2-up so labels and emoji fit */
+  .occ-grid2{grid-template-columns:repeat(2,1fr);gap:12px}
+  .occ2{font-size:14.5px}
+  /* step-5 length banner: icon + text grid, badge drops to its own row */
+  .length-banner{display:grid;grid-template-columns:60px 1fr;align-items:center;gap:12px 14px}
+  .lb-tag{grid-column:1/-1;justify-self:start}
+}
 </style>
 </head>
 <body>
@@ -1386,7 +1404,8 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
       </div>
     </div>
 
-    <!-- CHECKOUT (orphaned, payment disabled for beta) -->
+    <!-- CHECKOUT · Stripe credits purchase (dormant while BYPASS_PAY=true; this is
+         the no-credits path for public launch — completePayment() → Stripe Payment Links) -->
     <div id="screen-checkout" class="screen wrap" style="display:none">
       <div class="step-head">
         <span class="eyebrow">Step 3 of 5 · Complete your order</span>
@@ -2480,21 +2499,6 @@ function completePayment() {
   window.location.href = url;
 }
 
-function handleExpressPay(provider) {
-  completePayment();
-}
-
-function fmtCard(el) {
-  let v = el.value.replace(/\D/g,'').substring(0,16);
-  el.value = v.replace(/(.{4})/g,'$1 ').trim();
-}
-
-function fmtExpiry(el) {
-  let v = el.value.replace(/\D/g,'').substring(0,4);
-  if (v.length > 2) v = v.substring(0,2) + ' / ' + v.substring(2);
-  el.value = v;
-}
-
 function goToSlideshow() {
   if (!S.fields['f-name'] || !S.fields['f-theme']) {
     srToast('Please answer both questions before continuing.', '✍️');
@@ -2603,6 +2607,25 @@ function updateSlideshow() {
 let activeRecognition = null;
 let activeMicBtn = null;
 
+// Merge speech results without duplicating text. Android Chrome re-broadcasts
+// already-final text inside later results (finals repeat, and interims contain
+// the whole utterance again), so plain concatenation doubles words ("this this
+// is this is for..."). Compare normalized text and skip/replace overlaps.
+function srMergeResults(results) {
+  const norm = s => s.toLowerCase().replace(/[^a-z0-9' ]/g, '').replace(/\s+/g, ' ').trim();
+  let out = '';
+  for (let i = 0; i < results.length; i++) {
+    const t = (results[i][0].transcript || '').trim();
+    if (!t) continue;
+    const a = norm(out), b = norm(t);
+    if (!a) { out = t; continue; }
+    if (a === b || a.endsWith(b)) continue;        // repeat of committed text → skip
+    if (b.startsWith(a)) { out = t; continue; }    // cumulative re-broadcast → replace
+    out = out.replace(/\s+$/, '') + ' ' + t;
+  }
+  return out;
+}
+
 function toggleVoice(btn, targetId) {
   if (btn.classList.contains('recording')) { stopVoice(); return; }
   if (activeMicBtn) stopVoice();
@@ -2619,15 +2642,9 @@ function toggleVoice(btn, targetId) {
     if (status) { status.textContent = '● Recording... speak now'; status.classList.add('show'); }
   };
   recognition.onresult = (e) => {
-    // Rebuild the whole transcript on every event (never accumulate with +=) so
-    // committed words can't duplicate or vanish, only the trailing guess refines.
-    let finals = '', interim = '';
-    for (let i = 0; i < e.results.length; i++) {
-      const txt = e.results[i][0].transcript;
-      if (e.results[i].isFinal) finals += txt + ' ';
-      else interim += txt;
-    }
-    target.value = baseText + finals + interim;
+    // Rebuild + dedupe on every event (see srMergeResults): desktop results are
+    // disjoint segments, Android repeats finalized text in later results.
+    target.value = baseText + srMergeResults(e.results);
     S.fields[targetId] = target.value; autoResize(target);
   };
   recognition.onerror = (e) => {
@@ -2855,14 +2872,8 @@ function toggleClipVoice(btn, idx) {
     btn.classList.add('recording'); activeClipMic = btn; activeClipRecognition = recognition;
   };
   recognition.onresult = (e) => {
-    // Rebuild from all results each event so committed words don't duplicate or vanish.
-    let finals = '', interim = '';
-    for (let i = 0; i < e.results.length; i++) {
-      const txt = e.results[i][0].transcript;
-      if (e.results[i].isFinal) finals += txt + ' ';
-      else interim += txt;
-    }
-    const val = baseTxt + finals + interim;
+    // Rebuild + dedupe on every event (see srMergeResults), Android-safe.
+    const val = baseTxt + srMergeResults(e.results);
     if (ta) { ta.value = val; if (val.trim().length >= 6) ta.style.borderColor = ''; }
     S.clips[idx].description = val;
     updateClipUI();
