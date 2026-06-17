@@ -2284,13 +2284,24 @@ async function setUser(user) {
                   : 'processing';
       saveSession('job_id', savedJobId);
       saveSession('job_status', savedStatus);
+    } else if (dbJob && dbJob.status === 'complete' && fresh && !isJobDismissed(dbJob.id)) {
+      // Finished reel, still recent, not dismissed → a refresh/lag reload should land
+      // BACK on the done screen (don't bounce to step 1). "Make another" dismisses it.
+      savedJobId = dbJob.id; savedStatus = 'complete';
+      saveSession('job_id', savedJobId); saveSession('job_status', 'complete');
     } else {
-      // Latest job is finished / cancelled / old / dismissed → don't resume.
+      // Latest job is cancelled / old / dismissed → don't resume.
       savedJobId = null; savedStatus = null; clearSession();
     }
   } catch (e) { console.warn('Resume query failed, falling back to session:', e); }
 
   if (savedJobId && savedStatus === 'complete') {
+    // re-show the finished reel (refresh-safe). Only fall back to step 1 if the row
+    // is gone / has no video — never silently drop them at the start after a lag reload.
+    try {
+      const { data: job } = await sb.from('heartreel_jobs').select('*').eq('id', savedJobId).single();
+      if (job && job.status === 'complete' && job.final_video_url) { S.currentJobId = job.id; showDone(job); return; }
+    } catch (e) {}
     clearSession();
     showScreen('1');
     return;
@@ -3642,6 +3653,7 @@ function clearWizardUI(keepClips) {
 function startFresh() {
   hideFreshConfirm();
   disableBeforeUnloadWarning();
+  if (S.currentJobId) dismissJobLocally(S.currentJobId);   // they chose to move on → don't re-show this finished reel on reload
   clearSession();
   clearInterval(S.pollTimer);
   S.currentJobId = null; S.occasion = null; S.fields = {};
@@ -3671,6 +3683,7 @@ function startFresh() {
    ═══════════════════════════════════════════════════════════════════════ */
 function startFreshWithOccasion(occasion) {
   disableBeforeUnloadWarning();
+  if (S.currentJobId) dismissJobLocally(S.currentJobId);   // moving on to a new reel → don't snap back to the old one on reload
   clearSession();
   clearInterval(S.pollTimer);
   S.currentJobId = null;
