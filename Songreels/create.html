@@ -1975,11 +1975,11 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
   <!-- START FRESH CONFIRM MODAL -->
   <div id="fresh-modal" class="confirm-modal">
     <div class="confirm-card">
-      <h3>Start a new gift?</h3>
-      <p>Your current SongReel will still be saved. You can come back and view it anytime by signing in again.</p>
+      <h3>Make another SongReel?</h3>
+      <p>We'll keep the photos and videos you uploaded so you can reuse them for the next one. Your finished reel stays saved at its link.</p>
       <div class="confirm-actions">
         <button class="btn btn-ghost" onclick="hideFreshConfirm()">Cancel</button>
-        <button class="btn btn-accent" onclick="startFresh()">Yes, start new</button>
+        <button class="btn btn-accent" onclick="startFresh()">Yes, start another</button>
       </div>
     </div>
   </div>
@@ -3620,10 +3620,12 @@ function switchOversizeTab(tab) {
 // legacy elements, so the new clip grid, meter, About-them fields, chips, occasion tiles
 // and song-style inputs kept their stale values while S was cleared - which is why the
 // clips still showed on screen but Generate said "no clips."
-function clearWizardUI() {
-  try { if (typeof SR_clearDraft === 'function') SR_clearDraft(); } catch(e) {}
-  try { renderClips(); } catch(e) {}      // empties #clip-grid-new to match the now-empty S.clips
-  try { updateClipUI(); } catch(e) {}     // meter back to 0:00, Continue disabled
+function clearWizardUI(keepClips) {
+  // keepClips=true → "Make another" reuses the uploaded photos/videos (owner request):
+  // leave S.clips + the saved draft intact, just re-render them into the fresh wizard.
+  if (!keepClips) { try { if (typeof SR_clearDraft === 'function') SR_clearDraft(); } catch(e) {} }
+  try { renderClips(); } catch(e) {}      // re-paints #clip-grid-new from S.clips (kept clips stay, else empty)
+  try { updateClipUI(); } catch(e) {}     // meter + Continue state recomputed from S.clips
   ['abName','abMemory','abJoke','noteFrom','noteBody','artist-input','wiz-focus'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.querySelectorAll('.ochip.on').forEach(c => c.classList.remove('on'));
   document.querySelectorAll('#occ-grid .occ2.sel').forEach(c => c.classList.remove('sel'));
@@ -3640,23 +3642,27 @@ function clearWizardUI() {
 function startFresh() {
   hideFreshConfirm();
   disableBeforeUnloadWarning();
-  clearSession(); 
+  clearSession();
   clearInterval(S.pollTimer);
   S.currentJobId = null; S.occasion = null; S.fields = {};
-  S.clips = []; S.genres = []; S.songLength = 3;
-  clearWizardUI();
+  S.genres = []; S.songLength = 3;
+  // KEEP the uploaded photos/videos (owner request) — just force a fresh upload next
+  // submit, since the server deletes the source files once a reel finishes.
+  (S.clips || []).forEach(c => { c.uploadedUrl = null; });
+  clearWizardUI(true);
   document.getElementById('proc-err').classList.remove('show');
-  
+
   const videoEl = document.getElementById('done-video');
   if (videoEl) { videoEl.pause(); videoEl.src = ''; videoEl.style.display = 'none'; }
-  
+
   document.querySelectorAll('.occ-card').forEach(c => c.classList.remove('sel'));
   document.getElementById('s1-next').disabled = true;
   document.querySelectorAll('.gpill').forEach(p => p.classList.remove('sel'));
   document.querySelectorAll('.dur-card').forEach(c => c.classList.remove('sel'));
   document.querySelector('.dur-card[data-mins="3"]')?.classList.add('sel');
-  
+
   showScreen('1');
+  try { if (typeof SR_saveDraft === 'function') SR_saveDraft(); } catch(e) {}   // after showScreen so doSave sees a wizard step → persists kept clips for reloads
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -3669,10 +3675,11 @@ function startFreshWithOccasion(occasion) {
   clearInterval(S.pollTimer);
   S.currentJobId = null;
   S.fields = {};
-  S.clips = [];
   S.genres = [];
   S.songLength = 3;
-  clearWizardUI();
+  // KEEP the uploaded photos/videos (owner request); fresh upload on next submit.
+  (S.clips || []).forEach(c => { c.uploadedUrl = null; });
+  clearWizardUI(true);
   document.getElementById('proc-err').classList.remove('show');
 
   const videoEl = document.getElementById('done-video');
@@ -3688,6 +3695,7 @@ function startFreshWithOccasion(occasion) {
   document.getElementById('s1-next').disabled = false;
 
   showScreen('1');
+  try { if (typeof SR_saveDraft === 'function') SR_saveDraft(); } catch(e) {}   // after showScreen so the kept clips persist across reloads
 }
 
 /* ═══ PROCESSING SCREEN ENGINE · progress estimate + filmstrip + tab title ═══ */
@@ -4178,9 +4186,10 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
 
   function clearAll(){ try{ localStorage.removeItem(LS_KEY); }catch(e){} lastClipSig=''; idbClear(); }
 
-  /* expose for setUser (restore), submitJob + signOut (clear) */
+  /* expose for setUser (restore), submitJob + signOut (clear), "Make another" (save kept clips) */
   window.SR_restoreDraft = restore;
   window.SR_clearDraft   = clearAll;
+  window.SR_saveDraft    = doSave;
 
   /* ---- triggers: save as they type, pick, navigate; flush on unload ---- */
   document.addEventListener('input',  schedule, true);
