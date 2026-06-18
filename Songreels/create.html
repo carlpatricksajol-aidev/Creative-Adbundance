@@ -1603,13 +1603,13 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
       <div class="step-head">
         <span class="eyebrow">Step 4 of 5 · Your clips and photos</span>
         <h1>Give us enough to <em>fill your song.</em></h1>
-        <p class="lede">Photos hold the screen for about 5 seconds. For videos, we feature the best moments, so a long clip becomes its highlights, not the whole thing. In each caption, tell us the best bit so we know what to feature.</p>
+        <p class="lede">Every photo and video becomes a 5-second moment in your reel. For a long video we pick the best 5 seconds, so it's the highlight, not the whole clip. In each caption, tell us the best bit so we know what to feature.</p>
       </div>
       <div class="s-body">
         <div class="meter-card">
           <div class="meter-top">
             <span class="meter-label">🎬 Footage for your song</span>
-            <span class="meter-time" id="meterTime">0:00 <span class="target">/ 1:00 minimum</span></span>
+            <span class="meter-time" id="meterTime">0:00 <span class="target">/ 3:00 reel</span></span>
           </div>
           <div class="meter-track"><div class="meter-fill" id="meterFill"></div><div class="meter-ticks"><span></span><span></span><span></span><span></span></div></div>
           <div class="meter-status" id="meterStatus"><span class="dot"></span><span id="meterMsg">Add photos and clips to start filling your song.</span></div>
@@ -2132,9 +2132,14 @@ const C = {
   SITE_URL:       'https://sites.leadconnectorhq.com/preview/5UZi4PgoXe4b9ZS6WNRP?notrack=true',
   MAX_VIDEO_MB:   100,
   MAX_PHOTO_MB:   25,
-  MAX_CLIPS:      30,
+  MAX_VIDEOS:     20,    // separate caps per type (replaces the old single 30-file cap)
+  MAX_PHOTOS:     20,
+  MAX_CLIPS:      40,    // legacy total = the two caps combined (kept for old references)
   PHOTO_DURATION: 5,
-  MAX_VIDEO_SECS: 180,   // 3-minute cap per video (the AI extracts highlights from long clips anyway)
+  MAX_VIDEO_SECS: 180,   // 3-minute cap per video (the AI extracts a 5s highlight from long clips)
+  PER_CLIP_SECS:  5,     // every clip — video best-moment or photo — shows for ~5s
+  SONG_CAP_SECS:  180,   // 3-minute ceiling on the whole reel
+  MIN_CLIPS:      12,    // ~60s minimum to make a real song
 };
 
 const sb = window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_KEY);
@@ -2887,13 +2892,15 @@ async function handleClipAdd(e) {
   e.target.value = '';
   
   for (const originalFile of files) {
-    if (S.clips.length >= C.MAX_CLIPS) { 
-      srToast('You can add up to ' + C.MAX_CLIPS + ' files.', '⚠️');
-      return; 
-    }
-    
-    const mb = originalFile.size / 1000000;
     const isImg = isImageFile(originalFile);
+    const typeCount = S.clips.filter(c => (c.type === 'image') === isImg).length;
+    const typeMax = isImg ? C.MAX_PHOTOS : C.MAX_VIDEOS;
+    if (typeCount >= typeMax) {
+      srToast('You can add up to ' + typeMax + ' ' + (isImg ? 'photos' : 'videos') + '.\nThat one was skipped.', '⚠️');
+      continue;
+    }
+
+    const mb = originalFile.size / 1000000;
     const limit = isImg ? C.MAX_PHOTO_MB : C.MAX_VIDEO_MB;
     
     if (mb > limit) {
@@ -3202,24 +3209,11 @@ async function submitJob() {
   if (S.clips.length === 0) { srToast('Add at least one photo or video clip to continue.', '🎬'); return; }
   if (S.clips.some(c => c.converting)) { srToast('Still processing a file.\nPlease wait for it to finish before submitting.', '⏳'); return; }
 
-  // ── Footage-vs-tier warning ──────────────────────────────────────────
-  // The reel matches the actual clip footage (capped at the chosen tier), so a
-  // 3-min pick with only ~2:30 of clips makes a ~2:30 reel, never black padding.
-  // If their footage is shorter than the tier they chose, warn but let them continue.
-  const footageSecs = S.clips.reduce((sum, c) => sum + (c.duration || (c.type === 'image' ? C.PHOTO_DURATION : 10)), 0);
-  S.songLength = Math.max(1, Math.min(6, Math.round(footageSecs / 60)));   // footage-driven length (no tier picker)
-  const tierSecs = S.songLength * 60;
-  if (footageSecs < tierSecs - 5) {
-    const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0');
-    const proceed = await showConfirm({
-      title: 'Your reel will match your footage',
-      body: `You chose a ${S.songLength}-minute reel, but your clips add up to about ${fmt(footageSecs)}.\n\n` +
-            `We'll make your reel about ${fmt(footageSecs)} so there are no long black gaps. Add more photos or videos if you want the full ${S.songLength} minutes.`,
-      okText: `Continue with ${fmt(footageSecs)}`,
-      cancelText: 'Add more',
-    });
-    if (!proceed) return; // they chose to go back and add more footage
-  }
+  // ── Reel length = ~5s per clip (best moment of each), capped at 3 minutes. ──
+  // Predictable, no bloat from long videos: 20 clips → 1:40, 36+ → 3:00 max.
+  const clipCount = S.clips.length;
+  const reelSecs = Math.min(C.SONG_CAP_SECS, clipCount * C.PER_CLIP_SECS);
+  S.songLength = reelSecs / 60;   // sent as song_length_mins; the pipeline uses songLengthMins*60 = reelSecs
 
   showScreen('proc');
   setLogLine('ll-upload', 'active', 'Saving your clips and photos...');
@@ -4028,26 +4022,29 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     const empty = $('clipEmpty'); if(empty) empty.style.display = (S.clips&&S.clips.length) ? 'none' : 'block';
   };
   window.updateClipUI = function(){
-    // Meter measures RAW footage and gates Continue at a 1:00 minimum (owner's rule: a reel
-    // from < 1:00 of footage is too thin). lb-len shows the highlight-based song-length
-    // estimate (long videos are trimmed to their best moments by the AI, capped at HL_EST).
-    const HL_EST = 15;
-    const rawDur = c => c.type==='image' ? (c.duration||5) : (c.duration||10);
-    const effDur = c => c.type==='image' ? (c.duration||5) : Math.min(c.duration||10, HL_EST);
-    const raw = (S.clips||[]).reduce((a,c)=>a+rawDur(c),0);   // real footage → meter + 1:00 floor
-    const est = (S.clips||[]).reduce((a,c)=>a+effDur(c),0);   // highlight estimate → song length
-    const pct = Math.min(100, raw/TARGET*100), met = raw >= TARGET;
+    // Every clip (video best-moment or photo) becomes a ~5s moment, so the reel
+    // length is just clipCount × 5s, capped at 3:00. The meter tracks reel length;
+    // Continue unlocks at the MIN_CLIPS (~1:00) floor.
+    const PER = C.PER_CLIP_SECS, CAP = C.SONG_CAP_SECS, MINC = C.MIN_CLIPS;
+    const clips = S.clips || [];
+    const n = clips.length;
+    const vids = clips.filter(c => c.type !== 'image').length;
+    const imgs = n - vids;
+    const reel = Math.min(CAP, n * PER);
+    const met = n >= MINC;
+    const pct = Math.min(100, reel / CAP * 100);
     const mf=$('meterFill'); if(mf){ mf.style.width=pct+'%'; mf.classList.toggle('done',met); }
-    const mt=$('meterTime'); if(mt){ mt.classList.toggle('done',met); mt.innerHTML = fmtDur(raw)+' <span class="target">/ 1:00 minimum'+(met?' ✓':'')+'</span>'; }
+    const mt=$('meterTime'); if(mt){ mt.classList.toggle('done',met); mt.innerHTML = fmtDur(reel)+' <span class="target">/ 3:00 reel'+(met?' ✓':'')+'</span>'; }
     const ms=$('meterStatus'); if(ms) ms.classList.toggle('done',met);
     const mm=$('meterMsg'); if(mm){
-      if(!(S.clips&&S.clips.length)) mm.textContent = '1:00 of footage is the minimum to continue. There is no maximum, the more you add (up to 30), the fuller your song.';
-      else if(!met) mm.textContent = 'About ' + fmtDur(TARGET-raw) + ' more to reach the 1:00 minimum. More makes a fuller song.';
-      else mm.innerHTML = '<strong>Minimum reached.</strong> Keep adding for a richer song (no maximum, up to 30 moments).';
+      if(!n) mm.textContent = 'Each photo or video becomes a 5-second moment. Add about ' + MINC + ' to start a 1-minute reel — up to ' + C.MAX_VIDEOS + ' videos and ' + C.MAX_PHOTOS + ' photos.';
+      else if(!met) mm.textContent = 'Add ' + (MINC - n) + ' more moment' + ((MINC-n)===1?'':'s') + ' to reach the 1:00 minimum (each clip plays for 5 seconds).';
+      else if(reel < CAP) mm.innerHTML = '<strong>Looking good.</strong> Each clip plays for 5s. Add more for a longer reel (up to 3:00).';
+      else mm.innerHTML = '<strong>Maxed the 3:00 reel.</strong> The first ' + Math.floor(CAP/PER) + ' moments fill it; extra clips may not all fit.';
     }
-    const cm=$('clipMeta'); if(cm) cm.textContent = (S.clips&&S.clips.length) ? S.clips.length+' moment'+(S.clips.length>1?'s':'')+' added · 15 to 25 makes a full song' : '';
-    const next=$('s3-next'); if(next) next.disabled = !(S.clips&&S.clips.length) || (S.clips||[]).some(c=>c.converting) || raw < TARGET;
-    const lb=$('lb-len'); if(lb) lb.textContent = '~' + fmtDur(Math.max(60, est));
+    const cm=$('clipMeta'); if(cm) cm.textContent = n ? (n+' moment'+(n>1?'s':'')+' · '+vids+' video'+(vids===1?'':'s')+', '+imgs+' photo'+(imgs===1?'':'s')+' · ~'+fmtDur(reel)+' reel') : '';
+    const next=$('s3-next'); if(next) next.disabled = !n || clips.some(c=>c.converting) || n < MINC;
+    const lb=$('lb-len'); if(lb) lb.textContent = '~' + fmtDur(reel);
   };
 
   /* tap a clip → full-screen preview (image, or playable video) */
