@@ -1,8 +1,10 @@
 # SongReels — 5s-per-clip / 3-minute reel model
 
 Decision (owner, 2026-06-19): every clip — a video's best moment or a photo — becomes a
-**~5-second** moment. Reel length = `clipCount × 5s`, capped at **3:00**. Upload caps
-changed to **20 videos + 20 photos** (separate), replacing the old single 30-file cap.
+**~5-second** moment. Reel length = `clipCount × 5s`, **1:00 minimum** to start, capped at
+**3:20** (= the full 20 videos + 20 photos at 5s each, so nothing is ever dropped). Upload
+caps: **20 videos + 20 photos** (separate), replacing the old single 30-file cap. Videos
+under 5s are rejected (can't fill a 5s moment) — add them as photos instead.
 
 ## Website (done, live — commit cf95558)
 
@@ -53,9 +55,9 @@ evenly spaced (pure montage, looser word-level sync), that's a larger body-build
 (even-spread v6.0). Recommend shipping the simple version first and judging from a real reel
 before deciding.
 
-## Edge: more than ~36 clips
+## Cap = 3:20 so every clip fits
 
-20 + 20 = 40 possible clips × 5s = 200s, over the 180s cap. The reel stays 3:00 and the
-first ~36 moments fill it; a few trailing clips may not appear. The meter warns at the cap
-("Maxed the 3:00 reel…"). If you'd rather all 40 always fit, we'd shrink per-clip to
-`180 / clipCount` (~4.5s) instead of dropping — say the word.
+20 + 20 = 40 clips × 5s = **200s = 3:20**, which is exactly the cap — so all uploads always
+fit, no dropping. (Caveat: the final reel can't exceed the Suno song length; if Suno returns
+a song shorter than 3:20 on a 40-clip job, the body builder caps the reel to the song and a
+few trailing clips may not show. Pre-existing Suno-length constraint, not a frontend cap.)
