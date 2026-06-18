@@ -2888,6 +2888,20 @@ function isImageFile(file) {
   return false;
 }
 
+// Coalesce clip-grid re-renders into one per animation frame. Bulk add / fast delete
+// used to call renderClips() once PER file (O(n²) full-grid rebuilds + video re-seeks),
+// which is what made the page hang. Calling this many times in a burst still renders once.
+let _clipRenderQueued = false;
+function scheduleClipRender() {
+  if (_clipRenderQueued) return;
+  _clipRenderQueued = true;
+  requestAnimationFrame(() => {
+    _clipRenderQueued = false;
+    try { renderClips(); } catch(e) {}
+    try { updateClipUI(); } catch(e) {}
+  });
+}
+
 async function handleClipAdd(e) {
   const files = Array.from(e.target.files);
   e.target.value = '';
@@ -2931,8 +2945,7 @@ async function handleClipAdd(e) {
           file: originalFile, description: '', uploadedUrl: null, blobUrl: null,
           duration: C.PHOTO_DURATION, type: 'image', converting: true,
         });
-        renderClips();
-        updateClipUI();
+        scheduleClipRender();
         
         try {
           const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
@@ -2974,7 +2987,7 @@ async function handleClipAdd(e) {
         const dropClip = (msg) => {
           const pos = S.clips.indexOf(clipRef);
           if (pos !== -1) { try { URL.revokeObjectURL(clipRef.blobUrl); } catch(e) {} S.clips.splice(pos, 1); }
-          renderClips(); updateClipUI();
+          scheduleClipRender();
           srToast(msg, '⚠️', 7000);
         };
         // Min 5s: each clip becomes a ~5s moment, so a sub-5s video can't fill its slot.
@@ -2988,13 +3001,13 @@ async function handleClipAdd(e) {
           return;
         }
         clipRef.duration = secs;
-        renderClips(); updateClipUI();   // refresh the badge + meter/floor now the real length is known
+        scheduleClipRender();   // refresh the badge + meter/floor now the real length is known
       };
     }
-    renderClips();
+    scheduleClipRender();
   }
-  
-  updateClipUI();
+
+  scheduleClipRender();
 }
 
 function renderClips() {
@@ -3121,11 +3134,10 @@ function removeClip(i) {
     }
   } catch(e) {}
   S.clips.splice(i, 1);
-  try { renderClips(); updateClipUI(); } catch(e) {
-    const zone = document.getElementById('clips-zone');
-    if (zone) zone.innerHTML = '';
-    renderClips(); updateClipUI();
-  }
+  // Render synchronously (not coalesced) so the card indices stay in sync with S.clips
+  // between rapid deletes — otherwise a same-frame second click would target a stale index.
+  // The freeze on fast delete was the IndexedDB rewrite, now incremental, not this render.
+  try { renderClips(); updateClipUI(); } catch(e) {}
 }
 
 function updateClipUI() {
@@ -4135,9 +4147,20 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
   function idb(){ return new Promise((res,rej)=>{ let r; try{ r=indexedDB.open(DB_NAME,1); }catch(e){ return rej(e); }
     r.onupgradeneeded=()=>{ const db=r.result; if(!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE,{keyPath:'cid'}); };
     r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
-  async function idbPut(clips){ try{ const db=await idb(); const tx=db.transaction(STORE,'readwrite'); const st=tx.objectStore(STORE); st.clear();
-    (clips||[]).forEach(c=>{ if(c.file && c.cid) st.put({ cid:c.cid, file:c.file, type:c.type, duration:c.duration }); });
-    return new Promise(r=>{ tx.oncomplete=()=>r(); tx.onerror=()=>r(); tx.onabort=()=>r(); }); }catch(e){} }
+  // Incremental sync: only WRITE new clip blobs and DELETE removed ones. The old version
+  // cleared the store and rewrote every File on each change — re-persisting hundreds of MB
+  // of video on every add/delete, which froze the page during bulk operations. Reads keys
+  // in a separate readonly tx first so the readwrite tx has no await inside it.
+  async function idbPut(clips){ try{
+    const db=await idb();
+    const existing = await new Promise(r=>{ const tx=db.transaction(STORE,'readonly'); const q=tx.objectStore(STORE).getAllKeys(); q.onsuccess=()=>r(q.result||[]); q.onerror=()=>r([]); });
+    const have = new Set(existing);
+    const wanted = new Set((clips||[]).filter(c=>c.file&&c.cid).map(c=>c.cid));
+    const tx=db.transaction(STORE,'readwrite'); const st=tx.objectStore(STORE);
+    (clips||[]).forEach(c=>{ if(c.file && c.cid && !have.has(c.cid)) st.put({ cid:c.cid, file:c.file, type:c.type, duration:c.duration }); });
+    existing.forEach(k=>{ if(!wanted.has(k)) st.delete(k); });
+    return new Promise(r=>{ tx.oncomplete=()=>r(); tx.onerror=()=>r(); tx.onabort=()=>r(); });
+  }catch(e){} }
   async function idbGet(){ try{ const db=await idb(); const tx=db.transaction(STORE,'readonly'); const q=tx.objectStore(STORE).getAll();
     return new Promise(r=>{ q.onsuccess=()=>r(q.result||[]); q.onerror=()=>r([]); }); }catch(e){ return []; } }
   async function idbClear(){ try{ const db=await idb(); const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).clear(); }catch(e){} }
