@@ -1353,6 +1353,10 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
             <span class="glabel">Their name <span class="hint">for the title and the song</span></span>
             <div class="tin mic"><input type="text" id="abName" placeholder="e.g. Mom, Cynthia, the kids"><button class="mic-btn" type="button" data-target="abName" aria-label="Speak">🎙️</button></div>
           </div>
+          <div class="ab-field">
+            <span class="glabel">Who are they to you?</span>
+            <div class="tin mic"><input type="text" id="abRelation" placeholder="e.g. my wife, my mom, my best friend"><button class="mic-btn" type="button" data-target="abRelation" aria-label="Speak">🎙️</button></div>
+          </div>
           <div class="ab-field full">
             <span class="glabel">What's this about?</span>
             <div class="tin mic"><textarea id="abAbout" placeholder="A line or two on what this reel is — who it's for and the story. e.g. My wife and our last year together, just us being us."></textarea><button class="mic-btn" type="button" data-target="abAbout" aria-label="Speak">🎙️</button></div>
@@ -3633,7 +3637,7 @@ function clearWizardUI(keepClips) {
   if (!keepClips) { try { if (typeof SR_clearDraft === 'function') SR_clearDraft(); } catch(e) {} }
   try { renderClips(); } catch(e) {}      // re-paints #clip-grid-new from S.clips (kept clips stay, else empty)
   try { updateClipUI(); } catch(e) {}     // meter + Continue state recomputed from S.clips
-  ['abName','abAbout','abInclude','noteFrom','noteBody','artist-input','wiz-focus'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['abName','abRelation','abAbout','abInclude','noteFrom','noteBody','artist-input','wiz-focus'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.querySelectorAll('.ochip.on').forEach(c => c.classList.remove('on'));
   document.querySelectorAll('#occ-grid .occ2.sel').forEach(c => c.classList.remove('sel'));
   document.querySelectorAll('#genre-pills .gpill.sel').forEach(p => p.classList.remove('sel'));
@@ -3941,23 +3945,24 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     const get = id => ($(id)?.value || '').trim();
     const about = get('abAbout');
     const include = get('abInclude');
-    S.fields['f-name']    = get('abName');
-    S.fields['f-about']   = about;     // the brief: who it's for + the story
-    S.fields['f-include'] = include;   // optional specifics
+    S.fields['f-name']     = get('abName');
+    S.fields['f-relation'] = get('abRelation');   // free-text relationship (e.g. "my wife")
+    S.fields['f-about']    = about;     // the brief: who it's for + the story
+    S.fields['f-include']  = include;   // optional specifics
     // Keep the current song pipeline fed until the n8n prompt is updated to read
     // f-about / f-include directly: brief → who-they-are context, include → memory.
     S.fields['f-love']     = about;
     S.fields['f-memory']   = include;
-    S.fields['f-relation'] = '';
     S.fields['f-feel']     = '';
   };
   /* live-clear the highlight as they fill */
-  ['abName','abAbout'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('input',()=>{ const t=el.closest('.tin'); if(t) t.classList.remove('need'); }); });
-  /* Step 2 required: name + the 'what's this about' brief (the include box is optional) */
+  ['abName','abRelation','abAbout'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('input',()=>{ const t=el.closest('.tin'); if(t) t.classList.remove('need'); }); });
+  /* Step 2 required: name + who-they-are + the 'what's this about' brief (include is optional) */
   window.aboutContinue = function(){
-    const name=($('abName')?.value||'').trim(), about=($('abAbout')?.value||'').trim();
+    const name=($('abName')?.value||'').trim(), rel=($('abRelation')?.value||'').trim(), about=($('abAbout')?.value||'').trim();
     const missing=[];
     if(!name)  missing.push(['abName','their name']);
+    if(!rel)   missing.push(['abRelation','who they are to you']);
     if(!about) missing.push(['abAbout','what this is about']);
     document.querySelectorAll('#screen-2 .tin.need').forEach(x=>x.classList.remove('need'));
     if(missing.length){
@@ -4151,7 +4156,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     const s = SS() || {};
     return { v:1, ts:Date.now(), uid:(s.user&&s.user.id)||null, step:currentStep()||'1',
       occasion:s.occasion||null,
-      inputs:{ abName:val('abName'), abAbout:val('abAbout'), abInclude:val('abInclude'), noteFrom:val('noteFrom'), noteBody:val('noteBody'), artist:val('artist-input'), focus:val('wiz-focus') },
+      inputs:{ abName:val('abName'), abRelation:val('abRelation'), abAbout:val('abAbout'), abInclude:val('abInclude'), noteFrom:val('noteFrom'), noteBody:val('noteBody'), artist:val('artist-input'), focus:val('wiz-focus') },
       mood:s.moodPreset||null, vocal:s.vocal||null, genres:s.genres||[],
       clipMeta:(s.clips||[]).map(c=>({ cid:c.cid, type:c.type, duration:c.duration, description:c.description||'' })) };
   }
@@ -4184,7 +4189,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     try{
       if(d.occasion){ s.occasion=d.occasion; document.querySelectorAll('#occ-grid .occ2').forEach(c=>c.classList.toggle('sel', c.dataset.occ===d.occasion)); const s1=el('s1-next'); if(s1) s1.disabled=false; }
       const setVal=(id,v)=>{ const e=el(id); if(e && v!=null){ e.value=v; try{ e.dispatchEvent(new Event('input',{bubbles:true})); }catch(_){} } };
-      setVal('abName',d.inputs.abName); setVal('abAbout',d.inputs.abAbout); setVal('abInclude',d.inputs.abInclude);
+      setVal('abName',d.inputs.abName); setVal('abRelation',d.inputs.abRelation); setVal('abAbout',d.inputs.abAbout); setVal('abInclude',d.inputs.abInclude);
       setVal('noteFrom',d.inputs.noteFrom); setVal('noteBody',d.inputs.noteBody);
       setVal('artist-input',d.inputs.artist); setVal('wiz-focus',d.inputs.focus);
       if(typeof readAboutFields==='function') readAboutFields();
