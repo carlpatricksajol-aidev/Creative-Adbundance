@@ -1343,46 +1343,28 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
     <!-- STEP 2: ABOUT THEM -->
     <div id="screen-2" class="screen wrap" style="display:none">
       <div class="step-head">
-        <span class="eyebrow">Step 2 of 5 · About them</span>
-        <h1>Tell us about <em>them.</em></h1>
-        <p class="lede">The more we know, the more the song sounds like <em>them</em>, not a template. Fill these in so it's truly about them (the inside joke is optional).</p>
+        <span class="eyebrow">Step 2 of 5 · The story</span>
+        <h1>What's this one <em>about?</em></h1>
+        <p class="lede">A line or two is all we need — the story behind your clips. We read it together with the videos you upload next.</p>
       </div>
       <div class="s-body">
         <div class="ab-grid">
           <div class="ab-field">
-            <span class="glabel">Their name</span>
-            <div class="tin mic"><input type="text" id="abName" placeholder="e.g. Mom, Cynthia, Grandpa Joe"><button class="mic-btn" type="button" data-target="abName" aria-label="Speak">🎙️</button></div>
-          </div>
-          <div class="ab-field">
-            <span class="glabel">Your relationship</span>
-            <div class="chips" data-single data-field="relation">
-              <button class="ochip" type="button">My mom</button><button class="ochip" type="button">My dad</button><button class="ochip" type="button">My partner</button><button class="ochip" type="button">My friend</button><button class="ochip" type="button">My grandparent</button><button class="ochip" type="button">Someone else</button>
-            </div>
+            <span class="glabel">Their name <span class="hint">for the title and the song</span></span>
+            <div class="tin mic"><input type="text" id="abName" placeholder="e.g. Mom, Cynthia, the kids"><button class="mic-btn" type="button" data-target="abName" aria-label="Speak">🎙️</button></div>
           </div>
           <div class="ab-field full">
-            <span class="glabel">How would you describe them? <span class="hint">pick a few</span></span>
-            <div class="chips" data-multi data-field="describe">
-              <button class="ochip" type="button">Warm</button><button class="ochip" type="button">Funny</button><button class="ochip" type="button">Selfless</button><button class="ochip" type="button">Stubborn (lovingly)</button><button class="ochip" type="button">Adventurous</button><button class="ochip" type="button">Quiet strength</button><button class="ochip" type="button">The glue of the family</button><button class="ochip" type="button">Always singing</button><button class="ochip" type="button">A great cook</button><button class="ochip" type="button">Hard worker</button>
-            </div>
+            <span class="glabel">What's this about?</span>
+            <div class="tin mic"><textarea id="abAbout" placeholder="A line or two on what this reel is — who it's for and the story. e.g. My wife and our last year together, just us being us."></textarea><button class="mic-btn" type="button" data-target="abAbout" aria-label="Speak">🎙️</button></div>
           </div>
           <div class="ab-field full">
-            <span class="glabel">A favorite memory or two <span class="hint">a moment, a trip, an everyday thing they do</span></span>
-            <div class="tin mic"><textarea id="abMemory" placeholder="The summer she taught me to drive in the church parking lot. The way he hums while he fixes things."></textarea><button class="mic-btn" type="button" data-target="abMemory" aria-label="Speak">🎙️</button></div>
-          </div>
-          <div class="ab-field">
-            <span class="glabel">An inside joke or thing only you'd know <span class="hint">optional</span></span>
-            <div class="tin mic"><textarea id="abJoke" placeholder="She calls everyone 'kiddo.' He's been 'almost done' with the garage since 2009."></textarea><button class="mic-btn" type="button" data-target="abJoke" aria-label="Speak">🎙️</button></div>
-          </div>
-          <div class="ab-field">
-            <span class="glabel">What do you want them to feel?</span>
-            <div class="chips" data-multi data-field="feel">
-              <button class="ochip" type="button">Loved</button><button class="ochip" type="button">Seen</button><button class="ochip" type="button">Proud</button><button class="ochip" type="button">Nostalgic</button><button class="ochip" type="button">Celebrated</button><button class="ochip" type="button">Missed</button>
-            </div>
+            <span class="glabel">Anything specific to include? <span class="hint">optional</span></span>
+            <div class="tin mic"><textarea id="abInclude" placeholder="A detail, an inside joke, a moment to make sure we mention. e.g. our trip to Japan, the dog, the way he says 'almost done'."></textarea><button class="mic-btn" type="button" data-target="abInclude" aria-label="Speak">🎙️</button></div>
           </div>
         </div>
         <div class="ai-note">
           <div class="ai-ic">✨</div>
-          <div class="ai-tx"><strong>You don't have to write much.</strong><p>We also <em>watch the videos you upload next</em>, reading the moments, the faces, and the places, then writing lyrics from what we see and what you've told us here.</p></div>
+          <div class="ai-tx"><strong>You don't have to write much.</strong><p>The videos do the talking — we <em>watch every clip you upload next</em>, reading the moments, the faces, and the places, and write the song from what we see plus your line above.</p></div>
         </div>
       </div>
       <div class="step-actions">
@@ -1603,13 +1585,13 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
       <div class="step-head">
         <span class="eyebrow">Step 4 of 5 · Your clips and photos</span>
         <h1>Give us enough to <em>fill your song.</em></h1>
-        <p class="lede">Every photo and video becomes a 5-second moment in your reel. For a long video we pick the best 5 seconds, so it's the highlight, not the whole clip. In each caption, tell us the best bit so we know what to feature.</p>
+        <p class="lede">We feature the best moments of each clip — sometimes the whole thing, sometimes the best few seconds, based on what's in it. In each caption, tell us the best bit so we know what to feature.</p>
       </div>
       <div class="s-body">
         <div class="meter-card">
           <div class="meter-top">
             <span class="meter-label">🎬 Footage for your song</span>
-            <span class="meter-time" id="meterTime">0:00 <span class="target">/ 1:00 minimum</span></span>
+            <span class="meter-time" id="meterTime">0:00 <span class="target">/ 0:30 to start</span></span>
           </div>
           <div class="meter-track"><div class="meter-fill" id="meterFill"></div><div class="meter-ticks"><span></span><span></span><span></span><span></span></div></div>
           <div class="meter-status" id="meterStatus"><span class="dot"></span><span id="meterMsg">Add photos and clips to start filling your song.</span></div>
@@ -2137,10 +2119,9 @@ const C = {
   MAX_CLIPS:      40,    // legacy total = the two caps combined (kept for old references)
   PHOTO_DURATION: 5,
   MAX_VIDEO_SECS: 180,   // 3-minute cap per video (the AI extracts a 5s highlight from long clips)
-  PER_CLIP_SECS:  5,     // every clip — video best-moment or photo — shows for ~5s
-  SONG_CAP_SECS:  200,   // 3:20 ceiling = the full 20 videos + 20 photos at 5s each (so nothing is ever dropped)
-  MIN_SONG_SECS:  60,    // 1:00 minimum reel
-  MIN_CLIPS:      12,    // 12 clips × 5s = the 1:00 minimum
+  PER_CLIP_SECS:    5,   // minimum usable video length (a clip under 5s is too short to be a moment)
+  SONG_CAP_SECS:    180, // 3:00 ceiling on the finished reel
+  MIN_FOOTAGE_SECS: 30,  // need ~30s of uploaded footage before we have enough to work with
 };
 
 const sb = window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_KEY);
@@ -2423,7 +2404,7 @@ function showScreen(id) {
   const stepMap  = { '1':16,'2':32,'note':48,'3':66,'4':84,'proc':93,'review':93,'done':100 };
   const labelMap = {
     '1':'Step 1 of 5 · Occasion',
-    '2':'Step 2 of 5 · About them',
+    '2':'Step 2 of 5 · The story',
     'note':'Step 3 of 5 · Your note',
     '3':'Step 4 of 5 · Clips and photos',
     '4':'Step 5 of 5 · Song style',
@@ -3230,11 +3211,11 @@ async function submitJob() {
   if (S.clips.length === 0) { srToast('Add at least one photo or video clip to continue.', '🎬'); return; }
   if (S.clips.some(c => c.converting)) { srToast('Still processing a file.\nPlease wait for it to finish before submitting.', '⏳'); return; }
 
-  // ── Reel length = ~5s per clip (best moment of each), capped at 3 minutes. ──
-  // Predictable, no bloat from long videos: 20 clips → 1:40, 36+ → 3:00 max.
-  const clipCount = S.clips.length;
-  const reelSecs = Math.min(C.SONG_CAP_SECS, clipCount * C.PER_CLIP_SECS);
-  S.songLength = reelSecs / 60;   // sent as song_length_mins; the pipeline uses songLengthMins*60 = reelSecs
+  // ── Reel length is content-aware: the AI features the best moment(s) of each clip
+  // (up to the whole clip) and sizes the reel to that, capped at 3:00. The frontend
+  // sends an upper bound (uploaded footage, capped 3:00); n8n trims to the highlight sum.
+  const footageSecs = S.clips.reduce((sum, c) => sum + (c.type === 'image' ? C.PHOTO_DURATION : (c.duration || 10)), 0);
+  S.songLength = Math.min(C.SONG_CAP_SECS, footageSecs) / 60;   // song_length_mins upper bound; pipeline caps to actual highlights
 
   showScreen('proc');
   setLogLine('ll-upload', 'active', 'Saving your clips and photos...');
@@ -3652,7 +3633,7 @@ function clearWizardUI(keepClips) {
   if (!keepClips) { try { if (typeof SR_clearDraft === 'function') SR_clearDraft(); } catch(e) {} }
   try { renderClips(); } catch(e) {}      // re-paints #clip-grid-new from S.clips (kept clips stay, else empty)
   try { updateClipUI(); } catch(e) {}     // meter + Continue state recomputed from S.clips
-  ['abName','abMemory','abJoke','noteFrom','noteBody','artist-input','wiz-focus'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['abName','abAbout','abInclude','noteFrom','noteBody','artist-input','wiz-focus'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.querySelectorAll('.ochip.on').forEach(c => c.classList.remove('on'));
   document.querySelectorAll('#occ-grid .occ2.sel').forEach(c => c.classList.remove('sel'));
   document.querySelectorAll('#genre-pills .gpill.sel').forEach(p => p.classList.remove('sel'));
@@ -3955,37 +3936,36 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
       b.classList.toggle('on'); });
   });
 
-  /* read About-them into S.fields (what the song AI reads) */
-  function chipVals(field){ const g = document.querySelector('.chips[data-field="'+field+'"]'); return g ? [...g.querySelectorAll('.ochip.on')].map(b=>b.textContent.trim()) : []; }
+  /* read the story brief into S.fields (what the song AI reads) */
   window.readAboutFields = function(){
     const get = id => ($(id)?.value || '').trim();
-    const joke = get('abJoke');
-    S.fields['f-name']     = get('abName');
-    S.fields['f-relation'] = chipVals('relation')[0] || '';
-    S.fields['f-love']     = chipVals('describe').join(', ');
-    S.fields['f-memory']   = (get('abMemory') + (joke ? '  Detail only they’d know: ' + joke : '')).trim();
-    S.fields['f-feel']     = chipVals('feel').join(', ');
+    const about = get('abAbout');
+    const include = get('abInclude');
+    S.fields['f-name']    = get('abName');
+    S.fields['f-about']   = about;     // the brief: who it's for + the story
+    S.fields['f-include'] = include;   // optional specifics
+    // Keep the current song pipeline fed until the n8n prompt is updated to read
+    // f-about / f-include directly: brief → who-they-are context, include → memory.
+    S.fields['f-love']     = about;
+    S.fields['f-memory']   = include;
+    S.fields['f-relation'] = '';
+    S.fields['f-feel']     = '';
   };
   /* live-clear the highlight as they fill */
-  ['abName','abMemory'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('input',()=>{ const t=el.closest('.tin'); if(t) t.classList.remove('need'); }); });
-  document.querySelectorAll('#screen-2 .chips').forEach(g=>g.addEventListener('click',()=>g.classList.remove('need')));
-  /* Step 2 fields are REQUIRED (except the explicitly-optional inside joke) */
+  ['abName','abAbout'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('input',()=>{ const t=el.closest('.tin'); if(t) t.classList.remove('need'); }); });
+  /* Step 2 required: name + the 'what's this about' brief (the include box is optional) */
   window.aboutContinue = function(){
-    const name=($('abName')?.value||'').trim(), mem=($('abMemory')?.value||'').trim();
-    const rel=chipVals('relation'), desc=chipVals('describe'), feel=chipVals('feel');
+    const name=($('abName')?.value||'').trim(), about=($('abAbout')?.value||'').trim();
     const missing=[];
-    if(!name) missing.push(['input','abName','their name']);
-    if(!rel.length) missing.push(['chips','relation','your relationship']);
-    if(!desc.length) missing.push(['chips','describe','how you’d describe them']);
-    if(!mem) missing.push(['input','abMemory','a favorite memory']);
-    if(!feel.length) missing.push(['chips','feel','what you want them to feel']);
-    document.querySelectorAll('#screen-2 .tin.need,#screen-2 .chips.need').forEach(x=>x.classList.remove('need'));
+    if(!name)  missing.push(['abName','their name']);
+    if(!about) missing.push(['abAbout','what this is about']);
+    document.querySelectorAll('#screen-2 .tin.need').forEach(x=>x.classList.remove('need'));
     if(missing.length){
-      missing.forEach(m=>{ if(m[0]==='input'){ const el=$(m[1]); const t=el&&el.closest('.tin'); if(t) t.classList.add('need'); } else { const g=document.querySelector('.chips[data-field="'+m[1]+'"]'); if(g) g.classList.add('need'); } });
-      const f=missing[0]; const tgt=f[0]==='input'?$(f[1]):document.querySelector('.chips[data-field="'+f[1]+'"]');
-      if(tgt) tgt.scrollIntoView({behavior:'smooth',block:'center'});
-      if(f[0]==='input') setTimeout(()=>{ const el=$(f[1]); if(el) el.focus(); },300);
-      srToast('Please fill in: '+missing.map(m=>m[2]).join(', ')+'.\nThe more you share, the more the song sounds like them.', '✍️');
+      missing.forEach(m=>{ const el=$(m[0]); const t=el&&el.closest('.tin'); if(t) t.classList.add('need'); });
+      const f=missing[0]; const tgt=$(f[0]); const t=tgt&&(tgt.closest('.tin')||tgt);
+      if(t) t.scrollIntoView({behavior:'smooth',block:'center'});
+      setTimeout(()=>{ const el=$(f[0]); if(el) el.focus(); },300);
+      srToast('Please fill in: '+missing.map(m=>m[1]).join(', ')+'.', '✍️');
       return;
     }
     readAboutFields(); showScreen('note');
@@ -4043,32 +4023,32 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     const empty = $('clipEmpty'); if(empty) empty.style.display = (S.clips&&S.clips.length) ? 'none' : 'block';
   };
   window.updateClipUI = function(){
-    // Every clip (video best-moment or photo) becomes a ~5s moment. The bar tracks
-    // progress to the 1:00 MINIMUM (the gate to continue); once reached it's "ready"
-    // and they can keep adding up to the 3:20 cap (the full 20+20 clips).
-    const PER = C.PER_CLIP_SECS, CAP = C.SONG_CAP_SECS, MIN = C.MIN_SONG_SECS, MINC = C.MIN_CLIPS;
+    // Content-aware: show REAL uploaded footage and reassure that the AI features the best
+    // moments of each clip (sometimes the whole thing), final reel up to 3:00. Continue
+    // unlocks once there's enough footage to work with — no fixed per-clip length.
+    const CAP = C.SONG_CAP_SECS, MINF = C.MIN_FOOTAGE_SECS, PHOTO = C.PHOTO_DURATION;
     const clips = S.clips || [];
     const n = clips.length;
     const vids = clips.filter(c => c.type !== 'image').length;
     const imgs = n - vids;
-    const reel = Math.min(CAP, n * PER);
-    const met = reel >= MIN;
-    const pct = Math.min(100, reel / MIN * 100);   // bar fills toward the 1:00 minimum
+    const footage = clips.reduce((a,c)=> a + (c.type==='image' ? PHOTO : (c.duration||0)), 0);
+    const met = footage >= MINF;
+    const pct = Math.min(100, footage / MINF * 100);
+    const upper = Math.min(CAP, footage);
     const mf=$('meterFill'); if(mf){ mf.style.width=pct+'%'; mf.classList.toggle('done',met); }
     const mt=$('meterTime'); if(mt){ mt.classList.toggle('done',met);
       mt.innerHTML = met
-        ? fmtDur(reel)+' reel <span class="target">✓ (up to '+fmtDur(CAP)+')</span>'
-        : fmtDur(reel)+' <span class="target">/ 1:00 minimum</span>'; }
+        ? fmtDur(footage)+' uploaded <span class="target">✓ best moments → up to '+fmtDur(upper)+'</span>'
+        : fmtDur(footage)+' <span class="target">/ 0:30 to start</span>'; }
     const ms=$('meterStatus'); if(ms) ms.classList.toggle('done',met);
     const mm=$('meterMsg'); if(mm){
-      if(!n) mm.textContent = 'Each photo or video becomes a 5-second moment. You need at least 1:00 (about ' + MINC + ' moments) to start — add up to ' + C.MAX_VIDEOS + ' videos and ' + C.MAX_PHOTOS + ' photos (' + fmtDur(CAP) + ' max).';
-      else if(!met) mm.textContent = 'Add ' + (MINC - n) + ' more moment' + ((MINC-n)===1?'':'s') + ' to reach the 1:00 minimum (each clip plays for 5 seconds).';
-      else if(reel < CAP) mm.innerHTML = '<strong>Ready to go.</strong> That’s a ' + fmtDur(reel) + ' reel. Add more for a longer one, up to ' + fmtDur(CAP) + '.';
-      else mm.innerHTML = '<strong>Full reel.</strong> You’ve hit the ' + fmtDur(CAP) + ' maximum (' + (C.MAX_VIDEOS + C.MAX_PHOTOS) + ' moments).';
+      if(!n) mm.textContent = 'Add your photos and videos. We watch each one and feature its best moments — sometimes the whole clip, sometimes the best few seconds. Final reel up to 3:00.';
+      else if(!met) mm.textContent = 'A little more to work with — about ' + fmtDur(MINF - footage) + ' more footage to start. Add up to ' + C.MAX_VIDEOS + ' videos and ' + C.MAX_PHOTOS + ' photos.';
+      else mm.innerHTML = '<strong>Ready to go.</strong> ' + fmtDur(footage) + ' uploaded — we’ll feature the best moments of each (final reel up to 3:00).';
     }
-    const cm=$('clipMeta'); if(cm) cm.textContent = n ? (n+' moment'+(n>1?'s':'')+' · '+vids+' video'+(vids===1?'':'s')+', '+imgs+' photo'+(imgs===1?'':'s')+' · ~'+fmtDur(reel)+' reel') : '';
-    const next=$('s3-next'); if(next) next.disabled = !n || clips.some(c=>c.converting) || reel < MIN;
-    const lb=$('lb-len'); if(lb) lb.textContent = '~' + fmtDur(reel);
+    const cm=$('clipMeta'); if(cm) cm.textContent = n ? (n+' clip'+(n>1?'s':'')+' · '+vids+' video'+(vids===1?'':'s')+', '+imgs+' photo'+(imgs===1?'':'s')+' · '+fmtDur(footage)+' uploaded') : '';
+    const next=$('s3-next'); if(next) next.disabled = !met || clips.some(c=>c.converting);
+    const lb=$('lb-len'); if(lb) lb.textContent = '~' + fmtDur(upper);
   };
 
   /* tap a clip → full-screen preview (image, or playable video) */
@@ -4171,12 +4151,11 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     const s = SS() || {};
     return { v:1, ts:Date.now(), uid:(s.user&&s.user.id)||null, step:currentStep()||'1',
       occasion:s.occasion||null,
-      inputs:{ abName:val('abName'), abMemory:val('abMemory'), abJoke:val('abJoke'), noteFrom:val('noteFrom'), noteBody:val('noteBody'), artist:val('artist-input'), focus:val('wiz-focus') },
-      chips:{ relation:chipsOn('relation'), describe:chipsOn('describe'), feel:chipsOn('feel') },
+      inputs:{ abName:val('abName'), abAbout:val('abAbout'), abInclude:val('abInclude'), noteFrom:val('noteFrom'), noteBody:val('noteBody'), artist:val('artist-input'), focus:val('wiz-focus') },
       mood:s.moodPreset||null, vocal:s.vocal||null, genres:s.genres||[],
       clipMeta:(s.clips||[]).map(c=>({ cid:c.cid, type:c.type, duration:c.duration, description:c.description||'' })) };
   }
-  function hasContent(d){ return !!(d.occasion || d.inputs.abName || d.inputs.abMemory || d.inputs.noteBody || (d.chips.relation||[]).length || (d.chips.describe||[]).length || (d.clipMeta||[]).length); }
+  function hasContent(d){ return !!(d.occasion || (d.inputs && (d.inputs.abName || d.inputs.abAbout || d.inputs.noteBody)) || (d.clipMeta||[]).length); }
 
   async function doSave(){
     if(restoring) return;
@@ -4205,10 +4184,9 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     try{
       if(d.occasion){ s.occasion=d.occasion; document.querySelectorAll('#occ-grid .occ2').forEach(c=>c.classList.toggle('sel', c.dataset.occ===d.occasion)); const s1=el('s1-next'); if(s1) s1.disabled=false; }
       const setVal=(id,v)=>{ const e=el(id); if(e && v!=null){ e.value=v; try{ e.dispatchEvent(new Event('input',{bubbles:true})); }catch(_){} } };
-      setVal('abName',d.inputs.abName); setVal('abMemory',d.inputs.abMemory); setVal('abJoke',d.inputs.abJoke);
+      setVal('abName',d.inputs.abName); setVal('abAbout',d.inputs.abAbout); setVal('abInclude',d.inputs.abInclude);
       setVal('noteFrom',d.inputs.noteFrom); setVal('noteBody',d.inputs.noteBody);
       setVal('artist-input',d.inputs.artist); setVal('wiz-focus',d.inputs.focus);
-      ['relation','describe','feel'].forEach(f=>{ const g=document.querySelector('.chips[data-field="'+f+'"]'); if(!g) return; const want=d.chips[f]||[]; g.querySelectorAll('.ochip').forEach(b=>b.classList.toggle('on', want.includes(b.textContent.trim()))); });
       if(typeof readAboutFields==='function') readAboutFields();
       const MS = (typeof MOODS!=='undefined')?MOODS:[], VS=(typeof VOICES!=='undefined')?VOICES:[];
       if(d.mood){ s.moodPreset=d.mood; const lbl=MS.find(m=>m.id===d.mood); document.querySelectorAll('#mood-pills .gpill').forEach(p=>p.classList.toggle('sel', !!lbl && p.textContent.trim()===lbl.label)); }
