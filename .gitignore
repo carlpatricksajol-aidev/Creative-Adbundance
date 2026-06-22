@@ -1,2 +1,18 @@
 # Third-party skill repos cloned locally — kept on disk, not tracked in this project
 external-skills/
+
+# VideoEditor: media + heavy artifacts stay on disk, not tracked
+VideoEditor/input/
+VideoEditor/work/
+VideoEditor/output/
+VideoEditor/assets/broll/
+VideoEditor/assets/music/
+VideoEditor/bin/
+VideoEditor/node_modules/
+VideoEditor/.venv/
+VideoEditor/.env
+VideoEditor/.secrets/
+
+# Python cache
+__pycache__/
+*.pyc
