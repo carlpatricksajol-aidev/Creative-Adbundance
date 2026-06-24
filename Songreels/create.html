@@ -3219,7 +3219,10 @@ async function submitJob() {
   // (up to the whole clip) and sizes the reel to that, capped at 3:00. The frontend
   // sends an upper bound (uploaded footage, capped 3:00); n8n trims to the highlight sum.
   const footageSecs = S.clips.reduce((sum, c) => sum + (c.type === 'image' ? C.PHOTO_DURATION : (c.duration || 10)), 0);
-  S.songLength = Math.min(C.SONG_CAP_SECS, footageSecs) / 60;   // song_length_mins upper bound; pipeline caps to actual highlights
+  // song_length_mins is an INTEGER column — must be a whole number (a fraction here is
+  // what was making the job insert fail with "Failed to create your gift"). It's only a
+  // coarse upper bound (1–3 min); n8n trims the reel to the actual highlight sum.
+  S.songLength = Math.max(1, Math.min(3, Math.ceil(footageSecs / 60)));
 
   showScreen('proc');
   setLogLine('ll-upload', 'active', 'Saving your clips and photos...');
