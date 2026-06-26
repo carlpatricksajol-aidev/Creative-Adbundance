@@ -73,9 +73,10 @@ function req(opts, body, wantRaw) {
   return new Promise((res, rej) => { const r = https.request(opts, x => { const ch = []; x.on("data", c => ch.push(c)); x.on("end", () => { const b = Buffer.concat(ch); res({ code: x.statusCode, buf: b, json: wantRaw ? null : (() => { try { return JSON.parse(b.toString()); } catch { return b.toString(); } })() }); }); }); r.on("error", rej); if (body) r.write(body); r.end(); });
 }
 const apiArg = o => JSON.stringify(o).replace(/[^\x20-\x7e]/g, c => "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0"));
-let TOKEN = null;
-const dbxRpc = (p, o) => req({ hostname: "api.dropboxapi.com", path: p, method: "POST", headers: { Authorization: "Bearer " + TOKEN, "Content-Type": "application/json" } }, JSON.stringify(o));
-const dbxContent = (p, arg, body, wantRaw) => req({ hostname: "content.dropboxapi.com", path: p, method: "POST", headers: { Authorization: "Bearer " + TOKEN, "Dropbox-API-Arg": apiArg(arg), "Content-Type": "application/octet-stream" } }, body, wantRaw);
+let TOKEN = null, PATH_ROOT = null; // PATH_ROOT = team-space namespace so 03_Clients/... paths resolve
+const rootHdr = () => (PATH_ROOT ? { "Dropbox-API-Path-Root": PATH_ROOT } : {});
+const dbxRpc = (p, o) => req({ hostname: "api.dropboxapi.com", path: p, method: "POST", headers: { Authorization: "Bearer " + TOKEN, "Content-Type": "application/json", ...rootHdr() } }, JSON.stringify(o));
+const dbxContent = (p, arg, body, wantRaw) => req({ hostname: "content.dropboxapi.com", path: p, method: "POST", headers: { Authorization: "Bearer " + TOKEN, "Dropbox-API-Arg": apiArg(arg), "Content-Type": "application/octet-stream", ...rootHdr() } }, body, wantRaw);
 const notionReq = (p, method, body) => req({ hostname: "api.notion.com", path: p, method: method || "GET", headers: { Authorization: "Bearer " + CFG.notion, "Notion-Version": "2022-06-28", "Content-Type": "application/json" } }, body);
 
 async function getToken() {
@@ -83,6 +84,10 @@ async function getToken() {
   const r = await req({ hostname: "api.dropboxapi.com", path: "/oauth2/token", method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(form) } }, form);
   if (r.code !== 200) throw new Error("dropbox token refresh failed: " + JSON.stringify(r.json));
   TOKEN = r.json.access_token;
+  // operate inside the team space so the client/batch footage folders are reachable + writable
+  const acct = (await req({ hostname: "api.dropboxapi.com", path: "/2/users/get_current_account", method: "POST", headers: { Authorization: "Bearer " + TOKEN, "Content-Type": "application/json" } }, "null")).json;
+  const rootNs = acct.root_info && acct.root_info.root_namespace_id;
+  if (rootNs) PATH_ROOT = JSON.stringify({ ".tag": "root", root: rootNs });
 }
 function dbxDownload(sharedUrl, name, dest) {
   return new Promise((ok, no) => { const r = https.request({ hostname: "content.dropboxapi.com", path: "/2/sharing/get_shared_link_file", method: "POST", headers: { Authorization: "Bearer " + TOKEN, "Dropbox-API-Arg": apiArg({ url: sharedUrl, path: "/" + name }) } }, x => { if (x.statusCode >= 300) { let d = ""; x.on("data", c => d += c); x.on("end", () => no(new Error("download " + x.statusCode + " " + d.slice(0, 150)))); return; } const f = fs.createWriteStream(dest); x.pipe(f); f.on("finish", () => f.close(ok)); f.on("error", no); }); r.on("error", no); r.end(); });
@@ -135,28 +140,42 @@ async function processPage(PAGE) {
   const sceneRows = parseStoryboardTable(tableRows.results);
   const scenes = normalizeScenes(sceneRows);
   const candidates = scenes.flatMap(s => s.shots.map(sh => ({ scene: s.scene, slug: sh.slug, description: sh.description })));
-  const OUT = `${CFG.outputRoot}/${client}/${creator}`.replace(/\[|\]/g, "");
-  console.log(`page ${PAGE}: ${client}/${creator}, ${scenes.length} scenes / ${candidates.length} shots -> ${OUT}`);
+  // resolve the upload link to its REAL path in the team space, so the renamed set lands right
+  // inside the client's footage folder (and we rename via fast server-side copy, no re-upload)
+  const smd = (await dbxRpc("/2/sharing/get_shared_link_metadata", { url: sharedUrl })).json;
+  let folderPath = smd.path_lower;
+  if (!folderPath && smd.id) folderPath = (await dbxRpc("/2/files/get_metadata", { path: smd.id })).json.path_lower;
+  const coLocated = !!folderPath;
+  const OUT = coLocated ? `${folderPath}/renamed` : `${CFG.outputRoot}/${client}/${creator}`.replace(/\[|\]/g, "");
+  console.log(`page ${PAGE}: ${client}/${creator}, ${scenes.length} scenes / ${candidates.length} shots -> ${OUT}${coLocated ? "" : " (fallback - source folder not writable)"}`);
 
-  // 2) list + process clips
-  const lf = await dbxRpc("/2/files/list_folder", { path: "", shared_link: { url: sharedUrl } });
-  let entries = lf.json.entries || []; let cursor = lf.json;
+  // 2) list + frame + match each clip
+  const lf = await dbxRpc("/2/files/list_folder", coLocated ? { path: folderPath } : { path: "", shared_link: { url: sharedUrl } });
+  let entries = lf.json.entries || [], cursor = lf.json;
   while (cursor.has_more) { cursor = (await dbxRpc("/2/files/list_folder/continue", { cursor: cursor.cursor })).json; entries = entries.concat(cursor.entries); }
   const vids = entries.filter(e => /\.(mov|mp4|m4v)$/i.test(e.name));
   const work = fs.mkdtempSync(path.join(os.tmpdir(), "fr-"));
-  const local = {}, matches = [];
+  const src = {}, local = {}, matches = [];
   for (const v of vids) {
-    const lp = path.join(work, v.name.replace(/[^a-z0-9.]/gi, "_")); local[v.name] = lp;
+    src[v.name] = v.path_lower || `${folderPath}/${v.name}`;
+    const lp = path.join(work, v.name.replace(/[^a-z0-9.]/gi, "_"));
     await dbxDownload(sharedUrl, v.name, lp);
     const m = await matchClip(frames(lp, work, v.id.replace(/[^a-z0-9]/gi, "")), candidates, v.name);
     matches.push({ file: v.name, scene: m.scene, shot_slug: m.shot_slug, person_in_frame: m.person_in_frame, confidence: m.confidence, type: "broll" });
     console.log(`  ${v.name} -> ${applyPov(m.shot_slug || "?", m.person_in_frame)} (${fmtC(m.confidence)})`);
+    if (coLocated) fs.unlinkSync(lp); else local[v.name] = lp; // co-located renames via server-side copy, no bytes kept
   }
 
-  // 3) plan + write output (fresh)
+  // 3) plan + write the renamed set into OUT (fresh) - copy (originals stay untouched)
   const plan = planJob(sceneRows, matches, { client, creator, confidenceThreshold: CFG.confidence });
   try { await dbxRpc("/2/files/delete_v2", { path: OUT }); } catch {}
-  for (const r of plan.renames) await dbxUpload(`${OUT}/${r.folder}/${r.to}`, local[r.from]);
+  for (const sub of ["", "/broll", "/aroll"]) { try { await dbxRpc("/2/files/create_folder_v2", { path: OUT + sub }); } catch {} }
+  for (const r of plan.renames) {
+    if (coLocated) {
+      const cp = await dbxRpc("/2/files/copy_v2", { from_path: src[r.from], to_path: `${OUT}/${r.folder}/${r.to}`, autorename: false });
+      if (cp.code >= 300) throw new Error("copy " + cp.code + " " + JSON.stringify(cp.json).slice(0, 150));
+    } else await dbxUpload(`${OUT}/${r.folder}/${r.to}`, local[r.from]);
+  }
   await dbxContent("/2/files/upload", { path: `${OUT}/_report.md`, mode: "overwrite", mute: true }, Buffer.from(plan.report));
 
   // 4) share link
