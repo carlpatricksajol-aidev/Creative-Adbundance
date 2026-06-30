@@ -262,7 +262,7 @@ allShows.forEach((sh, idx) => {
   const withFade = idx > 0;   // very first element has no crossfade fade-in
   const trkRef = { v: trk };
   if (isImage) {
-    // v5.8: two layers — blurred fill (still) + whole photo with slow centered push-in
+    // v5.9: whole photo (contain) on black with the slow centered push-in
     pushPhoto(elements, ci.url, start, dur, trkRef, withFade);
   } else {
     const el = { type: 'video', source: ci.url, track: trkRef.v++, time: r2(start), duration: r2(dur), fit: 'cover', width: '100%', height: '100%', x: '50%', y: '50%', x_anchor: '50%', y_anchor: '50%', trim_start: r2(trimStart), trim_duration: r2(dur), volume: '0%' };
