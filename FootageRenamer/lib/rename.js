@@ -106,7 +106,7 @@ function planJob(scenesRaw, matches, opts = {}) {
   const usedBrollSlug = {}; // slug -> count, for _v2/_v3
   const usedTake = {};      // sceneKey -> count, for _take1/2/3
 
-  const ok = (m) => (m.confidence == null ? 1 : m.confidence) >= threshold && m.scene;
+  const ok = (m) => (m.reconciled || (m.confidence == null ? 1 : m.confidence) >= threshold) && m.scene;
   const accepted = (matches || []).filter(ok);
   const rejected = (matches || []).filter((m) => !ok(m));
 
@@ -200,6 +200,26 @@ function buildReport({ client, creator, renames, missing, flagged }) {
   return L.join("\n");
 }
 
+// Apply a global talking-head reconciliation result onto the per-clip matches. `recon` is
+// { [file]: {scene, confidence} } from the reconcile pass. Only talking-head matches are touched,
+// and only when reconcile actually placed the clip (non-null scene): a null/absent entry means
+// "reconcile could not place this" -> keep the per-clip guess (never clobber a good match). A placed
+// clip is marked `reconciled` so planJob accepts it regardless of the per-clip confidence threshold
+// (deliberately-similar lines are inherently modest-confidence; reconcile is the authoritative call).
+// Confidence is overwritten only when reconcile supplied a numeric one. Mutates + returns matches.
+function applyReconcile(matches, recon) {
+  if (!recon) return matches;
+  for (const m of matches) {
+    if (m.type !== "talkinghead") continue;
+    const r = recon[m.file];
+    if (!r || r.scene == null) continue;
+    m.scene = r.scene;
+    m.reconciled = true;
+    if (r.confidence != null) m.confidence = r.confidence;
+  }
+  return matches;
+}
+
 // Notion storyboard table -> raw scene rows (feed to normalizeScenes/planJob).
 // `rows` is either Notion `table_row` blocks (we extract cells) or plain arrays of strings.
 // Reads by HEADER name, so column order / an extra column can't break it.
@@ -237,5 +257,5 @@ function parseStoryboardTable(rows) {
   return out;
 }
 
-const api = { deriveSlug, splitShots, sceneKey, lineSlug, applyPov, normalizeScenes, planJob, buildReport, parseStoryboardTable };
+const api = { deriveSlug, splitShots, sceneKey, lineSlug, applyPov, normalizeScenes, planJob, buildReport, applyReconcile, parseStoryboardTable };
 if (typeof module !== "undefined" && module.exports) module.exports = api;

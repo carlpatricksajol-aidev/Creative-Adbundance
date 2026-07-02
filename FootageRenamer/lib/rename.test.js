@@ -3,7 +3,7 @@
 // talking-head scene, and asserts the tricky cases: slug derivation, multi-shot " + " split,
 // version suffixing, take naming, the missing-shot diff, and low-confidence flagging.
 
-const { deriveSlug, splitShots, planJob, applyPov } = require("./rename");
+const { deriveSlug, splitShots, planJob, applyPov, applyReconcile } = require("./rename");
 
 let pass = 0,
   fail = 0;
@@ -82,6 +82,60 @@ const t = planJob(th, thMatches, { client: "Innerwell", creator: "Jane" });
 eq(t.renames.map((x) => x.to),
    ["hook_here_are_5_reasons_take1.mov", "hook_here_are_5_reasons_take2.mov", "hook_here_are_5_reasons_take3.mov"],
    "talking-head takes");
+
+// --- global talking-head reconciliation (fix cross-clip hook swap + recover a null) ----------
+// Models the real Oasis failure: per-clip matching swapped Hook 1/Hook 2 and left one clip null.
+const rcScenes = [
+  { scene: "Hook 1", type: "talkinghead", script_line: "I'm never taking another pill.", footage_name: "-" },
+  { scene: "Hook 2", type: "talkinghead", script_line: "After years of failed treatments.", footage_name: "-" },
+  { scene: "Scene 2", type: "talkinghead", script_line: "But Oasis made me believe it.", footage_name: "-" },
+];
+const rcMatches = [
+  { file: "pill_after_pill_2.mp4", type: "talkinghead", scene: "Hook 2", confidence: 0.8, transcript: "done chasing pill after pill" },
+  { file: "pill_after_pill.mp4",   type: "talkinghead", scene: "Hook 1", confidence: 0.9, transcript: "spravato after years of failed" },
+  { file: "found_oasis.mp4",       type: "talkinghead", scene: null,     confidence: 0.5, transcript: "found oasis mental health" },
+];
+// what the reconcile pass (LLM) returns, keyed by file:
+const recon = {
+  "pill_after_pill_2.mp4": { scene: "Hook 1", confidence: 1 },
+  "pill_after_pill.mp4":   { scene: "Hook 2", confidence: 1 },
+  "found_oasis.mp4":       { scene: "Scene 2", confidence: 0.9 },
+};
+applyReconcile(rcMatches, recon);
+const rc = planJob(rcScenes, rcMatches, { client: "Oasis", creator: "Natasha" });
+const rcTo = (f) => (rc.renames.find((x) => x.from === f) || {}).scene;
+eq(rcTo("pill_after_pill_2.mp4"), "Hook 1", "reconcile: hook swap corrected (clip 2 -> Hook 1)");
+eq(rcTo("pill_after_pill.mp4"), "Hook 2", "reconcile: hook swap corrected (clip 1 -> Hook 2)");
+eq(rcTo("found_oasis.mp4"), "Scene 2", "reconcile: null recovered to Scene 2");
+eq(rc.flagged.length, 0, "reconcile: nothing left flagged");
+// a clip with no reconcile entry keeps its per-clip guess; b-roll is never touched
+const keepMatches = [{ file: "x.mp4", type: "talkinghead", scene: "Hook 1", confidence: 0.9 },
+                     { file: "b.mp4", type: "broll", scene: "Scene 2", shot_slug: "s", confidence: 0.9 }];
+applyReconcile(keepMatches, { "other.mp4": { scene: "Hook 2", confidence: 1 } });
+eq(keepMatches[0].scene, "Hook 1", "reconcile: unmatched clip keeps per-clip guess");
+eq(keepMatches[1].scene, "Scene 2", "reconcile: b-roll untouched");
+
+// reconcile placed the clip but omitted confidence -> keep per-clip conf, still renamed via the
+// reconciled bypass even though the per-clip confidence (0.2) is below the 0.6 threshold
+const omit = [{ file: "omit.mp4", type: "talkinghead", scene: "Hook 2", confidence: 0.2, transcript: "x" }];
+applyReconcile(omit, { "omit.mp4": { scene: "Hook 1", confidence: null } });
+const omitPlan = planJob(rcScenes, omit, {});
+eq((omitPlan.renames[0] || {}).scene, "Hook 1", "reconcile: omitted-confidence placement still renames (bypass)");
+eq(omitPlan.flagged.length, 0, "reconcile: omitted-confidence not demoted to flagged");
+
+// reconcile could not place it (scene:null) -> keep the per-clip guess, never clobber to flagged
+const keepNull = [{ file: "keep.mp4", type: "talkinghead", scene: "Scene 2", confidence: 0.8, transcript: "y" }];
+applyReconcile(keepNull, { "keep.mp4": { scene: null, confidence: 0.9 } });
+eq(keepNull[0].scene, "Scene 2", "reconcile: null scene keeps per-clip scene");
+eq(keepNull[0].reconciled, undefined, "reconcile: null scene does not mark reconciled");
+eq(((planJob(rcScenes, keepNull, {}).renames[0]) || {}).scene, "Scene 2", "reconcile: null scene still renames via per-clip");
+
+// reconcile reassigns with a modest confidence (0.4) -> still renamed (authoritative), not demoted
+const modest = [{ file: "mod.mp4", type: "talkinghead", scene: "Hook 2", confidence: 0.9, transcript: "z" }];
+applyReconcile(modest, { "mod.mp4": { scene: "Hook 1", confidence: 0.4 } });
+const modestPlan = planJob(rcScenes, modest, {});
+eq((modestPlan.renames[0] || {}).scene, "Hook 1", "reconcile: modest-confidence reassignment still renames");
+eq(modestPlan.flagged.length, 0, "reconcile: modest-confidence reassignment not flagged");
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 console.log("--- sample report (Onsen) ---\n");

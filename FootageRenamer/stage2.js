@@ -40,7 +40,7 @@ function planJob(scenesRaw, matches, opts = {}) {
   const thr = opts.confidenceThreshold == null ? 0.6 : opts.confidenceThreshold;
   const scenes = normalizeScenes(scenesRaw), byId = {}; scenes.forEach(s => byId[s.scene] = s);
   const renames = [], flagged = [], usedSlug = {}, usedTake = {};
-  const ok = m => (m.confidence == null ? 1 : m.confidence) >= thr && m.scene;
+  const ok = m => (m.reconciled || (m.confidence == null ? 1 : m.confidence) >= thr) && m.scene;
   for (const m of matches.filter(ok)) {
     const ext = extOf(m.file), sc = byId[m.scene];
     if (!sc) { flagged.push({ file: m.file, reason: `matched unknown scene "${m.scene}"`, confidence: m.confidence }); continue; }
@@ -66,6 +66,24 @@ function buildReport({ client, creator, renames, missing, flagged }) {
   L.push("", `## Missing shots (${missing.length}) - no clip matched`); missing.forEach(m => L.push(m.type === "talkinghead" ? `- ${m.scene} - talking-head - "${m.line}"` : `- ${m.scene} - b-roll - ${m.slug}  ("${m.footage_name}")`)); if (!missing.length) L.push("- none");
   L.push("", `## Needs review (${flagged.length}) - left with original name`); flagged.forEach(f => L.push(`- ${f.file} - ${f.reason}`)); if (!flagged.length) L.push("- none");
   return L.join("\n") + "\n";
+}
+// Override a talking-head clip's scene with the global reconciliation result, but ONLY when
+// reconcile actually placed it (non-null, in-set scene). A null/absent entry means "reconcile could
+// not place this" -> keep the per-clip guess as fallback (never clobber a good per-clip match).
+// A placed clip is marked reconciled so planJob accepts it regardless of the per-clip threshold
+// (similar lines are inherently modest-confidence; reconcile is the authoritative decision). b-roll
+// is never touched. Confidence is only overwritten when reconcile supplied a numeric one.
+function applyReconcile(matches, recon) {
+  if (!recon) return matches;
+  for (const m of matches) {
+    if (m.type !== "talkinghead") continue;
+    const r = recon[m.file];
+    if (!r || r.scene == null) continue;
+    m.scene = r.scene;
+    m.reconciled = true;
+    if (r.confidence != null) m.confidence = r.confidence;
+  }
+  return matches;
 }
 
 /* ---------- http + api helpers ---------- */
@@ -125,15 +143,45 @@ function audioPart(clip, baseDir, id) {
   return { type: "input_audio", input_audio: { data: b64, format: "mp3" } };
 }
 async function matchClip(frameParts, candidates, filename, audio) {
-  const instruction = `You match ONE raw clip to ONE storyboard entry (closed set). A clip is either b-roll (match by what is on SCREEN in the frames) or talking-head (match by the SPOKEN words in the audio). Each candidate has a "kind". If the clip is a person speaking to camera, it is talking-head: set kind="talkinghead" and ALWAYS fill "transcript" with a BRIEF summary of what is said (one or two sentences, NOT a full verbatim transcript), even if it spans several scenes or you cannot pin it to one (then set scene=null). Only use kind="broll" for visual b-roll with no meaningful speech. Match a talking-head clip to the ONE scene whose script line it best delivers, even if you are not fully certain (reflect your certainty in confidence, do not require an exact quote - a clear paraphrase of the same line counts). Only set scene=null when the clip is a compilation that covers MANY different scenes' lines, or it matches no line at all. Use the clip's filename as a weak extra hint (often descriptive) but decide POV strictly from the frames - the filename's "1stPOV"/"3rdPOV" label is unreliable, ignore it. Original filename: "${filename}". Return STRICT JSON only: {"scene":<scene or null>,"kind":"broll"|"talkinghead"|null,"shot_slug":<slug or null, broll only>,"person_in_frame":true|false,"transcript":"<brief summary, 1-2 sentences, talking-head only, else empty>","confidence":0..1,"on_screen":"<short>"}. Never invent a slug not listed. If nothing fits, scene=null and confidence=0.\nCandidates:\n` + JSON.stringify(candidates);
+  const instruction = `You match ONE raw clip to ONE storyboard entry (closed set). A clip is either b-roll (match by what is on SCREEN in the frames) or talking-head (match by the SPOKEN words in the audio). Each candidate has a "kind". If the clip is a person speaking to camera, it is talking-head: set kind="talkinghead" and ALWAYS fill "transcript" with a BRIEF summary of what is said (one or two sentences, NOT a full verbatim transcript), even if it spans several scenes or you cannot pin it to one (then set scene=null). Only use kind="broll" for visual b-roll with no meaningful speech. For talking-head clips the "scene" you return is only a first guess (a later pass reassigns it globally); your MOST important job is an accurate "transcript" that captures the KEY distinctive words/phrase the speaker says, so similar lines can be told apart later. Use the clip's filename as a weak extra hint (often descriptive) but decide POV strictly from the frames - the filename's "1stPOV"/"3rdPOV" label is unreliable, ignore it. Original filename: "${filename}". Return STRICT JSON only: {"scene":<scene or null>,"kind":"broll"|"talkinghead"|null,"shot_slug":<slug or null, broll only>,"person_in_frame":true|false,"transcript":"<brief summary, 1-2 sentences, talking-head only, else empty>","confidence":0..1,"on_screen":"<short>"}. Never invent a slug not listed. If nothing fits, scene=null and confidence=0.\nCandidates:\n` + JSON.stringify(candidates);
   const content = [{ type: "text", text: instruction }, ...frameParts];
   if (audio) content.push(audio);
   const body = JSON.stringify({ model: CFG.model, temperature: 0, max_tokens: 600, messages: [{ role: "user", content }] });
   const r = await req({ hostname: "openrouter.ai", path: "/api/v1/chat/completions", method: "POST", headers: { Authorization: "Bearer " + CFG.orKey, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) } }, body);
-  const raw = String(r.json.choices && r.json.choices[0] && r.json.choices[0].message.content || "");
+  const c0 = r.json && r.json.choices && r.json.choices[0]; // guard an odd 200 shape (no message) -> falls through to the JSON catch below
+  const raw = String((c0 && c0.message && c0.message.content) || "");
   const m = raw.match(/\{[\s\S]*\}/); // tolerate code fences / extra prose around the JSON
   try { return JSON.parse((m ? m[0] : raw).replace(/```json|```/g, "").trim()); }
   catch { return { scene: null, kind: null, shot_slug: null, person_in_frame: false, transcript: "", confidence: 0, on_screen: "match unparseable" }; }
+}
+// Global talking-head assignment. One text-only call sees ALL talking-head clip transcripts and ALL
+// talking-head scene lines at once, so similar lines (Hook 1 vs Hook 2) get a single consistent
+// mapping instead of each clip guessing in isolation. Returns { [file]: {scene, confidence} }.
+async function reconcileTalkingHead(thScenes, thClips) {
+  if (!thScenes.length || !thClips.length) return {};
+  const instruction = `You assign talking-head clips to storyboard script lines (closed set). Each clip has a "transcript": a brief summary of what the speaker says. Assign every clip to the ONE scene whose script line it delivers.
+Rules:
+- Several clips may deliver the SAME line (alternate takes) - assign each of them to that scene.
+- Tell similar lines apart by their KEY distinctive words, not the general topic.
+- If a clip clearly covers MANY different lines (a full read-through) or matches no line, use scene=null.
+- Pick "scene" only from the list; confidence is 0..1.
+Scenes: ${JSON.stringify(thScenes)}
+Clips: ${JSON.stringify(thClips)}
+Return STRICT JSON array only, exactly one object per clip, reusing the same "file" strings: [{"file":"...","scene":"Hook 1"|null,"confidence":0.0}]`;
+  const body = JSON.stringify({ model: CFG.model, temperature: 0, max_tokens: 2000, messages: [{ role: "user", content: instruction }] });
+  let r; try { r = await req({ hostname: "openrouter.ai", path: "/api/v1/chat/completions", method: "POST", headers: { Authorization: "Bearer " + CFG.orKey, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) } }, body); }
+  catch { return {}; } // transport error -> degrade to the per-clip guesses, never abort the job
+  const c0 = r.json && r.json.choices && r.json.choices[0]; // guard a 200 with an odd shape (no message) so it degrades, not throws
+  const raw = String((c0 && c0.message && c0.message.content) || "");
+  const m = raw.match(/\[[\s\S]*\]/); // tolerate code fences / prose around the JSON array
+  let arr; try { arr = JSON.parse((m ? m[0] : raw).replace(/```json|```/g, "").trim()); } catch { return {}; }
+  const valid = new Set(thScenes.map(s => s.scene)); // reconcile may only pick from the closed set
+  const out = {};
+  if (Array.isArray(arr)) for (const a of arr) if (a && a.file) out[a.file] = {
+    scene: (a.scene != null && valid.has(a.scene)) ? a.scene : null,              // out-of-set / null -> "could not place"
+    confidence: (a.confidence == null || !Number.isFinite(Number(a.confidence))) ? null : Number(a.confidence), // keep null so the per-clip confidence survives
+  };
+  return out;
 }
 const notionText = p => ((p && (p.title || p.rich_text)) || []).map(t => t.plain_text).join("");
 const propText = p => (!p ? [] : p.type === "title" ? (p.title || []) : p.type === "rich_text" ? (p.rich_text || []) : p.type === "select" ? (p.select ? [{ plain_text: p.select.name }] : []) : []).map(t => t.plain_text).join("");
@@ -210,6 +258,16 @@ async function processPage(PAGE) {
     matches.push({ file: v.name, scene: m.scene, shot_slug: m.shot_slug, person_in_frame: m.person_in_frame, confidence: m.confidence, type: kind, transcript: m.transcript || "" });
     console.log(`  ${v.name} -> ${kind === "talkinghead" ? m.scene + " (talking-head)" : applyPov(m.shot_slug || "?", m.person_in_frame)} (${fmtC(m.confidence)})`);
     if (coLocated) fs.unlinkSync(lp); else local[v.name] = lp; // co-located renames via server-side copy, no bytes kept
+  }
+
+  // 2b) global talking-head reconciliation: reassign similar lines (Hook 1 vs Hook 2) consistently
+  const thScenes = scenes.filter(s => s.type === "talkinghead").map(s => ({ scene: s.scene, line: s.line }));
+  const thClips = matches.filter(m => m.type === "talkinghead").map(m => ({ file: m.file, transcript: m.transcript || "" }));
+  if (thScenes.length && thClips.length) {
+    const recon = await reconcileTalkingHead(thScenes, thClips);
+    applyReconcile(matches, recon);
+    console.log("  reconciled talking-head:");
+    matches.filter(m => m.type === "talkinghead").forEach(m => console.log(`    ${m.file} -> ${m.scene || "null"} (${fmtC(m.confidence)})`));
   }
 
   // 3) plan + write the renamed set into OUT (fresh) - copy (originals stay untouched)
