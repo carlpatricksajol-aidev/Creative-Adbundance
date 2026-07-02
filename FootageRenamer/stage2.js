@@ -123,6 +123,32 @@ async function matchClip(frameParts, candidates, filename) {
   return JSON.parse(String(r.json.choices[0].message.content).replace(/```json|```/g, "").trim());
 }
 const notionText = p => ((p && (p.title || p.rich_text)) || []).map(t => t.plain_text).join("");
+const propText = p => (!p ? [] : p.type === "title" ? (p.title || []) : p.type === "rich_text" ? (p.rich_text || []) : p.type === "select" ? (p.select ? [{ plain_text: p.select.name }] : []) : []).map(t => t.plain_text).join("");
+async function dbRows(dbId) {
+  const q = (await notionReq(`/v1/databases/${dbId}/query`, "POST", JSON.stringify({ page_size: 100 }))).json;
+  const cols = ["Scene", "Script Line", "Overlay", "Footage Name", "Shot List Explanation"];
+  const rows = [cols.slice()];
+  for (const pg of q.results || []) rows.push(cols.map(c => propText(pg.properties[c])));
+  return rows;
+}
+// Find the storyboard rows anywhere on the page: a table block, an inline database, or nested
+// inside a synced block / column / toggle (strategists structure their pages differently).
+async function findStoryboardRows(blockId, depth) {
+  if ((depth || 0) > 4) return null;
+  const blocks = (await notionReq(`/v1/blocks/${blockId}/children?page_size=100`)).json.results || [];
+  const table = blocks.find(x => x.type === "table");
+  if (table) return (await notionReq(`/v1/blocks/${table.id}/children?page_size=100`)).json.results;
+  const db = blocks.find(x => x.type === "child_database");
+  if (db) return await dbRows(db.id);
+  for (const x of blocks) {
+    if (!x.has_children && x.type !== "synced_block") continue;
+    let childId = x.id;
+    if (x.type === "synced_block" && x.synced_block && x.synced_block.synced_from && x.synced_block.synced_from.block_id) childId = x.synced_block.synced_from.block_id;
+    const r = await findStoryboardRows(childId, (depth || 0) + 1);
+    if (r) return r;
+  }
+  return null;
+}
 
 async function processPage(PAGE) {
   // 0) claim the job
@@ -134,10 +160,9 @@ async function processPage(PAGE) {
   const creator = CFG.creatorOverride || notionText(props["Creator Name"]) || "Unknown";
   const sharedUrl = (props["Dropbox Upload Link"] || {}).url;
   if (!sharedUrl) throw new Error("Notion row has no Dropbox Upload Link");
-  const blocks = (await notionReq(`/v1/blocks/${PAGE}/children?page_size=100`)).json;
-  const table = blocks.results.find(b => b.type === "table");
-  const tableRows = (await notionReq(`/v1/blocks/${table.id}/children?page_size=100`)).json;
-  const sceneRows = parseStoryboardTable(tableRows.results);
+  const storyRows = await findStoryboardRows(PAGE, 0);
+  if (!storyRows) throw new Error("no storyboard table or database found on the page");
+  const sceneRows = parseStoryboardTable(storyRows);
   const scenes = normalizeScenes(sceneRows);
   const candidates = scenes.flatMap(s => s.shots.map(sh => ({ scene: s.scene, slug: sh.slug, description: sh.description })));
   // resolve the upload link to its REAL path in the team space, so the renamed set lands right
