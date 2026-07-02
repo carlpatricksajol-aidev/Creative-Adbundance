@@ -26,6 +26,9 @@ eq(deriveSlug("1stPOV_scrolling phone researching towels at night"),
 eq(splitShots("1stPOV_hand pressing waffle towel + 1stPOV_wrapping towel around body drying quickly").map(s => s.slug),
    ["1stpov_hand_pressing_waffle_towel", "1stpov_wrapping_towel_around_body_drying_quickly"], "split: ' + '");
 eq(splitShots("-"), [], "split: dash = none");
+eq(splitShots("Talking Head"), [], "split: 'Talking Head' = talking-head scene, no b-roll shot");
+eq(splitShots("Talking-Head"), [], "split: 'Talking-Head' = talking-head scene");
+eq(splitShots("Talking Head + AI_funding report dashboard").map(s => s.slug), ["ai_funding_report_dashboard"], "split: mixed cell drops 'Talking Head', keeps b-roll");
 
 // --- POV correction from real footage (overrides wrong storyboard label) ----
 eq(applyPov("1stpov_smelling_towel_and_smiling", true), "3rdpov_smelling_towel_and_smiling", "pov: person -> 3rdpov");

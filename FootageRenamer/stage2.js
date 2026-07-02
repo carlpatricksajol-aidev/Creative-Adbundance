@@ -30,7 +30,7 @@ for (const k of ["refresh", "appKey", "appSecret", "orKey", "notion"]) if (!CFG[
 const deriveSlug = (n) => String(n || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 const sceneKey = (id) => deriveSlug(id);
 const lineSlug = (l, m = 4) => String(l || "").toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(Boolean).slice(0, m).join("_");
-function splitShots(cell) { const raw = String(cell || "").trim(); if (!raw || !/[a-z0-9]/i.test(raw)) return []; return raw.split(/[+,]/).map(s => s.trim()).filter(Boolean).map(footage_name => ({ footage_name, slug: deriveSlug(footage_name) })); }
+function splitShots(cell) { const raw = String(cell || "").trim(); if (!raw || !/[a-z0-9]/i.test(raw)) return []; if (/^talking[\s_-]*heads?$/i.test(raw)) return []; return raw.split(/[+,]/).map(s => s.trim()).filter(Boolean).filter(s => !/^talking[\s_-]*heads?$/i.test(s)).map(footage_name => ({ footage_name, slug: deriveSlug(footage_name) })); }
 function applyPov(slug, p) { if (p == null) return slug; if (!/^(1stpov|3rdpov)_/i.test(slug)) return slug; return (p ? "3rdpov_" : "1stpov_") + slug.replace(/^(1stpov|3rdpov)_/i, ""); }
 function parseStoryboardTable(rows) { if (!rows || rows.length < 2) return []; const cellsOf = r => Array.isArray(r) ? r : (r && r.table_row ? r.table_row.cells.map(c => c.map(t => t.plain_text || "").join("")) : []); const h = cellsOf(rows[0]).map(x => String(x).trim().toLowerCase()); const col = n => h.indexOf(n); const ci = { scene: col("scene"), line: col("script line"), overlay: col("overlay"), footage: col("footage name"), desc: col("shot list explanation") }; const out = []; for (let i = 1; i < rows.length; i++) { const c = cellsOf(rows[i]); const g = j => j >= 0 ? String(c[j] || "").trim() : ""; const s = g(ci.scene); if (!s) continue; out.push({ scene: s, line: g(ci.line), overlay: g(ci.overlay), footage_name: g(ci.footage), shot_list_explanation: g(ci.desc) }); } return out; }
 function normalizeScenes(scenes) { return (scenes || []).map(s => { const desc = s.shot_list_explanation || s.description || ""; const shots = (s.shots && s.shots.length) ? s.shots.map(sh => ({ footage_name: sh.footage_name, slug: sh.slug || deriveSlug(sh.footage_name), description: sh.description || desc || "" })) : splitShots(s.footage_name).map(sh => Object.assign({}, sh, { description: desc })); const type = s.type || (shots.length ? "broll" : "talkinghead"); return { scene: s.scene, key: sceneKey(s.scene), type, line: s.line || "", overlay: s.overlay || "", shots }; }); }
@@ -116,11 +116,24 @@ function frames(clip, baseDir, id) {
   for (let i = 1; i <= 5; i++) { const fp = path.join(baseDir, `${id}_f${i}.jpg`); spawnSync(CFG.ffmpeg, ["-nostdin", "-loglevel", "error", "-ss", (dur * i / 6).toFixed(2), "-i", clip, "-frames:v", "1", "-vf", "scale=640:-1", "-q:v", "4", fp, "-y"]); if (fs.existsSync(fp)) { out.push({ type: "image_url", image_url: { url: "data:image/jpeg;base64," + fs.readFileSync(fp).toString("base64") } }); fs.unlinkSync(fp); } }
   return out;
 }
-async function matchClip(frameParts, candidates, filename) {
-  const instruction = `Match this b-roll clip (5 frames sampled across it) to ONE storyboard shot (closed set). Use BOTH the frames and the clip's original filename as evidence for WHICH shot it is (the filename is often descriptive). BUT decide person_in_frame strictly from the frames - the filename's "1stPOV"/"3rdPOV" label is unreliable, ignore it. Original filename: "${filename}". Return STRICT JSON only: {"scene":<scene or null>,"shot_slug":<slug or null>,"confidence":0..1,"person_in_frame":true|false,"on_screen":"<short>"}. person_in_frame=true if the talent's body/face is visible (3rd-person); false if POV/object-only (at most hands). If nothing fits, scene=null and confidence=0. Never invent a slug not listed.\nCandidates:\n` + JSON.stringify(candidates);
-  const body = JSON.stringify({ model: CFG.model, temperature: 0, max_tokens: 300, messages: [{ role: "user", content: [{ type: "text", text: instruction }, ...frameParts] }] });
+// small mono mp3 of the clip's audio (talking-head matching listens to the spoken line)
+function audioPart(clip, baseDir, id) {
+  const fp = path.join(baseDir, `${id}.mp3`);
+  spawnSync(CFG.ffmpeg, ["-nostdin", "-loglevel", "error", "-i", clip, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "libmp3lame", "-b:a", "32k", "-t", "300", fp, "-y"]);
+  if (!fs.existsSync(fp)) return null;
+  const b64 = fs.readFileSync(fp).toString("base64"); fs.unlinkSync(fp);
+  return { type: "input_audio", input_audio: { data: b64, format: "mp3" } };
+}
+async function matchClip(frameParts, candidates, filename, audio) {
+  const instruction = `You match ONE raw clip to ONE storyboard entry (closed set). A clip is either b-roll (match by what is on SCREEN in the frames) or talking-head (match by the SPOKEN words in the audio). Each candidate has a "kind". If the clip is a person speaking to camera, it is talking-head: set kind="talkinghead" and ALWAYS fill "transcript" with a BRIEF summary of what is said (one or two sentences, NOT a full verbatim transcript), even if it spans several scenes or you cannot pin it to one (then set scene=null). Only use kind="broll" for visual b-roll with no meaningful speech. Match a talking-head clip to the scene whose script line it delivers. Use the clip's filename as a weak extra hint (often descriptive) but decide POV strictly from the frames - the filename's "1stPOV"/"3rdPOV" label is unreliable, ignore it. Original filename: "${filename}". Return STRICT JSON only: {"scene":<scene or null>,"kind":"broll"|"talkinghead"|null,"shot_slug":<slug or null, broll only>,"person_in_frame":true|false,"transcript":"<brief summary, 1-2 sentences, talking-head only, else empty>","confidence":0..1,"on_screen":"<short>"}. Never invent a slug not listed. If nothing fits, scene=null and confidence=0.\nCandidates:\n` + JSON.stringify(candidates);
+  const content = [{ type: "text", text: instruction }, ...frameParts];
+  if (audio) content.push(audio);
+  const body = JSON.stringify({ model: CFG.model, temperature: 0, max_tokens: 600, messages: [{ role: "user", content }] });
   const r = await req({ hostname: "openrouter.ai", path: "/api/v1/chat/completions", method: "POST", headers: { Authorization: "Bearer " + CFG.orKey, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) } }, body);
-  return JSON.parse(String(r.json.choices[0].message.content).replace(/```json|```/g, "").trim());
+  const raw = String(r.json.choices && r.json.choices[0] && r.json.choices[0].message.content || "");
+  const m = raw.match(/\{[\s\S]*\}/); // tolerate code fences / extra prose around the JSON
+  try { return JSON.parse((m ? m[0] : raw).replace(/```json|```/g, "").trim()); }
+  catch { return { scene: null, kind: null, shot_slug: null, person_in_frame: false, transcript: "", confidence: 0, on_screen: "match unparseable" }; }
 }
 const notionText = p => ((p && (p.title || p.rich_text)) || []).map(t => t.plain_text).join("");
 const propText = p => (!p ? [] : p.type === "title" ? (p.title || []) : p.type === "rich_text" ? (p.rich_text || []) : p.type === "select" ? (p.select ? [{ plain_text: p.select.name }] : []) : []).map(t => t.plain_text).join("");
@@ -164,7 +177,12 @@ async function processPage(PAGE) {
   if (!storyRows) throw new Error("no storyboard table or database found on the page");
   const sceneRows = parseStoryboardTable(storyRows);
   const scenes = normalizeScenes(sceneRows);
-  const candidates = scenes.flatMap(s => s.shots.map(sh => ({ scene: s.scene, slug: sh.slug, description: sh.description })));
+  const candidates = [];
+  for (const s of scenes) {
+    if (s.type === "talkinghead") candidates.push({ scene: s.scene, kind: "talkinghead", line: s.line });
+    else for (const sh of s.shots) candidates.push({ scene: s.scene, kind: "broll", slug: sh.slug, description: sh.description });
+  }
+  const hasTalkingHead = scenes.some(s => s.type === "talkinghead");
   // resolve the upload link to its REAL path in the team space, so the renamed set lands right
   // inside the client's footage folder (and we rename via fast server-side copy, no re-upload)
   const smd = (await dbxRpc("/2/sharing/get_shared_link_metadata", { url: sharedUrl })).json;
@@ -185,14 +203,19 @@ async function processPage(PAGE) {
     src[v.name] = v.path_lower || `${folderPath}/${v.name}`;
     const lp = path.join(work, v.name.replace(/[^a-z0-9.]/gi, "_"));
     await dbxDownload(sharedUrl, v.name, lp);
-    const m = await matchClip(frames(lp, work, v.id.replace(/[^a-z0-9]/gi, "")), candidates, v.name);
-    matches.push({ file: v.name, scene: m.scene, shot_slug: m.shot_slug, person_in_frame: m.person_in_frame, confidence: m.confidence, type: "broll" });
-    console.log(`  ${v.name} -> ${applyPov(m.shot_slug || "?", m.person_in_frame)} (${fmtC(m.confidence)})`);
+    const fid = v.id.replace(/[^a-z0-9]/gi, "");
+    const au = hasTalkingHead ? audioPart(lp, work, fid) : null;
+    const m = await matchClip(frames(lp, work, fid), candidates, v.name, au);
+    const kind = m.kind === "talkinghead" ? "talkinghead" : "broll";
+    matches.push({ file: v.name, scene: m.scene, shot_slug: m.shot_slug, person_in_frame: m.person_in_frame, confidence: m.confidence, type: kind, transcript: m.transcript || "" });
+    console.log(`  ${v.name} -> ${kind === "talkinghead" ? m.scene + " (talking-head)" : applyPov(m.shot_slug || "?", m.person_in_frame)} (${fmtC(m.confidence)})`);
     if (coLocated) fs.unlinkSync(lp); else local[v.name] = lp; // co-located renames via server-side copy, no bytes kept
   }
 
   // 3) plan + write the renamed set into OUT (fresh) - copy (originals stay untouched)
   const plan = planJob(sceneRows, matches, { client, creator, confidenceThreshold: CFG.confidence });
+  const heard = matches.filter(m => m.transcript);
+  const report = plan.report + (heard.length ? "\n## Talking-head transcripts\n" + heard.map(m => `- ${m.file} (${m.scene || "?"}): "${String(m.transcript).slice(0, 400)}"`).join("\n") + "\n" : "");
   try { await dbxRpc("/2/files/delete_v2", { path: OUT }); } catch {}
   for (const sub of ["", "/broll", "/aroll"]) { try { await dbxRpc("/2/files/create_folder_v2", { path: OUT + sub }); } catch {} }
   for (const r of plan.renames) {
@@ -201,7 +224,7 @@ async function processPage(PAGE) {
       if (cp.code >= 300) throw new Error("copy " + cp.code + " " + JSON.stringify(cp.json).slice(0, 150));
     } else await dbxUpload(`${OUT}/${r.folder}/${r.to}`, local[r.from]);
   }
-  await dbxContent("/2/files/upload", { path: `${OUT}/_report.md`, mode: "overwrite", mute: true }, Buffer.from(plan.report));
+  await dbxContent("/2/files/upload", { path: `${OUT}/_report.md`, mode: "overwrite", mute: true }, Buffer.from(report));
 
   // 4) share link
   let link; const sl = await dbxRpc("/2/sharing/create_shared_link_with_settings", { path: OUT });
@@ -210,7 +233,7 @@ async function processPage(PAGE) {
   // 5) update Notion + comment
   const status = (plan.missing.length || plan.flagged.length) ? "Needs review" : "Done";
   await notionReq(`/v1/pages/${PAGE}`, "PATCH", JSON.stringify({ properties: { Status: { select: { name: status } }, "Output Folder": { url: link || null } } }));
-  await notionReq(`/v1/comments`, "POST", JSON.stringify({ parent: { page_id: PAGE }, rich_text: [{ text: { content: plan.report.slice(0, 1990) } }] }));
+  await notionReq(`/v1/comments`, "POST", JSON.stringify({ parent: { page_id: PAGE }, rich_text: [{ text: { content: report.slice(0, 1990) } }] }));
 
   fs.rmSync(work, { recursive: true, force: true });
   console.log(JSON.stringify({ page: PAGE, ok: true, status, output: link, renamed: plan.renames.length, missing: plan.missing.length, flagged: plan.flagged.length }));

@@ -20,10 +20,12 @@ function deriveSlug(name) {
 function splitShots(footageCell) {
   const raw = String(footageCell || "").trim();
   if (!raw || !/[a-z0-9]/i.test(raw)) return []; // blank / "-" / en-dash = no b-roll (talking-head)
+  if (/^talking[\s_-]*heads?$/i.test(raw)) return []; // "Talking Head" is a scene type, not a b-roll shot
   return raw
     .split(/[+,]/) // split on "+" or "," (char class: no backslash escapes, survives any embedding)
     .map((s) => s.trim())
     .filter(Boolean)
+    .filter((s) => !/^talking[\s_-]*heads?$/i.test(s)) // drop "Talking Head" markers from mixed cells
     .map((footage_name) => ({ footage_name, slug: deriveSlug(footage_name) }));
 }
 
