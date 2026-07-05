@@ -2514,8 +2514,8 @@ async function goToCheckout() {
   const occLabels = {
     'mothers-day':"Mother's Day",'fathers-day':"Father's Day",
     'birthday':'Birthday','anniversary':'Anniversary',
-    'graduation':'Graduation','christmas':'Christmas',
-    'memorial':'Memorial','justbecause':'Just because'
+    'graduation':'Graduation','wedding':'Wedding',
+    'memorial':'In memory','justbecause':'Just because'
   };
   const occ = occLabels[S.occasion] || S.occasion || '…';
   const el = document.getElementById('ckout-summary-title');
@@ -3641,7 +3641,7 @@ function clearWizardUI(keepClips) {
   try { updateClipUI(); } catch(e) {}     // meter + Continue state recomputed from S.clips
   ['abName','abRelation','abAbout','abInclude','noteFrom','noteBody','artist-input','wiz-focus'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.querySelectorAll('.ochip.on').forEach(c => c.classList.remove('on'));
-  document.querySelectorAll('#occ-grid .occ2.sel').forEach(c => c.classList.remove('sel'));
+  const occSel = document.getElementById('occ-select'); if (occSel) occSel.value = '';   // reset the occasion dropdown on "Make another"
   document.querySelectorAll('#genre-pills .gpill.sel').forEach(p => p.classList.remove('sel'));
   document.querySelectorAll('.tin.need, .chips.need, .cap.need').forEach(x => x.classList.remove('need'));
   const npf = document.getElementById('npFrom'); if (npf) npf.textContent = 'From you';
@@ -4126,7 +4126,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
 (function(){
   const LS_KEY = 'sr_draft_v1';
   const DB_NAME = 'sr_draft_db', STORE = 'clips';
-  const STEPS = ['1','2','note','3','4'];
+  const STEPS = ['1','note','3','4'];   // '2' (old about screen) removed: a pre-reflow draft on step '2' now falls back to '1'
   let saveTimer = null, lastClipSig = '', restoring = false;
 
   const el  = id => document.getElementById(id);
