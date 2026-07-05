@@ -2167,6 +2167,7 @@ const S = {
   songLength: 3, moodPreset: 'tender', vocal: 'either',
   currentJobId: null, pollTimer: null, tempJobId: null,
   currentSlide: 1, totalSlides: 3, beforeUnloadActive: false,
+  visionRead: '', questions: null, answers: null, _analyzing: false,   // Phase 2: clip read + tailored questions
 };
 
 const GENRES = ['Folk','R&B','Country','Pop','Rock','Indie','Gospel','Classical','Hip Hop','Jazz'];
@@ -2439,6 +2440,20 @@ function showScreen(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   // reflect a chosen/restored occasion into the Step 1 dropdown
   if (id === '1') { const os = document.getElementById('occ-select'); if (os && S.occasion) { os.value = S.occasion; const s1 = document.getElementById('s1-next'); if (s1) s1.disabled = false; } }
+  // entering the questions step uninitialized (Back after a reload, or restore) → rehydrate
+  // rendered questions, or kick off analysis; guarded so it never double-runs or hangs.
+  if (id === 'q') {
+    const ql = document.getElementById('qList');
+    if (ql && !ql.querySelector('.q-ans') && !S._analyzing) {
+      if (S.questions && S.questions.length && typeof renderQuestions === 'function') {
+        renderQuestions(S.questions, S.answers);
+        const vt = document.getElementById('vrText'); if (vt && S.visionRead) vt.textContent = S.visionRead;
+        const ve = document.getElementById('vrEdit'); if (ve) ve.style.display = S.visionRead ? 'inline' : 'none';
+      } else if (typeof runClipAnalysis === 'function') {
+        runClipAnalysis();
+      }
+    }
+  }
   const stepMap  = { '1':18,'3':38,'q':58,'note':76,'4':92,'proc':95,'review':95,'done':100 };
   const labelMap = {
     '1':'Step 1 of 5 · The basics',
@@ -2744,16 +2759,18 @@ function srCaptureThumb(clip) {
     const MAX = 320;
     try {
       if (clip.type === 'image') {
-        const img = new Image();
-        img.onload = () => { try {
+        const img = new Image(); img.crossOrigin = 'anonymous';
+        let idone = false; const ifail = () => { if (!idone) { idone = true; resolve(null); } };
+        img.onload = () => { if (idone) return; try {
           const s = Math.min(1, MAX / Math.max(img.naturalWidth || MAX, img.naturalHeight || MAX));
           const cv = document.createElement('canvas');
           cv.width = Math.max(1, Math.round((img.naturalWidth || MAX) * s));
           cv.height = Math.max(1, Math.round((img.naturalHeight || MAX) * s));
           cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
-          resolve(cv.toDataURL('image/jpeg', 0.6));
-        } catch(e){ resolve(null); } };
-        img.onerror = () => resolve(null);
+          idone = true; resolve(cv.toDataURL('image/jpeg', 0.6));
+        } catch(e){ ifail(); } };
+        img.onerror = ifail;
+        setTimeout(ifail, 6000);   // never hang the step on one stubborn image
         img.src = clip.blobUrl || clip.uploadedUrl; return;
       }
       const v = document.createElement('video');
@@ -2788,6 +2805,8 @@ async function runClipAnalysis() {
   const vrText = document.getElementById('vrText'), vrEdit = document.getElementById('vrEdit'), vrFix = document.getElementById('vrFix');
   const qList = document.getElementById('qList'), qNext = document.getElementById('q-next');
   if (!qList) return;
+  if (S._analyzing) return;   // guard against double-invocation (showScreen guard + caller)
+  S._analyzing = true;
   S.answers = null; S.questions = null; S.visionRead = '';
   if (vrText) vrText.innerHTML = '<span class="q-spin"></span> Reading your clips…';
   if (vrEdit) vrEdit.style.display = 'none';
@@ -2832,9 +2851,10 @@ async function runClipAnalysis() {
     renderQuestions(srFallbackQuestions());
   }
   if (qNext) qNext.disabled = false;
+  S._analyzing = false;
 }
 
-function renderQuestions(questions) {
+function renderQuestions(questions, answers) {
   S.questions = (questions || []).slice(0, 3);
   const qList = document.getElementById('qList');
   if (!qList) return;
@@ -2845,6 +2865,7 @@ function renderQuestions(questions) {
     const tin = document.createElement('div'); tin.className = 'tin';
     const ta = document.createElement('textarea'); ta.className = 'q-ans'; ta.dataset.idx = i;
     ta.placeholder = q.placeholder || 'Your answer (optional)';
+    if (answers && answers[i] && answers[i].a) ta.value = answers[i].a;   // prefill on restore/back
     tin.appendChild(ta); wrap.appendChild(lab); wrap.appendChild(tin); qList.appendChild(wrap);
   });
 }
@@ -2858,8 +2879,27 @@ function visReadEdit() {
   vrFix.focus();
 }
 
+// Fold the (possibly edited) read + Q&A into the song context via f-include/f-memory
+// (the pipeline already weaves these in — no n8n change needed) and keep structured
+// copies for a future prompt upgrade. Idempotent: rebuilds f-include from the base
+// (readAboutFields) each call, so it is safe to run again on draft restore.
+function applyVisionFold() {
+  if (typeof readAboutFields === 'function') readAboutFields();   // base f-about / f-include from abInclude
+  const read = S.visionRead || '';
+  const answers = S.answers || [];
+  const extras = [];
+  if (read) extras.push('What this looks like: ' + read);
+  answers.forEach(x => { if (x && x.a) extras.push(x.q + ' ' + x.a); });
+  if (extras.length) {
+    const extraTxt = extras.join('. ');
+    S.fields['f-include'] = [S.fields['f-include'], extraTxt].filter(Boolean).join('. ');
+    S.fields['f-memory']  = S.fields['f-include'];
+  }
+  S.fields['f-vision-read'] = read;
+  S.fields['f-answers'] = JSON.stringify(answers);
+}
+
 function questionsContinue() {
-  readAboutFields();   // base f-about / f-include from the clips-step brief
   const answers = [];
   document.querySelectorAll('#qList .q-ans').forEach(ta => {
     const i = parseInt(ta.dataset.idx);
@@ -2869,20 +2909,8 @@ function questionsContinue() {
   });
   S.answers = answers;
   const vrFix = document.getElementById('vrFix');
-  const read = (vrFix && vrFix.style.display !== 'none' && vrFix.value.trim()) ? vrFix.value.trim() : (S.visionRead || '');
-  // Fold the read + answers into the song context via f-include/f-memory (the pipeline
-  // already weaves these in — no n8n change needed) and keep structured copies for a
-  // future prompt upgrade that reads f-answers directly.
-  const extras = [];
-  if (read) extras.push('What this looks like: ' + read);
-  answers.forEach(x => { if (x.a) extras.push(x.q + ' ' + x.a); });
-  if (extras.length) {
-    const extraTxt = extras.join('. ');
-    S.fields['f-include'] = [S.fields['f-include'], extraTxt].filter(Boolean).join('. ');
-    S.fields['f-memory']  = S.fields['f-include'];
-  }
-  S.fields['f-vision-read'] = read || '';
-  S.fields['f-answers'] = JSON.stringify(answers);
+  if (vrFix && vrFix.style.display !== 'none' && vrFix.value.trim()) S.visionRead = vrFix.value.trim();
+  applyVisionFold();
   showScreen('note');
 }
 
@@ -3838,6 +3866,8 @@ function clearWizardUI(keepClips) {
   S.moodPreset = 'tender'; S.vocal = 'either';
   try { buildMoods(); buildVocals(); } catch(e) {}
   S.occasion = null;
+  S.visionRead = ''; S.questions = null; S.answers = null; S._analyzing = false;   // clear Phase-2 read/questions
+  const qL = document.getElementById('qList'); if (qL) qL.innerHTML = '';
   const s1 = document.getElementById('s1-next'); if (s1) s1.disabled = true;
 }
 
@@ -4315,7 +4345,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
 (function(){
   const LS_KEY = 'sr_draft_v1';
   const DB_NAME = 'sr_draft_db', STORE = 'clips';
-  const STEPS = ['1','note','3','4'];   // '2' (old about screen) removed: a pre-reflow draft on step '2' now falls back to '1'
+  const STEPS = ['1','3','q','note','4'];   // '2' (old about screen) removed; 'q' = the questions step
   let saveTimer = null, lastClipSig = '', restoring = false;
 
   const el  = id => document.getElementById(id);
@@ -4359,6 +4389,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
       occasion:s.occasion||null,
       inputs:{ abName:val('abName'), abRelation:val('abRelation'), abAbout:val('abAbout'), abInclude:val('abInclude'), noteFrom:val('noteFrom'), noteBody:val('noteBody'), artist:val('artist-input'), focus:val('wiz-focus') },
       mood:s.moodPreset||null, vocal:s.vocal||null, genres:s.genres||[],
+      vision:{ read:s.visionRead||'', questions:s.questions||null, answers:s.answers||null },
       clipMeta:(s.clips||[]).map(c=>({ cid:c.cid, type:c.type, duration:c.duration, description:c.description||'' })) };
   }
   function hasContent(d){ return !!(d.occasion || (d.inputs && (d.inputs.abName || d.inputs.abAbout || d.inputs.noteBody)) || (d.clipMeta||[]).length); }
@@ -4405,6 +4436,19 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
       lastClipSig=(s.clips||[]).map(c=>c.cid).join('|');
       if(typeof renderClips==='function') renderClips();
       if(typeof updateClipUI==='function') updateClipUI();
+      // Phase-2: rehydrate the read + tailored questions + answers, and re-fold them into
+      // the song fields so they reach submit even if the user doesn't revisit the step.
+      if(d.vision){
+        s.visionRead = d.vision.read || '';
+        s.questions = Array.isArray(d.vision.questions) ? d.vision.questions : null;
+        s.answers = Array.isArray(d.vision.answers) ? d.vision.answers : null;
+        if(s.questions && typeof renderQuestions==='function'){
+          renderQuestions(s.questions, s.answers);
+          const vt=el('vrText'); if(vt && s.visionRead) vt.textContent=s.visionRead;
+          const ve=el('vrEdit'); if(ve) ve.style.display = s.visionRead ? 'inline' : 'none';
+        }
+        if(typeof applyVisionFold==='function') applyVisionFold();
+      }
       const step = STEPS.includes(String(d.step)) ? String(d.step) : '1';
       showScreen(step);
       if(typeof srToast==='function') srToast('Welcome back! We saved your progress.\nPick up right where you left off.', '💾', 4500);
