@@ -1045,6 +1045,9 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
 .tin .mic-btn:hover{background:var(--accent-soft,rgba(255,45,85,.1));transform:scale(1.06)}
 .tin .mic-btn.recording{background:var(--accent,#ff2d55);color:#fff;animation:micPulse 1s infinite}
 .tin.mic input,.tin.mic textarea{padding-right:54px}
+.tin select{width:100%;background-color:var(--bg-2,#fbf4ee);border:1.5px solid var(--rule-soft,#ece0d7);border-radius:14px;padding:13px 40px 13px 15px;font-size:15px;font-family:var(--body,'Nunito',sans-serif);color:var(--ink,#2a1a13);outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a8978d' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;transition:border-color .18s,background-color .18s}
+.tin select:focus{border-color:var(--accent,#FF2D55);background-color:#fff}
+.tin.need select{border-color:var(--accent);background-color:rgba(255,45,85,.05)}
 /* on-brand toast (replaces native alert for validation) */
 .sr-toast-host{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:99999;display:flex;flex-direction:column;gap:10px;width:min(460px,92vw);pointer-events:none}
 .sr-toast{pointer-events:auto;display:flex;gap:11px;align-items:flex-start;background:#fff;border:1px solid var(--rule-soft,#ece0d7);border-left:4px solid var(--accent,#ff2d55);border-radius:14px;padding:13px 14px;box-shadow:0 16px 40px -12px rgba(40,20,10,.32);opacity:0;transform:translateY(-14px) scale(.98);transition:opacity .22s ease,transform .22s ease;font-family:var(--body,'Nunito',sans-serif)}
@@ -1317,35 +1320,12 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
   </div>
 
   <main>
-    <!-- STEP 1: OCCASION -->
+    <!-- STEP 1: THE BASICS (who it's for + occasion) -->
     <div id="screen-1" class="screen wrap">
       <div class="step-head">
-        <span class="eyebrow">Step 1 of 5 · Occasion</span>
-        <h1>What's the <em>occasion?</em></h1>
-        <p class="lede">This sets the emotional tone and pacing. You can fine-tune the vibe later.</p>
-      </div>
-      <div class="occ-grid2" id="occ-grid">
-        <button class="occ2" data-occ="mothers-day"><div class="obg g-mothers"></div><span class="oe">💐</span><span class="on-nm">Mother's Day</span><span class="occheck">✓</span></button>
-        <button class="occ2" data-occ="fathers-day"><div class="obg g-fathers"></div><span class="oe">🎣</span><span class="on-nm">Father's Day</span><span class="occheck">✓</span></button>
-        <button class="occ2" data-occ="birthday"><div class="obg g-birthday"></div><span class="oe">🎂</span><span class="on-nm">Birthday</span><span class="occheck">✓</span></button>
-        <button class="occ2" data-occ="anniversary"><div class="obg g-anniversary"></div><span class="oe">💍</span><span class="on-nm">Anniversary</span><span class="occheck">✓</span></button>
-        <button class="occ2" data-occ="graduation"><div class="obg g-graduation"></div><span class="oe">🎓</span><span class="on-nm">Graduation</span><span class="occheck">✓</span></button>
-        <button class="occ2" data-occ="wedding"><div class="obg g-wedding"></div><span class="oe">💒</span><span class="on-nm">Wedding</span><span class="occheck">✓</span></button>
-        <button class="occ2" data-occ="memorial"><div class="obg g-memorial"></div><span class="oe">🕊️</span><span class="on-nm">In memory</span><span class="occheck">✓</span></button>
-        <button class="occ2 occ-other" data-occ="justbecause">Just because ✨<span class="occheck">✓</span></button>
-      </div>
-      <div class="step-actions">
-        <span></span>
-        <button class="btn btn-primary" id="s1-next" disabled onclick="goTo(2)">Continue <span class="arr">→</span></button>
-      </div>
-    </div>
-
-    <!-- STEP 2: ABOUT THEM -->
-    <div id="screen-2" class="screen wrap" style="display:none">
-      <div class="step-head">
-        <span class="eyebrow">Step 2 of 5 · The story</span>
-        <h1>What's this one <em>about?</em></h1>
-        <p class="lede">A line or two is all we need — the story behind your clips. We read it together with the videos you upload next.</p>
+        <span class="eyebrow">Step 1 of 4 · The basics</span>
+        <h1>Who's this <em>for?</em></h1>
+        <p class="lede">Just the essentials to start. You'll upload your videos next — that's what the song is really built from.</p>
       </div>
       <div class="s-body">
         <div class="ab-grid">
@@ -1354,33 +1334,35 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
             <div class="tin mic"><input type="text" id="abName" placeholder="e.g. Mom, Cynthia, the kids"><button class="mic-btn" type="button" data-target="abName" aria-label="Speak">🎙️</button></div>
           </div>
           <div class="ab-field">
-            <span class="glabel">Who are they to you?</span>
+            <span class="glabel">Who are they to you? <span class="hint">optional</span></span>
             <div class="tin mic"><input type="text" id="abRelation" placeholder="e.g. my wife, my mom, my best friend"><button class="mic-btn" type="button" data-target="abRelation" aria-label="Speak">🎙️</button></div>
           </div>
           <div class="ab-field full">
-            <span class="glabel">What's this about?</span>
-            <div class="tin mic"><textarea id="abAbout" placeholder="A line or two on what this reel is — who it's for and the story. e.g. My wife and our last year together, just us being us."></textarea><button class="mic-btn" type="button" data-target="abAbout" aria-label="Speak">🎙️</button></div>
+            <span class="glabel">Occasion <span class="hint">sets the tone and pacing</span></span>
+            <div class="tin"><select id="occ-select">
+              <option value="" disabled selected>Choose an occasion…</option>
+              <option value="mothers-day">Mother's Day</option>
+              <option value="fathers-day">Father's Day</option>
+              <option value="birthday">Birthday</option>
+              <option value="anniversary">Anniversary</option>
+              <option value="graduation">Graduation</option>
+              <option value="wedding">Wedding</option>
+              <option value="memorial">In memory</option>
+              <option value="justbecause">Just because</option>
+            </select></div>
           </div>
-          <div class="ab-field full">
-            <span class="glabel">Anything specific to include? <span class="hint">optional</span></span>
-            <div class="tin mic"><textarea id="abInclude" placeholder="A detail, an inside joke, a moment to make sure we mention. e.g. our trip to Japan, the dog, the way he says 'almost done'."></textarea><button class="mic-btn" type="button" data-target="abInclude" aria-label="Speak">🎙️</button></div>
-          </div>
-        </div>
-        <div class="ai-note">
-          <div class="ai-ic">✨</div>
-          <div class="ai-tx"><strong>You don't have to write much.</strong><p>The videos do the talking — we <em>watch every clip you upload next</em>, reading the moments, the faces, and the places, and write the song from what we see plus your line above.</p></div>
         </div>
       </div>
       <div class="step-actions">
-        <button class="btn btn-ghost" onclick="goTo(1)">Back</button>
-        <button class="btn btn-primary" onclick="aboutContinue()">Continue <span class="arr">→</span></button>
+        <span></span>
+        <button class="btn btn-primary" id="s1-next" disabled onclick="basicsContinue()">Continue <span class="arr">→</span></button>
       </div>
     </div>
 
     <!-- STEP 3: YOUR NOTE -->
     <div id="screen-note" class="screen wrap" style="display:none">
       <div class="step-head">
-        <span class="eyebrow">Step 3 of 5 · Your note</span>
+        <span class="eyebrow">Step 3 of 4 · Your note</span>
         <h1>Say it in your <em>own words.</em></h1>
         <p class="lede">A short handwritten-style note shows on the page when they open their gift. Skip it if the song says enough.</p>
       </div>
@@ -1405,8 +1387,8 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
         </div>
       </div>
       <div class="step-actions">
-        <button class="btn btn-ghost" onclick="goTo(2)">Back</button>
-        <button class="btn btn-primary" onclick="showScreen('3')">Continue <span class="arr">→</span></button>
+        <button class="btn btn-ghost" onclick="showScreen('3')">Back</button>
+        <button class="btn btn-primary" onclick="showScreen('4')">Continue <span class="arr">→</span></button>
       </div>
     </div>
 
@@ -1530,7 +1512,7 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
       </div>
 
       <div class="step-actions" style="margin-top:32px">
-        <button class="btn btn-ghost" onclick="goTo(2)">Back</button>
+        <button class="btn btn-ghost" onclick="showScreen('1')">Back</button>
       </div>
     </div>
 
@@ -1587,7 +1569,7 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
     <!-- STEP 4: CLIPS & PHOTOS -->
     <div id="screen-3" class="screen wrap" style="display:none">
       <div class="step-head">
-        <span class="eyebrow">Step 4 of 5 · Your clips and photos</span>
+        <span class="eyebrow">Step 2 of 4 · Your videos</span>
         <h1>Give us enough to <em>fill your song.</em></h1>
         <p class="lede">We feature the best moments of each clip — sometimes the whole thing, sometimes the best few seconds, based on what's in it. In each caption, tell us the best bit so we know what to feature.</p>
       </div>
@@ -1612,21 +1594,35 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
         </div>
         <div class="clip-grid" id="clip-grid-new"></div>
         <div class="clip-meta" id="clipMeta"></div>
+        <div class="ab-grid" style="margin-top:24px">
+          <div class="ab-field full">
+            <span class="glabel">What's this one about?</span>
+            <div class="tin mic"><textarea id="abAbout" placeholder="A line or two, now that your clips are in — who it's for and the story. e.g. My wife and our last year together, just us being us."></textarea><button class="mic-btn" type="button" data-target="abAbout" aria-label="Speak">🎙️</button></div>
+          </div>
+          <div class="ab-field full">
+            <span class="glabel">Anything specific to include? <span class="hint">optional</span></span>
+            <div class="tin mic"><textarea id="abInclude" placeholder="A detail, an inside joke, a moment to make sure we mention. e.g. our trip to Japan, the dog, the way he says 'almost done'."></textarea><button class="mic-btn" type="button" data-target="abInclude" aria-label="Speak">🎙️</button></div>
+          </div>
+        </div>
+        <div class="ai-note">
+          <div class="ai-ic">✨</div>
+          <div class="ai-tx"><strong>You don't have to write much.</strong><p>The videos do the talking — we <em>watch every clip above</em>, reading the moments, the faces, and the places, and write the song from what we see plus your line here.</p></div>
+        </div>
         <div class="upload-prog" id="upload-prog">
           <div class="upload-prog-bar"><div class="upload-prog-fill" id="upload-prog-fill"></div></div>
           <p class="upload-prog-lbl" id="upload-prog-lbl">Uploading...</p>
         </div>
       </div>
       <div class="step-actions">
-        <button class="btn btn-ghost" onclick="showScreen('note')">Back</button>
-        <button class="btn btn-primary" id="s3-next" disabled onclick="goTo(4)">Continue <span class="arr">→</span></button>
+        <button class="btn btn-ghost" onclick="showScreen('1')">Back</button>
+        <button class="btn btn-primary" id="s3-next" disabled onclick="clipsContinue()">Continue <span class="arr">→</span></button>
       </div>
     </div>
 
     <!-- STEP 5: SONG STYLE -->
     <div id="screen-4" class="screen wrap" style="display:none">
       <div class="step-head">
-        <span class="eyebrow">Step 5 of 5 · Song style</span>
+        <span class="eyebrow">Step 4 of 4 · Song style</span>
         <h1>Now pick the <em>vibe.</em></h1>
         <p class="lede">We'll compose an original song in this style, timed to the clips you uploaded.</p>
       </div>
@@ -1652,7 +1648,7 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
         </div>
       </div>
       <div class="step-actions">
-        <button class="btn btn-ghost" onclick="goTo(3)">Back</button>
+        <button class="btn btn-ghost" onclick="showScreen('note')">Back</button>
         <button class="btn btn-accent" onclick="submitJob()">Generate my reel <span class="arr">→</span></button>
       </div>
     </div>
@@ -2405,13 +2401,14 @@ function showScreen(id) {
   
   el.style.display = 'block'; el.classList.add('show');
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  const stepMap  = { '1':16,'2':32,'note':48,'3':66,'4':84,'proc':93,'review':93,'done':100 };
+  // reflect a chosen/restored occasion into the Step 1 dropdown
+  if (id === '1') { const os = document.getElementById('occ-select'); if (os && S.occasion) { os.value = S.occasion; const s1 = document.getElementById('s1-next'); if (s1) s1.disabled = false; } }
+  const stepMap  = { '1':22,'3':50,'note':74,'4':92,'proc':95,'review':95,'done':100 };
   const labelMap = {
-    '1':'Step 1 of 5 · Occasion',
-    '2':'Step 2 of 5 · The story',
-    'note':'Step 3 of 5 · Your note',
-    '3':'Step 4 of 5 · Clips and photos',
-    '4':'Step 5 of 5 · Song style',
+    '1':'Step 1 of 4 · The basics',
+    '3':'Step 2 of 4 · Your videos',
+    'note':'Step 3 of 4 · Your note',
+    '4':'Step 4 of 4 · Song style',
     'proc':'Creating...',
     'review':'Review your script',
     'done':'Done!'
@@ -2701,13 +2698,15 @@ function goToSlideshow() {
 }
 
 function bindOccPicker() {
-  document.querySelectorAll('#occ-grid .occ2').forEach(card => {
-    card.addEventListener('click', () => {
-      document.querySelectorAll('#occ-grid .occ2').forEach(c => c.classList.remove('sel'));
-      card.classList.add('sel');
-      S.occasion = card.dataset.occ;
-      document.getElementById('s1-next').disabled = false;
-    });
+  const sel = document.getElementById('occ-select');
+  if (!sel) return;
+  if (S.occasion) sel.value = S.occasion;
+  const s1 = document.getElementById('s1-next');
+  if (s1) s1.disabled = !sel.value;
+  sel.addEventListener('change', () => {
+    S.occasion = sel.value;
+    if (s1) s1.disabled = !sel.value;
+    sel.closest('.tin')?.classList.remove('need');
   });
 }
 
@@ -3960,22 +3959,32 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
   };
   /* live-clear the highlight as they fill */
   ['abName','abRelation','abAbout'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('input',()=>{ const t=el.closest('.tin'); if(t) t.classList.remove('need'); }); });
-  /* Step 2 required: name + who-they-are + the 'what's this about' brief (include is optional) */
-  window.aboutContinue = function(){
-    const name=($('abName')?.value||'').trim(), rel=($('abRelation')?.value||'').trim(), about=($('abAbout')?.value||'').trim();
-    const missing=[];
-    if(!name)  missing.push(['abName','their name']);
-    if(!rel)   missing.push(['abRelation','who they are to you']);
-    if(!about) missing.push(['abAbout','what this is about']);
-    document.querySelectorAll('#screen-2 .tin.need').forEach(x=>x.classList.remove('need'));
-    if(missing.length){
-      missing.forEach(m=>{ const el=$(m[0]); const t=el&&el.closest('.tin'); if(t) t.classList.add('need'); });
-      const f=missing[0]; const tgt=$(f[0]); const t=tgt&&(tgt.closest('.tin')||tgt);
-      if(t) t.scrollIntoView({behavior:'smooth',block:'center'});
-      setTimeout(()=>{ const el=$(f[0]); if(el) el.focus(); },300);
-      srToast('Please fill in: '+missing.map(m=>m[1]).join(', ')+'.', '✍️');
-      return;
+
+  /* Step 1 (basics): require their name + an occasion, then go to the upload step */
+  window.basicsContinue = function(){
+    const name=($('abName')?.value||'').trim();
+    const occ = (typeof S!=='undefined' && S.occasion) || ($('occ-select')?.value||'');
+    document.querySelectorAll('#screen-1 .tin.need').forEach(x=>x.classList.remove('need'));
+    if(!name){ const t=$('abName')?.closest('.tin'); if(t){ t.classList.add('need'); t.scrollIntoView({behavior:'smooth',block:'center'}); } setTimeout(()=>$('abName')?.focus(),300); srToast('Add their name to continue.', '✍️'); return; }
+    if(!occ){ const os=$('occ-select'); const t=os&&os.closest('.tin'); if(t){ t.classList.add('need'); t.scrollIntoView({behavior:'smooth',block:'center'}); } setTimeout(()=>os&&os.focus(),300); srToast('Pick an occasion to continue.', '✍️'); return; }
+    readAboutFields(); showScreen('3');
+  };
+
+  /* Step 2 (clips): every clip needs a caption + the 'what's this about' brief (include optional) */
+  window.clipsContinue = function(){
+    if (typeof S!=='undefined' && S.clips && S.clips.length) {
+      const needs = S.clips.filter(c => (c.description||'').trim().length < 4);
+      if (needs.length) {
+        const fields = document.querySelectorAll('#clip-grid-new .cap');
+        fields.forEach(f => { const d=(S.clips[parseInt(f.dataset.idx)]?.description||'').trim(); f.classList.toggle('need', d.length<4); });
+        const first = Array.from(fields).find(f => (S.clips[parseInt(f.dataset.idx)]?.description||'').trim().length<4);
+        if (first) { first.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>first.focus(),300); }
+        srToast("Add a quick line to each clip: who's in it and what's happening.\nIt's what makes the song about them. ("+needs.length+" still "+(needs.length===1?"needs":"need")+" one.)", '🎬');
+        return;
+      }
     }
+    const about=($('abAbout')?.value||'').trim();
+    if(!about){ const t=$('abAbout')?.closest('.tin'); if(t){ t.classList.add('need'); t.scrollIntoView({behavior:'smooth',block:'center'}); } setTimeout(()=>$('abAbout')?.focus(),300); srToast("Add a line on what this one's about.", '✍️'); return; }
     readAboutFields(); showScreen('note');
   };
 
@@ -4190,7 +4199,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     if(!hasContent(d)) return false;
     restoring = true;
     try{
-      if(d.occasion){ s.occasion=d.occasion; document.querySelectorAll('#occ-grid .occ2').forEach(c=>c.classList.toggle('sel', c.dataset.occ===d.occasion)); const s1=el('s1-next'); if(s1) s1.disabled=false; }
+      if(d.occasion){ s.occasion=d.occasion; const os=el('occ-select'); if(os) os.value=d.occasion; const s1=el('s1-next'); if(s1) s1.disabled=false; }
       const setVal=(id,v)=>{ const e=el(id); if(e && v!=null){ e.value=v; try{ e.dispatchEvent(new Event('input',{bubbles:true})); }catch(_){} } };
       setVal('abName',d.inputs.abName); setVal('abRelation',d.inputs.abRelation); setVal('abAbout',d.inputs.abAbout); setVal('abInclude',d.inputs.abInclude);
       setVal('noteFrom',d.inputs.noteFrom); setVal('noteBody',d.inputs.noteBody);
