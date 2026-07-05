@@ -36,7 +36,7 @@ module.exports = async (req, res) => {
   // No key yet → tell the client to use its built-in fallback questions.
   if (!KEY) { res.status(200).json({ ok: false, fallback: true, reason: 'no-key' }); return; }
 
-  const occasion = OCC_LABELS[body.occasion] || body.occasion || 'a special occasion';
+  const occasion = OCC_LABELS[body.occasion] || String(body.occasion || 'a special occasion').slice(0, 80);
   const name = String(body.name || 'them').trim().slice(0, 80);
   const relation = String(body.relation || '').trim().slice(0, 80);
   const about = String(body.about || '').trim().slice(0, 600);
@@ -118,6 +118,9 @@ ${capLines}`;
       console.error('gemini analyze parse fail', text.slice(0, 200));
       res.status(200).json({ ok: false, fallback: true, reason: 'parse' });
       return;
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      res.status(200).json({ ok: false, fallback: true, reason: 'shape' }); return;
     }
     const read = String(parsed.read || '').trim();
     const questions = (Array.isArray(parsed.questions) ? parsed.questions : [])
