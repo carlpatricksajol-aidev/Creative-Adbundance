@@ -1048,6 +1048,18 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
 .tin select{width:100%;background-color:var(--bg-2,#fbf4ee);border:1.5px solid var(--rule-soft,#ece0d7);border-radius:14px;padding:13px 40px 13px 15px;font-size:15px;font-family:var(--body,'Nunito',sans-serif);color:var(--ink,#2a1a13);outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a8978d' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;transition:border-color .18s,background-color .18s}
 .tin select:focus{border-color:var(--accent,#FF2D55);background-color:#fff}
 .tin.need select{border-color:var(--accent);background-color:rgba(255,45,85,.05)}
+/* Phase 2: clip read + tailored questions */
+.vis-read{display:flex;gap:14px;align-items:flex-start;background:linear-gradient(135deg,rgba(255,45,85,.07),rgba(255,150,80,.07));border:1.5px solid var(--rule-soft,#ece0d7);border-radius:18px;padding:18px 20px;margin-bottom:24px}
+.vis-read .vr-ic{font-size:26px;line-height:1;flex-shrink:0;margin-top:2px}
+.vis-read .vr-body{flex:1;min-width:0}
+.vis-read .vr-text{font-family:var(--serif,'Fredoka',sans-serif);font-size:19px;font-weight:600;color:var(--ink,#2a1a13);line-height:1.42}
+.vis-read .vr-edit{margin-top:9px;background:none;border:0;padding:0;color:var(--accent,#FF2D55);font-family:var(--body,'Nunito',sans-serif);font-size:13px;font-weight:700;cursor:pointer;text-decoration:underline}
+.vis-read .vr-fix{width:100%;margin-top:10px;background:#fff;border:1.5px solid var(--rule-soft,#ece0d7);border-radius:12px;padding:11px 13px;font-size:15px;font-family:var(--body,'Nunito',sans-serif);color:var(--ink,#2a1a13);outline:none;min-height:64px;resize:vertical}
+.vis-read .vr-fix:focus{border-color:var(--accent,#FF2D55)}
+.q-list{display:flex;flex-direction:column;gap:20px}
+.q-loading{display:flex;align-items:center;gap:10px;color:var(--ink-faint,#a8978d);font-size:15px;padding:8px 0}
+.q-spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,45,85,.25);border-top-color:var(--accent,#FF2D55);border-radius:50%;animation:qspin .7s linear infinite;vertical-align:-2px;margin-right:2px}
+@keyframes qspin{to{transform:rotate(360deg)}}
 /* on-brand toast (replaces native alert for validation) */
 .sr-toast-host{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:99999;display:flex;flex-direction:column;gap:10px;width:min(460px,92vw);pointer-events:none}
 .sr-toast{pointer-events:auto;display:flex;gap:11px;align-items:flex-start;background:#fff;border:1px solid var(--rule-soft,#ece0d7);border-left:4px solid var(--accent,#ff2d55);border-radius:14px;padding:13px 14px;box-shadow:0 16px 40px -12px rgba(40,20,10,.32);opacity:0;transform:translateY(-14px) scale(.98);transition:opacity .22s ease,transform .22s ease;font-family:var(--body,'Nunito',sans-serif)}
@@ -1323,7 +1335,7 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
     <!-- STEP 1: THE BASICS (who it's for + occasion) -->
     <div id="screen-1" class="screen wrap">
       <div class="step-head">
-        <span class="eyebrow">Step 1 of 4 · The basics</span>
+        <span class="eyebrow">Step 1 of 5 · The basics</span>
         <h1>Who's this <em>for?</em></h1>
         <p class="lede">Just the essentials to start. You'll upload your videos next — that's what the song is really built from.</p>
       </div>
@@ -1362,7 +1374,7 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
     <!-- STEP 3: YOUR NOTE -->
     <div id="screen-note" class="screen wrap" style="display:none">
       <div class="step-head">
-        <span class="eyebrow">Step 3 of 4 · Your note</span>
+        <span class="eyebrow">Step 4 of 5 · Your note</span>
         <h1>Say it in your <em>own words.</em></h1>
         <p class="lede">A short handwritten-style note shows on the page when they open their gift. Skip it if the song says enough.</p>
       </div>
@@ -1387,7 +1399,7 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
         </div>
       </div>
       <div class="step-actions">
-        <button class="btn btn-ghost" onclick="showScreen('3')">Back</button>
+        <button class="btn btn-ghost" onclick="showScreen('q')">Back</button>
         <button class="btn btn-primary" onclick="showScreen('4')">Continue <span class="arr">→</span></button>
       </div>
     </div>
@@ -1569,7 +1581,7 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
     <!-- STEP 4: CLIPS & PHOTOS -->
     <div id="screen-3" class="screen wrap" style="display:none">
       <div class="step-head">
-        <span class="eyebrow">Step 2 of 4 · Your videos</span>
+        <span class="eyebrow">Step 2 of 5 · Your videos</span>
         <h1>Give us enough to <em>fill your song.</em></h1>
         <p class="lede">We feature the best moments of each clip — sometimes the whole thing, sometimes the best few seconds, based on what's in it. In each caption, tell us the best bit so we know what to feature.</p>
       </div>
@@ -1619,10 +1631,34 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
       </div>
     </div>
 
+    <!-- STEP 3: A FEW QUESTIONS (we read the clips → tailored questions) -->
+    <div id="screen-q" class="screen wrap" style="display:none">
+      <div class="step-head">
+        <span class="eyebrow">Step 3 of 5 · A few questions</span>
+        <h1>A couple <em>quick questions.</em></h1>
+        <p class="lede">We looked through your clips. A few quick answers and the song gets a whole lot more you.</p>
+      </div>
+      <div class="s-body">
+        <div class="vis-read" id="visRead">
+          <div class="vr-ic">👀</div>
+          <div class="vr-body">
+            <div class="vr-text" id="vrText"><span class="q-spin"></span> Reading your clips…</div>
+            <button class="vr-edit" id="vrEdit" type="button" style="display:none" onclick="visReadEdit()">That's not quite it — fix it</button>
+            <textarea class="vr-fix" id="vrFix" style="display:none" placeholder="Tell us what it's really about…"></textarea>
+          </div>
+        </div>
+        <div class="q-list" id="qList"></div>
+      </div>
+      <div class="step-actions">
+        <button class="btn btn-ghost" onclick="showScreen('3')">Back</button>
+        <button class="btn btn-primary" id="q-next" onclick="questionsContinue()">Continue <span class="arr">→</span></button>
+      </div>
+    </div>
+
     <!-- STEP 5: SONG STYLE -->
     <div id="screen-4" class="screen wrap" style="display:none">
       <div class="step-head">
-        <span class="eyebrow">Step 4 of 4 · Song style</span>
+        <span class="eyebrow">Step 5 of 5 · Song style</span>
         <h1>Now pick the <em>vibe.</em></h1>
         <p class="lede">We'll compose an original song in this style, timed to the clips you uploaded.</p>
       </div>
@@ -2403,12 +2439,13 @@ function showScreen(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   // reflect a chosen/restored occasion into the Step 1 dropdown
   if (id === '1') { const os = document.getElementById('occ-select'); if (os && S.occasion) { os.value = S.occasion; const s1 = document.getElementById('s1-next'); if (s1) s1.disabled = false; } }
-  const stepMap  = { '1':22,'3':50,'note':74,'4':92,'proc':95,'review':95,'done':100 };
+  const stepMap  = { '1':18,'3':38,'q':58,'note':76,'4':92,'proc':95,'review':95,'done':100 };
   const labelMap = {
-    '1':'Step 1 of 4 · The basics',
-    '3':'Step 2 of 4 · Your videos',
-    'note':'Step 3 of 4 · Your note',
-    '4':'Step 4 of 4 · Song style',
+    '1':'Step 1 of 5 · The basics',
+    '3':'Step 2 of 5 · Your videos',
+    'q':'Step 3 of 5 · A few questions',
+    'note':'Step 4 of 5 · Your note',
+    '4':'Step 5 of 5 · Song style',
     'proc':'Creating...',
     'review':'Review your script',
     'done':'Done!'
@@ -2695,6 +2732,158 @@ function goToSlideshow() {
   S.currentSlide = 1;
   updateSlideshow();
   showScreen('slideshow');
+}
+
+// ── PHASE 2: read the clips → tailored questions ────────────────────────────
+// Grab one representative frame per clip (a video's mid-frame, or a downscaled
+// photo), send them to /api/analyze-clips for a warm "here's what we see" read
+// plus tailored questions. Falls back to solid occasion-aware questions if the
+// analysis is unavailable, so this step never blocks the flow.
+function srCaptureThumb(clip) {
+  return new Promise(resolve => {
+    const MAX = 320;
+    try {
+      if (clip.type === 'image') {
+        const img = new Image();
+        img.onload = () => { try {
+          const s = Math.min(1, MAX / Math.max(img.naturalWidth || MAX, img.naturalHeight || MAX));
+          const cv = document.createElement('canvas');
+          cv.width = Math.max(1, Math.round((img.naturalWidth || MAX) * s));
+          cv.height = Math.max(1, Math.round((img.naturalHeight || MAX) * s));
+          cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+          resolve(cv.toDataURL('image/jpeg', 0.6));
+        } catch(e){ resolve(null); } };
+        img.onerror = () => resolve(null);
+        img.src = clip.blobUrl || clip.uploadedUrl; return;
+      }
+      const v = document.createElement('video');
+      v.muted = true; v.playsInline = true; v.preload = 'metadata'; v.crossOrigin = 'anonymous';
+      let done = false;
+      const fail = () => { if (!done) { done = true; resolve(null); } };
+      const grab = () => { if (done) return; try {
+        const s = Math.min(1, MAX / Math.max(v.videoWidth || MAX, v.videoHeight || MAX));
+        const cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round((v.videoWidth || MAX) * s));
+        cv.height = Math.max(1, Math.round((v.videoHeight || MAX) * s));
+        cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height);
+        done = true; resolve(cv.toDataURL('image/jpeg', 0.6));
+      } catch(e){ fail(); } };
+      v.onloadedmetadata = () => { try { v.currentTime = Math.min(Math.max((v.duration || 2) / 2, 0.1), v.duration || 2); } catch(e){ fail(); } };
+      v.onseeked = grab; v.onerror = fail;
+      setTimeout(fail, 6000);   // never hang the step on one stubborn file
+      v.src = clip.blobUrl || clip.uploadedUrl;
+    } catch(e) { resolve(null); }
+  });
+}
+
+function srFallbackQuestions() {
+  return [
+    { q: "What's the one moment in here that has to make the song?", placeholder: "e.g. the surprise on the beach; her face when she opened it" },
+    { q: 'What do you want them to feel when they watch it?', placeholder: 'e.g. how proud we are; that she is deeply loved' },
+    { q: "Any inside line, nickname, or phrase that's just yours?", placeholder: 'e.g. we call her Bug; "almost done!"' },
+  ];
+}
+
+async function runClipAnalysis() {
+  const vrText = document.getElementById('vrText'), vrEdit = document.getElementById('vrEdit'), vrFix = document.getElementById('vrFix');
+  const qList = document.getElementById('qList'), qNext = document.getElementById('q-next');
+  if (!qList) return;
+  S.answers = null; S.questions = null; S.visionRead = '';
+  if (vrText) vrText.innerHTML = '<span class="q-spin"></span> Reading your clips…';
+  if (vrEdit) vrEdit.style.display = 'none';
+  if (vrFix)  { vrFix.style.display = 'none'; vrFix.value = ''; }
+  qList.innerHTML = '<div class="q-loading"><span class="q-spin"></span> Looking through your moments…</div>';
+  if (qNext) qNext.disabled = true;
+
+  let pool = (S.clips || []).slice();
+  if (pool.length > 8) { const st = pool.length / 8, s = []; for (let i = 0; i < 8; i++) s.push(pool[Math.floor(i * st)]); pool = s; }
+  let payloadClips = [];
+  try {
+    const thumbs = await Promise.all(pool.map(c => srCaptureThumb(c)));
+    payloadClips = pool.map((c, i) => ({ description: c.description || '', type: c.type || 'video', thumb: thumbs[i] })).filter(c => c.thumb);
+  } catch(e) { payloadClips = []; }
+
+  let res = null;
+  if (payloadClips.length) {
+    try {
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), 50000);
+      const r = await fetch('/api/analyze-clips', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
+        body: JSON.stringify({
+          occasion: S.occasion, name: S.fields['f-name'] || '', relation: S.fields['f-relation'] || '',
+          about: (document.getElementById('abAbout')?.value || '').trim(), clips: payloadClips,
+        }),
+      });
+      clearTimeout(to);
+      res = await r.json();
+    } catch(e) { res = null; }
+  }
+
+  if (res && res.ok && res.read && (res.questions || []).length) {
+    S.visionRead = res.read;
+    if (vrText) vrText.textContent = res.read;
+    if (vrEdit) vrEdit.style.display = 'inline';
+    renderQuestions(res.questions);
+  } else {
+    S.visionRead = '';   // do not pretend to have seen specifics
+    if (vrText) vrText.textContent = "Your clips are in. A couple quick things and we'll make the song about the moments that matter most.";
+    if (vrEdit) vrEdit.style.display = 'none';
+    renderQuestions(srFallbackQuestions());
+  }
+  if (qNext) qNext.disabled = false;
+}
+
+function renderQuestions(questions) {
+  S.questions = (questions || []).slice(0, 3);
+  const qList = document.getElementById('qList');
+  if (!qList) return;
+  qList.innerHTML = '';
+  S.questions.forEach((q, i) => {
+    const wrap = document.createElement('div'); wrap.className = 'ab-field q-item';
+    const lab = document.createElement('span'); lab.className = 'glabel'; lab.textContent = q.q;
+    const tin = document.createElement('div'); tin.className = 'tin';
+    const ta = document.createElement('textarea'); ta.className = 'q-ans'; ta.dataset.idx = i;
+    ta.placeholder = q.placeholder || 'Your answer (optional)';
+    tin.appendChild(ta); wrap.appendChild(lab); wrap.appendChild(tin); qList.appendChild(wrap);
+  });
+}
+
+function visReadEdit() {
+  const vrFix = document.getElementById('vrFix'), vrEdit = document.getElementById('vrEdit'), vrText = document.getElementById('vrText');
+  if (!vrFix) return;
+  vrFix.value = S.visionRead || (vrText ? vrText.textContent : '');
+  vrFix.style.display = 'block';
+  if (vrEdit) vrEdit.style.display = 'none';
+  vrFix.focus();
+}
+
+function questionsContinue() {
+  readAboutFields();   // base f-about / f-include from the clips-step brief
+  const answers = [];
+  document.querySelectorAll('#qList .q-ans').forEach(ta => {
+    const i = parseInt(ta.dataset.idx);
+    const q = (S.questions && S.questions[i]) ? S.questions[i].q : '';
+    const a = (ta.value || '').trim();
+    if (q) answers.push({ q, a });
+  });
+  S.answers = answers;
+  const vrFix = document.getElementById('vrFix');
+  const read = (vrFix && vrFix.style.display !== 'none' && vrFix.value.trim()) ? vrFix.value.trim() : (S.visionRead || '');
+  // Fold the read + answers into the song context via f-include/f-memory (the pipeline
+  // already weaves these in — no n8n change needed) and keep structured copies for a
+  // future prompt upgrade that reads f-answers directly.
+  const extras = [];
+  if (read) extras.push('What this looks like: ' + read);
+  answers.forEach(x => { if (x.a) extras.push(x.q + ' ' + x.a); });
+  if (extras.length) {
+    const extraTxt = extras.join('. ');
+    S.fields['f-include'] = [S.fields['f-include'], extraTxt].filter(Boolean).join('. ');
+    S.fields['f-memory']  = S.fields['f-include'];
+  }
+  S.fields['f-vision-read'] = read || '';
+  S.fields['f-answers'] = JSON.stringify(answers);
+  showScreen('note');
 }
 
 function bindOccPicker() {
@@ -3985,7 +4174,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     }
     const about=($('abAbout')?.value||'').trim();
     if(!about){ const t=$('abAbout')?.closest('.tin'); if(t){ t.classList.add('need'); t.scrollIntoView({behavior:'smooth',block:'center'}); } setTimeout(()=>$('abAbout')?.focus(),300); srToast("Add a line on what this one's about.", '✍️'); return; }
-    readAboutFields(); showScreen('note');
+    readAboutFields(); showScreen('q'); if (typeof runClipAnalysis === 'function') runClipAnalysis();
   };
 
   /* Your note live preview */
