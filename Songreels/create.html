@@ -4255,7 +4255,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     const clearTimer = () => { if(timerId){ clearInterval(timerId); timerId=null; } };
 
     async function startCamera(){
-      if(opening || stream || recorder || S.introVideo) return;   // re-entry guard: no concurrent getUserMedia, no leaked stream
+      if(opening || stream || S.introVideo || (recorder && recorder.state === 'recording')) return;   // re-entry guard: block only while genuinely opening/live/recording
       if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){ srToast("Recording isn't supported on this browser.\nUpload a video instead.", '🎥', 6000); return; }
       opening=true; const rb=$('vm-record'); if(rb) rb.disabled=true;
       let s;
@@ -4284,7 +4284,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     function stopRec(){ clearTimer(); badge(false); if(recorder && recorder.state!=='inactive'){ try{ recorder.stop(); }catch(e){} } }
     function finishRec(){
       const type=(chunks[0] && chunks[0].type) || vmMime() || 'video/webm';
-      const blob=new Blob(chunks, { type }); stopStream();
+      const blob=new Blob(chunks, { type }); stopStream(); recorder=null;
       const ext = type.indexOf('mp4')!==-1 ? 'mp4' : 'webm';
       setClip(new File([blob], 'message.'+ext, { type }), 'record');
     }
@@ -4302,7 +4302,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
       if(rm) rm.onclick = removeClip;
     }
     function removeClip(){
-      stopStream();   // defensive: safe from any state
+      stopStream(); recorder=null;   // defensive: safe from any state
       if(S.introVideo && S.introVideo.blobUrl){ try{ URL.revokeObjectURL(S.introVideo.blobUrl); }catch(e){} }
       S.introVideo=null;
       const v=$('vm-video'); if(v){ try{ v.pause(); }catch(e){} v.removeAttribute('src'); v.srcObject=null; try{ v.load(); }catch(e){} }
