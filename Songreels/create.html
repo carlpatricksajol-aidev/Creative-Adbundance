@@ -1332,24 +1332,24 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
   </div>
 
   <main>
-    <!-- STEP 1: THE BASICS (who it's for + occasion) -->
+    <!-- STEP 1: THE IDEA (what it's about) + name + occasion -->
     <div id="screen-1" class="screen wrap">
       <div class="step-head">
-        <span class="eyebrow">Step 1 of 5 · The basics</span>
-        <h1>Who's this <em>for?</em></h1>
-        <p class="lede">Just the essentials to start. You'll upload your videos next — that's what the song is really built from.</p>
+        <span class="eyebrow">Step 1 of 5 · The idea</span>
+        <h1>What's this reel <em>about?</em></h1>
+        <p class="lede">The big idea in a line — we build the song around it. You'll add the actual moments next.</p>
       </div>
       <div class="s-body">
         <div class="ab-grid">
+          <div class="ab-field full">
+            <span class="glabel">What are you making this about?</span>
+            <div class="tin mic"><textarea id="abAbout" placeholder="e.g. My son growing up this past year. · My wife and our first year married. · Grandma's 80th and everything she means to us."></textarea><button class="mic-btn" type="button" data-target="abAbout" aria-label="Speak">🎙️</button></div>
+          </div>
           <div class="ab-field">
-            <span class="glabel">Their name <span class="hint">for the title and the song</span></span>
+            <span class="glabel">Their name <span class="hint">optional — for the title and gift card</span></span>
             <div class="tin mic"><input type="text" id="abName" placeholder="e.g. Mom, Cynthia, the kids"><button class="mic-btn" type="button" data-target="abName" aria-label="Speak">🎙️</button></div>
           </div>
           <div class="ab-field">
-            <span class="glabel">Who are they to you? <span class="hint">optional</span></span>
-            <div class="tin mic"><input type="text" id="abRelation" placeholder="e.g. my wife, my mom, my best friend"><button class="mic-btn" type="button" data-target="abRelation" aria-label="Speak">🎙️</button></div>
-          </div>
-          <div class="ab-field full">
             <span class="glabel">Occasion <span class="hint">sets the tone and pacing</span></span>
             <div class="tin"><select id="occ-select">
               <option value="" disabled selected>Choose an occasion…</option>
@@ -1606,19 +1606,9 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
         </div>
         <div class="clip-grid" id="clip-grid-new"></div>
         <div class="clip-meta" id="clipMeta"></div>
-        <div class="ab-grid" style="margin-top:24px">
-          <div class="ab-field full">
-            <span class="glabel">What's this one about?</span>
-            <div class="tin mic"><textarea id="abAbout" placeholder="A line or two, now that your clips are in — who it's for and the story. e.g. My wife and our last year together, just us being us."></textarea><button class="mic-btn" type="button" data-target="abAbout" aria-label="Speak">🎙️</button></div>
-          </div>
-          <div class="ab-field full">
-            <span class="glabel">Anything specific to include? <span class="hint">optional</span></span>
-            <div class="tin mic"><textarea id="abInclude" placeholder="A detail, an inside joke, a moment to make sure we mention. e.g. our trip to Japan, the dog, the way he says 'almost done'."></textarea><button class="mic-btn" type="button" data-target="abInclude" aria-label="Speak">🎙️</button></div>
-          </div>
-        </div>
         <div class="ai-note">
           <div class="ai-ic">✨</div>
-          <div class="ai-tx"><strong>You don't have to write much.</strong><p>The videos do the talking — we <em>watch every clip above</em>, reading the moments, the faces, and the places, and write the song from what we see plus your line here.</p></div>
+          <div class="ai-tx"><strong>A quick line per clip is all we need.</strong><p>We <em>watch every clip you add</em> — the moments, the faces, the places — then ask a couple of quick questions next. That's how the song gets specific to your moments.</p></div>
         </div>
         <div class="upload-prog" id="upload-prog">
           <div class="upload-prog-bar"><div class="upload-prog-fill" id="upload-prog-fill"></div></div>
@@ -1670,17 +1660,14 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visib
         </div>
         <div class="vibe-group"><span class="glabel">Mood</span><div class="genre-pills" id="mood-pills"></div></div>
         <div class="vibe-group"><span class="glabel">Voice</span><div class="genre-pills" id="vocal-pills"></div></div>
-        <div class="vibe-group"><span class="glabel">Genre <span class="hint">pick up to 2</span></span><div class="genre-pills" id="genre-pills"></div></div>
-        <div class="vibe-group">
-          <span class="glabel">Sounds like… <span class="hint">a favorite artist or band (optional)</span></span>
-          <div class="tin mic"><input type="text" id="artist-input" placeholder="e.g. Fleetwood Mac, Adele, John Mayer, Stevie Wonder"><button class="mic-btn" type="button" data-target="artist-input" aria-label="Speak">🎙️</button></div>
-          <div class="artist-suggest" id="artistSuggest">
-            <button class="artist-chip" type="button"><span class="plus">+</span>Taylor Swift</button><button class="artist-chip" type="button"><span class="plus">+</span>John Mayer</button><button class="artist-chip" type="button"><span class="plus">+</span>Adele</button><button class="artist-chip" type="button"><span class="plus">+</span>Coldplay</button><button class="artist-chip" type="button"><span class="plus">+</span>Stevie Wonder</button><button class="artist-chip" type="button"><span class="plus">+</span>Fleetwood Mac</button>
-          </div>
+        <div class="vibe-group" style="margin-bottom:0">
+          <span class="glabel">Genre <span class="hint">pick up to 2, or add your own</span></span>
+          <div class="genre-pills" id="genre-pills"></div>
+          <div class="tin" style="margin-top:12px"><input type="text" id="genre-other" placeholder="Something else? e.g. psychedelic fusion, lo-fi, gospel choir"></div>
         </div>
         <div class="vibe-group" style="margin-bottom:0">
-          <span class="glabel">Anything specific to focus on? <span class="hint">optional</span></span>
-          <div class="tin mic"><input type="text" id="wiz-focus" placeholder="Their laugh, the trip to Japan, how much they've grown this year…"><button class="mic-btn" type="button" data-target="wiz-focus" aria-label="Speak">🎙️</button></div>
+          <span class="glabel">Inspired by… <span class="hint">a favorite artist or band (optional)</span></span>
+          <div class="tin mic"><input type="text" id="artist-input" placeholder="e.g. Fleetwood Mac, Adele, John Mayer — we capture the vibe, never copy them"><button class="mic-btn" type="button" data-target="artist-input" aria-label="Speak">🎙️</button></div>
         </div>
       </div>
       <div class="step-actions">
@@ -2456,7 +2443,7 @@ function showScreen(id) {
   }
   const stepMap  = { '1':18,'3':38,'q':58,'note':76,'4':92,'proc':95,'review':95,'done':100 };
   const labelMap = {
-    '1':'Step 1 of 5 · The basics',
+    '1':'Step 1 of 5 · The idea',
     '3':'Step 2 of 5 · Your videos',
     'q':'Step 3 of 5 · A few questions',
     'note':'Step 4 of 5 · Your note',
@@ -3181,29 +3168,37 @@ async function handleClipAdd(e) {
     
     if (!isImg) {
       const vid = document.createElement('video');
-      vid.src = blobUrl;
+      vid.preload = 'metadata';
       const clipRef = S.clips[S.clips.length - 1];
-      vid.onloadedmetadata = () => {
-        const secs = Math.round(vid.duration);
+      let settled = false;
+      const finalize = (secs) => {
+        if (settled) return; settled = true;
+        try { vid.src = ''; } catch(e) {}
         const dropClip = (msg) => {
-          const pos = S.clips.indexOf(clipRef);
+          const pos = S.clips.indexOf(clipRef);   // identity-based: safe when several videos settle at once
           if (pos !== -1) { try { URL.revokeObjectURL(clipRef.blobUrl); } catch(e) {} S.clips.splice(pos, 1); }
           scheduleClipRender();
           srToast(msg, '⚠️', 7000);
         };
         // Min 5s: each clip becomes a ~5s moment, so a sub-5s video can't fill its slot.
-        if (vid.duration && vid.duration < C.PER_CLIP_SECS) {
+        if (secs && secs < C.PER_CLIP_SECS) {
           dropClip('Videos need to be at least ' + C.PER_CLIP_SECS + ' seconds.\n"' + ((clipRef.file && clipRef.file.name) || 'That clip') + '" is only ' + formatDur(secs) + '. Add it as a photo, or use a longer clip.');
           return;
         }
         // 3-minute per-video cap, longer clips bog down processing, and the AI only needs a highlight.
-        if (secs > C.MAX_VIDEO_SECS) {
+        if (secs && secs > C.MAX_VIDEO_SECS) {
           dropClip('Videos must be 3 minutes or shorter.\n"' + ((clipRef.file && clipRef.file.name) || 'That clip') + '" is ' + formatDur(secs) + '. Trim it first, then re-add.');
           return;
         }
-        clipRef.duration = secs;
-        scheduleClipRender();   // refresh the badge + meter/floor now the real length is known
+        clipRef.duration = secs || 10;   // fallback if the browser couldn't read metadata; the server re-reads the real length
+        scheduleClipRender();            // refresh the badge + meter/floor now the length is known
       };
+      // Attach handlers BEFORE src so a fast/cached blob can't fire loadedmetadata before we're listening
+      // (that race left clips stuck on "loading…" and uncounted — the "can't add several at once" bug).
+      vid.onloadedmetadata = () => finalize(Math.round(vid.duration) || 0);
+      vid.onerror = () => finalize(0);           // undecodable metadata → keep it with a fallback length
+      setTimeout(() => finalize(0), 12000);      // never leave a clip stuck on "loading…"
+      vid.src = blobUrl;
     }
     scheduleClipRender();
   }
@@ -3385,6 +3380,7 @@ const MOODS  = [
   { id: 'joyful',    label: 'Joyful' },
   { id: 'cinematic', label: 'Cinematic' },
   { id: 'uplifting', label: 'Uplifting' },
+  { id: 'surprise',  label: 'Surprise me' },   // no preference — let the AI pick from the clips + occasion
 ];
 const VOICES = [
   { id: 'female', label: 'Female' },
@@ -3392,7 +3388,7 @@ const VOICES = [
   { id: 'either', label: 'Either' },
 ];
 // Representative 0 to 100 value so any legacy reader of `song_mood` still works.
-const MOOD_LEGACY = { tender: 20, nostalgic: 30, cinematic: 25, uplifting: 70, joyful: 85 };
+const MOOD_LEGACY = { tender: 20, nostalgic: 30, cinematic: 25, uplifting: 70, joyful: 85, surprise: 50 };
 
 function buildSinglePills(containerId, items, getSel, setSel) {
   const wrap = document.getElementById(containerId);
@@ -3482,10 +3478,10 @@ async function submitJob() {
     user_name:           S.user?.user_metadata?.full_name || null,
     occasion:            S.occasion,
     form_data:           { ...S.fields, mood_preset: S.moodPreset, song_vocal: S.vocal },
-    song_genres:         S.genres,
+    song_genres:         [...S.genres, (document.getElementById('genre-other')?.value || '').trim()].filter(Boolean),
     song_mood:           MOOD_LEGACY[S.moodPreset] ?? 35,
     song_length_mins:    S.songLength,
-    custom_focus:        document.getElementById('wiz-focus').value || null,
+    custom_focus:        null,
     artist_inspiration:  (document.getElementById('artist-input')?.value || '').trim() || null,
     video_clips:         uploadedClips,
     raw_video_url:       uploadedClips[0]?.url || null,
@@ -3856,7 +3852,7 @@ function clearWizardUI(keepClips) {
   if (!keepClips) { try { if (typeof SR_clearDraft === 'function') SR_clearDraft(); } catch(e) {} }
   try { renderClips(); } catch(e) {}      // re-paints #clip-grid-new from S.clips (kept clips stay, else empty)
   try { updateClipUI(); } catch(e) {}     // meter + Continue state recomputed from S.clips
-  ['abName','abRelation','abAbout','abInclude','noteFrom','noteBody','artist-input','wiz-focus'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['abName','abAbout','noteFrom','noteBody','artist-input','genre-other'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.querySelectorAll('.ochip.on').forEach(c => c.classList.remove('on'));
   const occSel = document.getElementById('occ-select'); if (occSel) occSel.value = '';   // reset the occasion dropdown on "Make another"
   document.querySelectorAll('#genre-pills .gpill.sel').forEach(p => p.classList.remove('sel'));
@@ -4165,26 +4161,23 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
   window.readAboutFields = function(){
     const get = id => ($(id)?.value || '').trim();
     const about = get('abAbout');
-    const include = get('abInclude');
     S.fields['f-name']     = get('abName');
-    S.fields['f-relation'] = get('abRelation');   // free-text relationship (e.g. "my wife")
-    S.fields['f-about']    = about;     // the brief: who it's for + the story
-    S.fields['f-include']  = include;   // optional specifics
-    // Keep the current song pipeline fed until the n8n prompt is updated to read
-    // f-about / f-include directly: brief → who-they-are context, include → memory.
-    S.fields['f-love']     = about;
-    S.fields['f-memory']   = include;
+    S.fields['f-relation'] = '';        // dropped from the UI; the 'about' line carries the relationship
+    S.fields['f-about']    = about;     // step-1 subject: what the reel is about
+    S.fields['f-include']  = '';        // no separate 'include' box; captions + the questions carry specifics
+    S.fields['f-love']     = about;     // mirror for the current pipeline
+    S.fields['f-memory']   = '';
     S.fields['f-feel']     = '';
   };
   /* live-clear the highlight as they fill */
-  ['abName','abRelation','abAbout'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('input',()=>{ const t=el.closest('.tin'); if(t) t.classList.remove('need'); }); });
+  ['abName','abAbout'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('input',()=>{ const t=el.closest('.tin'); if(t) t.classList.remove('need'); }); });
 
-  /* Step 1 (basics): require their name + an occasion, then go to the upload step */
+  /* Step 1: require the 'what's this about' subject + an occasion (name is optional), then upload */
   window.basicsContinue = function(){
-    const name=($('abName')?.value||'').trim();
+    const about=($('abAbout')?.value||'').trim();
     const occ = (typeof S!=='undefined' && S.occasion) || ($('occ-select')?.value||'');
     document.querySelectorAll('#screen-1 .tin.need').forEach(x=>x.classList.remove('need'));
-    if(!name){ const t=$('abName')?.closest('.tin'); if(t){ t.classList.add('need'); t.scrollIntoView({behavior:'smooth',block:'center'}); } setTimeout(()=>$('abName')?.focus(),300); srToast('Add their name to continue.', '✍️'); return; }
+    if(!about){ const t=$('abAbout')?.closest('.tin'); if(t){ t.classList.add('need'); t.scrollIntoView({behavior:'smooth',block:'center'}); } setTimeout(()=>$('abAbout')?.focus(),300); srToast("Tell us what this reel's about to continue.", '✍️'); return; }
     if(!occ){ const os=$('occ-select'); const t=os&&os.closest('.tin'); if(t){ t.classList.add('need'); t.scrollIntoView({behavior:'smooth',block:'center'}); } setTimeout(()=>os&&os.focus(),300); srToast('Pick an occasion to continue.', '✍️'); return; }
     readAboutFields(); showScreen('3');
   };
@@ -4202,8 +4195,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
         return;
       }
     }
-    const about=($('abAbout')?.value||'').trim();
-    if(!about){ const t=$('abAbout')?.closest('.tin'); if(t){ t.classList.add('need'); t.scrollIntoView({behavior:'smooth',block:'center'}); } setTimeout(()=>$('abAbout')?.focus(),300); srToast("Add a line on what this one's about.", '✍️'); return; }
+    // 'about' now lives on Step 1; the clips step just needs a caption per clip.
     readAboutFields(); showScreen('q'); if (typeof runClipAnalysis === 'function') runClipAnalysis();
   };
 
@@ -4387,7 +4379,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     const s = SS() || {};
     return { v:1, ts:Date.now(), uid:(s.user&&s.user.id)||null, step:currentStep()||'1',
       occasion:s.occasion||null,
-      inputs:{ abName:val('abName'), abRelation:val('abRelation'), abAbout:val('abAbout'), abInclude:val('abInclude'), noteFrom:val('noteFrom'), noteBody:val('noteBody'), artist:val('artist-input'), focus:val('wiz-focus') },
+      inputs:{ abName:val('abName'), abAbout:val('abAbout'), noteFrom:val('noteFrom'), noteBody:val('noteBody'), artist:val('artist-input'), genreOther:val('genre-other') },
       mood:s.moodPreset||null, vocal:s.vocal||null, genres:s.genres||[],
       vision:{ read:s.visionRead||'', questions:s.questions||null, answers:s.answers||null },
       clipMeta:(s.clips||[]).map(c=>({ cid:c.cid, type:c.type, duration:c.duration, description:c.description||'' })) };
@@ -4421,9 +4413,9 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     try{
       if(d.occasion){ s.occasion=d.occasion; const os=el('occ-select'); if(os) os.value=d.occasion; const s1=el('s1-next'); if(s1) s1.disabled=false; }
       const setVal=(id,v)=>{ const e=el(id); if(e && v!=null){ e.value=v; try{ e.dispatchEvent(new Event('input',{bubbles:true})); }catch(_){} } };
-      setVal('abName',d.inputs.abName); setVal('abRelation',d.inputs.abRelation); setVal('abAbout',d.inputs.abAbout); setVal('abInclude',d.inputs.abInclude);
+      setVal('abName',d.inputs.abName); setVal('abAbout',d.inputs.abAbout);
       setVal('noteFrom',d.inputs.noteFrom); setVal('noteBody',d.inputs.noteBody);
-      setVal('artist-input',d.inputs.artist); setVal('wiz-focus',d.inputs.focus);
+      setVal('artist-input',d.inputs.artist); setVal('genre-other',d.inputs.genreOther);
       if(typeof readAboutFields==='function') readAboutFields();
       const MS = (typeof MOODS!=='undefined')?MOODS:[], VS=(typeof VOICES!=='undefined')?VOICES:[];
       if(d.mood){ s.moodPreset=d.mood; const lbl=MS.find(m=>m.id===d.mood); document.querySelectorAll('#mood-pills .gpill').forEach(p=>p.classList.toggle('sel', !!lbl && p.textContent.trim()===lbl.label)); }
