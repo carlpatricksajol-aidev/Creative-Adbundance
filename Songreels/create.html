@@ -3498,7 +3498,7 @@ async function submitJob() {
   if (S.introVideo && S.introVideo.file) {
     try {
       setLogLine('ll-upload', 'active', 'Saving your video message...');
-      introVideoUrl = await uploadClip(S.introVideo.file, 'intro');
+      introVideoUrl = await uploadClip(S.introVideo.file, 'intro', 'intro');
       setLogLine('ll-upload', 'done', 'Clips and photos saved');
     } catch (e) { console.warn('intro video upload failed:', e); }
   }
@@ -3539,7 +3539,7 @@ async function submitJob() {
   pollForScriptReady(job.id);
 }
 
-async function uploadClip(file, idx) {
+async function uploadClip(file, idx, kind) {
   const ext = file.name.split('.').pop().toLowerCase();
   const ctMap = { 
     mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', m4v: 'video/x-m4v',
@@ -3551,7 +3551,7 @@ async function uploadClip(file, idx) {
   const signResp = await fetch(C.N8N_UPLOAD_URL, { 
     method: 'POST', 
     headers: { 'Content-Type': 'application/json' }, 
-    body: JSON.stringify({ filename: file.name, content_type: contentType, job_id: S.tempJobId }) 
+    body: JSON.stringify({ filename: file.name, content_type: contentType, job_id: S.tempJobId, kind: kind || 'clip' })
   });
   if (!signResp.ok) throw new Error('Could not get upload URL (status ' + signResp.status + ')');
   
@@ -4244,7 +4244,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
 
   /* ---- Personal video message: record in-browser OR upload (note step) ---- */
   (function(){
-    let stream=null, recorder=null, chunks=[], timerId=null, startedAt=0;
+    let stream=null, recorder=null, chunks=[], timerId=null, startedAt=0, opening=false;
     const MAX_MSG_SECS = 60;
     const vmMime = () => { for(const t of ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4']){ try{ if(window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t; }catch(e){} } return ''; };
     const fmt = s => { s=Math.max(0,Math.round(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
@@ -4255,9 +4255,15 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     const clearTimer = () => { if(timerId){ clearInterval(timerId); timerId=null; } };
 
     async function startCamera(){
+      if(opening || stream || recorder || S.introVideo) return;   // re-entry guard: no concurrent getUserMedia, no leaked stream
       if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){ srToast("Recording isn't supported on this browser.\nUpload a video instead.", '🎥', 6000); return; }
-      try{ stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user' }, audio:true }); }
-      catch(e){ srToast("We couldn't open your camera.\nAllow access, or upload a video instead.", '🎥', 6000); return; }
+      opening=true; const rb=$('vm-record'); if(rb) rb.disabled=true;
+      let s;
+      try{ s = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user' }, audio:true }); }
+      catch(e){ opening=false; if(rb) rb.disabled=false; srToast("We couldn't open your camera.\nAllow access, or upload a video instead.", '🎥', 6000); return; }
+      opening=false; if(rb) rb.disabled=false;
+      if(stream || S.introVideo){ try{ s.getTracks().forEach(t=>t.stop()); }catch(e){} return; }   // state changed during await → drop the extra stream
+      stream=s;
       const v=$('vm-video'); if(v){ v.srcObject=stream; v.muted=true; v.controls=false; v.play().catch(()=>{}); }
       stage(true); badge(false);
       controls('<button class="btn btn-accent" type="button" id="vm-start">● Start recording</button><button class="btn btn-ghost" type="button" id="vm-cancel">Cancel</button>');
@@ -4266,7 +4272,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     function beginRec(){
       if(!stream) return; chunks=[]; const m=vmMime();
       try{ recorder = new MediaRecorder(stream, m?{mimeType:m}:undefined); }
-      catch(e){ srToast("Couldn't start recording.\nUpload a video instead.", '🎥'); return; }
+      catch(e){ srToast("Couldn't start recording.\nUpload a video instead.", '🎥'); cancelLive(); return; }
       recorder.ondataavailable = e => { if(e.data && e.data.size) chunks.push(e.data); };
       recorder.onstop = finishRec;
       recorder.start(); startedAt = performance.now(); badge(true);
@@ -4296,6 +4302,7 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
       if(rm) rm.onclick = removeClip;
     }
     function removeClip(){
+      stopStream();   // defensive: safe from any state
       if(S.introVideo && S.introVideo.blobUrl){ try{ URL.revokeObjectURL(S.introVideo.blobUrl); }catch(e){} }
       S.introVideo=null;
       const v=$('vm-video'); if(v){ try{ v.pause(); }catch(e){} v.removeAttribute('src'); v.srcObject=null; try{ v.load(); }catch(e){} }
