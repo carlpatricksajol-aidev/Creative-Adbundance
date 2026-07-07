@@ -2871,7 +2871,7 @@ function visReadEdit() {
 // copies for a future prompt upgrade. Idempotent: rebuilds f-include from the base
 // (readAboutFields) each call, so it is safe to run again on draft restore.
 function applyVisionFold() {
-  if (typeof readAboutFields === 'function') readAboutFields();   // base f-about / f-include from abInclude
+  if (typeof readAboutFields === 'function') readAboutFields();   // f-about/f-love from Step-1 abAbout; f-include starts empty
   const read = S.visionRead || '';
   const answers = S.answers || [];
   const extras = [];
@@ -3128,31 +3128,31 @@ async function handleClipAdd(e) {
                   || file.type === 'image/heic' || file.type === 'image/heif';
       
       if (isHeic && typeof heic2any !== 'undefined') {
-        const placeholderIdx = S.clips.length;
-        S.clips.push({ 
+        // Identity-based (NOT index): a video added in the same pick can drop itself and
+        // splice S.clips during the await below, so track this placeholder by reference.
+        const placeholder = {
           file: originalFile, description: '', uploadedUrl: null, blobUrl: null,
           duration: C.PHOTO_DURATION, type: 'image', converting: true,
-        });
+        };
+        S.clips.push(placeholder);
         scheduleClipRender();
-        
+
         try {
           const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
           const finalBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
           const newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
           file = new File([finalBlob], newName, { type: 'image/jpeg' });
-          
+
           const blobUrl = URL.createObjectURL(file);
-          S.clips[placeholderIdx] = {
-            file, description: '', uploadedUrl: null, blobUrl, 
-            duration: C.PHOTO_DURATION, type: 'image',
-          };
-          renderClips();
-          updateClipUI();
+          const converted = { file, description: placeholder.description, uploadedUrl: null, blobUrl, duration: C.PHOTO_DURATION, type: 'image' };
+          const pos = S.clips.indexOf(placeholder);
+          if (pos !== -1) S.clips[pos] = converted; else S.clips.push(converted);
+          scheduleClipRender();
         } catch(err) {
           console.warn('HEIC conversion failed:', err);
-          S.clips.splice(placeholderIdx, 1);
-          renderClips();
-          updateClipUI();
+          const pos = S.clips.indexOf(placeholder);
+          if (pos !== -1) S.clips.splice(pos, 1);
+          scheduleClipRender();
           srToast('Couldn\'t read "' + originalFile.name + '".\nTry a JPEG or PNG instead.', '⚠️');
         }
         continue;
@@ -3418,10 +3418,6 @@ function bindDurationPicker() {
     });
   });
 }
-
-document.getElementById('focus-mic')?.addEventListener('click', function() {
-  toggleVoice(this, 'wiz-focus');
-});
 
 async function submitJob() {
   if (S.clips.length === 0) { srToast('Add at least one photo or video clip to continue.', '🎬'); return; }
@@ -4208,14 +4204,6 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
   }
   if(nf) nf.addEventListener('input', syncNote);
   if(nb) nb.addEventListener('input', syncNote);
-
-  /* "Sounds like" artist suggestions */
-  const ai = $('artist-input'), as = $('artistSuggest');
-  if(as) as.addEventListener('click', e => { const c = e.target.closest('.artist-chip'); if(!c || !ai) return;
-    const nm = c.textContent.replace('+','').trim();
-    const cur = ai.value.split(',').map(s=>s.trim()).filter(Boolean);
-    if(!cur.includes(nm)) cur.push(nm);
-    ai.value = cur.join(', '); });
 
   /* mic buttons (new) */
   document.querySelectorAll('.mic-btn[data-target]').forEach(b => {
