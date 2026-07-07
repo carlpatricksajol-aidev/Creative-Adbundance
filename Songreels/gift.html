@@ -69,6 +69,10 @@ a{color:inherit;text-decoration:none}
 .note .bd{font-family:var(--hand);font-size:26px;line-height:1.42;color:var(--ink)}
 .note .bd p{margin-bottom:11px}.note .bd p:last-child{margin-bottom:0}
 .note .sg{font-family:var(--hand);font-size:23px;color:var(--pink);margin-top:14px}
+.msg-card{background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:0 14px 30px -24px rgba(34,16,25,.3);margin-bottom:18px}
+.msg-card .lab{font-family:var(--disp);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-bottom:14px}
+.msg-card .lab strong{color:var(--pink);font-weight:600}
+.msg-card video{width:100%;border-radius:14px;background:#000;display:block;max-height:70vh}
 .actions{margin-top:20px;display:flex;flex-direction:column;gap:12px}
 .dl{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:11px;background:var(--grad);color:#fff;font-family:var(--disp);font-weight:600;font-size:16px;padding:17px;border-radius:16px;box-shadow:0 14px 30px -12px rgba(255,45,85,.5);transition:transform .15s}
 .dl:active{transform:scale(.99)}
@@ -126,6 +130,10 @@ a{color:inherit;text-decoration:none}
     </div>
 
     <div class="body">
+      <div class="msg-card" id="msg-card" style="display:none">
+        <div class="lab">A message from <strong id="msg-from">someone who loves you</strong></div>
+        <video id="intro-msg" playsinline controls preload="metadata"></video>
+      </div>
       <div class="note" id="note-card">
         <div class="lab">A note from <strong id="note-from">someone who loves you</strong></div>
         <div class="bd" id="note-body"></div>
@@ -185,6 +193,13 @@ a{color:inherit;text-decoration:none}
 
     $('#vid-for').textContent = 'For ' + name + ' 💐';
     $('#vid-title').textContent = d.title ? '"' + d.title + '"' : '';
+
+    // personal video message (plays above the note)
+    if (d.intro_video) {
+      $('#intro-msg').src = d.intro_video;
+      $('#msg-from').textContent = from || 'someone who loves you';
+      $('#msg-card').style.display = '';
+    } else { $('#msg-card').style.display = 'none'; }
 
     // note
     if (from) { $('#note-from').textContent = from; $('#note-sign').textContent = from; }
