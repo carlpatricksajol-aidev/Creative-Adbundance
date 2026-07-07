@@ -38,6 +38,7 @@ module.exports = async (req, res) => {
       recipient_name: (fd['f-name']   || '').trim() || null,
       from:           (fd['note_from'] || '').trim() || null,
       note:           (fd['note_body'] || '').trim() || null,
+      intro_video:    (fd['intro_video_url'] || '').trim() || null,
       title:          (job.song_title || '').trim() || null,
       occasion:       job.occasion || null,
       year:           year,
