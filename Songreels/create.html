@@ -3513,7 +3513,7 @@ async function submitJob() {
     user_email:          S.user?.email || null,
     user_name:           S.user?.user_metadata?.full_name || null,
     occasion:            S.occasion,
-    form_data:           { ...S.fields, mood_preset: S.moodPreset, song_vocal: S.vocal, mood_note: (document.getElementById('mood-other')?.value || '').trim() || null, intro_video_url: introVideoUrl },
+    form_data:           { ...S.fields, mood_preset: S.moodPreset, song_vocal: S.vocal, mood_note: (document.getElementById('mood-other')?.value || '').trim() || null, intro_video_url: introVideoUrl, intro_video_secs: (introVideoUrl && S.introVideo && S.introVideo.secs) || null },
     song_genres:         [...S.genres, (document.getElementById('genre-other')?.value || '').trim()].filter(Boolean),
     song_mood:           MOOD_LEGACY[S.moodPreset] ?? 35,
     song_length_mins:    S.songLength,
@@ -4289,15 +4289,27 @@ if (localStorage.getItem('songreels_gate_ok') === 'true') {
     function finishRec(){
       const type=(chunks[0] && chunks[0].type) || vmMime() || 'video/webm';
       const blob=new Blob(chunks, { type }); stopStream(); recorder=null;
+      // recorded webm blobs often report Infinity duration — use our own elapsed clock instead
+      const secs=Math.round((performance.now()-startedAt)/100)/10;
       const ext = type.indexOf('mp4')!==-1 ? 'mp4' : 'webm';
-      setClip(new File([blob], 'message.'+ext, { type }), 'record');
+      setClip(new File([blob], 'message.'+ext, { type }), 'record', secs);
     }
     function cancelLive(){ clearTimer(); if(recorder && recorder.state==='recording'){ try{ recorder.stop(); }catch(e){} } recorder=null; stopStream(); stage(false); controls(''); badge(false); }
 
-    function setClip(file, source){
+    function setClip(file, source, knownSecs){
       if(S.introVideo && S.introVideo.blobUrl){ try{ URL.revokeObjectURL(S.introVideo.blobUrl); }catch(e){} }
       const blobUrl=URL.createObjectURL(file);
-      S.introVideo = { file, blobUrl, source };
+      S.introVideo = { file, blobUrl, source, secs:(isFinite(knownSecs) && knownSecs>0) ? knownSecs : null };
+      if(S.introVideo.secs == null){
+        // uploaded file: probe the real duration (n8n needs it to stitch the message into the reel)
+        const probe=document.createElement('video'); probe.preload='metadata';
+        probe.onloadedmetadata=()=>{ const d=probe.duration; probe.src='';
+          if(isFinite(d) && d>0){
+            if(d>90){ srToast('Keep the video message under 90 seconds.\nTrim it a little and re-add.', '🎥', 6000); removeClip(); return; }
+            if(S.introVideo) S.introVideo.secs=Math.round(d*10)/10;
+          } };
+        probe.src=blobUrl;
+      }
       const v=$('vm-video'); if(v){ v.srcObject=null; v.src=blobUrl; v.muted=false; v.controls=true; }
       stage(true); badge(false);
       controls('<button class="btn btn-ghost" type="button" id="vm-redo">Re-do</button><button class="btn btn-ghost" type="button" id="vm-remove">Remove</button>');
