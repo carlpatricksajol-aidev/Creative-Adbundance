@@ -114,7 +114,7 @@ def sweep():
 
 @app.before_request
 def gate():
-    if not PASSWORD or request.path == "/login" or session.get("auth"):
+    if not PASSWORD or request.path in ("/login", "/healthz") or session.get("auth"):
         return None
     return redirect(url_for("login", next=request.path))
 
