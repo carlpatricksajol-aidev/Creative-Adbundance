@@ -9,6 +9,8 @@ services:
     environment:
       - VE_PASSWORD=${VE_PASSWORD:?set VE_PASSWORD in .env}
       - VE_KEEP_DAYS=10
+      - VE_PUBLIC_URL=https://videoeditor.srv1486031.hstgr.cloud
+      - VE_NOTIFY_WEBHOOK=${VE_NOTIFY_WEBHOOK:-}
     volumes:
       - ./jobs:/app/jobs
     labels:

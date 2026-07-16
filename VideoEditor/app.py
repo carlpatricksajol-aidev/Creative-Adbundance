@@ -12,7 +12,7 @@ Team-serving hardening:
 
   python app.py        ->   open  http://localhost:5000
 """
-import glob, hashlib, json, os, re, shutil, subprocess, sys, threading, time, uuid
+import glob, hashlib, json, os, re, shutil, subprocess, sys, threading, time, urllib.request, uuid
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, redirect, request, send_from_directory, session, url_for
 
@@ -23,6 +23,8 @@ os.makedirs(JOBS, exist_ok=True)
 PY = sys.executable
 PASSWORD = os.environ.get("VE_PASSWORD", "")
 KEEP_DAYS = float(os.environ.get("VE_KEEP_DAYS", "10"))
+NOTIFY = os.environ.get("VE_NOTIFY_WEBHOOK", "")             # n8n webhook: pinged when a job finishes
+PUBLIC_URL = os.environ.get("VE_PUBLIC_URL", "").rstrip("/")
 JID_RE = re.compile(r"^[0-9a-f]{8}$")
 
 app = Flask(__name__)
@@ -97,6 +99,28 @@ def write_status(jdir, **kw):
     json.dump(cur, open(os.path.join(out, "status.json"), "w", encoding="utf-8"), indent=2)
 
 
+def notify(jdir, jid):
+    """POST the finished job to the n8n webhook (VE_NOTIFY_WEBHOOK) so the team gets pinged
+    (Slack / email / Notion — whatever the n8n flow routes to). Never breaks the job."""
+    if not NOTIFY:
+        return
+    try:
+        meta = json.load(open(os.path.join(jdir, "meta.json")))
+    except Exception:
+        meta = {}
+    st = read_status(jdir)
+    payload = {"job": jid, "brand": meta.get("brand"), "concept": meta.get("concept"),
+               "submitter": meta.get("submitter"), "state": st.get("state"), "ok": st.get("ok", False),
+               "seconds": st.get("seconds"), "error": st.get("error"),
+               "warnings": st.get("warnings", []), "link": f"{PUBLIC_URL}/job/{jid}" if PUBLIC_URL else jid}
+    try:
+        req = urllib.request.Request(NOTIFY, data=json.dumps(payload).encode(),
+                                     headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=10).read()
+    except Exception as e:
+        print(f"notify failed for {jid}: {e}")
+
+
 def sweep():
     """Free disk: for jobs older than KEEP_DAYS, drop the raw footage + normalized media
     (the zip still contains everything a designer needs)."""
@@ -143,7 +167,8 @@ def home():
         "<a href='/jobs'>All jobs →</a></small></p>"
         "<form method=post action=/run>"
         "<div class=row><div><label>Brand</label><input name=brand placeholder='Innerwell' required></div>"
-        "<div><label>Concept</label><input name=concept placeholder='5 Reasons I Regret...' required></div></div>"
+        "<div><label>Concept</label><input name=concept placeholder='5 Reasons I Regret...' required></div>"
+        "<div><label>Your name <small>(for the done-ping)</small></label><input name=submitter placeholder='Ricardo'></div></div>"
         "<label>Dropbox link <small>(a shared FOLDER with the footage: an <code>aroll/</code> subfolder of talking-head takes + a <code>broll/</code> subfolder of b-roll named to match the storyboard)</small></label>"
         "<input name=dropbox placeholder='https://www.dropbox.com/scl/fo/.../...?rlkey=...&dl=0' required>"
         "<label>Storyboard <small>(copy your storyboard table straight out of Notion and paste it here — the "
@@ -184,7 +209,8 @@ def run():
     os.makedirs(jdir, exist_ok=True)
     name = slug(request.form["concept"])
     open(os.path.join(jdir, "storyboard.md"), "w", encoding="utf-8").write(request.form["storyboard"])
-    json.dump({"brand": request.form["brand"], "concept": request.form["concept"]},
+    json.dump({"brand": request.form["brand"], "concept": request.form["concept"],
+               "submitter": request.form.get("submitter", "").strip()},
               open(os.path.join(jdir, "meta.json"), "w"))
     dropbox = request.form["dropbox"].strip()
     footage = os.path.join(jdir, "footage")
@@ -201,6 +227,7 @@ def run():
             if r.returncode != 0 or not vids(footage):
                 write_status(jdir, state="failed", ok=False,
                              error="Couldn't get footage from that Dropbox link (must be a shared FOLDER with videos). See log.")
+                notify(jdir, jid)
                 return
             write_status(jdir, state="running")
             subprocess.run([PY, os.path.join(SCRIPTS, "run_ad.py"), "--in", jdir, "--footage-dir", footage,
@@ -208,6 +235,7 @@ def run():
             st = read_status(jdir)                      # run_ad wrote done/failed itself
             if st.get("state") not in ("done", "failed"):
                 write_status(jdir, state="failed", ok=False, error="Assembly crashed — see log.")
+        notify(jdir, jid)                               # ping the team: done or failed, with the job link
     POOL.submit(worker)
     return redirect(url_for("job", jid=jid))
 
