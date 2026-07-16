@@ -137,6 +137,31 @@ const modestPlan = planJob(rcScenes, modest, {});
 eq((modestPlan.renames[0] || {}).scene, "Hook 1", "reconcile: modest-confidence reassignment still renames");
 eq(modestPlan.flagged.length, 0, "reconcile: modest-confidence reassignment not flagged");
 
+// --- auto-organize extras (footage the creator shot beyond the storyboard) -------------------
+// Models the Vivienne Goins case: clips that match no storyboard shot but are clearly usable get a
+// descriptive name into broll/aroll instead of being flagged; only unreadable clips flag.
+const exScenes = [{ scene: "Scene 1", type: "broll", footage_name: "1stPOV_planned shot", script_line: "" }];
+const exMatches = [
+  { file: "coffee.mov",  type: "broll",      scene: null, confidence: 0,   describe: "making coffee at home", person_in_frame: true },
+  { file: "calc.mov",    type: "broll",      scene: null, confidence: 0,   describe: "handwritten calculations", person_in_frame: false },
+  { file: "coffee2.mov", type: "broll",      scene: null, confidence: 0,   describe: "making coffee at home", person_in_frame: true },
+  { file: "rapid1.mov",  type: "talkinghead",scene: null, confidence: 0.5, transcript: "answers common debt questions", describe: "rapid fire debt questions" },
+  { file: "junk.mov",    type: "broll",      scene: null, confidence: 0,   describe: "" },
+  { file: "symbol.mov",  type: "broll",      scene: null, confidence: 0,   describe: "☕☕☕", person_in_frame: true }, // slug collapses to "" -> must flag, not ".mov"
+];
+const exPlan = planJob(exScenes, exMatches, {});
+const exTo = (f) => (exPlan.renames.find((x) => x.from === f) || {});
+eq(exTo("coffee.mov").to, "3rdpov_making_coffee_at_home.mov", "extra: b-roll gets pov+describe slug");
+eq(exTo("coffee.mov").folder, "broll", "extra: b-roll lands in broll/");
+eq(exTo("coffee.mov").extra, true, "extra: marked as extra");
+eq(exTo("calc.mov").to, "1stpov_handwritten_calculations.mov", "extra: object b-roll -> 1stpov");
+eq(exTo("coffee2.mov").to, "3rdpov_making_coffee_at_home_v2.mov", "extra: duplicate describe -> _v2");
+eq(exTo("rapid1.mov").folder, "aroll", "extra: unplaced talking-head lands in aroll/");
+eq(exTo("rapid1.mov").to, "rapid_fire_debt_questions_take1.mov", "extra: talking-head named by describe");
+eq(exPlan.flagged.map((f) => f.file).sort(), ["junk.mov", "symbol.mov"], "extra: no-describe and symbol-only clips flag (no nameless rename)");
+eq(exPlan.renames.every((r) => /[a-z0-9]/.test(r.to.replace(/\.\w+$/, ""))), true, "extra: no rename has an empty name body");
+eq(/## Extra footage organized/.test(exPlan.report), true, "extra: report has an Extra footage section");
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 console.log("--- sample report (Onsen) ---\n");
 console.log(r.report);

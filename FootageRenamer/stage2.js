@@ -33,7 +33,7 @@ const lineSlug = (l, m = 4) => String(l || "").toLowerCase().replace(/[^a-z0-9\s
 function splitShots(cell) { const raw = String(cell || "").trim(); if (!raw || !/[a-z0-9]/i.test(raw)) return []; if (/^talking[\s_-]*heads?$/i.test(raw)) return []; return raw.split(/[+,]/).map(s => s.trim()).filter(Boolean).filter(s => !/^talking[\s_-]*heads?$/i.test(s)).map(footage_name => ({ footage_name, slug: deriveSlug(footage_name) })); }
 function applyPov(slug, p) { if (p == null) return slug; if (!/^(1stpov|3rdpov)_/i.test(slug)) return slug; return (p ? "3rdpov_" : "1stpov_") + slug.replace(/^(1stpov|3rdpov)_/i, ""); }
 function parseStoryboardTable(rows) { if (!rows || rows.length < 2) return []; const cellsOf = r => Array.isArray(r) ? r : (r && r.table_row ? r.table_row.cells.map(c => c.map(t => t.plain_text || "").join("")) : []); const h = cellsOf(rows[0]).map(x => String(x).trim().toLowerCase()); const col = n => h.indexOf(n); const ci = { scene: col("scene"), line: col("script line"), overlay: col("overlay"), footage: col("footage name"), desc: col("shot list explanation") }; const out = []; for (let i = 1; i < rows.length; i++) { const c = cellsOf(rows[i]); const g = j => j >= 0 ? String(c[j] || "").trim() : ""; const s = g(ci.scene); if (!s) continue; out.push({ scene: s, line: g(ci.line), overlay: g(ci.overlay), footage_name: g(ci.footage), shot_list_explanation: g(ci.desc) }); } return out; }
-function normalizeScenes(scenes) { return (scenes || []).map(s => { const desc = s.shot_list_explanation || s.description || ""; const shots = (s.shots && s.shots.length) ? s.shots.map(sh => ({ footage_name: sh.footage_name, slug: sh.slug || deriveSlug(sh.footage_name), description: sh.description || desc || "" })) : splitShots(s.footage_name).map(sh => Object.assign({}, sh, { description: desc })); const type = s.type || (shots.length ? "broll" : "talkinghead"); return { scene: s.scene, key: sceneKey(s.scene), type, line: s.line || "", overlay: s.overlay || "", shots }; }); }
+function normalizeScenes(scenes) { return (scenes || []).map(s => { const desc = s.shot_list_explanation || s.description || ""; const shots = (s.shots && s.shots.length) ? s.shots.map(sh => ({ footage_name: sh.footage_name, slug: sh.slug || deriveSlug(sh.footage_name), description: sh.description || desc || "" })) : splitShots(s.footage_name).map(sh => Object.assign({}, sh, { description: desc })); const type = s.type || (shots.length ? "broll" : "talkinghead"); return { scene: s.scene, key: sceneKey(s.scene), type, line: s.line || s.script_line || "", overlay: s.overlay || "", shots }; }); }
 const extOf = f => { const m = String(f || "").match(/\.[a-z0-9]+$/i); return m ? m[0].toLowerCase() : ""; };
 const fmtC = c => c == null ? "n/a" : Number(c).toFixed(2);
 function planJob(scenesRaw, matches, opts = {}) {
@@ -54,16 +54,33 @@ function planJob(scenesRaw, matches, opts = {}) {
       renames.push({ from: m.file, to: n === 1 ? `${slug}${ext}` : `${slug}_v${n}${ext}`, folder: "broll", scene: m.scene, shot_slug: base, confidence: m.confidence });
     }
   }
-  for (const m of matches.filter(x => !ok(x))) flagged.push({ file: m.file, reason: m.scene ? `low confidence (${fmtC(m.confidence)}) for "${m.scene}"` : "no scene match", confidence: m.confidence });
+  // clips that matched no storyboard shot: if usable, organize as EXTRA footage (descriptive name
+  // into broll/aroll) rather than leaving them behind; flag only when there is nothing to name by.
+  for (const m of matches.filter(x => !ok(x))) {
+    const ext = extOf(m.file), desc = String(m.describe || "").trim(), tr = String(m.transcript || "").trim();
+    const thBase = lineSlug(desc, 6) || lineSlug(tr, 6), brBody = lineSlug(desc, 6); // empty if no usable words -> flag
+    if (m.type === "talkinghead" && thBase) {
+      const n = usedTake["x:" + thBase] = (usedTake["x:" + thBase] || 0) + 1;
+      renames.push({ from: m.file, to: `${thBase}_take${n}${ext}`, folder: "aroll", scene: "(extra)", confidence: m.confidence, extra: true });
+    } else if (m.type === "broll" && brBody) {
+      const pov = m.person_in_frame === true ? "3rdpov_" : m.person_in_frame === false ? "1stpov_" : "", slug = pov + brBody;
+      const n = usedSlug[slug] = (usedSlug[slug] || 0) + 1;
+      renames.push({ from: m.file, to: n === 1 ? `${slug}${ext}` : `${slug}_v${n}${ext}`, folder: "broll", scene: "(extra)", shot_slug: null, confidence: m.confidence, extra: true });
+    } else {
+      flagged.push({ file: m.file, reason: m.scene ? `low confidence (${fmtC(m.confidence)}) for "${m.scene}"` : "no usable description to organize", confidence: m.confidence });
+    }
+  }
   const matchedSlugs = new Set(renames.filter(r => r.shot_slug).map(r => r.shot_slug)), matchedTalk = new Set(renames.filter(r => r.folder === "aroll").map(r => r.scene)), missing = [];
   for (const s of scenes) if (s.type === "talkinghead") { if (!matchedTalk.has(s.scene)) missing.push({ scene: s.scene, type: "talkinghead", line: s.line }); }
     else for (const sh of s.shots) if (!matchedSlugs.has(sh.slug)) missing.push({ scene: s.scene, type: "broll", footage_name: sh.footage_name, slug: sh.slug });
   return { renames, missing, flagged, report: buildReport({ client: opts.client, creator: opts.creator, renames, missing, flagged }) };
 }
 function buildReport({ client, creator, renames, missing, flagged }) {
-  const L = [`# ${client || "?"} / ${creator || "?"} - footage rename report`, "", `Status: ${renames.length} renamed, ${missing.length} missing, ${flagged.length} need review`, "", `## Renamed (${renames.length})`];
-  renames.forEach(r => L.push(`- ${r.from}  ->  ${r.folder}/${r.to}  (${r.scene}, conf ${fmtC(r.confidence)})`));
-  L.push("", `## Missing shots (${missing.length}) - no clip matched`); missing.forEach(m => L.push(m.type === "talkinghead" ? `- ${m.scene} - talking-head - "${m.line}"` : `- ${m.scene} - b-roll - ${m.slug}  ("${m.footage_name}")`)); if (!missing.length) L.push("- none");
+  const sb = renames.filter(r => !r.extra), ex = renames.filter(r => r.extra);
+  const L = [`# ${client || "?"} / ${creator || "?"} - footage rename report`, "", `Status: ${renames.length} renamed (${sb.length} storyboard + ${ex.length} extra), ${missing.length} missing, ${flagged.length} need review`, "", `## Renamed - storyboard shots (${sb.length})`];
+  sb.forEach(r => L.push(`- ${r.from}  ->  ${r.folder}/${r.to}  (${r.scene}, conf ${fmtC(r.confidence)})`));
+  L.push("", `## Extra footage organized - not in the storyboard (${ex.length})`); ex.forEach(r => L.push(`- ${r.from}  ->  ${r.folder}/${r.to}`)); if (!ex.length) L.push("- none");
+  L.push("", `## Missing shots (${missing.length}) - storyboard called for these, no clip matched`); missing.forEach(m => L.push(m.type === "talkinghead" ? `- ${m.scene} - talking-head - "${m.line}"` : `- ${m.scene} - b-roll - ${m.slug}  ("${m.footage_name}")`)); if (!missing.length) L.push("- none");
   L.push("", `## Needs review (${flagged.length}) - left with original name`); flagged.forEach(f => L.push(`- ${f.file} - ${f.reason}`)); if (!flagged.length) L.push("- none");
   return L.join("\n") + "\n";
 }
@@ -143,7 +160,7 @@ function audioPart(clip, baseDir, id) {
   return { type: "input_audio", input_audio: { data: b64, format: "mp3" } };
 }
 async function matchClip(frameParts, candidates, filename, audio) {
-  const instruction = `You match ONE raw clip to ONE storyboard entry (closed set). A clip is either b-roll (match by what is on SCREEN in the frames) or talking-head (match by the SPOKEN words in the audio). Each candidate has a "kind". If the clip is a person speaking to camera, it is talking-head: set kind="talkinghead" and ALWAYS fill "transcript" with a BRIEF summary of what is said (one or two sentences, NOT a full verbatim transcript), even if it spans several scenes or you cannot pin it to one (then set scene=null). Only use kind="broll" for visual b-roll with no meaningful speech. For talking-head clips the "scene" you return is only a first guess (a later pass reassigns it globally); your MOST important job is an accurate "transcript" that captures the KEY distinctive words/phrase the speaker says, so similar lines can be told apart later. Use the clip's filename as a weak extra hint (often descriptive) but decide POV strictly from the frames - the filename's "1stPOV"/"3rdPOV" label is unreliable, ignore it. Original filename: "${filename}". Return STRICT JSON only: {"scene":<scene or null>,"kind":"broll"|"talkinghead"|null,"shot_slug":<slug or null, broll only>,"person_in_frame":true|false,"transcript":"<brief summary, 1-2 sentences, talking-head only, else empty>","confidence":0..1,"on_screen":"<short>"}. Never invent a slug not listed. If nothing fits, scene=null and confidence=0.\nCandidates:\n` + JSON.stringify(candidates);
+  const instruction = `You match ONE raw clip to ONE storyboard entry (closed set). A clip is either b-roll (match by what is on SCREEN in the frames) or talking-head (match by the SPOKEN words in the audio). Each candidate has a "kind". If the clip is a person speaking to camera, it is talking-head: set kind="talkinghead" and ALWAYS fill "transcript" with a BRIEF summary of what is said (one or two sentences, NOT a full verbatim transcript), even if it spans several scenes or you cannot pin it to one (then set scene=null). Only use kind="broll" for visual b-roll with no meaningful speech. For talking-head clips the "scene" you return is only a first guess (a later pass reassigns it globally); your MOST important job is an accurate "transcript" that captures the KEY distinctive words/phrase the speaker says, so similar lines can be told apart later. ALWAYS fill "describe" with a short 3 to 6 word lowercase label of what the clip shows (b-roll) or its topic (talking-head), e.g. "making coffee at home" or "rapid fire debt questions" - it is used to name clips that match no listed shot. Use the clip's filename as a weak extra hint (often descriptive) but decide POV strictly from the frames - the filename's "1stPOV"/"3rdPOV" label is unreliable, ignore it. Original filename: "${filename}". Return STRICT JSON only: {"scene":<scene or null>,"kind":"broll"|"talkinghead"|null,"shot_slug":<slug or null, broll only>,"person_in_frame":true|false,"transcript":"<brief summary, 1-2 sentences, talking-head only, else empty>","describe":"<3 to 6 word lowercase label>","confidence":0..1}. Never invent a slug not listed. If nothing fits, scene=null and confidence=0.\nCandidates:\n` + JSON.stringify(candidates);
   const content = [{ type: "text", text: instruction }, ...frameParts];
   if (audio) content.push(audio);
   const body = JSON.stringify({ model: CFG.model, temperature: 0, max_tokens: 600, messages: [{ role: "user", content }] });
@@ -152,7 +169,7 @@ async function matchClip(frameParts, candidates, filename, audio) {
   const raw = String((c0 && c0.message && c0.message.content) || "");
   const m = raw.match(/\{[\s\S]*\}/); // tolerate code fences / extra prose around the JSON
   try { return JSON.parse((m ? m[0] : raw).replace(/```json|```/g, "").trim()); }
-  catch { return { scene: null, kind: null, shot_slug: null, person_in_frame: false, transcript: "", confidence: 0, on_screen: "match unparseable" }; }
+  catch { return { scene: null, kind: null, shot_slug: null, person_in_frame: false, transcript: "", describe: "", confidence: 0 }; }
 }
 // Global talking-head assignment. One text-only call sees ALL talking-head clip transcripts and ALL
 // talking-head scene lines at once, so similar lines (Hook 1 vs Hook 2) get a single consistent
@@ -255,7 +272,7 @@ async function processPage(PAGE) {
     const au = hasTalkingHead ? audioPart(lp, work, fid) : null;
     const m = await matchClip(frames(lp, work, fid), candidates, v.name, au);
     const kind = m.kind === "talkinghead" ? "talkinghead" : "broll";
-    matches.push({ file: v.name, scene: m.scene, shot_slug: m.shot_slug, person_in_frame: m.person_in_frame, confidence: m.confidence, type: kind, transcript: m.transcript || "" });
+    matches.push({ file: v.name, scene: m.scene, shot_slug: m.shot_slug, person_in_frame: m.person_in_frame, confidence: m.confidence, type: kind, transcript: m.transcript || "", describe: m.describe || "" });
     console.log(`  ${v.name} -> ${kind === "talkinghead" ? m.scene + " (talking-head)" : applyPov(m.shot_slug || "?", m.person_in_frame)} (${fmtC(m.confidence)})`);
     if (coLocated) fs.unlinkSync(lp); else local[v.name] = lp; // co-located renames via server-side copy, no bytes kept
   }

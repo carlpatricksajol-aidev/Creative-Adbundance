@@ -146,12 +146,29 @@ function planJob(scenesRaw, matches, opts = {}) {
     }
   }
 
+  // clips that matched no storyboard shot: if usable, organize as EXTRA footage (descriptive name
+  // into broll/aroll) rather than leaving them behind; flag only when there is nothing to name by.
   for (const m of rejected) {
-    flagged.push({
-      file: m.file,
-      reason: m.scene ? `low confidence (${fmtConf(m.confidence)}) for "${m.scene}"` : "no scene match",
-      confidence: m.confidence,
-    });
+    const ext = extOf(m.file);
+    const desc = String(m.describe || "").trim();
+    const tr = String(m.transcript || "").trim();
+    const thBase = lineSlug(desc, 6) || lineSlug(tr, 6); // topic slug for talking-head (empty -> flag)
+    const brBody = lineSlug(desc, 6);                    // describe slug for b-roll (empty -> flag)
+    if (m.type === "talkinghead" && thBase) {
+      const n = (usedTake["x:" + thBase] = (usedTake["x:" + thBase] || 0) + 1);
+      renames.push({ from: m.file, to: `${thBase}_take${n}${ext}`, folder: "aroll", scene: "(extra)", confidence: m.confidence, extra: true });
+    } else if (m.type === "broll" && brBody) {
+      const pov = m.person_in_frame === true ? "3rdpov_" : m.person_in_frame === false ? "1stpov_" : "";
+      const slug = pov + brBody;
+      const n = (usedBrollSlug[slug] = (usedBrollSlug[slug] || 0) + 1);
+      renames.push({ from: m.file, to: n === 1 ? `${slug}${ext}` : `${slug}_v${n}${ext}`, folder: "broll", scene: "(extra)", shot_slug: null, confidence: m.confidence, extra: true });
+    } else {
+      flagged.push({
+        file: m.file,
+        reason: m.scene ? `low confidence (${fmtConf(m.confidence)}) for "${m.scene}"` : "no usable description to organize",
+        confidence: m.confidence,
+      });
+    }
   }
 
   // Missing-shot diff: every storyboard shot / talking-head line that got no clip.
@@ -177,11 +194,18 @@ function buildReport({ client, creator, renames, missing, flagged }) {
   const L = [];
   L.push(`# ${client || "?"} / ${creator || "?"} - footage rename report`);
   L.push("");
-  L.push(`Status: ${renames.length} renamed, ${missing.length} missing, ${flagged.length} need review`);
+  const sb = renames.filter((r) => !r.extra);
+  const ex = renames.filter((r) => r.extra);
+  L.push(`Status: ${renames.length} renamed (${sb.length} storyboard + ${ex.length} extra), ${missing.length} missing, ${flagged.length} need review`);
   L.push("");
 
-  L.push(`## Renamed (${renames.length})`);
-  for (const r of renames) L.push(`- ${r.from}  ->  ${r.folder}/${r.to}  (${r.scene}, conf ${fmtConf(r.confidence)})`);
+  L.push(`## Renamed - storyboard shots (${sb.length})`);
+  for (const r of sb) L.push(`- ${r.from}  ->  ${r.folder}/${r.to}  (${r.scene}, conf ${fmtConf(r.confidence)})`);
+  L.push("");
+
+  L.push(`## Extra footage organized - not in the storyboard (${ex.length})`);
+  for (const r of ex) L.push(`- ${r.from}  ->  ${r.folder}/${r.to}`);
+  if (!ex.length) L.push("- none");
   L.push("");
 
   L.push(`## Missing shots (${missing.length}) - storyboard called for these, no clip matched`);
