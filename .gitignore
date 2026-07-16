@@ -11,8 +11,12 @@ VideoEditor/bin/
 VideoEditor/node_modules/
 VideoEditor/.venv/
 VideoEditor/.env
-VideoEditor/.secrets/
+VideoEditor/.secrets*
 
 # Python cache
 __pycache__/
 *.pyc
+
+# MaxFusion API: secret key + fetched spec stay local, never tracked
+.maxfusion.env
+maxfusion-openapi.json

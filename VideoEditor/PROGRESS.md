@@ -137,3 +137,21 @@ calibrate to Ricardo's final cut.
 
 Quality bar = Ricardo. Build small first: the plan is a 20-ad test (Huckleberry, Miracle,
 Attekus) over 1 to 2 weeks before scaling.
+
+## VPS deployment (LIVE, 2026-07-16)
+
+Runs on the Hostinger KVM 8 (srv1486031, same box as n8n) as a Docker container behind
+Traefik: **https://videoeditor.srv1486031.hstgr.cloud** (password-gated, VE_PASSWORD in
+`/root/video-editor/.env` on the server).
+
+- Deploy dir on the server: `/root/video-editor/` (app.py + scripts/ + Dockerfile +
+  docker-compose.yml). Redeploy: `docker compose up -d --build` in that dir.
+- Jobs persist in `/root/video-editor/jobs/` (bind-mounted volume); old footage + media
+  swept after VE_KEEP_DAYS (10), the zip keeps everything.
+- One job at a time (FIFO); container capped at 6 of 8 cores / 16 GB so n8n stays healthy.
+- The whisper model (small.en, CPU int8) is baked into the image; ffmpeg + Liberation
+  fonts installed (the .ass "Arial" resolves to Liberation Sans).
+- Hardening: password gate + validated job ids + /jobs index; fetch_dropbox only fetches
+  https Dropbox hosts (each redirect re-checked), 30 GB download cap, zip-slip guard;
+  status.json now has state (queued/fetching/running/failed/done) so the job page always
+  resolves; run_ad writes status at start and on failure too.

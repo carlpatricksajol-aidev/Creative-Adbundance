@@ -1,0 +1,19 @@
+services:
+  videoeditor:
+    build: .
+    container_name: videoeditor
+    restart: unless-stopped
+    # leave 2 of the 8 cores for n8n + the other tools on this box
+    cpus: 6
+    mem_limit: 16g
+    environment:
+      - VE_PASSWORD=${VE_PASSWORD:?set VE_PASSWORD in .env}
+      - VE_KEEP_DAYS=10
+    volumes:
+      - ./jobs:/app/jobs
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.videoeditor.rule=Host(`videoeditor.srv1486031.hstgr.cloud`)
+      - traefik.http.routers.videoeditor.entrypoints=websecure
+      - traefik.http.routers.videoeditor.tls.certresolver=letsencrypt
+      - traefik.http.services.videoeditor.loadbalancer.server.port=5000

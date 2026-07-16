@@ -6,8 +6,16 @@ with word timestamps. Run with the project venv python (has faster-whisper).
 Usage:
   python transcribe_takes.py --dir <folder> --patterns "118_*.MOV,Arbaz Khan*.MOV" --out takes.json [--model small.en]
 """
-import argparse, glob, json, os, subprocess, tempfile
+import argparse, fnmatch, json, os, subprocess, tempfile
 from faster_whisper import WhisperModel
+
+
+def match_files(d, patterns):
+    """Case-INSENSITIVE glob, non-recursive like the original (so broll/ subfolders stay out).
+    Linux globs are case-sensitive and creators name files .MOV/.mov/.Mp4 interchangeably."""
+    pats = [p.strip().lower() for p in patterns.split(",")]
+    return sorted(os.path.join(d, f) for f in os.listdir(d)
+                  if os.path.isfile(os.path.join(d, f)) and any(fnmatch.fnmatch(f.lower(), p) for p in pats))
 
 
 def main():
@@ -18,13 +26,13 @@ def main():
     ap.add_argument("--model", default="small.en")
     a = ap.parse_args()
 
-    files = sorted({f for pat in a.patterns.split(",") for f in glob.glob(os.path.join(a.dir, pat.strip()))})
+    files = match_files(a.dir, a.patterns)
     print(f"{len(files)} takes to transcribe\n")
     model = WhisperModel(a.model, device="cpu", compute_type="int8")
 
     takes = []
     for f in files:
-        wav = tempfile.mktemp(suffix=".wav")
+        fd, wav = tempfile.mkstemp(suffix=".wav"); os.close(fd)
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", f, "-vn", "-ac", "1", "-ar", "16000", wav],
                        capture_output=True)
         segs, _ = model.transcribe(wav, word_timestamps=True, vad_filter=False, beam_size=5, language="en")
