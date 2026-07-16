@@ -56,7 +56,7 @@ def slug(s):
 
 
 def sample_storyboard():
-    for p in (os.path.join(BASE, "work", "innerwell", "storyboard.md"),
+    for p in (os.path.join(BASE, "docs", "storyboard-sample.md"),
               os.path.join(BASE, "..", "Docs", "Video Editor", "storyboard-template.md"),
               os.path.join(BASE, "docs", "storyboard-template.md")):
         if os.path.exists(p):
@@ -144,12 +144,10 @@ def home():
         "<form method=post action=/run>"
         "<div class=row><div><label>Brand</label><input name=brand placeholder='Innerwell' required></div>"
         "<div><label>Concept</label><input name=concept placeholder='5 Reasons I Regret...' required></div></div>"
-        "<label>Audio</label><select name=audio>"
-        "<option value=creator>creator (talking-head)</option>"
-        "<option value=generated>generated (voiceover) — coming soon</option></select>"
         "<label>Dropbox link <small>(a shared FOLDER with the footage: an <code>aroll/</code> subfolder of talking-head takes + a <code>broll/</code> subfolder of b-roll named to match the storyboard)</small></label>"
         "<input name=dropbox placeholder='https://www.dropbox.com/scl/fo/.../...?rlkey=...&dl=0' required>"
-        "<label>Storyboard <small>(structured format — a working sample is pre-filled; replace with your ad. See the spec doc.)</small></label>"
+        "<label>Storyboard <small>(copy your storyboard table straight out of Notion and paste it here — the "
+        "<code>Scene | Script Line | Overlay | Footage Name</code> columns are read as-is)</small></label>"
         f"<textarea name=storyboard>{esc(sample_storyboard())}</textarea>"
         "<button type=submit>Assemble →</button></form>")
     return page(body)

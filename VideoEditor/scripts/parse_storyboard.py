@@ -14,9 +14,77 @@ def norm(s):
     return re.sub(r"[^a-z0-9]", "", (s or "").lower())
 
 
+def parse_table(text):
+    """The team's REAL storyboard: a Notion database table. Copying it out of Notion pastes a
+    pipe table — | Scene | Script Line | Overlay | Footage Name | Shot List Explanation | —
+    so the strategist can paste straight from Notion with zero reformatting.
+
+    Mapping: Scene -> id; Script Line -> line; Footage Name -> talkinghead if it mentions
+    'talking head' else the b-roll name(s) ('+'-separated allowed); Overlay + Shot List -> note.
+    Multiple Hook rows are ALTERNATIVES: Hook 1 opens the ad, the rest are stored as variants.
+    """
+    rows = [ln.strip() for ln in text.splitlines() if ln.strip().startswith("|")]
+    if len(rows) < 2:
+        return None
+
+    def cells(ln):
+        return [c.strip() for c in ln.strip().strip("|").split("|")]
+
+    hdr = [h.lower() for h in cells(rows[0])]
+    if not any("scene" in h for h in hdr):
+        return None
+
+    def col(*keys):
+        for i, h in enumerate(hdr):
+            if any(k in h for k in keys):
+                return i
+        return None
+
+    c_scene, c_line = col("scene"), col("script", "line")
+    c_overlay, c_footage, c_note = col("overlay"), col("footage"), col("shot", "explanation", "note")
+    if c_scene is None or c_line is None:
+        return None
+
+    scenes, extra_hooks, seen_hook = [], [], False
+    for ln in rows[1:]:
+        cs = cells(ln)
+        if set("".join(cs)) <= set("-: "):                    # the | --- | --- | separator row
+            continue
+
+        def get(i):
+            return cs[i].strip() if i is not None and i < len(cs) else ""
+
+        sid = get(c_scene)
+        if not sid:
+            continue
+        line, overlay, footage, note = get(c_line), get(c_overlay), get(c_footage), get(c_note)
+        is_hook = sid.lower().replace(" ", "").startswith("hook")
+        if is_hook and seen_hook:                             # Hook 2/3... = alternative hooks (variants)
+            extra_hooks.append(f"{sid}: {line}")
+            continue
+        seen_hook = seen_hook or is_hook
+
+        th = "talkinghead" in re.sub(r"[^a-z]", "", footage.lower())
+        notes = []
+        if overlay and overlay.lower().strip() not in ("native captions", "-", ""):
+            notes.append(f"OVERLAY: {overlay}")
+        if th and "+" in footage:                             # 'Talking Head + Graphic_x' -> the graphic is a designer asset
+            notes.append("ASSET: " + footage.split("+", 1)[1].strip())
+        if note:
+            notes.append(note)
+        scenes.append({"id": sid, "type": "talkinghead" if th else "broll",
+                       "footage": "-" if th else footage.replace("+", ","),
+                       "line": line, "note": " | ".join(notes)})
+    return ({}, extra_hooks, scenes) if scenes else None
+
+
 def parse(path):
+    text = open(path, encoding="utf-8-sig").read()
+    table = parse_table(text)                                 # Notion-table paste? use it directly
+    if table:
+        return table
     head, hooks, scenes, cur, in_hooks = {}, [], [], None, False
-    for raw in open(path, encoding="utf-8-sig"):
+    for raw in text.splitlines():
         s = raw.strip()
         if not s or s.startswith("#"):
             continue
@@ -54,6 +122,8 @@ def main():
     a = ap.parse_args()
 
     head, hooks, scenes = parse(a.inp)
+    for h in hooks:
+        print(f"  ~ alternate hook stored (variants not built yet): {h[:90]}")
 
     files = []
     if a.footage_dir:
