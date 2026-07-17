@@ -95,8 +95,9 @@ def main():
     takes = json.load(open(a.takes, encoding="utf-8-sig"))
     files = []
     if a.footage_dir:
-        for ext in ("mov", "mp4", "mov", "m4v"):
-            files += glob.glob(os.path.join(a.footage_dir, "**", f"*.{ext}"), recursive=True)
+        exts = (".mov", ".mp4", ".m4v")                  # case-INSENSITIVE walk: Linux globs miss .MOV/.MP4 off a phone
+        for root, _, fs in os.walk(a.footage_dir):
+            files += [os.path.join(root, f) for f in fs if f.lower().endswith(exts)]
         files = sorted(set(files))
 
     out = []
