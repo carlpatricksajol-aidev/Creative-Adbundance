@@ -103,8 +103,15 @@ function planJob(scenesRaw, matches, opts = {}) {
 
   const renames = [];
   const flagged = [];
-  const usedBrollSlug = {}; // slug -> count, for _v2/_v3
-  const usedTake = {};      // sceneKey -> count, for _take1/2/3
+  const usedBrollSlug = {}; // slug -> count, for " V2"/" V3"
+  const usedTake = {};      // scene label -> count, for " V2"/" V3"
+
+  // filename convention: <Talent>_<Concept>_<Hook/Script label> (Talent = creator, Concept = the
+  // Notion "Concept" field, e.g. "004_Rapid Fire Questions"); 2nd+ take of a label gets " V2"/" V3".
+  const safe = (s) => String(s == null ? "" : s).replace(/[\/\\]+/g, "-").trim(); // keep path separators out of filenames
+  const pre = [opts.creator, opts.concept].map(safe).filter(Boolean).join("_").replace(/_+$/, "");
+  const px = pre ? pre + "_" : "";
+  const ver = (n) => (n === 1 ? "" : ` V${n}`);
 
   const ok = (m) => (m.reconciled || (m.confidence == null ? 1 : m.confidence) >= threshold) && m.scene;
   const accepted = (matches || []).filter(ok);
@@ -119,10 +126,10 @@ function planJob(scenesRaw, matches, opts = {}) {
     }
     const isTalk = scene.type === "talkinghead" || m.type === "talkinghead";
     if (isTalk) {
-      const n = (usedTake[scene.key] = (usedTake[scene.key] || 0) + 1);
+      const n = (usedTake[scene.scene] = (usedTake[scene.scene] || 0) + 1); // label verbatim: "Hook 1"/"Script 2"
       renames.push({
         from: m.file,
-        to: `${scene.key}_${lineSlug(scene.line)}_take${n}${ext}`,
+        to: `${px}${safe(scene.scene)}${ver(n)}${ext}`,
         folder: "aroll",
         scene: m.scene,
         confidence: m.confidence,
@@ -133,11 +140,11 @@ function planJob(scenesRaw, matches, opts = {}) {
         flagged.push({ file: m.file, reason: `b-roll match to "${m.scene}" with no shot slug`, confidence: m.confidence });
         continue;
       }
-      const slug = applyPov(baseSlug, m.person_in_frame); // POV from the real footage, not the storyboard label
+      const slug = safe(applyPov(baseSlug, m.person_in_frame)); // POV from the real footage, not the storyboard label
       const n = (usedBrollSlug[slug] = (usedBrollSlug[slug] || 0) + 1);
       renames.push({
         from: m.file,
-        to: n === 1 ? `${slug}${ext}` : `${slug}_v${n}${ext}`,
+        to: `${px}${slug}${ver(n)}${ext}`,
         folder: "broll",
         scene: m.scene,
         shot_slug: baseSlug, // storyboard slug, for the missing-shot diff
@@ -156,12 +163,12 @@ function planJob(scenesRaw, matches, opts = {}) {
     const brBody = lineSlug(desc, 6);                    // describe slug for b-roll (empty -> flag)
     if (m.type === "talkinghead" && thBase) {
       const n = (usedTake["x:" + thBase] = (usedTake["x:" + thBase] || 0) + 1);
-      renames.push({ from: m.file, to: `${thBase}_take${n}${ext}`, folder: "aroll", scene: "(extra)", confidence: m.confidence, extra: true });
+      renames.push({ from: m.file, to: `${px}${thBase}${ver(n)}${ext}`, folder: "aroll", scene: "(extra)", confidence: m.confidence, extra: true });
     } else if (m.type === "broll" && brBody) {
       const pov = m.person_in_frame === true ? "3rdpov_" : m.person_in_frame === false ? "1stpov_" : "";
       const slug = pov + brBody;
       const n = (usedBrollSlug[slug] = (usedBrollSlug[slug] || 0) + 1);
-      renames.push({ from: m.file, to: n === 1 ? `${slug}${ext}` : `${slug}_v${n}${ext}`, folder: "broll", scene: "(extra)", shot_slug: null, confidence: m.confidence, extra: true });
+      renames.push({ from: m.file, to: `${px}${slug}${ver(n)}${ext}`, folder: "broll", scene: "(extra)", shot_slug: null, confidence: m.confidence, extra: true });
     } else {
       flagged.push({
         file: m.file,

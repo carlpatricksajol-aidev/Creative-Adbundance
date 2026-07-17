@@ -40,18 +40,24 @@ function planJob(scenesRaw, matches, opts = {}) {
   const thr = opts.confidenceThreshold == null ? 0.6 : opts.confidenceThreshold;
   const scenes = normalizeScenes(scenesRaw), byId = {}; scenes.forEach(s => byId[s.scene] = s);
   const renames = [], flagged = [], usedSlug = {}, usedTake = {};
+  // filename convention: <Talent>_<Concept>_<Hook/Script label>  (Talent = creator, Concept = the
+  // Notion "Concept" field, e.g. "004_Rapid Fire Questions"); 2nd+ take of a label gets " V2"/" V3".
+  const safe = s => String(s == null ? "" : s).replace(/[\/\\]+/g, "-").trim(); // keep path separators out of filenames
+  const pre = [opts.creator, opts.concept].map(safe).filter(Boolean).join("_").replace(/_+$/, "");
+  const px = pre ? pre + "_" : "";
+  const ver = n => n === 1 ? "" : ` V${n}`;
   const ok = m => (m.reconciled || (m.confidence == null ? 1 : m.confidence) >= thr) && m.scene;
   for (const m of matches.filter(ok)) {
     const ext = extOf(m.file), sc = byId[m.scene];
     if (!sc) { flagged.push({ file: m.file, reason: `matched unknown scene "${m.scene}"`, confidence: m.confidence }); continue; }
     if (sc.type === "talkinghead" || m.type === "talkinghead") {
-      const n = usedTake[sc.key] = (usedTake[sc.key] || 0) + 1;
-      renames.push({ from: m.file, to: `${sc.key}_${lineSlug(sc.line)}_take${n}${ext}`, folder: "aroll", scene: m.scene, confidence: m.confidence });
+      const n = usedTake[sc.scene] = (usedTake[sc.scene] || 0) + 1; // label verbatim from storyboard: "Hook 1"/"Script 2"
+      renames.push({ from: m.file, to: `${px}${safe(sc.scene)}${ver(n)}${ext}`, folder: "aroll", scene: m.scene, confidence: m.confidence });
     } else {
       const base = m.shot_slug || (sc.shots[0] && sc.shots[0].slug);
       if (!base) { flagged.push({ file: m.file, reason: `b-roll match to "${m.scene}" with no shot slug`, confidence: m.confidence }); continue; }
-      const slug = applyPov(base, m.person_in_frame), n = usedSlug[slug] = (usedSlug[slug] || 0) + 1;
-      renames.push({ from: m.file, to: n === 1 ? `${slug}${ext}` : `${slug}_v${n}${ext}`, folder: "broll", scene: m.scene, shot_slug: base, confidence: m.confidence });
+      const slug = safe(applyPov(base, m.person_in_frame)), n = usedSlug[slug] = (usedSlug[slug] || 0) + 1;
+      renames.push({ from: m.file, to: `${px}${slug}${ver(n)}${ext}`, folder: "broll", scene: m.scene, shot_slug: base, confidence: m.confidence });
     }
   }
   // clips that matched no storyboard shot: if usable, organize as EXTRA footage (descriptive name
@@ -61,11 +67,11 @@ function planJob(scenesRaw, matches, opts = {}) {
     const thBase = lineSlug(desc, 6) || lineSlug(tr, 6), brBody = lineSlug(desc, 6); // empty if no usable words -> flag
     if (m.type === "talkinghead" && thBase) {
       const n = usedTake["x:" + thBase] = (usedTake["x:" + thBase] || 0) + 1;
-      renames.push({ from: m.file, to: `${thBase}_take${n}${ext}`, folder: "aroll", scene: "(extra)", confidence: m.confidence, extra: true });
+      renames.push({ from: m.file, to: `${px}${thBase}${ver(n)}${ext}`, folder: "aroll", scene: "(extra)", confidence: m.confidence, extra: true });
     } else if (m.type === "broll" && brBody) {
       const pov = m.person_in_frame === true ? "3rdpov_" : m.person_in_frame === false ? "1stpov_" : "", slug = pov + brBody;
       const n = usedSlug[slug] = (usedSlug[slug] || 0) + 1;
-      renames.push({ from: m.file, to: n === 1 ? `${slug}${ext}` : `${slug}_v${n}${ext}`, folder: "broll", scene: "(extra)", shot_slug: null, confidence: m.confidence, extra: true });
+      renames.push({ from: m.file, to: `${px}${slug}${ver(n)}${ext}`, folder: "broll", scene: "(extra)", shot_slug: null, confidence: m.confidence, extra: true });
     } else {
       flagged.push({ file: m.file, reason: m.scene ? `low confidence (${fmtC(m.confidence)}) for "${m.scene}"` : "no usable description to organize", confidence: m.confidence });
     }
@@ -179,6 +185,7 @@ async function reconcileTalkingHead(thScenes, thClips) {
   const instruction = `You assign talking-head clips to storyboard script lines (closed set). Each clip has a "transcript": a brief summary of what the speaker says. Assign every clip to the ONE scene whose script line it delivers.
 Rules:
 - Several clips may deliver the SAME line (alternate takes) - assign each of them to that scene.
+- Scene labels such as "Hook 1" vs "Script 2" are DISTINCT scenes; a "Hook" is an opening attention line and a "Script"/"Scene" is a body line. Match each clip to the EXACT labeled scene whose line it speaks - never put a hook clip on a script scene or vice versa.
 - Tell similar lines apart by their KEY distinctive words, not the general topic.
 - If a clip clearly covers MANY different lines (a full read-through) or matches no line, use scene=null.
 - Pick "scene" only from the list; confidence is 0..1.
@@ -236,6 +243,9 @@ async function processPage(PAGE) {
   const props = page.properties;
   const client = CFG.clientOverride || notionText(props["Client's Name"]) || "Unknown";
   const creator = CFG.creatorOverride || notionText(props["Creator Name"]) || "Unknown";
+  // Concept goes into the filename as <Talent>_<Concept>_<label>, e.g. Concept "004_Rapid Fire Questions".
+  // propText reads title/rich_text/select, so it works whether the Notion field is Text or a Select.
+  const concept = process.env.CONCEPT || propText(props["Concept"]) || "";
   const sharedUrl = (props["Dropbox Upload Link"] || {}).url;
   if (!sharedUrl) throw new Error("Notion row has no Dropbox Upload Link");
   const storyRows = await findStoryboardRows(PAGE, 0);
@@ -288,7 +298,7 @@ async function processPage(PAGE) {
   }
 
   // 3) plan + write the renamed set into OUT (fresh) - copy (originals stay untouched)
-  const plan = planJob(sceneRows, matches, { client, creator, confidenceThreshold: CFG.confidence });
+  const plan = planJob(sceneRows, matches, { client, creator, concept, confidenceThreshold: CFG.confidence });
   const heard = matches.filter(m => m.transcript);
   const report = plan.report + (heard.length ? "\n## Talking-head transcripts\n" + heard.map(m => `- ${m.file} (${m.scene || "?"}): "${String(m.transcript).slice(0, 400)}"`).join("\n") + "\n" : "");
   try { await dbxRpc("/2/files/delete_v2", { path: OUT }); } catch {}

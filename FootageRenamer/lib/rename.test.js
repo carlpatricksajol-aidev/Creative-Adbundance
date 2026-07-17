@@ -64,24 +64,24 @@ const matches = [
 const r = planJob(onsen, matches, { client: "Onsen", creator: "Ashley" });
 const to = (f) => (r.renames.find((x) => x.from === f) || {});
 
-eq(to("DJI_0001.MOV").to, "ai_waffle_weave_towels_hanging_in_japanese_hotel_bathroom.mov", "broll rename");
-eq(to("clip_take_a.mov").to, "3rdpov_close_up_premium_waffle_weave_texture.mov", "version 1");
-eq(to("clip_take_b.mov").to, "3rdpov_close_up_premium_waffle_weave_texture_v2.mov", "version 2 suffix");
+eq(to("DJI_0001.MOV").to, "Ashley_ai_waffle_weave_towels_hanging_in_japanese_hotel_bathroom.mov", "broll rename (Talent prefix)");
+eq(to("clip_take_a.mov").to, "Ashley_3rdpov_close_up_premium_waffle_weave_texture.mov", "version 1");
+eq(to("clip_take_b.mov").to, "Ashley_3rdpov_close_up_premium_waffle_weave_texture V2.mov", "version 2 suffix ( V2)");
 eq(r.flagged.some((f) => f.file === "random_blurry.mov"), true, "low-confidence flagged");
 // Scene 2's second shot got no clip -> missing.
 eq(r.missing.some((m) => m.slug === "1stpov_wrapping_towel_around_body_drying_quickly"), true, "missing 2nd shot of multi-shot scene");
 
-// --- talking-head take naming ----------------------------------------------
-const th = [{ scene: "Hook", type: "talkinghead", script_line: "Here are 5 reasons why I regret ketamine therapy.", footage_name: "-" }];
+// --- talking-head naming: Talent_Concept_<Hook/Script label> + V2/V3 (the reviewer's convention) --
+const th = [{ scene: "Hook 1", type: "talkinghead", script_line: "Here are 5 reasons why I regret ketamine therapy.", footage_name: "-" }];
 const thMatches = [
-  { file: "A001.mov", scene: "Hook", type: "talkinghead", confidence: 0.9 },
-  { file: "A002.mov", scene: "Hook", type: "talkinghead", confidence: 0.9 },
-  { file: "A003.mov", scene: "Hook", type: "talkinghead", confidence: 0.9 },
+  { file: "A001.mov", scene: "Hook 1", type: "talkinghead", confidence: 0.9 },
+  { file: "A002.mov", scene: "Hook 1", type: "talkinghead", confidence: 0.9 },
+  { file: "A003.mov", scene: "Hook 1", type: "talkinghead", confidence: 0.9 },
 ];
-const t = planJob(th, thMatches, { client: "Innerwell", creator: "Jane" });
+const t = planJob(th, thMatches, { client: "ADR", creator: "Grace", concept: "004_Rapid Fire Questions" });
 eq(t.renames.map((x) => x.to),
-   ["hook_here_are_5_reasons_take1.mov", "hook_here_are_5_reasons_take2.mov", "hook_here_are_5_reasons_take3.mov"],
-   "talking-head takes");
+   ["Grace_004_Rapid Fire Questions_Hook 1.mov", "Grace_004_Rapid Fire Questions_Hook 1 V2.mov", "Grace_004_Rapid Fire Questions_Hook 1 V3.mov"],
+   "talking-head: Talent_Concept_Label + V2/V3, no script-line slug");
 
 // --- global talking-head reconciliation (fix cross-clip hook swap + recover a null) ----------
 // Models the real Oasis failure: per-clip matching swapped Hook 1/Hook 2 and left one clip null.
@@ -149,15 +149,15 @@ const exMatches = [
   { file: "junk.mov",    type: "broll",      scene: null, confidence: 0,   describe: "" },
   { file: "symbol.mov",  type: "broll",      scene: null, confidence: 0,   describe: "☕☕☕", person_in_frame: true }, // slug collapses to "" -> must flag, not ".mov"
 ];
-const exPlan = planJob(exScenes, exMatches, {});
+const exPlan = planJob(exScenes, exMatches, { creator: "Grace", concept: "004_Rapid Fire Questions" });
 const exTo = (f) => (exPlan.renames.find((x) => x.from === f) || {});
-eq(exTo("coffee.mov").to, "3rdpov_making_coffee_at_home.mov", "extra: b-roll gets pov+describe slug");
+eq(exTo("coffee.mov").to, "Grace_004_Rapid Fire Questions_3rdpov_making_coffee_at_home.mov", "extra: b-roll gets Talent_Concept + pov+describe");
 eq(exTo("coffee.mov").folder, "broll", "extra: b-roll lands in broll/");
 eq(exTo("coffee.mov").extra, true, "extra: marked as extra");
-eq(exTo("calc.mov").to, "1stpov_handwritten_calculations.mov", "extra: object b-roll -> 1stpov");
-eq(exTo("coffee2.mov").to, "3rdpov_making_coffee_at_home_v2.mov", "extra: duplicate describe -> _v2");
+eq(exTo("calc.mov").to, "Grace_004_Rapid Fire Questions_1stpov_handwritten_calculations.mov", "extra: object b-roll -> 1stpov");
+eq(exTo("coffee2.mov").to, "Grace_004_Rapid Fire Questions_3rdpov_making_coffee_at_home V2.mov", "extra: duplicate describe -> V2");
 eq(exTo("rapid1.mov").folder, "aroll", "extra: unplaced talking-head lands in aroll/");
-eq(exTo("rapid1.mov").to, "rapid_fire_debt_questions_take1.mov", "extra: talking-head named by describe");
+eq(exTo("rapid1.mov").to, "Grace_004_Rapid Fire Questions_rapid_fire_debt_questions.mov", "extra: talking-head named by describe (prefixed)");
 eq(exPlan.flagged.map((f) => f.file).sort(), ["junk.mov", "symbol.mov"], "extra: no-describe and symbol-only clips flag (no nameless rename)");
 eq(exPlan.renames.every((r) => /[a-z0-9]/.test(r.to.replace(/\.\w+$/, ""))), true, "extra: no rename has an empty name body");
 eq(/## Extra footage organized/.test(exPlan.report), true, "extra: report has an Extra footage section");
