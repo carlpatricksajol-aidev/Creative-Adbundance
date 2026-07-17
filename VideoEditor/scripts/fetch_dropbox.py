@@ -65,7 +65,11 @@ def main():
     root = os.path.realpath(a.out)
     with zipfile.ZipFile(tmp) as z:
         for m in z.namelist():                              # zip-slip guard: every member must land inside --out
-            if not os.path.realpath(os.path.join(root, m)).startswith(root + os.sep):
+            rel = m.replace("\\", "/").lstrip("/")          # zipfile strips leading slashes on extract; Dropbox emits a "/" root entry
+            if not rel:
+                continue                                    # bare root entry -> harmless
+            dest = os.path.realpath(os.path.join(root, rel))
+            if dest != root and not dest.startswith(root + os.sep):   # only a real ../ escape is rejected
                 os.remove(tmp)
                 raise SystemExit(f"zip member escapes the target folder: {m[:120]}")
         z.extractall(a.out)
