@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
-"""Ad Assembler intake form. Strategist fills brand + concept + storyboard + a Dropbox link to
-the footage folder; the system pulls the footage, runs the whole pipeline, and serves the
-editable Premiere XML + SRT + a preview.
+"""Ad Assembler intake form (Creative Ad-Bundance Video Editor). Strategist fills brand +
+concept + storyboard + a Dropbox link to the footage folder; the system pulls the footage,
+runs the whole pipeline, and serves the editable Premiere XML + SRT + a preview.
 
 Team-serving hardening:
   - shared-password gate (env VE_PASSWORD; no password set = open, for local dev)
   - job ids validated everywhere; /jobs index so results are never lost
   - one job at a time (FIFO queue) so parallel ads don't fight over CPU
-  - status.json has a state (queued/fetching/running/failed/done) -> the job page always resolves
+  - status.json state (queued/fetching/running/failed/done) -> the job page always resolves
   - old jobs swept: footage + normalized media deleted after VE_KEEP_DAYS (zip keeps everything)
+  - done-ping POSTed to VE_NOTIFY_WEBHOOK (n8n) so the team is notified
+
+UI: on-brand with the Creative Ad-Bundance product system (dark, Poppins, purple #6B47FF,
+inline SVG icons -- no emoji).
 
   python app.py        ->   open  http://localhost:5000
 """
@@ -31,22 +35,124 @@ app = Flask(__name__)
 app.secret_key = hashlib.sha256(("ad-assembler|" + PASSWORD).encode()).digest()
 POOL = ThreadPoolExecutor(max_workers=1)          # one ad at a time; extra submissions queue FIFO
 
-CSS = ("body{font-family:system-ui,Arial;max-width:840px;margin:28px auto;padding:0 18px;color:#1a1a2e}"
-       "h1{font-size:23px}h2{font-size:20px}label{display:block;font-weight:600;margin:14px 0 4px}"
-       "input,textarea,select{width:100%;padding:9px;border:1px solid #ccd;border-radius:8px;font-size:14px;box-sizing:border-box}"
-       "textarea{font-family:ui-monospace,Consolas,monospace;height:320px;font-size:13px}"
-       ".row{display:flex;gap:14px}.row>div{flex:1}small{color:#667}"
-       "button{margin-top:18px;background:#6d28d9;color:#fff;border:0;padding:12px 24px;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer}"
-       "a.btn{display:inline-block;margin:6px 8px 0 0;background:#6d28d9;color:#fff;text-decoration:none;padding:9px 16px;border-radius:8px}"
-       "video{width:300px;border-radius:12px;margin:10px 0}"
-       "table{border-collapse:collapse;width:100%}td,th{padding:7px 10px;border-bottom:1px solid #e5e5ef;text-align:left;font-size:14px}"
-       "pre{background:#0b1021;color:#7CFC9B;padding:12px;border-radius:8px;white-space:pre-wrap;font-size:12px;max-height:300px;overflow:auto}")
+# ---------- inline SVG icon set (Lucide/Feather style, currentColor) ----------
+
+ICONS = {
+    "clapper": '<path d="M20.2 6 3 11l-.9-2.4c-.3-.9.2-1.9 1.1-2.2l13.4-4c.9-.3 1.9.2 2.2 1.1z"/><path d="m6.2 5.3 3.1 3.9M12.4 3.4l3.1 4M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    "link": '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    "doc": '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>',
+    "arrow": '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
+    "play": '<circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>',
+    "code": '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
+    "captions": '<rect x="3" y="5" width="18" height="14" rx="2"/><line x1="7" y1="12" x2="11" y2="12"/><line x1="7" y1="15" x2="9" y2="15"/><line x1="14" y1="12" x2="17" y2="12"/><line x1="12" y1="15" x2="17" y2="15"/>',
+    "archive": '<rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><line x1="10" y1="13" x2="14" y2="13"/>',
+    "ok": '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+    "bad": '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+    "clock": '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    "download": '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+    "loader": '<line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="7.8" y2="7.8"/><line x1="16.2" y1="16.2" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="7.8" y2="16.2"/><line x1="16.2" y1="7.8" x2="19.1" y2="4.9"/>',
+    "plus": '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+    "warn": '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    "check": '<polyline points="20 6 9 17 4 12"/>',
+    "lock": '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    "list": '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+    "back": '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',
+}
 
 
-def page(body):
+def ic(name, extra=""):
+    return (f'<svg class="ic {extra}" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+            f'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">{ICONS[name]}</svg>')
+
+
+FAVICON = ("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>"
+           "<rect width='32' height='32' rx='8' fill='%236B47FF'/><text x='16' y='22' "
+           "font-family='Arial' font-size='15' font-weight='800' fill='white' text-anchor='middle'>CA</text></svg>")
+
+CSS = """
+:root{--pp:#6B47FF;--pp-l:#a78bfa;--pp-t:#c9c4ff;--bg:#0b0b0f;--sf:#141414;--sf2:#181818;
+--ln:rgba(255,255,255,.08);--ln2:rgba(255,255,255,.15);--tx:#fff;--tx2:rgba(255,255,255,.6);
+--tx3:rgba(255,255,255,.34);--ok:#22c55e;--okt:#86efac;--bad:#ef4444;--badt:#f87171;--warn:#f59e0b}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Poppins',system-ui,-apple-system,Arial,sans-serif;font-size:14px;line-height:1.5;
+color:var(--tx);background:radial-gradient(1100px 480px at 50% -240px,rgba(107,71,255,.16),transparent),var(--bg);
+min-height:100vh}
+a{color:var(--pp-l);text-decoration:none}a:hover{color:var(--pp-t)}
+.ic{width:16px;height:16px;flex:none;vertical-align:middle}
+.spin{animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
+header{display:flex;align-items:center;gap:12px;padding:16px 24px;border-bottom:1px solid var(--ln);
+position:sticky;top:0;background:rgba(11,11,15,.82);backdrop-filter:blur(10px);z-index:9}
+.mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#6B47FF,#a78bfa);
+display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;letter-spacing:.02em}
+.wm{font-weight:700;font-size:14px}.wm b{color:var(--pp-l);font-weight:700}
+.tag{margin-left:2px;padding:3px 9px;border-radius:100px;background:rgba(107,71,255,.14);color:var(--pp-l);
+font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.spacer{flex:1}
+.wrap{max-width:840px;margin:0 auto;padding:34px 20px 90px}
+h1{font-size:22px;font-weight:700;margin:0 0 6px;display:flex;align-items:center;gap:10px}
+h1 .ic{width:22px;height:22px;color:var(--pp-l)}
+.sub{color:var(--tx2);font-size:12.5px;margin:0 0 22px;max-width:640px}
+.card{background:var(--sf);border:1.5px solid var(--ln);border-radius:16px;padding:24px 26px;
+box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.lbl{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:600;letter-spacing:.14em;
+text-transform:uppercase;color:var(--tx3);margin:18px 0 7px}.lbl .ic{width:13px;height:13px}
+.lbl:first-child,.card>.row:first-child .lbl{margin-top:0}
+.hint{text-transform:none;letter-spacing:0;color:var(--tx3);font-weight:400;font-size:10.5px}
+input,textarea{width:100%;background:var(--sf2);border:1px solid var(--ln);border-radius:9px;
+padding:11px 13px;color:var(--tx);font:inherit;font-size:13px;outline:none;transition:border-color .2s}
+input::placeholder,textarea::placeholder{color:var(--tx3)}
+input:focus,textarea:focus{border-color:var(--pp)}
+textarea{font-family:ui-monospace,Consolas,monospace;height:300px;font-size:12.5px;line-height:1.55;resize:vertical}
+.row{display:flex;gap:16px}.row>div{flex:1}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--pp);color:#fff;border:0;
+padding:12px 26px;border-radius:100px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;
+margin-top:22px;transition:opacity .2s,transform .15s}.btn:hover{opacity:.9;transform:translateX(2px)}
+.btn .ic{width:15px;height:15px}
+.lnk{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:100px;
+border:1px solid var(--ln2);color:var(--tx2);font-size:12px;font-weight:500;margin:6px 8px 0 0;transition:.2s}
+.lnk:hover{border-color:var(--pp);color:var(--pp-l);background:rgba(107,71,255,.08)}
+.lnk .ic{width:14px;height:14px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;padding:0 12px 10px;font-size:9px;font-weight:600;letter-spacing:.12em;
+text-transform:uppercase;color:var(--tx3);border-bottom:1px solid var(--ln)}
+td{padding:13px 12px;border-bottom:1px solid var(--ln);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500}
+.badge .ic{width:15px;height:15px}
+.b-ok{color:var(--okt)}.b-bad{color:var(--badt)}.b-run{color:var(--pp-l)}.b-wait{color:var(--tx2)}
+.out a{margin-right:12px;font-size:12px;display:inline-flex;align-items:center;gap:5px}
+.out .ic{width:14px;height:14px}
+video{width:300px;border-radius:14px;border:1.5px solid var(--ln);margin:4px 0 8px;display:block}
+pre{background:#08080c;border:1px solid var(--ln);color:#8fe3a6;padding:13px;border-radius:10px;
+white-space:pre-wrap;font-size:11.5px;line-height:1.5;max-height:300px;overflow:auto}
+.note{display:flex;gap:9px;padding:12px 14px;border-radius:11px;font-size:12.5px;margin-top:16px;align-items:flex-start}
+.note .ic{width:16px;height:16px;margin-top:1px}
+.note-w{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.28);color:#fcd9a0}
+.note-w ul{margin:6px 0 0;padding-left:16px}.note-w li{margin:2px 0}
+.note-ok{background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.22);color:var(--okt)}
+.big{font-size:19px;font-weight:600;margin:0 0 14px;display:flex;align-items:center;gap:9px}
+.big .ic{width:20px;height:20px}
+.foot{margin-top:20px;color:var(--tx3);font-size:12px;display:flex;gap:16px;align-items:center}
+.empty{color:var(--tx3);font-size:13px;padding:26px 0}
+"""
+
+
+def header(active=""):
+    nav = (f'<a class="lnk" href="/jobs">{ic("list")}Jobs</a>' if active != "jobs" else "")
+    return (f'<header><div class="mark">CA</div>'
+            f'<div class="wm">Creative Ad<b>&middot;</b>Bundance</div>'
+            f'<div class="tag">Video Editor</div><div class="spacer"></div>{nav}</header>')
+
+
+def page(body, active=""):
     return ("<!doctype html><html><head><meta charset='utf-8'>"
             "<meta name=viewport content='width=device-width,initial-scale=1'>"
-            f"<title>Ad Assembler</title><style>{CSS}</style></head><body>{body}</body></html>")
+            f"<link rel='icon' href=\"{FAVICON}\">"
+            "<link rel='preconnect' href='https://fonts.googleapis.com'>"
+            "<link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>"
+            "<link href='https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap' rel='stylesheet'>"
+            f"<title>Ad Assembler &middot; Creative Ad-Bundance</title><style>{CSS}</style></head>"
+            f"<body>{header(active)}<div class=wrap>{body}</div></body></html>")
 
 
 def esc(s):
@@ -100,8 +206,7 @@ def write_status(jdir, **kw):
 
 
 def notify(jdir, jid):
-    """POST the finished job to the n8n webhook (VE_NOTIFY_WEBHOOK) so the team gets pinged
-    (Slack / email / Notion — whatever the n8n flow routes to). Never breaks the job."""
+    """POST the finished job to the n8n webhook (VE_NOTIFY_WEBHOOK). Never breaks the job."""
     if not NOTIFY:
         return
     try:
@@ -122,8 +227,7 @@ def notify(jdir, jid):
 
 
 def sweep():
-    """Free disk: for jobs older than KEEP_DAYS, drop the raw footage + normalized media
-    (the zip still contains everything a designer needs)."""
+    """Free disk: for jobs older than KEEP_DAYS, drop raw footage + normalized media (zip keeps all)."""
     cutoff = time.time() - KEEP_DAYS * 86400
     for d in glob.glob(os.path.join(JOBS, "*")):
         try:
@@ -132,6 +236,14 @@ def sweep():
                 shutil.rmtree(os.path.join(d, "handoff", "media"), ignore_errors=True)
         except OSError:
             pass
+
+
+def badge(state):
+    m = {"done": ("ok", "b-ok", "", "Done"), "failed": ("bad", "b-bad", "", "Failed"),
+         "queued": ("clock", "b-wait", "", "Queued"), "fetching": ("download", "b-run", "", "Fetching"),
+         "running": ("loader", "b-run", "spin", "Rendering")}
+    name, cls, extra, label = m.get(state, ("loader", "b-run", "spin", state))
+    return f'<span class="badge {cls}">{ic(name, extra)}{label}</span>'
 
 
 # ---------- auth ----------
@@ -150,10 +262,15 @@ def login():
             session["auth"] = True
             session.permanent = True
             return redirect(request.args.get("next") or "/")
-        return page("<h2>Wrong password</h2><p><a href='/login'>try again</a></p>")
-    return page("<h1>🎬 Ad Assembler</h1><form method=post>"
-                "<label>Team password</label><input type=password name=password autofocus>"
-                "<button type=submit>Enter</button></form>")
+        err = '<div class="note note-w" style="margin-bottom:14px">' + ic("warn") + "Wrong password</div>"
+    else:
+        err = ""
+    body = (f'<h1>{ic("lock")}Team access</h1>'
+            f'<p class="sub">This tool is for the Creative Ad-Bundance team.</p>'
+            f'<div class="card" style="max-width:380px">{err}<form method=post>'
+            f'<div class="lbl">Team password</div><input type=password name=password autofocus>'
+            f'<button class="btn" type=submit>{ic("arrow")}Enter</button></form></div>')
+    return page(body)
 
 
 # ---------- pages ----------
@@ -161,21 +278,25 @@ def login():
 @app.route("/")
 def home():
     body = (
-        "<h1>🎬 Ad Assembler</h1>"
-        "<p><small>Fill this in and hit Assemble. We pull the footage from your Dropbox link, build the edit, and give "
-        "you an editable Premiere timeline (XML) + captions (SRT) + a preview. ~20-40 minutes per ad on this server. "
-        "<a href='/jobs'>All jobs →</a></small></p>"
-        "<form method=post action=/run>"
-        "<div class=row><div><label>Brand</label><input name=brand placeholder='Innerwell' required></div>"
-        "<div><label>Concept</label><input name=concept placeholder='5 Reasons I Regret...' required></div>"
-        "<div><label>Your name <small>(for the done-ping)</small></label><input name=submitter placeholder='Ricardo'></div></div>"
-        "<label>Dropbox link <small>(a shared FOLDER with the footage: an <code>aroll/</code> subfolder of talking-head takes + a <code>broll/</code> subfolder of b-roll named to match the storyboard)</small></label>"
-        "<input name=dropbox placeholder='https://www.dropbox.com/scl/fo/.../...?rlkey=...&dl=0' required>"
-        "<label>Storyboard <small>(copy your storyboard table straight out of Notion and paste it here — the "
-        "<code>Scene | Script Line | Overlay | Footage Name</code> columns are read as-is)</small></label>"
-        f"<textarea name=storyboard>{esc(sample_storyboard())}</textarea>"
-        "<button type=submit>Assemble →</button></form>")
-    return page(body)
+        f'<h1>{ic("clapper")}Ad Assembler</h1>'
+        '<p class="sub">Paste your footage link and storyboard. We pull the footage, pick the best takes, '
+        'cut to the delivery, lay karaoke captions, and hand back an editable Premiere timeline (XML) plus a '
+        'preview. About 20 to 40 minutes per ad.</p>'
+        '<div class="card"><form method=post action=/run>'
+        '<div class="row">'
+        f'<div><div class="lbl">Brand</div><input name=brand placeholder="Accredited Debt Relief" required></div>'
+        f'<div><div class="lbl">Concept</div><input name=concept placeholder="005 Credit Cards" required></div>'
+        f'<div><div class="lbl">Your name <span class="hint">for the done-ping</span></div><input name=submitter placeholder="Ricardo"></div>'
+        '</div>'
+        f'<div class="lbl">{ic("link")}Dropbox link '
+        '<span class="hint">the renamer output folder (holds aroll/ + broll/)</span></div>'
+        '<input name=dropbox placeholder="https://www.dropbox.com/scl/fo/.../...?rlkey=...&dl=0" required>'
+        f'<div class="lbl">{ic("doc")}Storyboard '
+        '<span class="hint">paste the table straight from Notion</span></div>'
+        f'<textarea name=storyboard>{esc(sample_storyboard())}</textarea>'
+        f'<button class="btn" type=submit>{ic("arrow")}Assemble</button>'
+        '</form></div>')
+    return page(body, "home")
 
 
 @app.route("/jobs")
@@ -191,22 +312,22 @@ def jobs():
             meta = {}
         st = read_status(d)
         state = st.get("state", "done" if st.get("ok") else "failed")
-        icon = {"done": "✅", "failed": "❌", "queued": "🕐", "fetching": "⬇️", "running": "⏳"}.get(state, "⏳")
-        when = time.strftime("%b %d %H:%M", time.localtime(os.path.getmtime(d)))
-        out_cell = "—"
+        when = time.strftime("%b %d, %H:%M", time.localtime(os.path.getmtime(d)))
+        out_cell = '<span style="color:var(--tx3)">&mdash;</span>'
         if st.get("ok") and st.get("outputs"):
             o = st["outputs"]
-            out_cell = (f"<a href='/file/{jid}/{o['preview']}'>▶ preview</a> · "
-                        f"<a href='/file/{jid}/{o['xml']}'>XML</a> · "
-                        f"<a href='/file/{jid}/{o['srt']}'>SRT</a> · "
-                        f"<a href='/zip/{jid}'>zip</a>")
-        rows.append(f"<tr><td>{when}</td><td>{esc(meta.get('brand', ''))}</td>"
-                    f"<td><a href='/job/{jid}'>{esc(meta.get('concept', jid))}</a></td>"
-                    f"<td>{icon} {esc(state)}</td><td>{out_cell}</td></tr>")
-    body = ("<h1>🎬 Jobs</h1><p><a href='/'>← new ad</a></p>"
-            "<table><tr><th>When</th><th>Brand</th><th>Concept</th><th>Status</th><th>Output</th></tr>"
-            + "".join(rows) + "</table>")
-    return page(body)
+            out_cell = (f'<span class="out"><a href="/file/{jid}/{o["preview"]}">{ic("play")}Preview</a>'
+                        f'<a href="/file/{jid}/{o["xml"]}">{ic("code")}XML</a>'
+                        f'<a href="/file/{jid}/{o["srt"]}">{ic("captions")}SRT</a>'
+                        f'<a href="/zip/{jid}">{ic("archive")}Zip</a></span>')
+        rows.append(f'<tr><td style="color:var(--tx2)">{when}</td><td>{esc(meta.get("brand", ""))}</td>'
+                    f'<td><a href="/job/{jid}">{esc(meta.get("concept", jid))}</a></td>'
+                    f'<td>{badge(state)}</td><td>{out_cell}</td></tr>')
+    table = ("<table><tr><th>When</th><th>Brand</th><th>Concept</th><th>Status</th><th>Output</th></tr>"
+             + "".join(rows) + "</table>") if rows else '<div class="empty">No ads yet. Assemble your first one.</div>'
+    body = (f'<h1>{ic("list")}Jobs</h1>'
+            f'<p class="sub"><a href="/">{ic("plus")}New ad</a></p><div class="card">{table}</div>')
+    return page(body, "jobs")
 
 
 @app.route("/run", methods=["POST"])
@@ -241,7 +362,7 @@ def run():
                             "--out", out, "--name", name], stdout=log, stderr=subprocess.STDOUT)
             st = read_status(jdir)                      # run_ad wrote done/failed itself
             if st.get("state") not in ("done", "failed"):
-                write_status(jdir, state="failed", ok=False, error="Assembly crashed — see log.")
+                write_status(jdir, state="failed", ok=False, error="Assembly crashed. See log.")
         notify(jdir, jid)                               # ping the team: done or failed, with the job link
     POOL.submit(worker)
     return redirect(url_for("job", jid=jid))
@@ -251,7 +372,7 @@ def run():
 def job(jid):
     jdir = jdir_of(jid)
     if not jdir:
-        return page("<h2>Job not found</h2><p><a href='/jobs'>← all jobs</a></p>"), 404
+        return page(f'<h1>{ic("bad")}Job not found</h1><p class="sub"><a href="/jobs">{ic("back")}All jobs</a></p>'), 404
     try:
         meta = json.load(open(os.path.join(jdir, "meta.json")))
     except Exception:
@@ -260,44 +381,51 @@ def job(jid):
     state = st.get("state", "done" if st.get("ok") else "running")
     tail = open(os.path.join(jdir, "run.log"), encoding="utf-8", errors="ignore").read()[-1600:] \
         if os.path.exists(os.path.join(jdir, "run.log")) else ""
+    concept = esc(meta["concept"])
 
     if state in ("queued", "fetching", "running"):
-        note = {"queued": "Waiting for the worker (one ad renders at a time)…",
-                "fetching": "Pulling the footage from Dropbox…",
-                "running": "Assembling: transcription, cuts, captions, normalize, XML…"}[state]
-        body = (f"<h2>⏳ “{esc(meta['concept'])}” — {esc(state)}</h2><p>{note} This page auto-refreshes.</p>"
-                f"<pre>{esc(tail) or 'starting…'}</pre><p><a href='/jobs'>all jobs</a></p>")
+        note = {"queued": "Waiting for the worker (one ad renders at a time).",
+                "fetching": "Pulling the footage from Dropbox.",
+                "running": "Assembling: transcription, cuts, captions, normalize, XML."}[state]
+        body = (f'<div class="big">{badge(state)}&nbsp;{concept}</div>'
+                f'<p class="sub">{note} This page auto-refreshes.</p>'
+                f'<pre>{esc(tail) or "starting..."}</pre>'
+                f'<p class="foot"><a href="/jobs">{ic("list")}All jobs</a></p>')
         return page("<meta http-equiv=refresh content=6>" + body)
 
     if not st.get("ok"):
-        body = (f"<h2>❌ “{esc(meta['concept'])}” — {esc(st.get('error', 'failed'))}</h2>"
-                f"<pre>{esc(tail)}</pre><p><a href='/'>← try again</a> · <a href='/jobs'>all jobs</a></p>")
+        body = (f'<div class="big" style="color:var(--badt)">{ic("bad")}{concept}</div>'
+                f'<p class="sub">{esc(st.get("error", "failed"))}</p><pre>{esc(tail)}</pre>'
+                f'<p class="foot"><a href="/">{ic("plus")}Try again</a><a href="/jobs">{ic("list")}All jobs</a></p>')
         return page(body)
 
     o = st["outputs"]
     warn = "".join(f"<li>{esc(w)}</li>" for w in st.get("warnings", []))
-    warnblock = f"<p><b>⚠ Footage name warnings:</b><ul>{warn}</ul></p>" if warn else "<p>✓ all footage matched exactly</p>"
-    body = (f"<h2>✅ “{esc(meta['concept'])}” assembled in {st['seconds']}s — {st['scenes']} scenes</h2>"
-            f"<video src='/file/{jid}/{o['preview']}' controls></video>"
-            "<p><b>Download for Premiere:</b><br>"
-            f"<a class=btn href='/file/{jid}/{o['xml']}'>XML (editable timeline)</a>"
-            f"<a class=btn href='/file/{jid}/{o['srt']}'>SRT (captions)</a>"
-            f"<a class=btn href='/zip/{jid}'>Full handoff (.zip)</a></p>"
-            f"{warnblock}<p><a href='/'>← assemble another</a> · <a href='/jobs'>all jobs</a></p>")
+    wb = (f'<div class="note note-w">{ic("warn")}<div><b>Footage / delivery notes</b><ul>{warn}</ul></div></div>'
+          if warn else f'<div class="note note-ok">{ic("check")}All footage matched cleanly.</div>')
+    body = (f'<div class="big" style="color:var(--okt)">{ic("ok")}{concept}</div>'
+            f'<p class="sub">Assembled in {st["seconds"]}s &middot; {st["scenes"]} scenes</p>'
+            f'<video src="/file/{jid}/{o["preview"]}" controls></video>'
+            f'<div class="lbl" style="margin-top:14px">Download for Premiere</div>'
+            f'<a class="lnk" href="/file/{jid}/{o["xml"]}">{ic("code")}XML timeline</a>'
+            f'<a class="lnk" href="/file/{jid}/{o["srt"]}">{ic("captions")}SRT captions</a>'
+            f'<a class="lnk" href="/zip/{jid}">{ic("archive")}Full handoff (.zip)</a>'
+            f'{wb}<p class="foot"><a href="/">{ic("plus")}Assemble another</a>'
+            f'<a href="/jobs">{ic("list")}All jobs</a></p>')
     return page(body)
 
 
 @app.route("/file/<jid>/<path:fn>")
 def filed(jid, fn):
     if not jdir_of(jid):
-        return page("<h2>Not found</h2>"), 404
+        return page(f'<h1>{ic("bad")}Not found</h1>'), 404
     return send_from_directory(os.path.join(JOBS, jid, "handoff"), fn)
 
 
 @app.route("/zip/<jid>")
 def zipd(jid):
     if not jdir_of(jid):
-        return page("<h2>Not found</h2>"), 404
+        return page(f'<h1>{ic("bad")}Not found</h1>'), 404
     return send_from_directory(os.path.join(JOBS, jid), "handoff.zip", as_attachment=True)
 
 
@@ -309,7 +437,7 @@ def healthz():
 if __name__ == "__main__":
     host = os.environ.get("VE_HOST", "0.0.0.0")
     port = int(os.environ.get("VE_PORT", "5000"))
-    print(f"Ad Assembler form  ->  http://localhost:{port}" + ("  (password-gated)" if PASSWORD else "  (NO password set)"))
+    print(f"Ad Assembler  ->  http://localhost:{port}" + ("  (password-gated)" if PASSWORD else "  (NO password set)"))
     try:
         from waitress import serve
         serve(app, host=host, port=port, threads=8)
