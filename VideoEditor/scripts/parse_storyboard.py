@@ -14,6 +14,66 @@ def norm(s):
     return re.sub(r"[^a-z0-9]", "", (s or "").lower())
 
 
+# words that describe the SHOT not the SUBJECT -- ignored when matching a storyboard name to a file,
+# so "1stPOV_tapping get quote" matches the renamer's "3rdpov_tapping_get_quote_on_phone"
+STOP = {"1stpov", "3rdpov", "2ndpov", "pov", "1stperson", "3rdperson", "graphic", "sr", "the", "a", "on", "of", "and"}
+
+
+def toks(s):
+    return {t for t in re.split(r"[^a-z0-9]+", (s or "").lower()) if t and t not in STOP}
+
+
+def best_file(name, files, thresh=0.5):
+    """The file whose name shares the most descriptive tokens with `name` (shot/prefix words ignored)."""
+    want = toks(name)
+    if not want or not files:
+        return None
+    best, bs = None, 0.0
+    for f in files:
+        sc = len(want & toks(os.path.splitext(os.path.basename(f))[0])) / len(want)
+        if sc > bs:
+            best, bs = f, sc
+    return best if bs >= thresh else None
+
+
+def parse_report(footage_dir):
+    """The renamer writes _report.md in its output folder mapping every storyboard scene to the
+    exact renamed clip(s) it matched by vision -- the authoritative scene->b-roll map. Returns
+    (scene_clips {norm(scene): [broll basenames]}, missing {norm(scene): True} for shots it says
+    were never filmed)."""
+    scene_clips, missing = {}, {}
+    if not footage_dir:
+        return scene_clips, missing
+    rp = None
+    for root, _, fs in os.walk(footage_dir):
+        for f in fs:
+            if f.lower() == "_report.md" or (f.lower().endswith(".md") and "report" in f.lower()):
+                rp = os.path.join(root, f)
+                break
+        if rp:
+            break
+    if not rp:
+        return scene_clips, missing
+    section = None
+    for ln in open(rp, encoding="utf-8-sig"):
+        s = ln.strip()
+        if s.startswith("## Renamed"):
+            section = "renamed"
+        elif s.startswith("## Missing"):
+            section = "missing"
+        elif s.startswith("## "):
+            section = None
+        elif section == "renamed" and "->" in s:
+            m = re.search(r"->\s*(\S+).*?\(([^,)]+)", s)             # -> broll/x.mov  (Scene 6, conf 1.00)
+            if m and m.group(1).lower().startswith("broll/"):
+                scene_clips.setdefault(norm(m.group(2)), []).append(os.path.basename(m.group(1)))
+        elif section == "missing" and s.startswith("-"):
+            m = re.match(r"-\s*((?:hook|scene)\s*\d+)", s, re.I)      # - Scene 2 - b-roll - <slug> ("...")
+            if m:
+                missing[norm(m.group(1))] = True
+    return scene_clips, missing
+
+
 def parse_table(text):
     """The team's REAL storyboard: a Notion database table. Copying it out of Notion pastes a
     pipe table — | Scene | Script Line | Overlay | Footage Name | Shot List Explanation | —
@@ -131,29 +191,32 @@ def main():
             files += glob.glob(os.path.join(a.footage_dir, "**", f"*.{ext}"), recursive=True)
         files = sorted(set(files))                       # dedup (case-insensitive FS double-counts MOV/mov)
 
-    def resolve(name):
-        n = norm(name)
-        if not n or name.strip() == "-":
-            return None
-        exact = [f for f in files if norm(os.path.splitext(os.path.basename(f))[0]) == n]
-        if exact:
-            return os.path.basename(exact[0]), "exact"
-        sub = [f for f in files if n in norm(os.path.basename(f)) or norm(os.path.basename(f)) in n]
-        if sub:
-            return os.path.basename(sub[0]), "fuzzy"
-        return None, "MISSING"
+    report_clips, report_missing = parse_report(a.footage_dir)
+    if report_clips:
+        print(f"using renamer _report.md: scene->clip map for {len(report_clips)} scene(s)")
 
     out_scenes, problems = [], []
     for sc in scenes:
         broll = []
         if sc["type"] == "broll" and sc["footage"] not in ("-", ""):
+            sid = norm(sc["id"])
+            pool = [f for f in files if os.path.basename(f) in report_clips.get(sid, [])]   # renamer's clips for THIS scene
             for fn in [x.strip() for x in sc["footage"].split(",") if x.strip()]:
-                resolved = resolve(fn) if files else (fn, "unchecked")
-                if resolved and resolved[1] == "MISSING":
+                if not files:
+                    broll.append(fn)
+                    continue
+                hit = best_file(fn, pool) or best_file(fn, files)     # scene-mapped clips first, then all footage
+                if hit:
+                    bn = os.path.basename(hit)
+                    broll.append(bn)
+                    if norm(os.path.splitext(bn)[0]) != norm(fn):
+                        src = "renamer report" if hit in pool else "name match"
+                        problems.append(f"  scene {sc['id']}: '{fn}' -> '{bn}' (via {src})")
+                elif sid in report_missing:
+                    problems.append(f"  scene {sc['id']}: '{fn}' -> renamer says not filmed (falls back to talking-head)")
+                else:
                     problems.append(f"  scene {sc['id']}: FOOTAGE '{fn}' -> NO MATCHING FILE")
-                elif resolved and resolved[1] == "fuzzy":
-                    problems.append(f"  scene {sc['id']}: FOOTAGE '{fn}' ~ '{resolved[0]}' (not exact - rename to match)")
-                broll.append(resolved[0] if resolved and resolved[0] else fn)
+                    broll.append(fn)
         out_scenes.append({"id": sc["id"], "type": sc["type"], "line": sc["line"],
                            "broll": broll or None, "note": sc["note"] or None})
 

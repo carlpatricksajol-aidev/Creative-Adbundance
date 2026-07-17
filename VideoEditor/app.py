@@ -193,11 +193,18 @@ def jobs():
         state = st.get("state", "done" if st.get("ok") else "failed")
         icon = {"done": "✅", "failed": "❌", "queued": "🕐", "fetching": "⬇️", "running": "⏳"}.get(state, "⏳")
         when = time.strftime("%b %d %H:%M", time.localtime(os.path.getmtime(d)))
+        out_cell = "—"
+        if st.get("ok") and st.get("outputs"):
+            o = st["outputs"]
+            out_cell = (f"<a href='/file/{jid}/{o['preview']}'>▶ preview</a> · "
+                        f"<a href='/file/{jid}/{o['xml']}'>XML</a> · "
+                        f"<a href='/file/{jid}/{o['srt']}'>SRT</a> · "
+                        f"<a href='/zip/{jid}'>zip</a>")
         rows.append(f"<tr><td>{when}</td><td>{esc(meta.get('brand', ''))}</td>"
                     f"<td><a href='/job/{jid}'>{esc(meta.get('concept', jid))}</a></td>"
-                    f"<td>{icon} {esc(state)}</td></tr>")
+                    f"<td>{icon} {esc(state)}</td><td>{out_cell}</td></tr>")
     body = ("<h1>🎬 Jobs</h1><p><a href='/'>← new ad</a></p>"
-            "<table><tr><th>When</th><th>Brand</th><th>Concept</th><th>Status</th></tr>"
+            "<table><tr><th>When</th><th>Brand</th><th>Concept</th><th>Status</th><th>Output</th></tr>"
             + "".join(rows) + "</table>")
     return page(body)
 
