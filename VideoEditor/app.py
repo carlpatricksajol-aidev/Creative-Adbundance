@@ -69,26 +69,58 @@ FAVICON = ("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='
            "<rect width='32' height='32' rx='8' fill='%236B47FF'/><text x='16' y='22' "
            "font-family='Arial' font-size='15' font-weight='800' fill='white' text-anchor='middle'>CA</text></svg>")
 
+# The shared Creative Ad-Bundance studio rail. First three deep-link into the static-ads studio
+# (form.creativeadbundance.com, hash-routed); Video Editor (this app) is the active tool. Icons
+# copied verbatim from that studio's sidebar so the rail is identical across tools.
+STUDIO_URL = os.environ.get("VE_STUDIO_URL", "https://form.creativeadbundance.com")
+STUDIO = [
+    ("concepts", STUDIO_URL + "/#concepts", "Concept Generator",
+     '<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>'),
+    ("static", STUDIO_URL + "/#static", "Static Ads Generator",
+     '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>'),
+    ("library", STUDIO_URL + "/#library", "Ad Library",
+     '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
+    ("editor", "/", "Video Editor", ICONS["clapper"]),
+]
+
 CSS = """
 :root{--pp:#6B47FF;--pp-l:#a78bfa;--pp-t:#c9c4ff;--bg:#0b0b0f;--sf:#141414;--sf2:#181818;
 --ln:rgba(255,255,255,.08);--ln2:rgba(255,255,255,.15);--tx:#fff;--tx2:rgba(255,255,255,.6);
 --tx3:rgba(255,255,255,.34);--ok:#22c55e;--okt:#86efac;--bad:#ef4444;--badt:#f87171;--warn:#f59e0b}
 *{box-sizing:border-box}
 body{margin:0;font-family:'Poppins',system-ui,-apple-system,Arial,sans-serif;font-size:14px;line-height:1.5;
-color:var(--tx);background:radial-gradient(1100px 480px at 50% -240px,rgba(107,71,255,.16),transparent),var(--bg);
-min-height:100vh}
+color:var(--tx);background:radial-gradient(1100px 480px at 60% -240px,rgba(107,71,255,.14),transparent),var(--bg);
+min-height:100vh;display:flex}
 a{color:var(--pp-l);text-decoration:none}a:hover{color:var(--pp-t)}
 .ic{width:16px;height:16px;flex:none;vertical-align:middle}
 .spin{animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
-header{display:flex;align-items:center;gap:12px;padding:16px 24px;border-bottom:1px solid var(--ln);
-position:sticky;top:0;background:rgba(11,11,15,.82);backdrop-filter:blur(10px);z-index:9}
+.side{width:248px;flex:none;background:#0b0b12;border-right:1px solid var(--ln);display:flex;flex-direction:column;
+padding:20px 14px;position:sticky;top:0;height:100vh}
+.side-brand{display:flex;align-items:center;gap:10px;padding:6px 8px 20px}
 .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#6B47FF,#a78bfa);
-display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;letter-spacing:.02em}
-.wm{font-weight:700;font-size:14px}.wm b{color:var(--pp-l);font-weight:700}
-.tag{margin-left:2px;padding:3px 9px;border-radius:100px;background:rgba(107,71,255,.14);color:var(--pp-l);
-font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
-.spacer{flex:1}
-.wrap{max-width:840px;margin:0 auto;padding:34px 20px 90px}
+display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff}
+.wm{font-weight:700;font-size:13.5px}.wm b{color:var(--pp-l)}
+.side-label{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);padding:2px 10px 8px}
+.side-nav{display:flex;flex-direction:column;gap:3px}
+.side-item{display:flex;align-items:center;gap:11px;padding:10px 11px;border-radius:9px;font-size:12.5px;
+font-weight:500;color:var(--tx2);text-decoration:none;transition:background .15s,color .15s}
+.side-item:hover{background:rgba(255,255,255,.05);color:#fff}
+.side-item.active{background:rgba(107,71,255,.16);color:#fff}
+.side-item .ic{width:17px;height:17px;opacity:.75}
+.side-item.active .ic{opacity:1;color:var(--pp-l)}
+.side-sub{display:flex;flex-direction:column;gap:1px;margin:1px 0 3px}
+.side-sub a{padding:6px 11px 6px 41px;border-radius:8px;font-size:11.5px;color:var(--tx3);text-decoration:none}
+.side-sub a:hover{color:var(--tx2);background:rgba(255,255,255,.04)}
+.side-sub a.on{color:var(--pp-l)}
+.side-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--ln)}
+.side-out{display:block;padding:9px 11px;border-radius:9px;color:var(--tx3);font-size:12px;text-decoration:none}
+.side-out:hover{background:rgba(255,255,255,.05);color:var(--tx2)}
+.content{flex:1;min-width:0}
+.content.bare{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.wrap{max-width:820px;margin:0 auto;padding:38px 30px 90px}
+@media(max-width:760px){body{display:block}.side{width:auto;height:auto;position:static;flex-direction:row;
+flex-wrap:wrap;align-items:center;gap:5px}.side-brand{padding:6px 8px}.side-label,.side-sub,.side-foot{display:none}
+.side-nav{flex-direction:row;flex-wrap:wrap}.wrap{padding:26px 18px 70px}}
 h1{font-size:22px;font-weight:700;margin:0 0 6px;display:flex;align-items:center;gap:10px}
 h1 .ic{width:22px;height:22px;color:var(--pp-l)}
 .sub{color:var(--tx2);font-size:12.5px;margin:0 0 22px;max-width:640px}
@@ -137,14 +169,25 @@ white-space:pre-wrap;font-size:11.5px;line-height:1.5;max-height:300px;overflow:
 """
 
 
-def header(active=""):
-    nav = (f'<a class="lnk" href="/jobs">{ic("list")}Jobs</a>' if active != "jobs" else "")
-    return (f'<header><div class="mark">CA</div>'
-            f'<div class="wm">Creative Ad<b>&middot;</b>Bundance</div>'
-            f'<div class="tag">Video Editor</div><div class="spacer"></div>{nav}</header>')
+def sidebar(active=""):
+    items = []
+    for key, href, label, icon in STUDIO:
+        cls = "side-item active" if key == "editor" else "side-item"
+        svg = (f'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" '
+               f'stroke-linecap="round" stroke-linejoin="round">{icon}</svg>')
+        items.append(f'<a class="{cls}" href="{href}">{svg}<span>{label}</span></a>')
+        if key == "editor":                                   # this app's own sub-views
+            items.append(f'<div class="side-sub"><a class="{"on" if active == "home" else ""}" href="/">New ad</a>'
+                         f'<a class="{"on" if active == "jobs" else ""}" href="/jobs">Jobs</a></div>')
+    foot = f'<div class="side-foot"><a class="side-out" href="/logout">Sign out</a></div>' if PASSWORD else ""
+    return (f'<aside class="side"><div class="side-brand"><div class="mark">CA</div>'
+            f'<div class="wm">Creative Ad<b>&middot;</b>Bundance</div></div>'
+            f'<div class="side-label">Workflows</div><nav class="side-nav">{"".join(items)}</nav>{foot}</aside>')
 
 
-def page(body, active=""):
+def page(body, active="", bare=False):
+    shell = (f'<main class="content bare"><div class="wrap" style="max-width:400px">{body}</div></main>'
+             if bare else f'{sidebar(active)}<main class="content"><div class="wrap">{body}</div></main>')
     return ("<!doctype html><html><head><meta charset='utf-8'>"
             "<meta name=viewport content='width=device-width,initial-scale=1'>"
             f"<link rel='icon' href=\"{FAVICON}\">"
@@ -152,7 +195,7 @@ def page(body, active=""):
             "<link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>"
             "<link href='https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap' rel='stylesheet'>"
             f"<title>Ad Assembler &middot; Creative Ad-Bundance</title><style>{CSS}</style></head>"
-            f"<body>{header(active)}<div class=wrap>{body}</div></body></html>")
+            f"<body>{shell}</body></html>")
 
 
 def esc(s):
@@ -265,12 +308,12 @@ def login():
         err = '<div class="note note-w" style="margin-bottom:14px">' + ic("warn") + "Wrong password</div>"
     else:
         err = ""
-    body = (f'<h1>{ic("lock")}Team access</h1>'
-            f'<p class="sub">This tool is for the Creative Ad-Bundance team.</p>'
-            f'<div class="card" style="max-width:380px">{err}<form method=post>'
-            f'<div class="lbl">Team password</div><input type=password name=password autofocus>'
+    body = (f'<div class="side-brand" style="justify-content:center;padding:0 0 18px">'
+            f'<div class="mark">CA</div><div class="wm">Creative Ad<b>&middot;</b>Bundance</div></div>'
+            f'<div class="card">{err}<form method=post>'
+            f'<div class="lbl">{ic("lock")}Team password</div><input type=password name=password autofocus>'
             f'<button class="btn" type=submit>{ic("arrow")}Enter</button></form></div>')
-    return page(body)
+    return page(body, bare=True)
 
 
 # ---------- pages ----------
@@ -427,6 +470,12 @@ def zipd(jid):
     if not jdir_of(jid):
         return page(f'<h1>{ic("bad")}Not found</h1>'), 404
     return send_from_directory(os.path.join(JOBS, jid), "handoff.zip", as_attachment=True)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login") if PASSWORD else "/")
 
 
 @app.route("/healthz")
