@@ -53,6 +53,30 @@ def pick(words, line, lead=0.12, tail=0.20, maxgap=0.6):
     cj = [k for k in range(max(i + 1, j - 5), min(len(words), j + 2)) if has(k, lw)]   # anchor OUT to the LAST word
     if cj:
         j = max(cj) + 1
+
+    # THE DELIVERY DECIDES THE CUT. The line is the strategist's INTENT; creators rephrase and
+    # ad-lib, so snapping to the line's words cuts mid-sentence. Re-snap the span to the
+    # creator's OWN sentence boundaries: back the IN off to her sentence start, and run the
+    # OUT to her Nth sentence end (N = sentences in the line). Fixes "cut off before done".
+    def sent_end(w):
+        return bool(re.search(r"[.!?][\"')\]]?$", (w["word"] or "").strip()))
+    back = 0
+    while i > 0 and back < 14 and not sent_end(words[i - 1]) \
+            and (words[i]["start"] - words[i - 1]["end"]) <= maxgap:
+        i -= 1; back += 1
+    S = max(1, len(re.findall(r"[.!?]+(?=\s|$)", line.strip())))   # punct followed by space/end: "4.8" is NOT a sentence break
+    seen, endj = 0, None
+    for k in range(i, min(len(words), i + n + 15)):
+        if k > i and words[k]["start"] - words[k - 1]["end"] > 1.0:   # real delivery break -> stop looking
+            break
+        if sent_end(words[k]):
+            seen += 1
+            if seen >= S and (k - i) >= min(3, n - 1):
+                endj = k + 1
+                break
+    if endj:
+        j = endj                                          # extend past the line's last word OR trim an overshoot
+
     span = words[i:j]
     s = max(0.0, span[0]["start"] - lead)
     e = span[-1]["end"] + tail

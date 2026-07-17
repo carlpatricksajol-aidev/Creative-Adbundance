@@ -38,6 +38,9 @@ def main():
     for w in json.load(open(a.words, encoding="utf-8-sig")):
         by_scene.setdefault(w["scene"], []).append(w)
 
+    def raw(s):
+        return re.sub(r"[^a-z0-9]", "", s.lower())            # join-compare without the digit<->word map
+
     out = []
     for scene, tw in by_scene.items():
         script = lines.get(scene)
@@ -45,33 +48,34 @@ def main():
             out.extend(tw); continue
         C = script.split()
         Cn, Tn = [norm(c) for c in C], [norm(w["word"]) for w in tw]
-        at = [None] * len(C)                                  # (start,end) per canonical token
+        # THE DELIVERY DECIDES THE TEXT. Script tokens are used only where they match what was
+        # actually said (they carry the nice spelling: URLs, "$2,133", "4.8"). Where the creator
+        # rephrased, her transcribed words are shown verbatim; script words she never said are
+        # dropped; extra words she added are kept. Every token keeps its REAL timing.
         for tag, i1, i2, j1, j2 in SequenceMatcher(None, Cn, Tn, autojunk=False).get_opcodes():
             if tag == "equal":
                 for o in range(i2 - i1):
-                    at[i1 + o] = (tw[j1 + o]["start"], tw[j1 + o]["end"])
-            elif tag == "replace":                            # spread C[i1:i2] across the matched T[j1:j2] span
+                    out.append({"start": tw[j1 + o]["start"], "end": tw[j1 + o]["end"],
+                                "word": C[i1 + o], "scene": scene})
+            elif tag == "replace" and SequenceMatcher(
+                    None, "".join(raw(c) for c in C[i1:i2]),
+                    "".join(raw(w["word"]) for w in tw[j1:j2])).ratio() >= 0.8:
+                # same content: a tokenization diff ("onsentowel"+"com") or a whisper mishear
+                # ("untrustpilot" for "on Trustpilot") -> the script's spelling wins
                 s0, s1, n = tw[j1]["start"], tw[j2 - 1]["end"], i2 - i1
                 for o in range(n):
-                    at[i1 + o] = (s0 + (s1 - s0) * o / n, s0 + (s1 - s0) * (o + 1) / n)
-            # 'delete' (canonical word, no transcription) -> interpolate below; 'insert' (extra T) -> dropped
-        for idx in range(len(C)):                             # fill gaps by interpolating between matched neighbors
-            if at[idx] is not None:
-                continue
-            p = idx - 1
-            while p >= 0 and at[p] is None:
-                p -= 1
-            q = idx + 1
-            while q < len(C) and at[q] is None:
-                q += 1
-            lo = at[p][1] if p >= 0 else tw[0]["start"]
-            hi = at[q][0] if q < len(C) else tw[-1]["end"]
-            gstart = p + 1
-            gcount = (q - 1) - gstart + 1
-            kk = idx - gstart
-            at[idx] = (lo + (hi - lo) * kk / (gcount + 1), lo + (hi - lo) * (kk + 1) / (gcount + 1))
-        for idx, c in enumerate(C):
-            out.append({"start": round(at[idx][0], 3), "end": round(at[idx][1], 3), "word": c, "scene": scene})
+                    out.append({"start": round(s0 + (s1 - s0) * o / n, 3),
+                                "end": round(s0 + (s1 - s0) * (o + 1) / n, 3),
+                                "word": C[i1 + o], "scene": scene})
+            elif tag in ("replace", "insert"):                # she said something else -> show HER words
+                for w in tw[j1:j2]:
+                    tok = (w["word"] or "").strip()
+                    if tok[:1] in ",." and out and out[-1]["scene"] == scene and not tok[1:2].isalpha():
+                        out[-1]["word"] += tok                # whisper splits "$1 ,309" -> rejoin the number
+                        out[-1]["end"] = w["end"]
+                    else:
+                        out.append({"start": w["start"], "end": w["end"], "word": tok, "scene": scene})
+            # 'delete' = script words never spoken -> not shown
 
     if a.vo_track:                                       # bound each scene to its VO window + enforce min spacing
         win = {e["scene"]: (float(e["start"]), float(e["start"]) + float(e["dur"]))
