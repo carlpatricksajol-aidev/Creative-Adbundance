@@ -1,0 +1,19 @@
+const IPHONE = 'IPHONE-REALISM ENFORCEMENT (HIGHEST PRIORITY - overrides ALL styling wording below, including any \'warm\', \'golden\', \'macro\', \'foreground depth\', or \'grade\' cues): Render this as ORDINARY RAW iPhone video shot by a normal person, a clip straight from someone\'s camera roll, NOT an ad. FOCUS: deep depth of field, everything sharp front to back. NO shallow focus, NO bokeh, NO background blur, NO lens blur, NO macro defocus. GRADE: flat neutral iPhone color and contrast, slightly cool. NO warm grade, NO golden or orange cast, NO teal, NO film emulation, NO grain, NO vignette. A little flat and plain is correct. LIGHT: plain even everyday indoor light such as an overhead room light or flat daylight, with mildly overexposed windows. NO dramatic directional light, NO hard shadows, NO moody pools of light, NO soft studio glow, NO golden hour. CAMERA: handheld phone with slight natural shake, plain straight-on framing, ordinary consumer phone wide lens, NOT a cinema lens. The result must look a little boring and real like authentic UGC, never glossy, cinematic, warm-lit, or professionally shot.';
+const data = $input.first().json;
+const t = data.choices[0].message.content;
+const grab = (k) => { const m = t.match(new RegExp('^\\s*' + k + ':\\s*(.*)$', 'mi')); return m ? m[1].trim() : ''; };
+const pm = t.match(/PROMPT_START\s*([\s\S]*?)\s*PROMPT_END/i);
+if (!pm) throw new Error('PROMPT_START/PROMPT_END block not found in assistant output');
+const cm = t.match(/CAPTIONS_START\s*([\s\S]*?)\s*CAPTIONS_END/i);
+return [{ json: {
+  scene: 1,
+  duration: parseInt(grab('DURATION')) || 15,
+  format: grab('FORMAT'),
+  awareness: grab('AWARENESS'),
+  bucket: grab('BUCKET'),
+  angle: grab('ANGLE'),
+  title: grab('TITLE'),
+  vo_ends_at: parseFloat(grab('VO_ENDS_AT')) || 13.5,
+  captions: cm ? cm[1].trim() : '',
+  prompt: IPHONE + String.fromCharCode(10) + String.fromCharCode(10) + pm[1].trim()
+} }];

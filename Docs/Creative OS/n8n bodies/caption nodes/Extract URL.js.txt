@@ -1,0 +1,17 @@
+const d = $input.first().json.data;
+const r = JSON.parse(d.resultJson);
+const meta = $('Parse scenes').first().json;
+const beats = [];
+const re = /(?:SCENE|SHOT)\s*\d+\s*\(([^)]*)\)/gi;
+let m;
+while ((m = re.exec(meta.prompt || '')) !== null) {
+  const parts = m[1].split('|').map(s => s.trim());
+  beats.push({ time: parts[0] || '', label: (parts[1] || '').replace(/^[A-Z ]*\|?/,'').trim() || parts[1] || '' });
+}
+return [{ json: {
+  videos: [ r.resultUrls[0] ],
+  storyboard: {
+    title: meta.title || '', format: meta.format || '', awareness: meta.awareness || '',
+    bucket: meta.bucket || '', angle: meta.angle || '', beats
+  }
+} }];

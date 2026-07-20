@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Static Ad Generator — System Documentation</title>
+<style>
+  @page { size: A4; margin: 17mm 15mm 16mm 15mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 10.4pt; line-height: 1.5; color: #1c1c22; margin: 0;
+  }
+  h1, h2, h3 { color: #2a1f6b; line-height: 1.2; }
+  h1.doc-title { font-size: 26pt; margin: 0 0 4px; letter-spacing: -0.4px; }
+  .sub { color: #6b47ff; font-weight: 600; font-size: 12pt; margin: 0 0 2px; }
+  .meta { color: #6a6a76; font-size: 9pt; margin-top: 6px; }
+  h1.section {
+    font-size: 15pt; margin: 26px 0 8px; padding-bottom: 5px;
+    border-bottom: 2px solid #6b47ff;
+  }
+  h2 { font-size: 12pt; margin: 16px 0 5px; }
+  h3 { font-size: 10.6pt; margin: 12px 0 3px; color: #3a2f7a; }
+  p { margin: 5px 0; }
+  ul, ol { margin: 5px 0 8px; padding-left: 20px; }
+  li { margin: 2px 0; }
+  code, .mono {
+    font-family: "Consolas", "SF Mono", monospace; font-size: 9pt;
+    background: #f1eefc; color: #3a2f7a; padding: 1px 4px; border-radius: 3px;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 9.2pt; }
+  th, td { border: 1px solid #d8d4ea; padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { background: #efecfb; color: #2a1f6b; font-weight: 600; }
+  tr { page-break-inside: avoid; }
+  .cover { padding: 30mm 0 0; page-break-after: always; }
+  .cover .rule { height: 4px; width: 70px; background: #6b47ff; margin: 14px 0 20px; }
+  .cover .card { border: 1px solid #d8d4ea; border-radius: 8px; padding: 16px 18px; margin-top: 26px; background: #faf9ff; }
+  .cover .card p { margin: 3px 0; font-size: 9.5pt; color: #4a4a55; }
+  .flow { margin: 10px 0 4px; }
+  .flow .step {
+    border: 1px solid #d8d4ea; border-left: 4px solid #6b47ff; border-radius: 6px;
+    padding: 7px 11px; margin: 6px 0; background: #faf9ff; page-break-inside: avoid;
+  }
+  .flow .step b { color: #2a1f6b; }
+  .flow .arrow { color: #a99fd8; text-align: center; font-size: 11pt; margin: -2px 0; }
+  .note {
+    border-left: 4px solid #e0a500; background: #fff8e6; border-radius: 0 6px 6px 0;
+    padding: 8px 12px; margin: 10px 0; font-size: 9.4pt; page-break-inside: avoid;
+  }
+  .note b { color: #9a7400; }
+  .ok { color: #1c7a4a; font-weight: 600; }
+  .pending { color: #b06a00; font-weight: 600; }
+  .section-block { page-break-inside: avoid; }
+  .small { font-size: 8.8pt; color: #6a6a76; }
+  footer { position: fixed; bottom: 6mm; left: 0; right: 0; text-align: center; font-size: 7.5pt; color: #9a9aa6; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <p class="sub">Creative Ad·Bundance — SA-1</p>
+  <h1 class="doc-title">Static Ad Generator</h1>
+  <div style="font-size:14pt;color:#4a4a55;font-weight:500;">System Documentation — how it works &amp; where things live</div>
+  <div class="rule"></div>
+  <p style="max-width:150mm;color:#4a4a55;">
+    This document explains the end-to-end static ad generation system: the intake form,
+    the automation pipeline, the brand knowledge base, the template library, the AI image
+    generation, and where every piece of data is stored. It reflects the state of the system
+    as of the July 2026 update cycle.
+  </p>
+  <div class="card">
+    <p><b>Prepared:</b> July 15, 2026</p>
+    <p><b>Scope:</b> Static Ad Generator (SA-1) — form, n8n pipeline, Airtable, Supabase, KIE AI, Vercel</p>
+    <p><b>Audience:</b> Creative Ad·Bundance team (operators &amp; maintainers)</p>
+  </div>
+</div>
+
+<!-- ============ OVERVIEW ============ -->
+<h1 class="section">1. Overview</h1>
+<p>
+  The Static Ad Generator turns a short brief into finished, on-brand static ad creatives for any
+  client. A team member fills in a web form — pick the client, how many ads, the placement size,
+  an optional brief, and optional reference images — and an automated pipeline does the rest:
+  it looks up that client's brand knowledge, picks a proven layout to build from, writes the ad copy,
+  generates the images with AI, quality-checks each one, and saves the results to a library the team
+  can browse and download.
+</p>
+<p>
+  It runs off a single shared <b>Brand Brain</b> (about 90 clients), so any client already onboarded
+  can be generated for without re-entering brand details each time.
+</p>
+
+<!-- ============ AT A GLANCE ============ -->
+<h1 class="section">2. The system at a glance</h1>
+<p>Seven services work together. The flow of a request:</p>
+<div class="flow">
+  <div class="step"><b>1. Intake form</b> (hosted on Vercel) — a team member submits a request: client, ad count, size, brief, optional references.</div>
+  <div class="arrow">&#8595;</div>
+  <div class="step"><b>2. n8n workflow</b> (self-hosted on Hostinger) — the automation brain. Receives the request via a webhook and orchestrates every step below.</div>
+  <div class="arrow">&#8595;</div>
+  <div class="step"><b>3. Brand Brain</b> (Airtable) — the pipeline looks up the client's brand rules: colors, fonts, tone, style dossier, product images, winning ads, compliance rules.</div>
+  <div class="arrow">&#8595;</div>
+  <div class="step"><b>4. Blueprint selection</b> — it picks a layout to build from: the client's own winning ads, the references uploaded this run, or the shared <b>CreativeOS Templates</b> library (Airtable).</div>
+  <div class="arrow">&#8595;</div>
+  <div class="step"><b>5. Copy + prompt</b> — an LLM (via OpenRouter) writes the headline/subline/CTA, and the pipeline assembles a detailed art-director prompt per ad.</div>
+  <div class="arrow">&#8595;</div>
+  <div class="step"><b>6. Image generation</b> (KIE AI) — the prompt + reference images are sent to an AI image model, which renders each ad. The pipeline polls until each image is ready.</div>
+  <div class="arrow">&#8595;</div>
+  <div class="step"><b>7. QA + save</b> — a vision model scores each image; the result is written to the <b>Supabase</b> database. The form's <b>Ad Library</b> reads these back for browsing and download.</div>
+</div>
+
+<h2>Where everything lives</h2>
+<table>
+  <tr><th>Piece</th><th>Platform</th><th>Location / identifier</th><th>What it holds</th></tr>
+  <tr><td>Intake form</td><td>Vercel</td><td class="mono">form.creativeadbundance.com/forms</td><td>The web app that submits requests and browses results</td></tr>
+  <tr><td>Automation pipeline</td><td>n8n (Hostinger)</td><td class="mono">n8n-i3t9.srv1486031.hstgr.cloud</td><td>The "Static Ads Generator" workflow; webhook path <span class="mono">/webhook/Static-Ads</span></td></tr>
+  <tr><td>Brand Brain</td><td>Airtable</td><td class="mono">base appvCkX59PBphJGOd &rarr; table tblIqcPJRvpQhS4AM</td><td>Per-client brand knowledge (86 rows)</td></tr>
+  <tr><td>Template library</td><td>Airtable</td><td class="mono">same base &rarr; table tblE6i41y5UUCLbVV</td><td>972 proven ad layouts ("CreativeOS Templates")</td></tr>
+  <tr><td>Generated ad records</td><td>Supabase</td><td class="mono">project xakngjsybyytldyqfsmi &rarr; table static_ads</td><td>One row per generated ad (URL, QA score, metadata)</td></tr>
+  <tr><td>Uploaded assets</td><td>Supabase Storage</td><td class="mono">buckets: product-images, ad-references</td><td>Product photos and per-run reference uploads</td></tr>
+  <tr><td>Image generation</td><td>KIE AI</td><td class="mono">api.kie.ai</td><td>Renders the images (GPT Image 2 / Nano Banana Pro)</td></tr>
+  <tr><td>Copy &amp; QA models</td><td>OpenRouter</td><td class="mono">openrouter.ai</td><td>Claude/GPT for copywriting and visual QA scoring</td></tr>
+</table>
+
+<!-- ============ COMPONENTS ============ -->
+<h1 class="section">3. The components in detail</h1>
+
+<div class="section-block">
+<h2>3.1 The intake form</h2>
+<p>
+  A single-page web app. The source is one self-contained HTML file
+  (<span class="mono">Docs/Static Ads Generator/static ads html.md</span> in the repo) and it is
+  <b>hosted on Vercel</b> (project <span class="mono">static-ads-intake</span>) at
+  <span class="mono">form.creativeadbundance.com/forms</span>. It was previously served from
+  GoHighLevel; the domain's DNS (managed at Squarespace) now points to Vercel.
+</p>
+<h3>What the form captures</h3>
+<ul>
+  <li><b>Client name</b> — typed, or picked from a "Browse Clients" list of ~94 clients pulled from the Brand Brain.</li>
+  <li><b>Number of static ads</b> — how many layouts to build (see the variants note below).</li>
+  <li><b>Generation mode</b> — Top performers (shared templates), Client's winning ads (upload), My reference (upload), or Team's top 5 (winning ads already on file).</li>
+  <li><b>Platform / size</b> — 1:1 (Meta/TikTok square), 9:16 (vertical), 1.91:1 or 16:9.</li>
+  <li><b>Brief</b> — free text direction.</li>
+  <li><b>Reference images / avatar</b> — optional uploads. These go straight into Supabase Storage (the <span class="mono">ad-references</span> bucket) and only the URLs are sent onward.</li>
+</ul>
+<p>
+  Login is handled by Supabase auth. On submit, the form POSTs the request to the n8n webhook.
+  The form also contains an <b>Ad Library</b> view that reads generated ads back from Supabase and
+  groups them by brand and batch.
+</p>
+<div class="note"><b>Client list:</b> the picker is a fixed list baked into the form, generated from the Brand Brain (union of every <span class="mono">client_name</span> and <span class="mono">brand_name</span>). New clients added to the Brain later do not appear automatically — the list must be regenerated (a 30-second task) or, as a future improvement, changed to fetch live.</div>
+</div>
+
+<div class="section-block">
+<h2>3.2 The Brand Brain (Airtable)</h2>
+<p>
+  This is the heart of the system: one Airtable row per client holding everything the AI needs to
+  stay on-brand. The pipeline's <b>Search Brand Brain</b> step looks up the submitted client and
+  feeds these fields into the prompt.
+</p>
+<h3>Key fields</h3>
+<ul>
+  <li><b>client_name / brand_name</b> — identity. Some clients are holding companies with several product brands (e.g. Scale Media &rarr; LiverMD, MoveMD…); the lookup matches either field.</li>
+  <li><b>brand_guidelines</b> — a detailed "style dossier": layout patterns, typography, exact color usage, product treatment, recurring devices, and a "never-do" list. This is the single biggest driver of on-brand output.</li>
+  <li><b>Colors</b> (primary/secondary/accent hex) and <b>brand_fonts</b>.</li>
+  <li><b>brand_tone, brand_personality, target_personas, key_offer, product_benefits, core_pain_points</b> — the messaging inputs.</li>
+  <li><b>compliance_notes / compliance_disclaimer</b> — mandatory legal rules (critical for regulated clients such as debt, health, and supplement brands).</li>
+  <li><b>logo_urls, product_image, winning_ads</b> — image attachments. <b>product_image</b> is the packshot the AI must reproduce; <b>winning_ads</b> are the client's own proven creatives used as blueprints.</li>
+</ul>
+<div class="note"><b>Two fields do the heavy lifting for quality:</b> a rich <b>brand_guidelines</b> dossier makes the design on-brand, and a <b>clean, isolated product_image</b> (not a busy promo composite) makes the product render faithfully. Brands missing either will produce weaker results.</div>
+</div>
+
+<div class="section-block">
+<h2>3.3 The template library (CreativeOS Templates)</h2>
+<p>
+  A second Airtable table holding <b>972 proven ad layouts</b> (54 original + 918 imported from the
+  "Mr. Paid Social" swipe library). Each row is a template image tagged with an aspect ratio and
+  category. When a run has no client references or winning ads to clone, the pipeline pulls layouts
+  from here as the blueprint. The pipeline only queries the aspect ratio requested
+  (<span class="mono">1:1</span>, <span class="mono">9:16</span>, or <span class="mono">16:9</span>).
+</p>
+</div>
+
+<div class="section-block">
+<h2>3.4 The n8n pipeline</h2>
+<p>The workflow ("Static Ads Generator") runs these nodes in order:</p>
+<table>
+  <tr><th>Node</th><th>What it does</th></tr>
+  <tr><td class="mono">Webhook1</td><td>Receives the form submission (client, count, size, brief, reference URLs).</td></tr>
+  <tr><td class="mono">Decode Reference</td><td>Reads any reference image URLs uploaded this run.</td></tr>
+  <tr><td class="mono">Search Brand Brain</td><td>Looks up the client's row in Airtable and loads all brand fields.</td></tr>
+  <tr><td class="mono">Search records</td><td>Pulls candidate templates from CreativeOS Templates, filtered to the requested aspect ratio.</td></tr>
+  <tr><td class="mono">Shuffle / Pick Templates</td><td>Chooses the blueprint per ad. Priority: client-uploaded references &rarr; the brand's own winning ads &rarr; shared templates.</td></tr>
+  <tr><td class="mono">Build KIE AI Prompt</td><td>Assembles the full art-director prompt per ad: the blueprint's role, a product-fidelity lock, brand colors/fonts/guidelines, compliance rules, and layout guardrails. Produces one prompt per layout &times; copy angle.</td></tr>
+  <tr><td class="mono">Loop Over Items</td><td>Processes each ad one at a time.</td></tr>
+  <tr><td class="mono">Generate Ad Copy</td><td>An LLM (OpenRouter, Claude Sonnet) writes the headline / subline / CTA and appends it to the prompt.</td></tr>
+  <tr><td class="mono">Create KIE AI Task</td><td>Sends the prompt + reference images to KIE AI to render the image.</td></tr>
+  <tr><td class="mono">Wait &rarr; Poll &rarr; If</td><td>Waits and polls KIE until the image reports "success," then continues.</td></tr>
+  <tr><td class="mono">Extract Image URL</td><td>Pulls the finished image URL out of the KIE response.</td></tr>
+  <tr><td class="mono">QA Pass &rarr; Merge QA</td><td>A vision model (Claude Haiku) scores the image 1–10 and flags issues (garbled text, wrong packaging, off-brand color, etc.).</td></tr>
+  <tr><td class="mono">Post to supabase</td><td>Inserts the ad record (URL, indices, platform, QA score/flags) into the <span class="mono">static_ads</span> table.</td></tr>
+</table>
+<p class="small">Credentials (Airtable token, KIE key, OpenRouter key, Supabase service key) are stored inside the n8n nodes / credential store. The workflow itself lives in n8n cloud, not in git; the repo keeps exported copies and node source under <span class="mono">Docs/Static Ads Generator/</span>.</p>
+</div>
+
+<div class="section-block">
+<h2>3.5 Image generation (KIE AI)</h2>
+<p>
+  Images are rendered through <b>KIE AI</b> (<span class="mono">api.kie.ai</span>), which resells
+  several top image models. Two are relevant:
+</p>
+<ul>
+  <li><b>GPT Image 2</b> — very faithful to the reference product, but tends to be literal and low-variety.</li>
+  <li><b>Nano Banana Pro</b> — much richer concept variety and premium photography; keeps the product faithful <em>when</em> given a clean product image plus a "reproduce exactly" instruction.</li>
+</ul>
+<div class="note"><b>Important gotcha:</b> KIE result URLs expire after roughly 24 hours. Unless the finished image is downloaded and re-hosted, saved records will show broken images the next day. Making the pipeline download &amp; re-host outputs (to Supabase Storage) before saving is the fix for durable libraries.</div>
+</div>
+
+<div class="section-block">
+<h2>3.6 Output storage &amp; the Ad Library (Supabase)</h2>
+<p>
+  Every generated ad is a row in the Supabase <span class="mono">static_ads</span> table
+  (project <span class="mono">xakngjsybyytldyqfsmi</span>). Each row stores the brand name, the image
+  URL, the variant and template indices, the platform/aspect, a run ID, and the QA score, flags, and
+  notes. The form's <b>Ad Library</b> queries this table to show ads grouped by brand and batch, with
+  filters (ship-ready 8+ vs needs-review) and a download option.
+</p>
+</div>
+
+<!-- ============ HOW A RUN WORKS ============ -->
+<h1 class="section">4. How a single run works, step by step</h1>
+<ol>
+  <li>A team member opens the form, picks a client (e.g. <i>Smooth Sailing</i>), sets the count and size (e.g. 3 &times; 1:1), adds a brief, and submits.</li>
+  <li>n8n receives it and loads Smooth Sailing's Brand Brain row — its orange/cream palette, retro-beach dossier, product pouch image, tone, and compliance rules.</li>
+  <li>It picks blueprints: if references were uploaded, those; else the brand's winning ads; else shared templates that match 1:1.</li>
+  <li>For each blueprint (and each of the copy angles), it writes copy and builds a full prompt that locks the exact product, applies the brand skin, and translates any foreign template props into the brand's world.</li>
+  <li>It sends each prompt + the product image to KIE AI, waits for the render, and pulls the image URL.</li>
+  <li>A vision model scores each image; the row is written to Supabase.</li>
+  <li>The team opens the Ad Library, filters to Smooth Sailing's newest batch, reviews, and downloads the winners.</li>
+</ol>
+
+<!-- ============ UPDATES ============ -->
+<h1 class="section">5. What changed in the July 2026 update cycle</h1>
+<p>The recent work fixed the two biggest complaints (wrong product, off-brand/samey design) and moved the form to a maintainable host. Status is marked below.</p>
+<table>
+  <tr><th>Change</th><th>Why</th><th>Status</th></tr>
+  <tr><td>Full brand dossier reaches the render</td><td>Only a fragment of <span class="mono">brand_guidelines</span> was being used, so output ignored the brand's colors, fonts, and formats.</td><td class="pending">Delivered (paste into n8n)</td></tr>
+  <tr><td>Product-form lock</td><td>The AI turned pouches into jars. Now the product's form comes only from the real photo.</td><td class="pending">Delivered</td></tr>
+  <tr><td>Auto-clone the brand's own winning ads</td><td>Cloning a proven layout is what reaches designer quality. Now automatic when no references are uploaded.</td><td class="pending">Delivered</td></tr>
+  <tr><td>Concept translation</td><td>Templates were copied literally (e.g. a cookware "before/after" kept the cookware). Now the concept is re-mapped to the brand.</td><td class="pending">Delivered</td></tr>
+  <tr><td>Copy fix + 2 variants per layout</td><td>The copy step's API key was a placeholder (silent failure); variant count made explicit.</td><td class="pending">Delivered</td></tr>
+  <tr><td>Match client OR brand name</td><td>Clients whose value lives in the brand_name column were unfindable.</td><td class="pending">Delivered</td></tr>
+  <tr><td>Nano Banana Pro + clean packshots</td><td>Proven to keep the product faithful while adding concept variety. Recommended render model + data task.</td><td class="pending">Recommended</td></tr>
+  <tr><td>Form moved to Vercel</td><td>Off GoHighLevel; enables versioned, one-command deploys.</td><td class="ok">Live</td></tr>
+  <tr><td>Form scroll/routing bugs fixed</td><td>The request form could not scroll and the gallery painted over it.</td><td class="ok">Live</td></tr>
+  <tr><td>Client picker expanded to 94</td><td>Was 48; now every Brand Brain client is selectable.</td><td class="ok">Live</td></tr>
+</table>
+
+<!-- ============ GAPS ============ -->
+<h1 class="section">6. Known limitations &amp; next steps</h1>
+<ul>
+  <li><b>Output images expire (~24h).</b> The pipeline saves KIE's temporary URL directly, so the Ad Library shows broken images after a day. Fix: download &amp; re-host each output to Supabase Storage before saving.</li>
+  <li><b>Failed renders can stall a run.</b> The polling step only exits on "success," so a failed KIE job re-polls until the run times out, producing fewer ads than requested. Fix: add failure/timeout handling with retry-or-skip.</li>
+  <li><b>"Generation mode" is cosmetic.</b> The workflow does not read the mode dropdown; behavior is driven by whether references are uploaded (plus winning-ads auto-sourcing). Wire it up if the modes should differ.</li>
+  <li><b>Clean packshots are a data task.</b> Product fidelity depends on each brand having a clean, isolated product photo in the Brain — not a promo composite.</li>
+  <li><b>winning_ads coverage is thin.</b> Only ~6 brands have their proven ads loaded; the rest fall back to the shared library. Loading each brand's best 4–6 statics unlocks the clone-a-winner quality.</li>
+  <li><b>Form deploys are manual for now.</b> Connecting the Vercel project to the repo (with the form folder as its root) would make future fixes a <span class="mono">git push</span>.</li>
+</ul>
+
+<!-- ============ REFERENCE ============ -->
+<h1 class="section">7. Quick reference</h1>
+<table>
+  <tr><th>Item</th><th>Value</th></tr>
+  <tr><td>Live form</td><td class="mono">https://form.creativeadbundance.com/forms</td></tr>
+  <tr><td>Vercel project</td><td class="mono">static-ads-intake (also static-ads-intake.vercel.app)</td></tr>
+  <tr><td>Form source (repo)</td><td class="mono">Docs/Static Ads Generator/static ads html.md</td></tr>
+  <tr><td>n8n host / webhook</td><td class="mono">n8n-i3t9.srv1486031.hstgr.cloud &nbsp;·&nbsp; POST /webhook/Static-Ads</td></tr>
+  <tr><td>Airtable base</td><td class="mono">appvCkX59PBphJGOd ("Creative Adbundance - Batch Records")</td></tr>
+  <tr><td>&nbsp;&nbsp;— Brand Brain table</td><td class="mono">tblIqcPJRvpQhS4AM (86 rows)</td></tr>
+  <tr><td>&nbsp;&nbsp;— CreativeOS Templates table</td><td class="mono">tblE6i41y5UUCLbVV (972 rows)</td></tr>
+  <tr><td>Supabase project</td><td class="mono">xakngjsybyytldyqfsmi</td></tr>
+  <tr><td>&nbsp;&nbsp;— Output table</td><td class="mono">static_ads</td></tr>
+  <tr><td>&nbsp;&nbsp;— Storage buckets</td><td class="mono">product-images, ad-references</td></tr>
+  <tr><td>Image generation</td><td class="mono">KIE AI (api.kie.ai) — GPT Image 2 / Nano Banana Pro</td></tr>
+  <tr><td>Copy &amp; QA models</td><td class="mono">OpenRouter (Claude Sonnet for copy, Claude Haiku for QA)</td></tr>
+  <tr><td>Repo docs folder</td><td class="mono">Docs/Static Ads Generator/ (workflow exports, node source, this doc)</td></tr>
+</table>
+<p class="small" style="margin-top:14px;">
+  Note on credentials: all API keys and tokens (Airtable, KIE, OpenRouter, Supabase service role)
+  are stored inside the n8n credential store and node configurations. They are intentionally not
+  reproduced in this document.
+</p>
+
+<footer>Static Ad Generator — System Documentation · Creative Ad·Bundance · July 2026</footer>
+
+</body>
+</html>

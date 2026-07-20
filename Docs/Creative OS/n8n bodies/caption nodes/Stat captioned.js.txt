@@ -1,0 +1,2 @@
+const b = await this.helpers.getBinaryDataBuffer(0, 'data');
+return [{ json: { size: b.length }, binary: $input.first().binary }];

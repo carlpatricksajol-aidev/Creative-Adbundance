@@ -20,3 +20,18 @@ __pycache__/
 # MaxFusion API: secret key + fetched spec stay local, never tracked
 .maxfusion.env
 maxfusion-openapi.json
+
+# Node dependencies — never tracked, regenerated from package.json
+node_modules/
+
+# Heavy media stays on disk, not tracked (matches VideoEditor convention)
+*.mp4
+*.mov
+*.webm
+*.mkv
+
+# Local secret files, wherever they live
+.env
+.env.*
+*.secret
+*.secrets*

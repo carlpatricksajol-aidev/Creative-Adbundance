@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Static Ads Generator — Full Execution Playbook</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, Helvetica, sans-serif; color: #1f2430; font-size: 10.8pt; line-height: 1.5; margin: 0; }
+  h1 { font-size: 23pt; color: #d6336c; margin: 0 0 2px 0; line-height: 1.12; }
+  .sub { color: #5b6472; font-size: 11pt; margin: 0 0 4px 0; }
+  .meta { color: #98a0ad; font-size: 9pt; margin: 0 0 20px 0; }
+  h2 { font-size: 14pt; color: #fff; background: #d6336c; padding: 7px 12px; border-radius: 5px; margin: 24px 0 12px 0; }
+  h3 { font-size: 11.6pt; color: #d6336c; margin: 16px 0 5px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 10px 0; font-size: 10pt; }
+  th { background: #2a2f3a; color: #fff; text-align: left; padding: 7px 9px; font-weight: 600; }
+  td { padding: 7px 9px; border-bottom: 1px solid #ececf0; vertical-align: top; }
+  tr:nth-child(even) td { background: #faf6f8; }
+  ul, ol { margin: 5px 0 9px 0; padding-left: 20px; }
+  li { margin: 3px 0; }
+  strong { color: #1f2430; }
+  code { background: #f3eef1; color: #c2255c; padding: 1px 5px; border-radius: 3px; font-family: Consolas, monospace; font-size: 9.3pt; }
+  .note { background: #fff5f8; border-left: 4px solid #d6336c; padding: 9px 13px; margin: 9px 0; border-radius: 4px; font-size: 10pt; }
+  .flow { background: #f7f9fc; border: 1px solid #e3e8ef; border-radius: 6px; padding: 11px 14px; font-family: Consolas, monospace; font-size: 9.2pt; line-height: 1.7; color: #2a2f3a; }
+  .pill { display: inline-block; background: #d6336c; color:#fff; border-radius: 11px; padding: 1px 9px; font-size: 8.5pt; font-weight: 600; margin-right: 4px; }
+  .keep { page-break-inside: avoid; }
+  .pagebreak { page-break-before: always; }
+  hr { border: none; border-top: 1px solid #e3e8ef; margin: 14px 0; }
+</style>
+</head>
+<body>
+
+  <h1>Static Ads Generator</h1>
+  <p class="sub">Full Execution Playbook &mdash; start to finish</p>
+  <p class="meta">Internal operator runbook &middot; Creative Adbundance</p>
+
+  <p>This is the complete process for producing on-brand static ad creatives for a client, from the moment they sign on to delivering finished ads. It is written from the operator's seat: what you do, in what order, and the hard-won rules that make it actually work.</p>
+
+  <h2>1. What the system does</h2>
+  <p>A client submits a short intake form. An automation (n8n) pulls that client's brand profile and a set of proven ad templates, writes on-brand ad copy, and renders finished ad images with an AI image model (KIE AI). The output is a batch of ready-to-review static ads that match the client's brand colors, fonts, voice, and winning formats. You review, pick the keepers, and deliver.</p>
+
+  <h2>2. The stack</h2>
+  <table class="keep">
+    <thead><tr><th>Tool</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Intake form</strong></td><td>Where the client submits the brief, references, product images, and generation mode.</td></tr>
+      <tr><td><strong>Airtable &mdash; Brand Brain</strong></td><td>The single source of truth per client: voice, offer, audience, colors, fonts, logo, winning ads. The brain that feeds every ad.</td></tr>
+      <tr><td><strong>n8n</strong></td><td>The engine. Orchestrates the whole flow from webhook to finished image.</td></tr>
+      <tr><td><strong>OpenRouter</strong></td><td>Writes the ad copy and reads references (gpt-4o for vision, Claude for text).</td></tr>
+      <tr><td><strong>KIE AI</strong></td><td>Renders the actual ad image (<code>gpt-image-2-image-to-image</code>) and hosts input images.</td></tr>
+      <tr><td><strong>Supabase</strong></td><td>Storage for uploads (products, references) and finished output.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3. The big picture (the flow)</h2>
+  <div class="flow">
+    Client fills intake form<br>
+    &nbsp;&nbsp;&darr;<br>
+    <b>Webhook</b> receives it &rarr; <b>Search Brand Brain</b> (pull the client profile)<br>
+    &nbsp;&nbsp;&darr;<br>
+    <b>Extract Brand Colors</b> (fill colors/fonts if missing) &rarr; <b>Pick Templates</b> (by generation mode)<br>
+    &nbsp;&nbsp;&darr;<br>
+    <b>Build KIE Prompt</b> &rarr; <b>Generate Ad Copy</b> &rarr; <b>Rehost inputs to KIE</b><br>
+    &nbsp;&nbsp;&darr;<br>
+    <b>Create KIE Task</b> &rarr; <b>Wait / Poll</b> &rarr; <b>Extract image</b> &rarr; <b>Save to Supabase</b> (loops per ad)
+  </div>
+
+  <h2>4. Phase 1 &mdash; Onboarding and intake</h2>
+  <ol>
+    <li><strong>Run the kickoff / creative brief.</strong> Capture goal, channels, audience, offer, product lines, competitors, dos and donts, and any hard rules (for example, "real talent only, no AI avatars").</li>
+    <li><strong>Collect assets:</strong> logo, brand guidelines if any, top-performing past ads ("winning ads"), and product images for product brands.</li>
+    <li><strong>The intake form</strong> sends: client name, brief, generation mode, any uploaded references, product images, and an optional UGC avatar.</li>
+  </ol>
+
+  <h2 class="pagebreak">5. Phase 2 &mdash; Build the Brand Brain (most important step)</h2>
+  <p>The quality of every ad is decided here. One Airtable row per client, filled from the brief plus live research off their website.</p>
+
+  <h3>Fields to fill</h3>
+  <table class="keep">
+    <thead><tr><th>Field</th><th>What goes in it</th></tr></thead>
+    <tbody>
+      <tr><td>client_name / brand_name</td><td>Main name plus any sister-brand name (some brands are looked up by sister name).</td></tr>
+      <tr><td>website</td><td>Their URL. This drives the automated color and font scrape below.</td></tr>
+      <tr><td>industry, brand_tone, brand_personality</td><td>Who they are and how they should sound.</td></tr>
+      <tr><td>key_offer, core_pain_points, product_benefits</td><td>The selling points and the problems they solve.</td></tr>
+      <tr><td>target_personas</td><td>Who the ads are for, per segment.</td></tr>
+      <tr><td>competitors, creative_boundaries, dos_and_donts</td><td>Guardrails. This is where "no AI talent", "no random props", etc. live.</td></tr>
+      <tr><td>primary / secondary / accent_color_hex</td><td>Brand colors (auto-scraped, see below).</td></tr>
+      <tr><td>brand_fonts</td><td>Brand typefaces (auto-scraped, see below).</td></tr>
+      <tr><td>logo_urls, winning_ads, product_image</td><td>Attachments: logo, the client's best ads, products.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Auto-fill brand colors and fonts from the website</h3>
+  <p>Do not eyeball colors off a logo. Scrape the live site, it carries the full real palette and typefaces and never expires. The scraper fetches the homepage plus its CSS, ranks the real brand colors (dropping neutral greys, white, and black), and pulls the fonts from Google Fonts links, <code>@font-face</code>, and the most-used <code>font-family</code>. It writes <code>primary / secondary / accent_color_hex</code> and <code>brand_fonts</code> straight into Airtable.</p>
+  <div class="note"><strong>Why this beats the logo:</strong> a logo is often one or two colors and lives on Airtable (which expires). The website gives primary, supporting, and accent colors plus the actual fonts, from a URL that stays alive.</div>
+
+  <h2>6. Phase 3 &mdash; Choose the generation mode</h2>
+  <table class="keep">
+    <thead><tr><th>Mode</th><th>Uses</th><th>Behavior</th></tr></thead>
+    <tbody>
+      <tr><td><strong>top_performers</strong> (default)</td><td>Proven CreativeOS template library</td><td>Loose blueprint. 3 copy angles each (pain / benefit / trust). Best when the client has no strong references of their own.</td></tr>
+      <tr><td><strong>team_top5</strong></td><td>The client's own <code>winning_ads</code></td><td>Close reproduction of their best ads, swapped onto current brand. 1 variant each, uses all winners.</td></tr>
+      <tr><td><strong>user_reference</strong></td><td>References the client uploaded this run</td><td>Close reproduction. Keep the concept, swap only the brand/object. This is the highest-value mode.</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><strong>Rule:</strong> if a reference is uploaded, it is always used (it auto-routes to close-reproduction). Keep the concept device; swap only the object and brand; match the original's plainness (do not add a logo box or CTA the original did not have).</div>
+
+  <h2 class="pagebreak">7. Phase 4 &mdash; Run the pipeline (what each stage does)</h2>
+  <table>
+    <thead><tr><th>Stage</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill">1</span> Webhook</td><td>Receives the form submission and kicks off the run.</td></tr>
+      <tr><td><span class="pill">2</span> Search Brand Brain</td><td>Pulls the client's row (matches on client name or sister brand name).</td></tr>
+      <tr><td><span class="pill">3</span> Extract Brand Colors</td><td>If colors are already in the brain, uses them. If not, scrapes the website and fills primary/secondary/accent on the fly.</td></tr>
+      <tr><td><span class="pill">4</span> Pick Templates</td><td>Routes by generation mode: winners, references, or the CreativeOS library.</td></tr>
+      <tr><td><span class="pill">5</span> Build KIE Prompt</td><td>Builds the image prompt per template and angle: template as blueprint, brand colors and fonts enforced, product/logo/avatar placed, photoreal render style for human-service brands, guardrails applied.</td></tr>
+      <tr><td><span class="pill">6</span> Generate Ad Copy</td><td>Writes headline, subline, CTA, and brand-derived design elements. For references, reads the image to copy the concept.</td></tr>
+      <tr><td><span class="pill">7</span> Rehost inputs to KIE</td><td>Uploads every Airtable image (template, logo, winners) to KIE so it gets a permanent, fetchable URL. Critical, see gotchas.</td></tr>
+      <tr><td><span class="pill">8</span> Create KIE Task</td><td>Sends the prompt plus input images to KIE to render the ad.</td></tr>
+      <tr><td><span class="pill">9</span> Wait / Poll</td><td>Polls KIE until the image is ready.</td></tr>
+      <tr><td><span class="pill">10</span> Extract + Save</td><td>Grabs the finished image URL and saves it to Supabase. Loops for the next ad.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>8. Phase 5 &mdash; The gotchas that make it work</h2>
+  <p>These are the lessons that took the most time. Honor them and the pipeline runs clean.</p>
+  <h3>Airtable image URLs expire (about 2 hours)</h3>
+  <p>Templates, logos, and winning ads live on Airtable, and those links die fast. If KIE tries to fetch an expired link it fails with "Image fetch failed" or a 410. <strong>Fix:</strong> rehost every Airtable image to KIE within the same fresh run (the Rehost stage), then feed KIE its own permanent URLs.</p>
+  <h3>Rehosted files need a real file extension</h3>
+  <p>KIE names a rehosted file from the source URL. Airtable URLs have no extension, so the file lands with none and KIE rejects it ("File type not supported"). <strong>Fix:</strong> pass an explicit filename ending in <code>.png</code> when rehosting.</p>
+  <h3>Reading an Airtable image with AI</h3>
+  <p>Anthropic/Claude cannot fetch Airtable images (blocked by robots). <strong>Fix:</strong> use <code>openai/gpt-4o</code> for any vision read of an Airtable asset, or rehost to KIE first and read that.</p>
+  <h3>Testing a single node uses stale data</h3>
+  <p>When you run one node in isolation, it uses the last cached input, so Airtable URLs are already expired. <strong>Fix:</strong> re-run Search Brand Brain first to refresh the links, or run the whole flow from the trigger.</p>
+  <h3>Creative direction by brand type</h3>
+  <p>For human-service brands (health, tutoring, etc.), push photoreal editorial photography and real people. Ban flat vector icons, clip-art, and decorative blobs. Match the template's structure, not its pixels.</p>
+
+  <h2 class="pagebreak">9. Phase 6 &mdash; Review and deliver</h2>
+  <ol>
+    <li>Finished ads land in Supabase output. Review against the brief and brand.</li>
+    <li>Pick the keepers; flag any that drifted off-brand (wrong colors, fabricated text, off-concept).</li>
+    <li>Deliver for client review (statics via Figma in current workflow).</li>
+    <li>Log what worked and what failed so the next batch improves.</li>
+  </ol>
+
+  <h2>10. New client quick-start checklist</h2>
+  <table class="keep">
+    <thead><tr><th>Step</th><th>Done when</th></tr></thead>
+    <tbody>
+      <tr><td>1. Kickoff + creative brief captured</td><td>Goal, audience, offer, guardrails written down</td></tr>
+      <tr><td>2. Brand Brain row created</td><td>Name, website, voice, offer, audience, guardrails filled</td></tr>
+      <tr><td>3. Colors + fonts scraped from website</td><td>primary/secondary/accent_color_hex + brand_fonts populated</td></tr>
+      <tr><td>4. Assets uploaded</td><td>Logo, winning ads, product images in Airtable</td></tr>
+      <tr><td>5. Generation mode chosen</td><td>top_performers, team_top5, or user_reference decided</td></tr>
+      <tr><td>6. Test run</td><td>One full pass through the pipeline, output looks on-brand</td></tr>
+      <tr><td>7. Batch + review + deliver</td><td>Keepers selected and sent for client review</td></tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:16px; color:#5b6472;">That is the full execution. Set up the Brand Brain well, respect the gotchas, and the system delivers on-brand static ads at volume for any new client.</p>
+
+</body>
+</html>

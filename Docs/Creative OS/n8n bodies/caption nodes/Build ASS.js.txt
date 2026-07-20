@@ -1,0 +1,178 @@
+// Core caption builder: whisper words + caption script -> TikTok-style karaoke ASS.
+// Pure function, no n8n globals - unit-testable and embedded verbatim into the Code node.
+// SYNC PRINCIPLE: captions render ONLY for script text the VO actually spoke.
+// Script lines the video model skipped, and script left over when the VO ends early,
+// are dropped entirely - a caption never appears while nothing is being said.
+function buildCaptionAss(cfg) {
+  const PX = 720, PY = 1280;
+  const voEnd = (typeof cfg.voEnd === 'number' && cfg.voEnd > 3) ? cfg.voEnd : 13.5;
+  const dur = (typeof cfg.duration === 'number' && cfg.duration > voEnd) ? cfg.duration : Math.max(15, voEnd + 1.5);
+  const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9']/g, '');
+  const clean = s => String(s || '').replace(/[{}\\]/g, '');
+
+  // ---- script tokens (real spelling, the display truth); punctuation-only tokens dropped ----
+  const lines = String(cfg.captions || '').split('\n').map(s => s.trim()).filter(Boolean);
+  const tokens = [];
+  lines.forEach((line, li) => {
+    line.split(/\s+/).filter(Boolean).forEach(t => { if (norm(t)) tokens.push({ text: t, line: li }); });
+  });
+  if (!tokens.length) return null;
+  const lastLine = tokens[tokens.length - 1].line;
+
+  // ---- whisper words (what was ACTUALLY said, with real timings) ----
+  const words = Array.isArray(cfg.words) ? cfg.words
+    .map(w => ({ t: norm(w.word), start: +w.start, end: +w.end }))
+    .filter(w => w.t && isFinite(w.start) && isFinite(w.end)) : [];
+  if (!words.length) return null;
+
+  // ---- anchor-based alignment ----
+  // 1) a token ANCHORS when its text matches a heard word within a small forward window
+  //    (words shorter than 3 letters never anchor - too easy to false-match "the"/"a")
+  // 2) tokens BETWEEN two anchors inherit the unmatched heard words in that gap -
+  //    this is how "GIR" gets the timing of heard "gear", and "464F" spans "four sixty four"
+  // 3) tokens with NO heard words behind them (skipped line, VO ended early) stay
+  //    timeless and are dropped
+  let wi = 0;
+  tokens.forEach(tok => {
+    const tn = norm(tok.text);
+    if (tn.length < 3) return;
+    for (let j = wi; j < Math.min(wi + 6, words.length); j++) {
+      if (words[j].t === tn) { tok.anchor = j; wi = j + 1; return; }
+    }
+  });
+
+  function assignGap(gapToks, loW, hiW) {
+    const n = gapToks.length, m = hiW - loW + 1;
+    if (!n || m <= 0) return;
+    for (let i = 0; i < n; i++) {
+      const a = loW + Math.floor(i * m / n);
+      let b = loW + Math.ceil((i + 1) * m / n) - 1;
+      if (b < a) b = a;
+      if (b > hiW) b = hiW;
+      gapToks[i].start = words[a].start;
+      gapToks[i].end = words[b].end;
+    }
+  }
+
+  let prevAnchorWord = -1, pi = -1;
+  for (let ti = 0; ti < tokens.length; ti++) {
+    if (tokens[ti].anchor === undefined) continue;
+    assignGap(tokens.slice(pi + 1, ti), prevAnchorWord + 1, tokens[ti].anchor - 1);
+    tokens[ti].start = words[tokens[ti].anchor].start;
+    tokens[ti].end = words[tokens[ti].anchor].end;
+    prevAnchorWord = tokens[ti].anchor; pi = ti;
+  }
+  assignGap(tokens.slice(pi + 1), prevAnchorWord + 1, words.length - 1);
+
+  const timed = tokens.filter(t => typeof t.start === 'number');
+  if (!timed.length) return null;
+
+  // ---- chunk into caption groups: max 3 words AND max ~16 chars, never across lines,
+  // break at punctuation. Short chunks = big font + snappy flips (the TikTok look).
+  const MAXC = 16;
+  const chunks = [];
+  let cur = [], curChars = 0;
+  const flush = () => { if (cur.length) { chunks.push(cur); cur = []; curChars = 0; } };
+  timed.forEach(tok => {
+    const wlen = clean(tok.text).length;
+    if (cur.length && (tok.line !== cur[0].line || cur.length >= 3 || curChars + 1 + wlen > MAXC)) flush();
+    cur.push(tok);
+    curChars += (cur.length > 1 ? 1 : 0) + wlen;
+    if (/[.!?,]$/.test(tok.text)) flush();
+  });
+  flush();
+  // merge orphan single-word chunks back if the result still fits
+  for (let i = chunks.length - 1; i > 0; i--) {
+    const joined = chunks[i - 1].concat(chunks[i]);
+    const jc = joined.map(x => clean(x.text)).join(' ').length;
+    if (chunks[i].length === 1 && chunks[i - 1][0].line === chunks[i][0].line &&
+        joined.length <= 3 && jc <= MAXC) {
+      chunks[i - 1] = joined; chunks.splice(i, 1);
+    }
+  }
+
+  // ---- per-scene caption zone from beats + vision ----
+  const beatRanges = (Array.isArray(cfg.beats) ? cfg.beats : []).map(b => {
+    const m = /([\d.]+)\s*[-\u2013\u2014]\s*([\d.]+)/.exec(String(b.time || ''));
+    return m ? [parseFloat(m[1]), parseFloat(m[2])] : null;
+  });
+  const zones = Array.isArray(cfg.zones) ? cfg.zones : [];
+  const marginFor = mid => {
+    let zone = 'lower';
+    for (let i = 0; i < beatRanges.length; i++) {
+      if (beatRanges[i] && mid >= beatRanges[i][0] && mid < beatRanges[i][1]) {
+        zone = zones[i] || 'lower'; break;
+      }
+    }
+    return zone === 'upper' ? 840 : zone === 'center' ? 560 : 400;
+  };
+
+  const emph = new Set((Array.isArray(cfg.emphasis) ? cfg.emphasis : []).map(norm).filter(Boolean));
+  const isEmph = t => { const n = norm(t); return n && (emph.has(n) || /\d/.test(t)); };
+
+  // ---- events: one per word, whole chunk shown, current word purple, emphasis teal ----
+  const PURPLE = '\\1c&HFF486B&';  // ASS is BGR: #6B48FF
+  const TEAL = '\\1c&HCCE500&';    // #00E5CC
+  const fmt = t => {
+    t = Math.max(0, t);
+    const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = Math.floor(t % 60),
+          cs = Math.round((t - Math.floor(t)) * 100);
+    return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') + '.' + String(cs).padStart(2, '0');
+  };
+
+  const events = [];
+  chunks.forEach((chunk, ci) => {
+    const cStart = chunk[0].start;
+    const lastTok = chunk[chunk.length - 1];
+    const nextStart = chunks[ci + 1] ? chunks[ci + 1][0].start : voEnd;
+    // linger max ~0.9s after the last spoken word so captions never hang through pauses
+    let cEnd = Math.min(Math.max(lastTok.end + 0.15, cStart + 0.5), lastTok.end + 0.9, nextStart - 0.01, voEnd);
+    // the CTA holds through the outro to the last frame - but ONLY if it is the real
+    // final script line AND the VO actually spoke it
+    if (ci === chunks.length - 1 && chunk[0].line === lastLine) cEnd = dur;
+    if (cEnd <= cStart) return;
+    const mv = marginFor((cStart + cEnd) / 2);
+    chunk.forEach((tok, i) => {
+      const evStart = i === 0 ? cStart : Math.max(tok.start, cStart);
+      const evEnd = i === chunk.length - 1 ? cEnd : Math.max(Math.min(chunk[i + 1].start, cEnd), evStart + 0.05);
+      if (evEnd <= evStart) return;
+      const text = chunk.map((t2, j) => {
+        const wtxt = clean(t2.text).replace(/^[-\u2013\u2014]+|[-\u2013\u2014]+$/g, '').toUpperCase();
+        if (j === i) return '{' + PURPLE + '}' + wtxt + '{\\r}';
+        if (isEmph(t2.text)) return '{' + TEAL + '}' + wtxt + '{\\r}';
+        return wtxt;
+      }).join(' ');
+      events.push('Dialogue: 0,' + fmt(evStart) + ',' + fmt(evEnd) + ',Cap,,0,0,' + mv + ',,' + text);
+    });
+  });
+  if (!events.length) return null;
+
+  // ---- font auto-fit: the longest chunk must fit inside the frame with margins ----
+  // Montserrat ExtraBold caps average advance ~0.62em; usable width = 720 - 2x50 margins
+  const maxChars = Math.max(...chunks.map(c => c.map(t => clean(t.text)).join(' ').length));
+  const fontSize = Math.max(40, Math.min(60, Math.floor(620 / (0.62 * maxChars))));
+  const outline = Math.max(3, Math.round(fontSize / 16));
+
+  return ['[Script Info]', 'ScriptType: v4.00+', 'PlayResX: ' + PX, 'PlayResY: ' + PY, 'WrapStyle: 0', 'ScaledBorderAndShadow: yes', '',
+    '[V4+ Styles]',
+    'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
+    'Style: Cap,Montserrat ExtraBold,' + fontSize + ',&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0.5,0,1,' + outline + ',2,2,50,50,400,1', '',
+    '[Events]', 'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text',
+    ...events, ''].join('\n');
+}
+const groq = $('Transcribe (Groq)').first().json;
+const meta = $('Parse scenes').first().json;
+const sb = $('Extract URL').first().json.storyboard || {};
+let zones = null, emphasis = [];
+try {
+  const v = $('Vision placement').first().json;
+  const c = v.choices[0].message.content;
+  const j = JSON.parse(c.replace(/^```(json)?/i, '').replace(/```\s*$/, '').trim());
+  if (Array.isArray(j.zones)) zones = j.zones.map(z => String(z).toLowerCase());
+  if (Array.isArray(j.emphasis)) emphasis = j.emphasis;
+} catch (e) { /* vision is optional - defaults apply */ }
+const words = groq.words || (groq.segments || []).flatMap(s => s.words || []);
+const ass = buildCaptionAss({ words, captions: meta.captions || '', voEnd: meta.vo_ends_at || 13.5, duration: meta.duration || 15, beats: sb.beats || [], zones, emphasis });
+if (!ass) throw new Error('caption build produced no events - check CAPTIONS block and transcription');
+const bin = await this.helpers.prepareBinaryData(Buffer.from(ass, 'utf8'), 'subs.ass', 'text/plain');
+return [{ json: { ok: true }, binary: { data: bin } }];
