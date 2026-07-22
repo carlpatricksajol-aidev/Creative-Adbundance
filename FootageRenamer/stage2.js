@@ -30,6 +30,8 @@ for (const k of ["refresh", "appKey", "appSecret", "orKey", "notion"]) if (!CFG[
 const deriveSlug = (n) => String(n || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 const sceneKey = (id) => deriveSlug(id);
 const lineSlug = (l, m = 4) => String(l || "").toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(Boolean).slice(0, m).join("_");
+// creators label their talking-head reads in the filename ("..._Hook 1", "..._Script 2 V2"); trust that
+function labelFromName(name) { const m = String(name || "").match(/(?:^|[^a-z0-9])(hook|script)[\s_-]*0*(\d+)(?:[\s_-]*v\s*0*(\d+))?/i); if (!m) return ""; const kind = /^hook$/i.test(m[1]) ? "Hook" : "Script"; const base = `${kind} ${m[2]}`; return m[3] ? `${base} V${m[3]}` : base; }
 function splitShots(cell) { const raw = String(cell || "").trim(); if (!raw || !/[a-z0-9]/i.test(raw)) return []; if (/^talking[\s_-]*heads?$/i.test(raw)) return []; return raw.split(/[+,]/).map(s => s.trim()).filter(Boolean).filter(s => !/^talking[\s_-]*heads?$/i.test(s)).map(footage_name => ({ footage_name, slug: deriveSlug(footage_name) })); }
 function applyPov(slug, p) { if (p == null) return slug; if (!/^(1stpov|3rdpov)_/i.test(slug)) return slug; return (p ? "3rdpov_" : "1stpov_") + slug.replace(/^(1stpov|3rdpov)_/i, ""); }
 function parseStoryboardTable(rows) { if (!rows || rows.length < 2) return []; const cellsOf = r => Array.isArray(r) ? r : (r && r.table_row ? r.table_row.cells.map(c => c.map(t => t.plain_text || "").join("")) : []); const h = cellsOf(rows[0]).map(x => String(x).trim().toLowerCase()); const col = n => h.indexOf(n); const ci = { scene: col("scene"), line: col("script line"), overlay: col("overlay"), footage: col("footage name"), desc: col("shot list explanation") }; const out = []; for (let i = 1; i < rows.length; i++) { const c = cellsOf(rows[i]); const g = j => j >= 0 ? String(c[j] || "").trim() : ""; const s = g(ci.scene); if (!s) continue; out.push({ scene: s, line: g(ci.line), overlay: g(ci.overlay), footage_name: g(ci.footage), shot_list_explanation: g(ci.desc) }); } return out; }
@@ -39,7 +41,7 @@ const fmtC = c => c == null ? "n/a" : Number(c).toFixed(2);
 function planJob(scenesRaw, matches, opts = {}) {
   const thr = opts.confidenceThreshold == null ? 0.6 : opts.confidenceThreshold;
   const scenes = normalizeScenes(scenesRaw), byId = {}; scenes.forEach(s => byId[s.scene] = s);
-  const renames = [], flagged = [], usedSlug = {}, usedTake = {};
+  const renames = [], flagged = [], usedSlug = {}, takenA = {};
   // filename convention: <Talent>_<Concept>_<Hook/Script label>  (Talent = creator, Concept = the
   // Notion "Concept" field, e.g. "004_Rapid Fire Questions"); 2nd+ take of a label gets " V2"/" V3".
   const safe = s => String(s == null ? "" : s).replace(/[\/\\:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim(); // filesystem-safe
@@ -47,13 +49,15 @@ function planJob(scenesRaw, matches, opts = {}) {
   const pre = [opts.creator, opts.concept].map(safe).filter(Boolean).join("_").replace(/_+$/, "");
   const px = pre ? pre + "_" : "";
   const ver = n => n === 1 ? "" : ` V${n}`;
-  const ok = m => (m.reconciled || (m.confidence == null ? 1 : m.confidence) >= thr) && m.scene;
+  const uniqA = base => { let n = 1, nm = base; while (takenA[nm]) { n++; nm = `${base} V${n}`; } takenA[nm] = 1; return nm; }; // unique aroll name
+  const ok = m => m.filenameLabel || ((m.reconciled || (m.confidence == null ? 1 : m.confidence) >= thr) && m.scene);
   for (const m of matches.filter(ok)) {
-    const ext = extOf(m.file), sc = byId[m.scene];
+    const ext = extOf(m.file);
+    if (m.filenameLabel) { renames.push({ from: m.file, to: `${px}${uniqA(lbl(m.filenameLabel))}${ext}`, folder: "aroll", scene: m.filenameLabel, confidence: m.confidence }); continue; }
+    const sc = byId[m.scene];
     if (!sc) { flagged.push({ file: m.file, reason: `matched unknown scene "${m.scene}"`, confidence: m.confidence }); continue; }
     if (sc.type === "talkinghead" || m.type === "talkinghead") {
-      const n = usedTake[sc.scene] = (usedTake[sc.scene] || 0) + 1; // label verbatim from storyboard: "Hook 1"/"Script 2"
-      renames.push({ from: m.file, to: `${px}${lbl(sc.scene)}${ver(n)}${ext}`, folder: "aroll", scene: m.scene, confidence: m.confidence });
+      renames.push({ from: m.file, to: `${px}${uniqA(lbl(sc.scene))}${ext}`, folder: "aroll", scene: m.scene, confidence: m.confidence });
     } else {
       const base = m.shot_slug || (sc.shots[0] && sc.shots[0].slug);
       if (!base) { flagged.push({ file: m.file, reason: `b-roll match to "${m.scene}" with no shot slug`, confidence: m.confidence }); continue; }
@@ -67,8 +71,7 @@ function planJob(scenesRaw, matches, opts = {}) {
     const ext = extOf(m.file), desc = String(m.describe || "").trim(), tr = String(m.transcript || "").trim();
     const thBase = lineSlug(desc, 6) || lineSlug(tr, 6), brBody = lineSlug(desc, 6); // empty if no usable words -> flag
     if (m.type === "talkinghead" && thBase) {
-      const n = usedTake["x:" + thBase] = (usedTake["x:" + thBase] || 0) + 1;
-      renames.push({ from: m.file, to: `${px}${thBase}${ver(n)}${ext}`, folder: "aroll", scene: "(extra)", confidence: m.confidence, extra: true });
+      renames.push({ from: m.file, to: `${px}${uniqA(lbl(thBase))}${ext}`, folder: "aroll", scene: "(extra)", confidence: m.confidence, extra: true });
     } else if (m.type === "broll" && brBody) {
       const pov = m.person_in_frame === true ? "3rdpov_" : m.person_in_frame === false ? "1stpov_" : "", slug = pov + brBody;
       const n = usedSlug[slug] = (usedSlug[slug] || 0) + 1;
@@ -78,7 +81,8 @@ function planJob(scenesRaw, matches, opts = {}) {
     }
   }
   const matchedSlugs = new Set(renames.filter(r => r.shot_slug).map(r => r.shot_slug)), matchedTalk = new Set(renames.filter(r => r.folder === "aroll").map(r => r.scene)), missing = [];
-  for (const s of scenes) if (s.type === "talkinghead") { if (!matchedTalk.has(s.scene)) missing.push({ scene: s.scene, type: "talkinghead", line: s.line }); }
+  const hadLabels = matches.some(m => m.filenameLabel); // creators numbered their own reads -> don't nag about storyboard talking-head "misses"
+  for (const s of scenes) if (s.type === "talkinghead") { if (!hadLabels && !matchedTalk.has(s.scene)) missing.push({ scene: s.scene, type: "talkinghead", line: s.line }); }
     else for (const sh of s.shots) if (!matchedSlugs.has(sh.slug)) missing.push({ scene: s.scene, type: "broll", footage_name: sh.footage_name, slug: sh.slug });
   return { renames, missing, flagged, report: buildReport({ client: opts.client, creator: opts.creator, renames, missing, flagged }) };
 }
@@ -299,6 +303,13 @@ async function processPage(PAGE) {
   const src = {}, local = {}, matches = [];
   for (const v of vids) {
     src[v.name] = v.path_lower || `${folderPath}/${v.name}`;
+    const fnLabel = labelFromName(v.name); // creator already labeled this talking-head read?
+    if (fnLabel) { // trust it - no frames / AI needed, just organize it
+      matches.push({ file: v.name, scene: fnLabel, type: "talkinghead", filenameLabel: fnLabel, confidence: 1, transcript: "", describe: "" });
+      if (!coLocated) { const lp = path.join(work, v.name.replace(/[^a-z0-9.]/gi, "_")); await dbxDownload(sharedUrl, v.name, lp); local[v.name] = lp; } // fallback re-uploads, so it still needs the bytes
+      console.log(`  ${v.name} -> ${fnLabel} (from filename)`);
+      continue;
+    }
     const lp = path.join(work, v.name.replace(/[^a-z0-9.]/gi, "_"));
     await dbxDownload(sharedUrl, v.name, lp);
     const fid = v.id.replace(/[^a-z0-9]/gi, "");
@@ -310,9 +321,10 @@ async function processPage(PAGE) {
     if (coLocated) fs.unlinkSync(lp); else local[v.name] = lp; // co-located renames via server-side copy, no bytes kept
   }
 
-  // 2b) global talking-head reconciliation: reassign similar lines (Hook 1 vs Hook 2) consistently
+  // 2b) global talking-head reconciliation: reassign similar lines (Hook 1 vs Hook 2) consistently.
+  // Only the clips WITHOUT a creator label go through this; labeled reads are already authoritative.
   const thScenes = scenes.filter(s => s.type === "talkinghead").map(s => ({ scene: s.scene, line: s.line }));
-  const thClips = matches.filter(m => m.type === "talkinghead").map(m => ({ file: m.file, transcript: m.transcript || "" }));
+  const thClips = matches.filter(m => m.type === "talkinghead" && !m.filenameLabel).map(m => ({ file: m.file, transcript: m.transcript || "" }));
   if (thScenes.length && thClips.length) {
     const recon = await reconcileTalkingHead(thScenes, thClips);
     applyReconcile(matches, recon);

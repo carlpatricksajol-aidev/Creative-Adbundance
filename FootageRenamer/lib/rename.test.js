@@ -3,7 +3,7 @@
 // talking-head scene, and asserts the tricky cases: slug derivation, multi-shot " + " split,
 // version suffixing, take naming, the missing-shot diff, and low-confidence flagging.
 
-const { deriveSlug, splitShots, planJob, applyPov, applyReconcile, pickConcept } = require("./rename");
+const { deriveSlug, splitShots, planJob, applyPov, applyReconcile, pickConcept, labelFromName } = require("./rename");
 
 let pass = 0,
   fail = 0;
@@ -188,6 +188,36 @@ eq(pickConcept(["004_Rapid Fire Questions", "010_Mom Life"], "talking head 004 h
 eq(pickConcept(["004_x", "010_y"], "no_number_here.mov"), 0, "pickConcept: no number in filenames -> 0");
 eq(pickConcept(["004_only"], "whatever.mov"), 0, "pickConcept: single concept -> 0");
 eq(pickConcept([], "x"), -1, "pickConcept: no concepts -> -1");
+
+// --- labelFromName: read the creator's own Hook/Script label out of the filename -------------
+eq(labelFromName("Grace_004_Rapid Fire Questions_Hook 1.MOV"), "Hook 1", "labelFromName: Hook 1");
+eq(labelFromName("Grace_004_Rapid Fire Questions_Script 2 V2.MOV"), "Script 2 V2", "labelFromName: Script 2 V2");
+eq(labelFromName("1stPOV_Scene 3 pill bottle.mov"), "", "labelFromName: 'Scene' in a b-roll name is NOT a read label");
+eq(labelFromName("Grace Gosnear - IMG_4992.MOV"), "", "labelFromName: no label -> empty (b-roll)");
+eq(labelFromName("Vivienne Goins - talking head 005 Hook 1.mov"), "Hook 1", "labelFromName: finds Hook amid noise");
+
+// --- creator-labeled reads are TRUSTED, not re-guessed (the reviewer's core fix) -------------
+// storyboard has Hook 1 + Scene 1 only; the creator's "Script 7" isn't a storyboard scene, yet it
+// must be kept verbatim (not flagged, not re-matched to a Hook).
+const flScenes = [
+  { scene: "Hook 1", type: "talkinghead", script_line: "hook", footage_name: "-" },
+  { scene: "Scene 1", type: "talkinghead", script_line: "body", footage_name: "-" },
+];
+const flMatches = [
+  { file: "Grace_004_Rapid Fire Questions_Script 7.MOV", type: "talkinghead", filenameLabel: "Script 7" },
+  { file: "Grace_004_Rapid Fire Questions_Hook 1.MOV", type: "talkinghead", filenameLabel: "Hook 1" },
+  { file: "Grace_004_Rapid Fire Questions_Script 2 V2.MOV", type: "talkinghead", filenameLabel: "Script 2 V2" },
+];
+const flPlan = planJob(flScenes, flMatches, { creator: "Grace", concept: "004_Rapid Fire Questions" });
+const flTo = (f) => (flPlan.renames.find((x) => x.from === f) || {}).to;
+eq(flTo("Grace_004_Rapid Fire Questions_Script 7.MOV"), "Grace_004_Rapid Fire Questions_Script 7.mov", "trust: Script 7 kept (not re-matched to a Hook)");
+eq(flTo("Grace_004_Rapid Fire Questions_Hook 1.MOV"), "Grace_004_Rapid Fire Questions_Hook 1.mov", "trust: Hook 1 kept");
+eq(flTo("Grace_004_Rapid Fire Questions_Script 2 V2.MOV"), "Grace_004_Rapid Fire Questions_Script 2 V2.mov", "trust: Script 2 V2 kept");
+eq(flPlan.flagged.length, 0, "trust: nothing flagged");
+eq(flPlan.renames.every((r) => r.folder === "aroll"), true, "trust: labeled reads all go to aroll");
+// two bare same labels de-dup safely
+const dupPlan = planJob([], [{ file: "a_Hook 1.mov", type: "talkinghead", filenameLabel: "Hook 1" }, { file: "b_Hook 1.mov", type: "talkinghead", filenameLabel: "Hook 1" }], { creator: "X" });
+eq(dupPlan.renames.map((r) => r.to).sort(), ["X_Hook 1 V2.mov", "X_Hook 1.mov"], "trust: duplicate label -> V2");
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 console.log("--- sample report (Onsen) ---\n");

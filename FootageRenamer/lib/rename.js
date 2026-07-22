@@ -45,6 +45,17 @@ function lineSlug(line, maxWords = 4) {
     .join("_");
 }
 
+// Creators already label their talking-head reads in the filename (e.g. "..._Hook 1", "..._Script 2 V2").
+// Trust that label instead of re-guessing from content. Returns a normalized "Hook 1" / "Script 2 V3"
+// ("Scene N" -> "Script N"), or "" if the filename carries no such label.
+function labelFromName(name) {
+  const m = String(name || "").match(/(?:^|[^a-z0-9])(hook|script)[\s_-]*0*(\d+)(?:[\s_-]*v\s*0*(\d+))?/i);
+  if (!m) return "";
+  const kind = /^hook$/i.test(m[1]) ? "Hook" : "Script";
+  const base = `${kind} ${m[2]}`;
+  return m[3] ? `${base} V${m[3]}` : base;
+}
+
 // Correct the POV prefix from the ACTUAL footage, not the (often wrong) storyboard label:
 // a person/talent visible in frame -> 3rdpov; object/POV shot (at most hands) -> 1stpov.
 // Only rewrites real-footage pov prefixes; leaves ai_ and other prefixes alone. personInFrame
@@ -104,7 +115,7 @@ function planJob(scenesRaw, matches, opts = {}) {
   const renames = [];
   const flagged = [];
   const usedBrollSlug = {}; // slug -> count, for " V2"/" V3"
-  const usedTake = {};      // scene label -> count, for " V2"/" V3"
+  const takenA = {};        // aroll final names, kept unique across creator-labeled + content-matched reads
 
   // filename convention: <Talent>_<Concept>_<Hook/Script label> (Talent = creator, Concept = the
   // Notion "Concept" field, e.g. "004_Rapid Fire Questions"); 2nd+ take of a label gets " V2"/" V3".
@@ -113,13 +124,19 @@ function planJob(scenesRaw, matches, opts = {}) {
   const pre = [opts.creator, opts.concept].map(safe).filter(Boolean).join("_").replace(/_+$/, "");
   const px = pre ? pre + "_" : "";
   const ver = (n) => (n === 1 ? "" : ` V${n}`);
+  const uniqA = (base) => { let n = 1, nm = base; while (takenA[nm]) { n++; nm = `${base} V${n}`; } takenA[nm] = 1; return nm; }; // unique aroll name
 
-  const ok = (m) => (m.reconciled || (m.confidence == null ? 1 : m.confidence) >= threshold) && m.scene;
+  // a creator-labeled read (filenameLabel) is authoritative; otherwise gate on the confidence/threshold
+  const ok = (m) => m.filenameLabel || ((m.reconciled || (m.confidence == null ? 1 : m.confidence) >= threshold) && m.scene);
   const accepted = (matches || []).filter(ok);
   const rejected = (matches || []).filter((m) => !ok(m));
 
   for (const m of accepted) {
     const ext = extOf(m.file);
+    if (m.filenameLabel) { // creator already labeled this talking-head read -> trust it, don't re-guess
+      renames.push({ from: m.file, to: `${px}${uniqA(lbl(m.filenameLabel))}${ext}`, folder: "aroll", scene: m.filenameLabel, confidence: m.confidence });
+      continue;
+    }
     const scene = sceneById[m.scene];
     if (!scene) {
       flagged.push({ file: m.file, reason: `matched unknown scene "${m.scene}"`, confidence: m.confidence });
@@ -127,10 +144,9 @@ function planJob(scenesRaw, matches, opts = {}) {
     }
     const isTalk = scene.type === "talkinghead" || m.type === "talkinghead";
     if (isTalk) {
-      const n = (usedTake[scene.scene] = (usedTake[scene.scene] || 0) + 1); // label verbatim: "Hook 1"/"Script 2"
       renames.push({
         from: m.file,
-        to: `${px}${lbl(scene.scene)}${ver(n)}${ext}`,
+        to: `${px}${uniqA(lbl(scene.scene))}${ext}`, // label verbatim: "Hook 1"/"Script 2"
         folder: "aroll",
         scene: m.scene,
         confidence: m.confidence,
@@ -163,8 +179,7 @@ function planJob(scenesRaw, matches, opts = {}) {
     const thBase = lineSlug(desc, 6) || lineSlug(tr, 6); // topic slug for talking-head (empty -> flag)
     const brBody = lineSlug(desc, 6);                    // describe slug for b-roll (empty -> flag)
     if (m.type === "talkinghead" && thBase) {
-      const n = (usedTake["x:" + thBase] = (usedTake["x:" + thBase] || 0) + 1);
-      renames.push({ from: m.file, to: `${px}${thBase}${ver(n)}${ext}`, folder: "aroll", scene: "(extra)", confidence: m.confidence, extra: true });
+      renames.push({ from: m.file, to: `${px}${uniqA(lbl(thBase))}${ext}`, folder: "aroll", scene: "(extra)", confidence: m.confidence, extra: true });
     } else if (m.type === "broll" && brBody) {
       const pov = m.person_in_frame === true ? "3rdpov_" : m.person_in_frame === false ? "1stpov_" : "";
       const slug = pov + brBody;
@@ -182,10 +197,13 @@ function planJob(scenesRaw, matches, opts = {}) {
   // Missing-shot diff: every storyboard shot / talking-head line that got no clip.
   const matchedSlugs = new Set(renames.filter((r) => r.shot_slug).map((r) => r.shot_slug));
   const matchedTalkScenes = new Set(renames.filter((r) => r.folder === "aroll").map((r) => r.scene));
+  const hadLabels = accepted.some((m) => m.filenameLabel); // creators numbered their own reads (Script 1-10 etc.)
   const missing = [];
   for (const s of scenes) {
     if (s.type === "talkinghead") {
-      if (!matchedTalkScenes.has(s.scene)) missing.push({ scene: s.scene, type: "talkinghead", line: s.line });
+      // when the creator labeled their reads, their numbering (Script 1-10) won't line up with the
+      // storyboard's (Scene 1-6), so don't nag about talking-head "misses" - trust the creator's set
+      if (!hadLabels && !matchedTalkScenes.has(s.scene)) missing.push({ scene: s.scene, type: "talkinghead", line: s.line });
     } else {
       for (const sh of s.shots) {
         if (!matchedSlugs.has(sh.slug))
@@ -303,5 +321,5 @@ function parseStoryboardTable(rows) {
   return out;
 }
 
-const api = { deriveSlug, splitShots, sceneKey, lineSlug, applyPov, normalizeScenes, planJob, buildReport, applyReconcile, pickConcept, parseStoryboardTable };
+const api = { deriveSlug, splitShots, sceneKey, lineSlug, labelFromName, applyPov, normalizeScenes, planJob, buildReport, applyReconcile, pickConcept, parseStoryboardTable };
 if (typeof module !== "undefined" && module.exports) module.exports = api;
