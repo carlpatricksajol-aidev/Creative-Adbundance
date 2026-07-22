@@ -3,7 +3,7 @@
 // talking-head scene, and asserts the tricky cases: slug derivation, multi-shot " + " split,
 // version suffixing, take naming, the missing-shot diff, and low-confidence flagging.
 
-const { deriveSlug, splitShots, planJob, applyPov, applyReconcile } = require("./rename");
+const { deriveSlug, splitShots, planJob, applyPov, applyReconcile, pickConcept } = require("./rename");
 
 let pass = 0,
   fail = 0;
@@ -161,6 +161,33 @@ eq(exTo("rapid1.mov").to, "Grace_004_Rapid Fire Questions_rapid_fire_debt_questi
 eq(exPlan.flagged.map((f) => f.file).sort(), ["junk.mov", "symbol.mov"], "extra: no-describe and symbol-only clips flag (no nameless rename)");
 eq(exPlan.renames.every((r) => /[a-z0-9]/.test(r.to.replace(/\.\w+$/, ""))), true, "extra: no rename has an empty name body");
 eq(/## Extra footage organized/.test(exPlan.report), true, "extra: report has an Extra footage section");
+
+// --- Scene N -> Script N in the filename (Hooks unchanged) -----------------------------------
+const scScenes = [
+  { scene: "Hook 1", type: "talkinghead", script_line: "hook line", footage_name: "-" },
+  { scene: "Scene 2", type: "talkinghead", script_line: "body line", footage_name: "-" },
+];
+const scMatches = [
+  { file: "a.mov", scene: "Hook 1", type: "talkinghead", confidence: 0.9 },
+  { file: "b.mov", scene: "Scene 2", type: "talkinghead", confidence: 0.9 },
+];
+const scPlan = planJob(scScenes, scMatches, { creator: "Grace", concept: "004_Rapid Fire Questions" });
+const scTo = (f) => (scPlan.renames.find((x) => x.from === f) || {}).to;
+eq(scTo("a.mov"), "Grace_004_Rapid Fire Questions_Hook 1.mov", "label: Hook stays Hook");
+eq(scTo("b.mov"), "Grace_004_Rapid Fire Questions_Script 2.mov", "label: Scene 2 -> Script 2");
+
+// concept-name with a Windows-illegal char (colon) is sanitized
+const cnPlan = planJob([{ scene: "Hook 1", type: "talkinghead", footage_name: "-" }],
+  [{ file: "z.mov", scene: "Hook 1", type: "talkinghead", confidence: 0.9 }],
+  { creator: "Ana", concept: "017_Street Interview: Non-Soda" });
+eq((cnPlan.renames.find((x) => x.from === "z.mov") || {}).to, "Ana_017_Street Interview Non-Soda_Hook 1.mov", "concept: colon stripped");
+
+// --- pickConcept: which of the page's concepts a batch of footage belongs to -----------------
+eq(pickConcept(["004_Rapid Fire Questions", "010_Mom Life", "017_Street"], "Grace_010_Mom Life_Hook 1.mov"), 1, "pickConcept: filename '010' -> that concept");
+eq(pickConcept(["004_Rapid Fire Questions", "010_Mom Life"], "talking head 004 hook 1.mov"), 0, "pickConcept: filename '004' -> first");
+eq(pickConcept(["004_x", "010_y"], "no_number_here.mov"), 0, "pickConcept: no number in filenames -> 0");
+eq(pickConcept(["004_only"], "whatever.mov"), 0, "pickConcept: single concept -> 0");
+eq(pickConcept([], "x"), -1, "pickConcept: no concepts -> -1");
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 console.log("--- sample report (Onsen) ---\n");

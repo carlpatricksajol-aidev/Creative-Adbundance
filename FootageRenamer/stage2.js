@@ -42,7 +42,8 @@ function planJob(scenesRaw, matches, opts = {}) {
   const renames = [], flagged = [], usedSlug = {}, usedTake = {};
   // filename convention: <Talent>_<Concept>_<Hook/Script label>  (Talent = creator, Concept = the
   // Notion "Concept" field, e.g. "004_Rapid Fire Questions"); 2nd+ take of a label gets " V2"/" V3".
-  const safe = s => String(s == null ? "" : s).replace(/[\/\\]+/g, "-").trim(); // keep path separators out of filenames
+  const safe = s => String(s == null ? "" : s).replace(/[\/\\:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim(); // filesystem-safe
+  const lbl = s => safe(String(s == null ? "" : s).replace(/^\s*scene\b/i, "Script")); // "Scene N" -> "Script N"; "Hook N" unchanged
   const pre = [opts.creator, opts.concept].map(safe).filter(Boolean).join("_").replace(/_+$/, "");
   const px = pre ? pre + "_" : "";
   const ver = n => n === 1 ? "" : ` V${n}`;
@@ -52,7 +53,7 @@ function planJob(scenesRaw, matches, opts = {}) {
     if (!sc) { flagged.push({ file: m.file, reason: `matched unknown scene "${m.scene}"`, confidence: m.confidence }); continue; }
     if (sc.type === "talkinghead" || m.type === "talkinghead") {
       const n = usedTake[sc.scene] = (usedTake[sc.scene] || 0) + 1; // label verbatim from storyboard: "Hook 1"/"Script 2"
-      renames.push({ from: m.file, to: `${px}${safe(sc.scene)}${ver(n)}${ext}`, folder: "aroll", scene: m.scene, confidence: m.confidence });
+      renames.push({ from: m.file, to: `${px}${lbl(sc.scene)}${ver(n)}${ext}`, folder: "aroll", scene: m.scene, confidence: m.confidence });
     } else {
       const base = m.shot_slug || (sc.shots[0] && sc.shots[0].slug);
       if (!base) { flagged.push({ file: m.file, reason: `b-roll match to "${m.scene}" with no shot slug`, confidence: m.confidence }); continue; }
@@ -216,23 +217,38 @@ async function dbRows(dbId) {
   for (const pg of q.results || []) rows.push(cols.map(c => propText(pg.properties[c])));
   return rows;
 }
-// Find the storyboard rows anywhere on the page: a table block, an inline database, or nested
-// inside a synced block / column / toggle (strategists structure their pages differently).
-async function findStoryboardRows(blockId, depth) {
-  if ((depth || 0) > 4) return null;
+// A job page can hold several concepts (each a heading like "004_Rapid Fire Questions") each with its
+// own storyboard table; tables can also nest in synced blocks / columns / toggles / inline databases.
+// Walk the page once and collect the concept headings and storyboard tables in document order.
+const CONCEPT_RE = /^\s*\d{2,4}[\s_.:-]/; // a concept heading starts with its number, e.g. "004_..."
+async function scanPage(blockId, depth, acc) {
+  if ((depth || 0) > 4) return acc;
   const blocks = (await notionReq(`/v1/blocks/${blockId}/children?page_size=100`)).json.results || [];
-  const table = blocks.find(x => x.type === "table");
-  if (table) return (await notionReq(`/v1/blocks/${table.id}/children?page_size=100`)).json.results;
-  const db = blocks.find(x => x.type === "child_database");
-  if (db) return await dbRows(db.id);
   for (const x of blocks) {
-    if (!x.has_children && x.type !== "synced_block") continue;
-    let childId = x.id;
-    if (x.type === "synced_block" && x.synced_block && x.synced_block.synced_from && x.synced_block.synced_from.block_id) childId = x.synced_block.synced_from.block_id;
-    const r = await findStoryboardRows(childId, (depth || 0) + 1);
-    if (r) return r;
+    if (/^heading_[123]$/.test(x.type)) { // a heading can BOTH be a concept label AND (toggle) contain the table
+      const t = ((x[x.type] && x[x.type].rich_text) || []).map(r => r.plain_text).join("").trim();
+      if (CONCEPT_RE.test(t)) acc.push({ kind: "concept", text: t });
+    }
+    if (x.type === "table") { acc.push({ kind: "table", rows: (await notionReq(`/v1/blocks/${x.id}/children?page_size=100`)).json.results }); continue; }
+    if (x.type === "child_database") { acc.push({ kind: "table", rows: await dbRows(x.id) }); continue; }
+    if (x.has_children || x.type === "synced_block") {
+      let cid = x.id;
+      if (x.type === "synced_block" && x.synced_block && x.synced_block.synced_from && x.synced_block.synced_from.block_id) cid = x.synced_block.synced_from.block_id;
+      await scanPage(cid, (depth || 0) + 1, acc);
+    }
   }
-  return null;
+  return acc;
+}
+// mirror of lib/rename.js pickConcept: index of the concept whose number appears in the filenames
+function pickConcept(conceptHeads, filenamesText) {
+  if (!conceptHeads || !conceptHeads.length) return -1;
+  if (conceptHeads.length === 1) return 0;
+  const t = String(filenamesText || "");
+  for (let i = 0; i < conceptHeads.length; i++) {
+    const m = String(conceptHeads[i]).match(/(\d{2,4})/);
+    if (m && new RegExp(`(^|\\D)${m[1]}(\\D|$)`).test(t)) return i;
+  }
+  return 0;
 }
 
 async function processPage(PAGE) {
@@ -243,21 +259,10 @@ async function processPage(PAGE) {
   const props = page.properties;
   const client = CFG.clientOverride || notionText(props["Client's Name"]) || "Unknown";
   const creator = CFG.creatorOverride || notionText(props["Creator Name"]) || "Unknown";
-  // Concept goes into the filename as <Talent>_<Concept>_<label>, e.g. Concept "004_Rapid Fire Questions".
-  // propText reads title/rich_text/select, so it works whether the Notion field is Text or a Select.
-  const concept = process.env.CONCEPT || propText(props["Concept"]) || "";
+  const conceptProp = process.env.CONCEPT || propText(props["Concept"]) || ""; // explicit override wins if ever set
   const sharedUrl = (props["Dropbox Upload Link"] || {}).url;
   if (!sharedUrl) throw new Error("Notion row has no Dropbox Upload Link");
-  const storyRows = await findStoryboardRows(PAGE, 0);
-  if (!storyRows) throw new Error("no storyboard table or database found on the page");
-  const sceneRows = parseStoryboardTable(storyRows);
-  const scenes = normalizeScenes(sceneRows);
-  const candidates = [];
-  for (const s of scenes) {
-    if (s.type === "talkinghead") candidates.push({ scene: s.scene, kind: "talkinghead", line: s.line });
-    else for (const sh of s.shots) candidates.push({ scene: s.scene, kind: "broll", slug: sh.slug, description: sh.description });
-  }
-  const hasTalkingHead = scenes.some(s => s.type === "talkinghead");
+
   // resolve the upload link to its REAL path in the team space, so the renamed set lands right
   // inside the client's footage folder (and we rename via fast server-side copy, no re-upload)
   const smd = (await dbxRpc("/2/sharing/get_shared_link_metadata", { url: sharedUrl })).json;
@@ -265,13 +270,31 @@ async function processPage(PAGE) {
   if (!folderPath && smd.id) folderPath = (await dbxRpc("/2/files/get_metadata", { path: smd.id })).json.path_lower;
   const coLocated = !!folderPath;
   const OUT = coLocated ? `${folderPath}/renamed` : `${CFG.outputRoot}/${client}/${creator}`.replace(/\[|\]/g, "");
-  console.log(`page ${PAGE}: ${client}/${creator}, ${scenes.length} scenes / ${candidates.length} shots -> ${OUT}${coLocated ? "" : " (fallback - source folder not writable)"}`);
 
-  // 2) list + frame + match each clip
+  // 1b) list the footage FIRST, so we can read the concept number the creators put in their filenames
   const lf = await dbxRpc("/2/files/list_folder", coLocated ? { path: folderPath } : { path: "", shared_link: { url: sharedUrl } });
   let entries = lf.json.entries || [], cursor = lf.json;
   while (cursor.has_more) { cursor = (await dbxRpc("/2/files/list_folder/continue", { cursor: cursor.cursor })).json; entries = entries.concat(cursor.entries); }
   const vids = entries.filter(e => /\.(mov|mp4|m4v)$/i.test(e.name));
+
+  // 1c) a page can hold several concepts, each with its own storyboard; pick the one whose number the
+  // filenames carry (e.g. "..._004_..." -> the "004_..." concept + its table). Concept name comes from
+  // the page heading, so nothing manual is needed in Notion.
+  const scan = await scanPage(PAGE, 0, []);
+  const conceptHeads = scan.filter(s => s.kind === "concept").map(s => s.text);
+  const tables = scan.filter(s => s.kind === "table").map(s => s.rows);
+  if (!tables.length) throw new Error("no storyboard table or database found on the page");
+  const idx = Math.max(0, pickConcept(conceptHeads, vids.map(v => v.name).join(" ")));
+  const concept = conceptProp || conceptHeads[idx] || "";
+  const sceneRows = parseStoryboardTable(tables[idx] || tables[0]);
+  const scenes = normalizeScenes(sceneRows);
+  const candidates = [];
+  for (const s of scenes) {
+    if (s.type === "talkinghead") candidates.push({ scene: s.scene, kind: "talkinghead", line: s.line });
+    else for (const sh of s.shots) candidates.push({ scene: s.scene, kind: "broll", slug: sh.slug, description: sh.description });
+  }
+  const hasTalkingHead = scenes.some(s => s.type === "talkinghead");
+  console.log(`page ${PAGE}: ${client}/${creator} [${concept || "no concept"}], ${vids.length} clips, ${scenes.length} scenes / ${candidates.length} shots -> ${OUT}${coLocated ? "" : " (fallback)"}`);
   const work = fs.mkdtempSync(path.join(os.tmpdir(), "fr-"));
   const src = {}, local = {}, matches = [];
   for (const v of vids) {

@@ -108,7 +108,8 @@ function planJob(scenesRaw, matches, opts = {}) {
 
   // filename convention: <Talent>_<Concept>_<Hook/Script label> (Talent = creator, Concept = the
   // Notion "Concept" field, e.g. "004_Rapid Fire Questions"); 2nd+ take of a label gets " V2"/" V3".
-  const safe = (s) => String(s == null ? "" : s).replace(/[\/\\]+/g, "-").trim(); // keep path separators out of filenames
+  const safe = (s) => String(s == null ? "" : s).replace(/[\/\\:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim(); // filesystem-safe (no path/Windows-illegal chars)
+  const lbl = (s) => safe(String(s == null ? "" : s).replace(/^\s*scene\b/i, "Script")); // storyboard "Scene N" -> reviewer's "Script N"; "Hook N" unchanged
   const pre = [opts.creator, opts.concept].map(safe).filter(Boolean).join("_").replace(/_+$/, "");
   const px = pre ? pre + "_" : "";
   const ver = (n) => (n === 1 ? "" : ` V${n}`);
@@ -129,7 +130,7 @@ function planJob(scenesRaw, matches, opts = {}) {
       const n = (usedTake[scene.scene] = (usedTake[scene.scene] || 0) + 1); // label verbatim: "Hook 1"/"Script 2"
       renames.push({
         from: m.file,
-        to: `${px}${safe(scene.scene)}${ver(n)}${ext}`,
+        to: `${px}${lbl(scene.scene)}${ver(n)}${ext}`,
         folder: "aroll",
         scene: m.scene,
         confidence: m.confidence,
@@ -251,6 +252,20 @@ function applyReconcile(matches, recon) {
   return matches;
 }
 
+// A job page can hold several concepts (each a heading like "004_Rapid Fire Questions") with its own
+// storyboard. Pick the index whose leading number appears in the footage filenames, e.g. clips named
+// "Grace_004_..." -> the "004_..." concept. One concept -> 0; no filename match -> 0 (first).
+function pickConcept(conceptHeads, filenamesText) {
+  if (!conceptHeads || !conceptHeads.length) return -1;
+  if (conceptHeads.length === 1) return 0;
+  const t = String(filenamesText || "");
+  for (let i = 0; i < conceptHeads.length; i++) {
+    const m = String(conceptHeads[i]).match(/(\d{2,4})/);
+    if (m && new RegExp(`(^|\\D)${m[1]}(\\D|$)`).test(t)) return i;
+  }
+  return 0;
+}
+
 // Notion storyboard table -> raw scene rows (feed to normalizeScenes/planJob).
 // `rows` is either Notion `table_row` blocks (we extract cells) or plain arrays of strings.
 // Reads by HEADER name, so column order / an extra column can't break it.
@@ -288,5 +303,5 @@ function parseStoryboardTable(rows) {
   return out;
 }
 
-const api = { deriveSlug, splitShots, sceneKey, lineSlug, applyPov, normalizeScenes, planJob, buildReport, applyReconcile, parseStoryboardTable };
+const api = { deriveSlug, splitShots, sceneKey, lineSlug, applyPov, normalizeScenes, planJob, buildReport, applyReconcile, pickConcept, parseStoryboardTable };
 if (typeof module !== "undefined" && module.exports) module.exports = api;
