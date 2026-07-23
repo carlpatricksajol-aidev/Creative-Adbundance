@@ -94,7 +94,21 @@ def main():
         run([PY, s("pick_takes.py"), "--takes", takes_json, "--storyboard", sb_json, "--footage-dir", footage, "--out", picked])
         refined = os.path.join(work, "picked_refined.json")
         run([VPY, s("refine_cuts.py"), "--picked", picked, "--out", refined])     # waveform-snap to frame-perfect cuts
-        run([PY, s("build_talkinghead.py"), "--picked", refined, "--input-dir", footage, "--out-dir", work])
+
+        # b-roll BEST-WINDOW pick: skip the setup junk (adjusting camera / staring at lens) and
+        # start each b-roll where the storyboarded ACTION is underway. Vision key optional; a
+        # pre-seeded broll_windows.json in the assembly folder wins (manual override).
+        bwin = os.path.join(work, "broll_windows.json")
+        seeded = os.path.join(folder, "broll_windows.json")
+        if os.path.exists(seeded):
+            shutil.copy(seeded, bwin)
+        else:
+            out = run([PY, s("pick_broll_window.py"), "--picked", refined, "--storyboard", sb_json,
+                       "--input-dir", footage, "--out", bwin])
+            if "no vision key" in out:
+                status["warnings"].append("b-roll windows: no vision key set - in-points used the default offset")
+        run([PY, s("build_talkinghead.py"), "--picked", refined, "--input-dir", footage, "--out-dir", work,
+             "--broll-windows", bwin])
         assembly, vo_track, lines = (os.path.join(work, f) for f in ("assembly.json", "vo_track.json", "lines.json"))
 
         # 5) captions (karaoke, safe zone)

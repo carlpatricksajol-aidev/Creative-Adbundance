@@ -22,6 +22,7 @@ def main():
     ap.add_argument("--input-dir", required=True)
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--broll-offset", type=float, default=1.0)
+    ap.add_argument("--broll-windows", default=None, help="broll_windows.json {clip basename: in_seconds} from pick_broll_window")
     ap.add_argument("--w", type=int, default=1080)
     ap.add_argument("--h", type=int, default=1920)
     ap.add_argument("--fps", type=int, default=30)
@@ -30,6 +31,9 @@ def main():
     vodir = os.path.join(a.out_dir, "vo")
     os.makedirs(vodir, exist_ok=True)
     picked = json.load(open(a.picked, encoding="utf-8-sig"))
+    wins = {}
+    if a.broll_windows and os.path.exists(a.broll_windows):
+        wins = json.load(open(a.broll_windows, encoding="utf-8-sig"))
     clips, vo, lines, cum = [], [], [], 0.0
 
     for idx, r in enumerate(picked):
@@ -43,7 +47,9 @@ def main():
 
         if r["type"] == "broll" and r.get("broll"):
             bsrc = os.path.join(a.input_dir, r["broll"])
-            bin_ = min(a.broll_offset, max(0.0, dur_of(bsrc) - dur - 0.2))
+            bmax = max(0.0, dur_of(bsrc) - dur - 0.2)
+            bkey = os.path.basename(r["broll"])
+            bin_ = min(wins[bkey], bmax) if bkey in wins else min(a.broll_offset, bmax)   # vision-picked action window, else the old offset
             clips.append({"scene": r["scene"], "file": bsrc.replace("\\", "/"), "in": round(bin_, 3),
                           "dur": round(dur, 3), "caption": r["line"]})
         else:                                            # talking head: video = the same take, synced to its VO

@@ -11,6 +11,9 @@ services:
       - VE_KEEP_DAYS=10
       - VE_PUBLIC_URL=https://videoeditor.srv1486031.hstgr.cloud
       - VE_NOTIFY_WEBHOOK=${VE_NOTIFY_WEBHOOK:-}
+      - VE_OPENROUTER_KEY=${VE_OPENROUTER_KEY:-}
+      - VE_VISION_MODEL=${VE_VISION_MODEL:-google/gemini-2.5-flash}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     volumes:
       - ./jobs:/app/jobs
     labels:
