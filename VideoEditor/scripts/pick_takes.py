@@ -85,12 +85,18 @@ def pick(words, line, lead=0.12, tail=0.20, maxgap=0.6):
 
 
 def best_take(takes, line):
-    best = None
-    for tk in takes:
-        p = pick(tk["words"], line)
-        if p and (best is None or p["match"] > best[1]["match"]):
-            best = (tk["file"], p)
-    return best
+    # strict pass first (0.6s max pause = one continuous delivery); if a LONG line has a natural
+    # mid-sentence breath every span gets rejected and the scene silently vanishes -- so retry
+    # relaxed before giving up
+    for gap in (0.6, 1.5):
+        best = None
+        for tk in takes:
+            p = pick(tk["words"], line, maxgap=gap)
+            if p and (best is None or p["match"] > best[1]["match"]):
+                best = (tk["file"], p)
+        if best:
+            return best
+    return None
 
 
 def resolve(name, files):
