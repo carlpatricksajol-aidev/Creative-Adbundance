@@ -470,6 +470,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Po
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.2 6 3 11l-.9-2.4c-.3-.9.2-1.9 1.1-2.2l13.4-4c.9-.3 1.9.2 2.2 1.1z"/><path d="m6.2 5.3 3.1 3.9M12.4 3.4l3.1 4M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
         <span>Video Editor</span>
       </a>
+      <a class="sb-nav-item" style="text-decoration:none" href="/revisions">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Client Comments</span>
+      </a>
     </nav>
     <div class="sb-spacer"></div>
     <div class="sb-user">
@@ -532,6 +536,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Po
           </div>
         </div>
         <div class="sa-form-secondary">
+        <div class="fg">
+          <div class="fl">Website <span style="font-weight:400;color:rgba(255,255,255,.28);font-size:9px;margin-left:4px;">&mdash; optional</span></div>
+          <div class="fh">The brand or product page. Helps the AI ground the copy in the brand&rsquo;s real positioning, offers, and voice.</div>
+          <input type="text" class="fi" id="sa-website" placeholder="https://" autocomplete="off">
+        </div>
         <div class="fg" id="sa-product-section" style="display:none;">
           <div class="fl">Products <span style="font-weight:400;color:rgba(255,255,255,.28);font-size:9px;margin-left:4px;">— select one or more; skip for service brands</span></div>
           <div class="fh">Select which products this batch should feature. Click to toggle, click again to deselect.</div>
@@ -2376,6 +2385,7 @@ ge("sa-submit").addEventListener("click", function(){
   var payload={
     submitted_at: new Date().toISOString(),
     client_name: client,
+    website: ge("sa-website") ? ge("sa-website").value.trim() : "",
     static_ads_count: count,
     platforms: platforms.join(", "),
     generation_mode: generationMode,

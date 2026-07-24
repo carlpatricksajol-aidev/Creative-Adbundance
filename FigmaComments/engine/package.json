@@ -1,0 +1,17 @@
+{
+  "name": "figma-comment-digest-engine",
+  "version": "1.0.0",
+  "description": "Reads all client comments on a Figma file and emits a designer revision brief JSON (validates against ../brief.schema.json).",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "bin": { "figma-comment-digest": "index.js" },
+  "scripts": {
+    "start": "node index.js",
+    "validate": "node validate.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  }
+}

@@ -71,6 +71,15 @@ const isServiceBrand = productImageUrls.length === 0;
 const isMultiProduct = productImageUrls.length > 1;
 const productCount = productImageUrls.length;
 
+// === DIGITAL / APP BRANDS ===
+// Some brands (e.g. Huckleberry) sell software, not physical goods - their "product"
+// images are REAL app screenshots (UI), not packaging. Detect this from the brand brain
+// so we can composite the screens into a phone mockup instead of applying packaging /
+// label / packaging-form rules that make no sense for an app.
+const brainText = (String(brain.industry || '') + ' ' + String(brain.products || '') + ' ' + String(brain.product_benefits || '')).toLowerCase();
+const isDigitalProduct = productImageUrls.length > 0 &&
+  /\b(app|mobile app|ios app|android app|web app|in-app|application|software|saas|platform app|dashboard)\b/.test(brainText);
+
 // === KIE AI IMAGE BUDGET ===
 // nano-banana-pro accepts at most 8 input images per task.
 // Slot 0: template or reference (always 1)
@@ -88,7 +97,16 @@ productImageUrls = productImageUrls.slice(0, maxProductSlots);
 const workItems = $input.all();
 
 // === GUARDRAILS ===
-const brandTypeGuardrail = isServiceBrand
+const brandTypeGuardrail = isDigitalProduct
+  ? [
+      'BRAND TYPE: DIGITAL / APP - the product is software. The provided images are REAL app screenshots (UI), NOT physical packaging.',
+      '- Composite the provided screenshot(s) into a realistic, modern smartphone mockup as the hero. Reproduce each screen EXACTLY as supplied - do NOT redraw, restyle, recolor, translate, or invent any UI, button, chart, number, or word on the screen.',
+      '- These are NOT packaging. Ignore every packaging / label / ingredient / packaging-form rule - there is no box, bottle, pouch, jar, or tube.',
+      '- ' + productCount + ' screen(s) supplied' + (productNames.length ? ' (' + productNames.join(', ') + ')' : '') + '. If more than one, show a small set of phone screens (a hero screen plus 1-2 supporting), OR pick the ONE screen that best fits the concept. Never merge multiple screens into a single fake screen.',
+      '- The phone/device frame and hand may be generated, but the SCREEN pixels must be the supplied screenshot.',
+      '- Brand name appears ONLY in the designated logo zone.'
+    ].join('\n')
+  : isServiceBrand
   ? [
       'BRAND TYPE: SERVICE / B2B - No physical product.',
       '- DO NOT place brand name on random objects (cups, clothing, bags, packaging, signs).',
@@ -295,6 +313,9 @@ workItems.forEach(function(entry, tplIdx) {
   const item = entry.json;
   const isRefSlot = item.is_ref_slot === true;
   const isPromoVariant = item.ref_source === 'promo_variant';
+  // Hand-picked templates (top_performers mode): the requester chose these EXACT
+  // templates, so build ONE ad per pick (picks == requested count), not 2 variants each.
+  const isSelected = item.ref_source === 'selected_template';
   const pvIdx = (typeof item.promo_variant_index === 'number') ? item.promo_variant_index : tplIdx;
   const archetype = isPromoVariant ? promoArchetypes[pvIdx % promoArchetypes.length] : null;
 
@@ -368,7 +389,7 @@ workItems.forEach(function(entry, tplIdx) {
         'SOURCE MODE: AD TEMPLATE (borrow the concept, re-map it to THIS brand).',
         'The image at input_urls[0] is an ad from ANOTHER brand, used only as a structural blueprint. Borrow its structure, not its story.',
         '- Keep: the layout, composition, the graphic device (split screen / before-after / toggle / quiz / arch / badge), the typography style, and the negative space.',
-        '- Replace the product entirely with the provided product image (correct packaging form). Keep the template LAYOUT, never its product or packaging.',
+        '- Replace the hero subject entirely with THIS brand\'s subject, following the BRAND TYPE rules below (the exact product for a physical brand, the exact app screenshot in a phone for a digital brand). Keep the template LAYOUT, never its original product, packaging, or screen.',
         '- Do NOT keep the template original copy or headlines.'
       ].join('\n');
 
@@ -397,7 +418,9 @@ workItems.forEach(function(entry, tplIdx) {
     ? ['Keep the proven ad exactly; the ONLY change is the promotional overlay described above.']
     : isPromoVariant
       ? [archetype.label + ' - push the offer verbatim with the exact product.']
-      : angles;
+      : isSelected
+        ? angles.slice(0, 1)
+        : angles;
 
   itemAngles.forEach(function(angle, vIdx) {
     const lines = [
@@ -447,17 +470,32 @@ workItems.forEach(function(entry, tplIdx) {
       '',
       hallucinationGuardrail,
       brandGuidelines ? '\nBRAND GUIDELINES:\n' + brandGuidelines : '',
-      creativeBoundaries ? '\nCREATIVE BOUNDARIES (do NOT do these):\n' + creativeBoundaries : '',
-      '',
+      creativeBoundaries ? '\nCREATIVE BOUNDARIES (do NOT do these):\n' + creativeBoundaries : ''
+    ].filter(Boolean);
+
+    // The FINAL CHECK (anti-hallucination checklist) is PROTECTED - it is never truncated by
+    // the length clamp. The clamp trims the body (guidelines etc.), never this.
+    var finalCheck = '\n' + [
       'FINAL CHECK: brand name in ONE place; product EXACT (every colorway); headline in the brand headline typeface (a serif if the brand is serif, never a default sans), largest, and matching the reference; offer stated ONCE with the exact date; sharp with no blur; nothing (text/badge) overlapping the product.',
       keepAndOverlay ? 'ALSO: keep the ad identical, ONLY add the offer overlay; change no date or number.' : null,
       isPromoVariant ? 'ALSO: the ONLY changed variable is the scene - headline word-for-word, same logo treatment, exact colorways, offer stated once with the deadline, and the award badge NOT forced onto the creative.' : null
-    ].filter(Boolean);
+    ].filter(Boolean).join('\n');
 
-    // Backstop: KIE nano-banana-pro rejects prompts over 10000 chars. Clamp with headroom
-    // for the copy block that Generate Ad Copy appends downstream.
-    var promptText = lines.join('\n');
-    if (promptText.length > 9400) promptText = promptText.slice(0, 9400);
+    // Optional forensic SOURCE AD SPEC (from Analyze Blueprint) - reinforcement only, since
+    // nano-banana already sees the blueprint image; added to the body only if it fits.
+    var specBlock = item.blueprint_analysis
+      ? '\n\nSOURCE AD SPEC (reproduce this concept, layout, and text hierarchy faithfully; adapt content to THIS brand):\n' + String(item.blueprint_analysis).slice(0, 1400)
+      : '';
+
+    // Backstop: KIE nano-banana-pro rejects prompts over 10000 chars. Clamp at 9400 (headroom
+    // for the copy block Generate Ad Copy appends), trimming the BODY while ALWAYS keeping the
+    // FINAL CHECK.
+    var CAP = 9400;
+    var room = CAP - finalCheck.length;
+    var baseText = lines.join('\n');
+    if (specBlock && (baseText.length + specBlock.length) <= room) baseText += specBlock;
+    if (baseText.length > room) baseText = baseText.slice(0, room);
+    var promptText = baseText + finalCheck;
 
     result.push({
       json: {

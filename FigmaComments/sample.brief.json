@@ -1,0 +1,242 @@
+{
+  "schemaVersion": 1,
+  "file": {
+    "key": "M5yNWTlaG4Ah2NgYhZ6Hqu",
+    "name": "ARMRA_EXT",
+    "url": "https://www.figma.com/design/M5yNWTlaG4Ah2NgYhZ6Hqu/ARMRA_EXT",
+    "lastModified": "2026-07-20T16:42:00Z",
+    "batchLabel": "Batch 2"
+  },
+  "generatedAt": "2026-07-22T23:30:00Z",
+  "cursor": {
+    "latestCommentId": "318",
+    "latestActivityAt": "2026-07-20T16:42:00Z",
+    "commentCount": 11
+  },
+  "stats": {
+    "totalComments": 11,
+    "totalThreads": 9,
+    "openThreads": 7,
+    "resolvedThreads": 2,
+    "byClient": [
+      { "handle": "S. Rahal", "userId": "u_rahal", "count": 9, "isClient": true },
+      { "handle": "K. Rao", "userId": "u_krao", "count": 1, "isClient": false },
+      { "handle": "M. Lopez", "userId": "u_mlopez", "count": 1, "isClient": false }
+    ],
+    "byType": { "value-prop": 4, "copy": 3, "design": 1, "approval": 1, "compliance": 0, "question": 0, "other": 0 },
+    "byRoute": { "strategist": 4, "designer": 3, "copywriter": 1, "none": 1 }
+  },
+  "themes": [
+    {
+      "id": "t1",
+      "label": "Value proposition unclear across Batch 2",
+      "type": "value-prop",
+      "route": "strategist",
+      "priority": "high",
+      "summary": "S. Rahal repeatedly asks what pain point / value prop each ad is solving, and pushes back that the current angle isn't a value prop. This is a messaging decision, not a design fix. The strategist should define the angle (energy vs. immunity vs. gut health) for these ads before the designer revises them.",
+      "threadIds": ["316", "315", "314", "317"],
+      "adRefs": ["Colostrum Soda · 03", "Colostrum Soda · 05", "Colostrum Powder · 02", "Colostrum Soda · 07"]
+    }
+  ],
+  "ads": [
+    {
+      "nodeId": "2410:11",
+      "name": "Colostrum Soda · 03",
+      "page": "Statics | Batch Two",
+      "sectionLabel": "Colostrum Soda",
+      "thumbnailUrl": null,
+      "openCount": 1,
+      "threads": [
+        {
+          "commentId": "316",
+          "author": { "handle": "S. Rahal", "userId": "u_rahal", "isClient": true },
+          "createdAt": "2026-07-20T16:30:00Z",
+          "resolved": false,
+          "type": "value-prop",
+          "route": "strategist",
+          "priority": "high",
+          "verbatim": "what is the value prop/pain point we are solving?",
+          "action": "",
+          "themeId": "t1",
+          "reactionCount": 0,
+          "replies": []
+        }
+      ]
+    },
+    {
+      "nodeId": "2410:24",
+      "name": "Colostrum Soda · 05",
+      "page": "Statics | Batch Two",
+      "sectionLabel": "Colostrum Soda",
+      "thumbnailUrl": null,
+      "openCount": 1,
+      "threads": [
+        {
+          "commentId": "315",
+          "author": { "handle": "S. Rahal", "userId": "u_rahal", "isClient": true },
+          "createdAt": "2026-07-20T16:28:00Z",
+          "resolved": false,
+          "type": "value-prop",
+          "route": "strategist",
+          "priority": "high",
+          "verbatim": "this is not a value prop? are you talking about energy or immunity here?",
+          "action": "",
+          "themeId": "t1",
+          "reactionCount": 0,
+          "replies": []
+        }
+      ]
+    },
+    {
+      "nodeId": "2410:37",
+      "name": "Colostrum Soda · 07",
+      "page": "Statics | Batch Two",
+      "sectionLabel": "Colostrum Soda",
+      "thumbnailUrl": null,
+      "openCount": 1,
+      "threads": [
+        {
+          "commentId": "317",
+          "author": { "handle": "S. Rahal", "userId": "u_rahal", "isClient": true },
+          "createdAt": "2026-07-20T16:33:00Z",
+          "resolved": false,
+          "type": "value-prop",
+          "route": "strategist",
+          "priority": "high",
+          "verbatim": "same feedback here",
+          "action": "",
+          "themeId": "t1",
+          "reactionCount": 0,
+          "replies": []
+        },
+        {
+          "commentId": "312",
+          "author": { "handle": "S. Rahal", "userId": "u_rahal", "isClient": true },
+          "createdAt": "2026-07-20T16:20:00Z",
+          "resolved": false,
+          "type": "copy",
+          "route": "designer",
+          "priority": "medium",
+          "verbatim": "change language",
+          "action": "Revise the on-ad copy (client flagged the wording; pair with the strategist's value-prop direction for this ad before rewording).",
+          "themeId": null,
+          "reactionCount": 0,
+          "replies": []
+        },
+        {
+          "commentId": "318",
+          "author": { "handle": "S. Rahal", "userId": "u_rahal", "isClient": true },
+          "createdAt": "2026-07-20T16:42:00Z",
+          "resolved": true,
+          "type": "copy",
+          "route": "designer",
+          "priority": "low",
+          "verbatim": "ritual",
+          "action": "Use the word “ritual” in the headline framing.",
+          "themeId": null,
+          "reactionCount": 1,
+          "replies": []
+        }
+      ]
+    },
+    {
+      "nodeId": "2620:14",
+      "name": "Colostrum Powder · 02",
+      "page": "Statics | Batch Two",
+      "sectionLabel": "Colostrum Powder",
+      "thumbnailUrl": null,
+      "openCount": 1,
+      "threads": [
+        {
+          "commentId": "314",
+          "author": { "handle": "S. Rahal", "userId": "u_rahal", "isClient": true },
+          "createdAt": "2026-07-20T16:26:00Z",
+          "resolved": false,
+          "type": "value-prop",
+          "route": "strategist",
+          "priority": "high",
+          "verbatim": "what is this value prop?",
+          "action": "",
+          "themeId": "t1",
+          "reactionCount": 0,
+          "replies": [
+            {
+              "author": "K. Rao",
+              "text": "This block is about gut + immunity. I'll tighten the headline once we lock the angle.",
+              "createdAt": "2026-07-20T17:10:00Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "nodeId": "2620:29",
+      "name": "Colostrum Powder · 04",
+      "page": "Statics | Batch Two",
+      "sectionLabel": "Colostrum Powder",
+      "thumbnailUrl": null,
+      "openCount": 1,
+      "threads": [
+        {
+          "commentId": "313",
+          "author": { "handle": "S. Rahal", "userId": "u_rahal", "isClient": true },
+          "createdAt": "2026-07-20T16:24:00Z",
+          "resolved": false,
+          "type": "copy",
+          "route": "copywriter",
+          "priority": "medium",
+          "verbatim": "it also strengthens my skin barrier so it's giving me that glow",
+          "action": "Add the skin-barrier / “glow” benefit to this ad's copy. Client is offering approved benefit language to work in.",
+          "themeId": null,
+          "reactionCount": 0,
+          "replies": []
+        },
+        {
+          "commentId": "310",
+          "author": { "handle": "S. Rahal", "userId": "u_rahal", "isClient": true },
+          "createdAt": "2026-07-20T16:15:00Z",
+          "resolved": false,
+          "type": "design",
+          "route": "designer",
+          "priority": "medium",
+          "verbatim": "logo feels small here, bump it up",
+          "action": "Increase the ARMRA logo size on this frame.",
+          "themeId": null,
+          "reactionCount": 0,
+          "replies": [
+            {
+              "author": "M. Lopez",
+              "text": "On it, will match the logo scale to the Soda set.",
+              "createdAt": "2026-07-20T17:20:00Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "nodeId": "2620:41",
+      "name": "Colostrum Powder · 06",
+      "page": "Statics | Batch Two",
+      "sectionLabel": "Colostrum Powder",
+      "thumbnailUrl": null,
+      "openCount": 0,
+      "threads": [
+        {
+          "commentId": "311",
+          "author": { "handle": "S. Rahal", "userId": "u_rahal", "isClient": true },
+          "createdAt": "2026-07-20T16:18:00Z",
+          "resolved": true,
+          "type": "approval",
+          "route": "none",
+          "priority": "low",
+          "verbatim": "love this one, approved ✅",
+          "action": "",
+          "themeId": null,
+          "reactionCount": 2,
+          "replies": []
+        }
+      ]
+    }
+  ],
+  "unplaced": []
+}

@@ -18,21 +18,37 @@ const keepAndOverlay = item.is_reference_based === true && isPromoObjective;
 // no new copy is written for them (Eric Mann rule: never a new angle on a variant).
 const isPromoVariant = item.is_promo_variant === true;
 
+// Website: prefer the URL the requester entered on the form, else the brand brain's.
+// Grounds the copy in the brand's real positioning without inventing facts.
+const brandWebsite = String(body.website || brain.website || '').trim();
+
+// Forensic spec of THIS slot's blueprint (from the "Analyze Blueprint" node), matched by
+// template_url. Lets the copy mirror the source ad's text structure/hierarchy. The copy
+// node otherwise never sees the source image. Missing node/analysis is fine (empty).
+let blueprintAnalysis = '';
+try {
+  const analyses = $('Analyze Blueprint').all();
+  const m = analyses.find(function (a) { return a.json && a.json.template_url === item.template_url; });
+  blueprintAnalysis = m ? String(m.json.blueprint_analysis || '') : '';
+} catch (e) { blueprintAnalysis = ''; }
+
 const copyPrompt = `You are a direct response copywriter for performance ads.
 
 BRAND: ${body.client_name || ''}
+BRAND WEBSITE: ${brandWebsite || 'not provided'}
 BRIEF: ${body.brief || ''}
 BRAND TONE: ${brain.brand_tone || ''}
 KEY OFFER: ${brain.key_offer || ''}
 TARGET AUDIENCE: ${brain.target_personas || ''}
 ANGLE: ${angleDirection}
+${blueprintAnalysis ? '\nSOURCE AD SPEC (a forensic read of the ad this creative is modeled on). Match its COPY STRUCTURE and hierarchy - the same kind and number of text blocks, and the same role for the headline, subhead, and CTA. Adapt the wording to THIS brand; do NOT copy the source ad wording, claims, or numbers unless this brand can truthfully say them:\n' + blueprintAnalysis.slice(0, 1800) + '\n' : ''}
 
 Write ad copy with EXACTLY this structure:
 - HEADLINE: 4-7 words. Title Case, not all-caps (the brand's own style controls final casing). One strong hook. No em dashes.
 - SUBLINE: 8-14 words. Sentence case. Supports the headline directly.
 - CTA: 3-5 words. Action-driven button text.
 
-Rules: Maximum 3 text elements. No bullet lists. No feature lists. Headline must be dominant. Use ONLY facts, numbers, dates, prices, and offer details that appear in the BRIEF or KEY OFFER above. NEVER invent or change a date, year, price, percentage, or statistic. If the brief contains a promotional offer, include the offer verbatim (exact numbers and dates) in one element. NEVER attach a year or date to an award, badge, or press mention unless that exact pairing appears in the BRIEF (e.g. do not restamp a "Wirecutter 2024" pick with the sale year).
+Rules: Maximum 3 text elements. No bullet lists. No feature lists. Headline must be dominant. Use the BRAND WEBSITE only to match the brand's voice and category - it is context, NOT a source of claims; do not state any fact, number, or offer you cannot see in the BRIEF or KEY OFFER. Use ONLY facts, numbers, dates, prices, and offer details that appear in the BRIEF or KEY OFFER above. NEVER invent or change a date, year, price, percentage, or statistic. If the brief contains a promotional offer, include the offer verbatim (exact numbers and dates) in one element. NEVER attach a year or date to an award, badge, or press mention unless that exact pairing appears in the BRIEF (e.g. do not restamp a "Wirecutter 2024" pick with the sale year).
 
 Return ONLY valid JSON: {"headline": "...", "subline": "...", "cta": "..."}`;
 
@@ -58,10 +74,17 @@ if (!keepAndOverlay && !isPromoVariant) {
     const raw = response.choices[0].message.content;
     copy = JSON.parse(raw.replace(/```json\n?/g, '').replace(/```/g, '').trim());
   } catch (e) {
+    // The copy LLM failed (dead/rotated OpenRouter key, bad model id, or unparseable
+    // response). DO NOT ship the old generic "Find Your Solution" default on every ad -
+    // that silently masks the failure and makes every creative identical. Fall back to
+    // real brand data and SURFACE the error so a bad run is obvious downstream.
+    const kw = String(brain.key_offer || brain.product_benefits || '').split(/[.\n]/)[0].trim();
+    const bn = String(body.client_name || '').trim();
     copy = {
-      headline: 'Find Your Solution.',
-      subline: 'Trusted options reviewed by independent experts.',
-      cta: 'Learn More'
+      headline: (bn || 'This Changes Things').slice(0, 48),
+      subline: (kw || String(brain.target_personas || '').split(/[.\n]/)[0] || '').slice(0, 90),
+      cta: 'Learn More',
+      _copy_error: 'copy LLM failed - ' + String(e.message || e).slice(0, 200)
     };
   }
 }
@@ -108,6 +131,7 @@ return [{
     prompt: enhancedPrompt,
     generated_headline: copy.headline,
     generated_subline: copy.subline,
-    generated_cta: copy.cta
+    generated_cta: copy.cta,
+    copy_error: copy._copy_error || ''
   }
 }];

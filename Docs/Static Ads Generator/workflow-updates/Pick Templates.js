@@ -33,11 +33,22 @@ function arOf(att) {
 // They are AD TEMPLATE slots (is_ref_slot:false) so Build KIE AI Prompt borrows the
 // concept and re-maps it to THIS brand (correct: they're other brands' library ads).
 if (selectedTemplateUrls.length) {
-  return selectedTemplateUrls.map(function (url, idx) {
+  // The form's gallery can be slightly out of sync with the templates bucket and hand us
+  // a URL that no longer exists (404). A dead template_url becomes a broken input image
+  // and produces a junk ad, so drop any that don't resolve before building slots.
+  const livePicks = [];
+  for (let i = 0; i < selectedTemplateUrls.length; i++) {
+    const url = String(selectedTemplateUrls[i]);
+    try {
+      await this.helpers.httpRequest({ method: 'HEAD', url: url });
+      livePicks.push({ url: url, id: String(selectedTemplateIds[i] || ('selected_' + i)) });
+    } catch (e) { /* 404 / unreachable template - skip it */ }
+  }
+  return livePicks.map(function (pick, idx) {
     return {
       json: {
-        template_id: String(selectedTemplateIds[idx] || ('selected_' + idx)),
-        template_url: String(url),
+        template_id: pick.id,
+        template_url: pick.url,
         is_ref_slot: false,
         ref_index: -1,
         ref_source: 'selected_template'

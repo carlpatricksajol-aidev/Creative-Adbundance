@@ -28,6 +28,13 @@ node_modules/
 *.mp4
 *.mov
 *.webm
+
+# CONFIDENTIAL CLIENT DATA — this repo is PUBLIC.
+# Brand Brain harvest holds 50 clients' Creative Brief internals: positioning, personas,
+# competitor lists, compliance notes, CAC targets. Never publish these.
+Docs/Static Ads Generator/brand-brain-harvest/
+Docs/Static Ads Generator/workflow-updates/brand_brain_migration.sql
+Docs/Static Ads Generator/workflow-updates/brand_brain_sql/
 *.mkv
 
 # Local secret files, wherever they live
