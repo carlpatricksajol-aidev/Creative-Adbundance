@@ -1,0 +1,152 @@
+{
+  "name": "Figma Comments — Notify",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "trigger",
+      "name": "Every 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_ANON_KEY }}" },
+            { "name": "Accept", "value": "application/json" }
+          ]
+        },
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/figma_briefs",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "select", "value": "id,file_key,comment_count,open_count,generated_at,brief" },
+            { "name": "generated_at", "value": "=gte.{{ $now.minus({ minutes: 20 }).toISO() }}" },
+            { "name": "order", "value": "generated_at.desc" }
+          ]
+        }
+      },
+      "id": "get_changed_briefs",
+      "name": "Supabase: briefs changed since last run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_SUPABASE_ANON_CRED",
+          "name": "Supabase anon (apikey header)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Dedupe to the newest brief per file_key (the REST call is ordered desc).\n// Emit one item per file that changed in the window, with notification-ready fields.\nconst rows = $input.first().json || [];\nconst DASHBOARD_BASE = $env.DASHBOARD_URL || 'https://figma-comments.srv1486031.hstgr.cloud';\nconst seen = new Set();\nconst out = [];\nfor (const r of rows) {\n  if (seen.has(r.file_key)) continue;\n  seen.add(r.file_key);\n  const b = r.brief || {};\n  out.push({ json: {\n    fileKey: r.file_key,\n    fileName: (b.file && b.file.name) || r.file_key,\n    openCount: r.open_count,\n    commentCount: r.comment_count,\n    figmaUrl: (b.file && b.file.url) || null,\n    dashboardUrl: `${DASHBOARD_BASE}/?file=${encodeURIComponent(r.file_key)}`\n  }});\n}\nreturn out;"
+      },
+      "id": "shape",
+      "name": "One item per changed file",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "has_changes",
+              "leftValue": "={{ $json.fileKey }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ]
+        }
+      },
+      "id": "if_changed",
+      "name": "IF a file changed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#creative-review"
+        },
+        "text": "=New client comments on *{{ $json.fileName }}* — {{ $json.openCount }} open. Brief updated: {{ $json.dashboardUrl }}",
+        "otherOptions": {}
+      },
+      "id": "slack_notify",
+      "name": "Slack: post update",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [920, 220],
+      "credentials": {
+        "slackApi": {
+          "id": "REPLACE_WITH_SLACK_CRED",
+          "name": "Slack (Creative Adbundance)"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "noop_no_changes",
+      "name": "No changes — done",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [920, 400]
+    },
+    {
+      "parameters": {
+        "content": "NOTIFICATIONS ONLY. This workflow does NOT run the engine — the VPS cron (/root/figma-comments/poll.js) does that and writes figma_briefs. Here we just poll Supabase for briefs whose generated_at is newer than the last run and announce them.\n\nEnv expected on the n8n container: SUPABASE_URL, SUPABASE_ANON_KEY, DASHBOARD_URL. Credentials are placeholder refs — pick your real Supabase anon (Header Auth) + Slack creds on import. Swap the Slack node for a Notion node (n8n-nodes-base.notion, create page/append block) if Carl prefers Notion. See FigmaComments/ARCHITECTURE.md.\n\nNote: the 20-min lookback window (generated_at >= now-20m) must stay wider than this schedule interval (15m) so nothing slips between runs; dedupe is by newest-brief-per-file in the Code node.",
+        "height": 300,
+        "width": 460
+      },
+      "id": "note",
+      "name": "Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [240, 480]
+    }
+  ],
+  "connections": {
+    "Every 15 min": {
+      "main": [[{ "node": "Supabase: briefs changed since last run", "type": "main", "index": 0 }]]
+    },
+    "Supabase: briefs changed since last run": {
+      "main": [[{ "node": "One item per changed file", "type": "main", "index": 0 }]]
+    },
+    "One item per changed file": {
+      "main": [[{ "node": "IF a file changed", "type": "main", "index": 0 }]]
+    },
+    "IF a file changed": {
+      "main": [
+        [{ "node": "Slack: post update", "type": "main", "index": 0 }],
+        [{ "node": "No changes — done", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

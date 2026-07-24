@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Static Ads Generator: What You Need to Get Started</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    color: #1f2430;
+    font-size: 11.2pt;
+    line-height: 1.5;
+    margin: 0;
+  }
+  h1 {
+    font-size: 22pt;
+    color: #d6336c;
+    margin: 0 0 4px 0;
+    line-height: 1.15;
+  }
+  .sub {
+    color: #5b6472;
+    font-size: 11pt;
+    margin: 0 0 22px 0;
+  }
+  h2 {
+    font-size: 13.5pt;
+    color: #1f2430;
+    border-bottom: 2px solid #f1d4e0;
+    padding-bottom: 5px;
+    margin: 26px 0 12px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6px 0 10px 0;
+    font-size: 10.6pt;
+  }
+  th {
+    background: #d6336c;
+    color: #fff;
+    text-align: left;
+    padding: 8px 10px;
+    font-weight: 600;
+  }
+  td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #ececf0;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #faf6f8; }
+  ul { margin: 6px 0 10px 0; padding-left: 20px; }
+  li { margin: 3px 0; }
+  strong { color: #1f2430; }
+  .note {
+    background: #faf6f8;
+    border-left: 4px solid #d6336c;
+    padding: 10px 14px;
+    margin: 10px 0;
+    font-size: 10.6pt;
+    border-radius: 4px;
+  }
+  .note ul { margin: 0; }
+  .total {
+    background: #fff5f8;
+    border: 1px solid #f1d4e0;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 10px 0;
+  }
+  .steps { counter-reset: step; list-style: none; padding-left: 0; }
+  .steps li { counter-increment: step; position: relative; padding-left: 34px; margin: 8px 0; }
+  .steps li::before {
+    content: counter(step);
+    position: absolute; left: 0; top: 0;
+    width: 22px; height: 22px;
+    background: #d6336c; color: #fff;
+    border-radius: 50%;
+    text-align: center; line-height: 22px;
+    font-size: 10pt; font-weight: 700;
+  }
+  .keep-together { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+  <h1>Static Ads Generator</h1>
+  <p class="sub">What You Need to Get Started</p>
+
+  <p>This is the simple checklist of everything required to run the Static Ads service for your brand. It covers the tools (with monthly cost), what you provide, and what is one time vs ongoing.</p>
+
+  <h2>1. Tools and Accounts</h2>
+  <table class="keep-together">
+    <thead>
+      <tr><th>Tool</th><th>What it does</th><th>Cost</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>n8n</strong></td><td>Runs the whole workflow that builds your ads</td><td>About $25 / month</td></tr>
+      <tr><td><strong>Supabase</strong></td><td>Stores your brand info, templates, logos, uploads, and finished ads</td><td>$25 / month</td></tr>
+      <tr><td><strong>OpenRouter</strong></td><td>Writes the ad copy (headlines, sublines, CTAs) and reads your reference ads</td><td>Budget $50 / month (usually $15 to $25 used)</td></tr>
+      <tr><td><strong>KIE AI</strong></td><td>Generates the actual ad images</td><td>Pay as you go, based on how many ads you make</td></tr>
+      <tr><td><strong>Claude (Max plan)</strong></td><td>Used to build and maintain the system</td><td>$100 / month</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <strong>Notes that matter</strong>
+    <ul>
+      <li><strong>OpenRouter</strong> writes your copy. It is cheap. The $50 is a safe ceiling, not the real spend.</li>
+      <li><strong>KIE AI</strong> makes the images. This is the main cost that grows with volume. One run can produce around 18 images. Fund this based on how many ads you want each month.</li>
+      <li><strong>Claude Max</strong> is for building and maintaining the system. It is not part of the per ad cost.</li>
+      <li>We do <strong>not</strong> use Airtable. Everything lives in Supabase, which is simpler and avoids past technical issues.</li>
+    </ul>
+  </div>
+
+  <h2>2. What You Provide (Per Brand)</h2>
+  <p>To set up your brand, we need the following once:</p>
+  <ul>
+    <li><strong>Brand name</strong> (and any sister brand names)</li>
+    <li><strong>Brand colors</strong> (hex codes: primary, secondary, accent)</li>
+    <li><strong>Brand tone</strong> (how the brand should sound)</li>
+    <li><strong>Key offer</strong> (your main promotion or selling point)</li>
+    <li><strong>Target audience</strong> (who the ads are for)</li>
+    <li><strong>Product benefits</strong> (what makes the product or service good)</li>
+    <li><strong>Logo</strong> (clean file, PNG preferred)</li>
+    <li><strong>Top performing ads</strong> (your best ads so far, if you have them)</li>
+    <li><strong>Product images</strong> (if you sell a physical product)</li>
+  </ul>
+  <p>If you have reference ads you love, you can upload those too. The system can closely recreate the concept in your brand.</p>
+  <div class="note"><strong>If you cannot provide some of these, that is fine.</strong> The AI will research your brand and fill in the gaps on its own. The more you give us, the more accurate the ads are, but nothing here is a hard blocker.</div>
+
+  <h2>3. One Time vs Monthly</h2>
+  <div class="keep-together">
+    <p><strong>One time setup</strong></p>
+    <ul>
+      <li>Create the accounts above</li>
+      <li>Load your brand info, logo, and assets into the system</li>
+      <li>Connect the intake form</li>
+    </ul>
+    <p><strong>Monthly</strong></p>
+    <ul>
+      <li>n8n: about $25</li>
+      <li>Supabase: $25</li>
+      <li>OpenRouter: budget $50</li>
+      <li>KIE AI: based on your ad volume</li>
+      <li>Claude Max: $100</li>
+    </ul>
+  </div>
+
+  <h2>4. Rough Monthly Total</h2>
+  <div class="total keep-together">
+    <p style="margin:0 0 6px 0;">For a normal volume of ads:</p>
+    <ul style="margin:0;">
+      <li>Fixed tools: about <strong>$200 / month</strong></li>
+      <li>KIE AI image generation: varies with how many ads you make</li>
+    </ul>
+    <p style="margin:8px 0 0 0;">The more ads you generate, the more KIE AI credits you use. Everything else stays about the same.</p>
+  </div>
+
+  <h2>5. How It Works (Short Version)</h2>
+  <ol class="steps keep-together">
+    <li>You fill out a simple intake form with your brand details and any references.</li>
+    <li>The system pulls your brand info and templates from Supabase.</li>
+    <li>It writes on brand copy for each ad.</li>
+    <li>It generates the ad images.</li>
+    <li>Finished ads are saved and ready for you to review.</li>
+  </ol>
+
+</body>
+</html>

@@ -11,7 +11,7 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Poppins',sans-serif;}
 #app{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:row;overflow:hidden;}
-#lp{width:280px;flex-shrink:0;height:100%;background:#6B47FF;display:flex;flex-direction:column;padding:36px 26px;overflow:hidden;}
+#lp{width:248px;flex-shrink:0;height:100%;background:#0b0b12;border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;padding:20px 14px;overflow:hidden;}
 .logo{font-size:15px;font-weight:700;color:#fff;line-height:1.3;}
 .badge{font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.38);margin-top:3px;}
 #lh{font-size:21px;font-weight:700;color:#fff;line-height:1.3;margin-top:30px;transition:opacity .3s ease;}
@@ -148,7 +148,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Po
 .mm-card.primary{border-color:rgba(107,71,255,.3);}
 
 /* ── STATIC ADS VIEW ── */
-#v-static{display:none;padding:48px 52px 120px;width:100%;max-width:660px;}
+#v-static{display:none;padding:40px 46px 110px;width:100%;max-width:1440px;}
 .sa-header-badge{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.12em;color:#f59e0b;margin-bottom:6px;}
 .sa-back{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:rgba(255,255,255,.3);cursor:pointer;margin-bottom:20px;transition:color .2s;background:none;border:none;font-family:'Poppins',sans-serif;padding:0;}
 .sa-back:hover{color:rgba(255,255,255,.7);}
@@ -167,6 +167,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Po
 .lib-filter-btn{background:#181818;border:1px solid rgba(255,255,255,.09);border-radius:100px;padding:5px 12px;font-size:10px;color:rgba(255,255,255,.4);cursor:pointer;font-family:'Poppins',sans-serif;transition:all .15s;white-space:nowrap;}
 .lib-filter-btn.active{border-color:#6B47FF;color:#a78bfa;background:rgba(107,71,255,.1);}
 .lib-count{font-size:10px;color:rgba(255,255,255,.22);white-space:nowrap;margin-left:auto;flex-shrink:0;}
+.lib-refresh,.lib-detail-refresh{display:inline-flex;align-items:center;gap:6px;background:#1b1b26;border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.72);border-radius:8px;padding:7px 13px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Poppins',sans-serif;flex-shrink:0;transition:border-color .2s,color .2s;}
+.lib-refresh:hover,.lib-detail-refresh:hover{border-color:rgba(124,109,247,.6);color:#fff;}
+.lib-refresh.spinning svg,.lib-detail-refresh.spinning svg{animation:libspin .7s linear infinite;}
+@keyframes libspin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 
 /* ── QA badge + filters ── */
 .lib-qa-badge{position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:4px;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);border-radius:100px;padding:3px 8px 3px 6px;font-size:9px;font-weight:700;font-family:'Poppins',sans-serif;z-index:3;line-height:1;}
@@ -444,19 +448,39 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Po
 
 <div id="app">
   <div id="lp">
-    <div>
-      <div class="logo">Creative Ad&bull;Bundance</div>
-      <div class="badge">SA-1 // Kickoff Intake</div>
+    <div class="sb-brand">
+      <div class="sb-brand-mark">CA</div>
+      <div class="sb-brand-name">Creative Ad&bull;Bundance</div>
     </div>
-    <div id="lh">Unleash your brand's potential.</div>
-    <div id="ls">AI-powered creative engine. Data-driven ad production at scale.</div>
-    <div id="st"></div>
-    <div class="tblock">
-      <div id="qt">"Our team found creative winners driving strong performance against our core KPIs."</div>
-      <div id="qa">Michaela Hince &middot; Mockingbird</div>
+    <div class="sb-section-label">Workflows</div>
+    <nav class="sb-nav">
+      <button class="sb-nav-item" id="nav-concepts">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        <span>Concept Generator</span>
+      </button>
+      <button class="sb-nav-item" id="nav-static">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span>Static Ads Generator</span>
+      </button>
+      <button class="sb-nav-item" id="nav-library">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span>Ad Library</span>
+      </button>
+    </nav>
+    <div class="sb-spacer"></div>
+    <div class="sb-user">
+      <div class="sb-user-avatar">IU</div>
+      <div class="sb-user-meta">
+        <div class="sb-user-name">Info User</div>
+        <div class="sb-user-email">info@creativeadbundance.com</div>
+      </div>
     </div>
-    <button id="home-btn">&#8962; Home</button>
     <button id="logout-btn">Sign out</button>
+    <div style="display:none;">
+      <div id="lh"></div><div id="ls"></div><div id="st"></div>
+      <div id="qt"></div><div id="qa"></div>
+      <button id="home-btn">Home</button>
+    </div>
   </div>
   <div id="rp">
     <div id="pb"><div id="pf"></div></div>
@@ -473,20 +497,37 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Po
       </div>
       <!-- STATIC ADS VIEW -->
       <div id="v-static">
-        <button class="sa-back" id="sa-back-btn">&#8592; Back to menu</button>
-        <div class="sa-header-badge">Static Ads Generation</div>
-        <div class="fttl" style="margin-bottom:5px;">Static Ad Request</div>
-        <div class="fdsc" style="margin-bottom:28px;">Fill in the details below. The pipeline will generate static ad creatives for the selected client.</div>
-        <div class="fg">
-          <div class="fl">Client name</div>
-          <div class="fh">Type or click Browse to pick from the client list</div>
-          <div class="client-name-row">
-            <input type="text" class="fi" id="sa-client" placeholder="Type or click Browse to pick from the client list" autocomplete="off">
-            <button type="button" class="browse-btn" id="sa-browse-btn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Browse
-            </button>
+        <button class="sa-back" id="sa-back-btn" style="display:none;">&#8592; Back to menu</button>
+        <div class="sa-static-head">
+          <div class="sa-header-badge">Static Ads Generation</div>
+          <div class="fttl" style="margin-bottom:5px;">Static Ad Request</div>
+          <div class="fdsc" style="margin-bottom:24px;">Fill in the details, then pick the templates below &mdash; each template you select becomes one static ad.</div>
+        </div>
+        <div class="sa-topbar">
+          <div class="sa-tb-field sa-tb-client">
+            <div class="fl">Client name</div>
+            <div class="client-name-row">
+              <input type="text" class="fi" id="sa-client" placeholder="Type or Browse" autocomplete="off">
+              <button type="button" class="browse-btn" id="sa-browse-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Browse
+              </button>
+            </div>
+          </div>
+          <div class="sa-tb-field sa-tb-count">
+            <div class="fl"># Ads</div>
+            <input type="number" class="fi" id="sa-count" placeholder="e.g. 50" min="1" max="200">
+          </div>
+          <div class="sa-tb-field sa-tb-mode">
+            <div class="fl">Generation mode</div>
+            <select class="fi" id="sa-mode-select">
+              <option value="top_performers" selected>Top performers &mdash; pick templates below</option>
+              <option value="client_winners">Client&rsquo;s winning ads (upload)</option>
+              <option value="user_reference">My reference (upload below)</option>
+              <option value="team_top5">Team&rsquo;s top 5 formats (on file)</option>
+            </select>
           </div>
         </div>
+        <div class="sa-form-secondary">
         <div class="fg" id="sa-product-section" style="display:none;">
           <div class="fl">Products <span style="font-weight:400;color:rgba(255,255,255,.28);font-size:9px;margin-left:4px;">— select one or more; skip for service brands</span></div>
           <div class="fh">Select which products this batch should feature. Click to toggle, click again to deselect.</div>
@@ -503,27 +544,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Po
             <div class="prod-chips" id="sa-prod-chips"></div>
           </div>
         </div>
-        <div class="fg">
-          <div class="fl">Number of static ads</div>
-          <div class="fh">How many static ads to generate for this batch?</div>
-          <input type="number" class="fi" id="sa-count" placeholder="e.g. 50" min="1" max="200">
-        </div>
-        <div class="fg" id="sa-mode-section">
-          <div class="fl">Generation mode</div>
-          <div class="fh">How should the AI approach this batch? This determines which templates and references are used.</div>
-          <label class="copt sa-mode-opt" id="sa-mode-1"><input type="radio" name="sa-mode" value="top_performers" checked> <span>Use our top performers &mdash; generate from our proven Airtable templates</span></label>
-          <label class="copt sa-mode-opt" id="sa-mode-2"><input type="radio" name="sa-mode" value="client_winners"> <span>Client&rsquo;s winning ads &mdash; upload and use the client&rsquo;s own proven ads as creative direction</span></label>
-          <label class="copt sa-mode-opt" id="sa-mode-3"><input type="radio" name="sa-mode" value="user_reference"> <span>My reference &mdash; use the references I&rsquo;m uploading below as primary creative direction</span></label>
-          <label class="copt sa-mode-opt" id="sa-mode-4"><input type="radio" name="sa-mode" value="team_top5"> <span>Team&rsquo;s top 5 formats &mdash; use this client&rsquo;s winning ads already on file</span></label>
-        </div>
-        <div class="fg">
+        <!-- generation mode + # ads moved to the top toolbar; template picker is the full-width section below -->
+        <div class="fg sa-gf-full">
           <div class="fl">Platform / size</div>
           <div class="fh">Select the placement type for these static ads</div>
-          <label class="copt" id="sa-plat-1"><input type="checkbox"> <span>Meta / TikTok &mdash; Square (1:1)</span></label>
-          <label class="copt" id="sa-plat-2"><input type="checkbox"> <span>Meta / TikTok &mdash; Vertical (9:16)</span></label>
-          <label class="copt" id="sa-plat-3"><input type="checkbox"> <span>Meta &mdash; Horizontal (1.91:1)</span></label>
-          <label class="copt" id="sa-plat-4"><input type="checkbox"> <span>YouTube &mdash; Horizontal (16:9)</span></label>
-          <label class="copt" id="sa-plat-5"><input type="checkbox"> <span>Amazon</span></label>
+          <div class="plat-chips">
+            <label class="copt plat-chip" id="sa-plat-1"><input type="checkbox"> <span>Meta / TikTok &mdash; Square (1:1)</span></label>
+            <label class="copt plat-chip" id="sa-plat-2"><input type="checkbox"> <span>Meta / TikTok &mdash; Vertical (9:16)</span></label>
+            <label class="copt plat-chip" id="sa-plat-3"><input type="checkbox"> <span>Meta &mdash; Horizontal (1.91:1)</span></label>
+            <label class="copt plat-chip" id="sa-plat-4"><input type="checkbox"> <span>YouTube &mdash; Horizontal (16:9)</span></label>
+            <label class="copt plat-chip" id="sa-plat-5"><input type="checkbox"> <span>Amazon</span></label>
+          </div>
         </div>
         <div class="fg">
           <div class="fl">Ad objective / brief</div>
@@ -545,6 +576,25 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Po
           <div class="fh">Upload a pre-selected AI avatar for UGC-style ads. Single image only. If left empty, the pipeline will not generate a human subject.</div>
           <div id="sa-avatar-upload-wrap"></div>
         </div>
+        </div><!-- /.sa-form-secondary -->
+        <div class="sa-templates-full" id="sa-templates-section">
+          <div class="sa-tpl-head">
+            <div class="sa-tpl-title">Templates <span>&mdash; pick which templates to build from; one ad per template</span></div>
+            <button type="button" class="tm-clear-btn" id="tm-clear" style="display:none;">&times; Clear selection</button>
+          </div>
+          <div id="tm-toolbar">
+            <select id="tm-category"><option value="">All categories</option></select>
+            <div id="tm-search-wrap">
+              <span id="tm-search-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+              <input id="tm-search" type="text" placeholder="Search templates by category, style, tag..." autocomplete="off">
+            </div>
+            <span id="tm-count"></span>
+          </div>
+          <div id="tm-grid"></div>
+          <div id="tm-loading" style="display:none;"><div class="prod-spinner"></div> Loading templates&hellip;</div>
+          <div id="tm-empty" style="display:none;">No templates match your filter.</div>
+          <div id="tm-loadmore-wrap" style="display:none;"><button id="tm-loadmore">Load more</button></div>
+        </div>
       </div>
 
 
@@ -554,6 +604,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Po
           <button class="lib-back" id="lib-back-btn">&#8592; Back</button>
           <input type="text" class="lib-search" id="lib-search" placeholder="Search brands...">
           <span class="lib-count" id="lib-count"></span>
+          <button class="lib-refresh" id="lib-refresh-btn" title="Reload the latest ads">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Refresh
+          </button>
         </div>
         <div class="lib-scroll" id="lib-scroll">
           <div class="lib-loading" id="lib-loading">
@@ -607,6 +661,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Po
               <option value="newest">Newest first</option>
             </select>
             <button id="lib-select-toggle">&#9635; Select</button>
+            <button class="lib-detail-refresh" id="lib-refresh-btn2" title="Reload the latest ads">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              Refresh
+            </button>
           </div>
           <div id="lib-bulk-bar">
             <span id="lib-sel-count">0 selected</span>
@@ -643,14 +701,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Po
       <button id="sv">Save &amp; Continue &#8594;</button>
     </div>
     <div id="sa-ff">
-      <button class="sa-back" id="sa-back-btn2">&#8592; Back</button>
+      <span id="sa-ff-count">0 templates selected</span>
+      <button class="sa-back" id="sa-back-btn2" style="display:none;">&#8592; Back</button>
       <button id="sa-submit">Generate Static Ads &#8594;</button>
     </div>
   </div>
 </div>
 
-<!-- MODE SELECTOR MODAL -->
-<div id="mode-modal-overlay" class="open">
+<!-- MODE SELECTOR MODAL (deprecated — sidebar nav replaces it; kept hidden for JS compat) -->
+<div id="mode-modal-overlay">
   <div id="mode-modal">
     <div class="mm-badge">Creative Ad&bull;Bundance &mdash; SA-1</div>
     <div class="mm-title">What do you want to do today?</div>
@@ -707,6 +766,93 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Po
   </div>
 </div>
 
+<style>
+#tpl-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);z-index:1000;display:none;align-items:center;justify-content:center;padding:24px;}
+#tpl-modal-overlay.open{display:flex;}
+#tpl-modal{width:min(1040px,96vw);height:min(88vh,900px);background:#111119;border:1px solid rgba(255,255,255,.09);border-radius:16px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.6);}
+#tm-header{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 22px 14px;border-bottom:1px solid rgba(255,255,255,.07);}
+#tm-title{font-size:17px;font-weight:700;color:#fff;}
+#tm-subtitle{font-size:11.5px;color:rgba(255,255,255,.4);margin-top:3px;}
+#tm-close{background:none;border:none;color:rgba(255,255,255,.45);font-size:26px;line-height:1;cursor:pointer;padding:0 4px;}
+#tm-close:hover{color:#fff;}
+#tm-toolbar{display:flex;align-items:center;gap:10px;padding:0;border-bottom:none;margin-bottom:14px;flex-wrap:wrap;}
+#tm-category{background:#1b1b26;border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:9px;padding:8px 12px;font-size:12px;min-width:190px;max-width:240px;}
+#tm-search-wrap{position:relative;flex:1;min-width:180px;}
+#tm-search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.35);display:flex;}
+#tm-search{width:100%;background:#1b1b26;border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:9px;padding:9px 12px 9px 32px;font-size:12px;}
+#tm-search:focus,#tm-category:focus{outline:none;border-color:rgba(124,109,247,.6);}
+#tm-count{font-size:11px;color:rgba(255,255,255,.4);white-space:nowrap;}
+#tm-grid-wrap{flex:1;overflow-y:auto;padding:16px 22px;}
+#tm-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+@media(max-width:1000px){#tm-grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:680px){#tm-grid{grid-template-columns:repeat(2,1fr);}}
+.tm-card{position:relative;border-radius:11px;overflow:hidden;cursor:pointer;background:#1a1a24;border:2px solid transparent;transition:border-color .12s,transform .12s;}
+.tm-card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.18);}
+.tm-card.sel{border-color:#7c6df7;}
+.tm-thumb{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;background:#0d0d14;min-height:100px;}
+.tm-check{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;background:#7c6df7;color:#fff;display:none;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.4);}
+.tm-card.sel .tm-check{display:flex;}
+.tm-overlay{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:12px 13px 11px;pointer-events:none;background:linear-gradient(to top, rgba(0,0,0,.9) 0%, rgba(0,0,0,.5) 24%, rgba(0,0,0,0) 50%);transition:background .18s;}
+.tm-card:hover .tm-overlay{background:linear-gradient(to top, rgba(0,0,0,.92) 0%, rgba(0,0,0,.68) 45%, rgba(0,0,0,.28) 100%);}
+.tm-ov-cat{font-size:12.5px;font-weight:700;color:#fff;line-height:1.25;text-shadow:0 1px 3px rgba(0,0,0,.55);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tm-ov-meta{font-size:10.5px;color:rgba(255,255,255,.82);margin-top:3px;line-height:1.3;text-shadow:0 1px 3px rgba(0,0,0,.55);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#tm-loading{align-items:center;justify-content:center;gap:8px;color:rgba(255,255,255,.5);font-size:12px;padding:30px;}
+#tm-empty{text-align:center;color:rgba(255,255,255,.4);font-size:12.5px;padding:40px;}
+#tm-loadmore-wrap{text-align:center;padding:18px 0 4px;}
+#tm-loadmore{background:#1b1b26;border:1px solid rgba(255,255,255,.14);color:#fff;border-radius:9px;padding:9px 20px;font-size:12px;cursor:pointer;}
+#tm-loadmore:hover{border-color:rgba(124,109,247,.6);}
+#tm-footer{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border-top:1px solid rgba(255,255,255,.08);background:#0e0e15;}
+#tm-sel-info{font-size:12.5px;color:rgba(255,255,255,.7);}
+#tm-sel-count{color:#7c6df7;font-weight:700;}
+#tm-done{background:#f5a623;color:#1a1206;border:none;border-radius:9px;padding:10px 26px;font-size:13px;font-weight:700;cursor:pointer;}
+#tm-done:hover{filter:brightness(1.06);}
+</style>
+<!-- (template gallery is now inline in the Static Ads view) -->
+
+<style>
+/* CreativeOS-style dark sidebar */
+.sb-brand{display:flex;align-items:center;gap:10px;padding:6px 8px 4px;}
+.sb-brand-mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#6B47FF,#a78bfa);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+.sb-brand-name{font-size:13px;font-weight:700;color:#fff;line-height:1.2;}
+.sb-section-label{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.28);margin:22px 10px 8px;}
+.sb-nav{display:flex;flex-direction:column;gap:3px;}
+.sb-nav-item{display:flex;align-items:center;gap:11px;width:100%;background:transparent;border:none;color:rgba(255,255,255,.62);padding:10px 11px;border-radius:9px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:'Poppins',sans-serif;text-align:left;transition:background .15s,color .15s;}
+.sb-nav-item svg{flex-shrink:0;opacity:.75;}
+.sb-nav-item:hover{background:rgba(255,255,255,.05);color:#fff;}
+.sb-nav-item.active{background:rgba(107,71,255,.16);color:#fff;}
+.sb-nav-item.active svg{opacity:1;color:#a78bfa;}
+.sb-spacer{flex:1;}
+.sb-user{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:rgba(255,255,255,.03);margin-bottom:8px;}
+.sb-user-avatar{width:30px;height:30px;border-radius:50%;background:#26263a;color:#c9c4ff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sb-user-name{font-size:11.5px;font-weight:600;color:#fff;line-height:1.3;}
+.sb-user-email{font-size:9.5px;color:rgba(255,255,255,.4);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;}
+/* Static Ads full-page layout */
+.sa-static-head{max-width:1100px;}
+.sa-form-secondary{display:grid;grid-template-columns:repeat(2,1fr);gap:16px 22px;align-items:start;max-width:1100px;}
+.sa-form-secondary > .fg{margin-bottom:0;}
+#sa-product-section{grid-column:1/-1;}
+.sa-gf-full{grid-column:1/-1;}
+.plat-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.plat-chip{flex:0 0 auto;width:auto;margin-bottom:0;padding:8px 13px;font-size:11.5px;}
+@media(max-width:820px){.sa-form-secondary{grid-template-columns:1fr;}}
+.sa-topbar{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:24px;max-width:1100px;}
+.sa-tb-field{display:flex;flex-direction:column;min-width:0;}
+.sa-tb-field .fl{margin-bottom:6px;}
+.sa-tb-client{flex:2;min-width:240px;}
+.sa-tb-count{flex:0 0 96px;}
+.sa-tb-mode{flex:1.6;min-width:220px;}
+#sa-mode-select{cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;padding-right:26px;}
+.sa-count-ro{opacity:.6;cursor:default;}
+.sa-templates-full{width:100%;margin-top:26px;border-top:1px solid rgba(255,255,255,.07);padding-top:22px;}
+.sa-tpl-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;}
+.sa-tpl-title{font-size:14px;font-weight:700;color:#fff;}
+.sa-tpl-title span{font-weight:400;color:rgba(255,255,255,.3);font-size:11px;margin-left:6px;}
+.tm-clear-btn{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.7);border-radius:8px;padding:6px 12px;font-size:11px;cursor:pointer;font-family:'Poppins',sans-serif;white-space:nowrap;}
+.tm-clear-btn:hover{border-color:rgba(255,255,255,.28);color:#fff;}
+#sa-ff-count{font-size:12px;color:rgba(255,255,255,.72);font-weight:500;}
+#sa-ff-count::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#6B47FF;margin-right:7px;vertical-align:middle;}
+</style>
+
 <!-- DELETE CONFIRM MODAL -->
 <div id="del-modal-overlay">
   <div id="del-modal">
@@ -753,7 +899,7 @@ function routeFromHash(){
   else if(h === '#library'){ showLibrary(false); }
   else if(h === '#static'){ showStaticAds(false); }
   else if(h === '#concepts'){ showConcepts(false); }
-  else { showModeModal(); }
+  else { setHash('#static'); showStaticAds(false); }
 }
 
 window.addEventListener('hashchange', routeFromHash);
@@ -1169,7 +1315,7 @@ function showLibrary(pushHash){
 
   setLC('Ad Library','Browse all generated static ads across all brands and runs.');
   ge('st').innerHTML='';
-  ge('home-btn').classList.add('visible');
+  setActiveNav('library');
 
   if(libAllAds.length === 0){
     loadAllAds().then(renderBrandGrid);
@@ -1205,6 +1351,22 @@ function loadAllAds(){
     content.style.display='block';
   });
 }
+
+// Refresh: silently re-fetch ads and re-render whichever library view is open (no full page reload).
+function refreshAdsView(btn){
+  if(btn){ btn.classList.add('spinning'); }
+  return sb.from('static_ads').select('*').order('created_at',{ascending:false}).then(function(res){
+    if(!res.error){ libAllAds = res.data || []; }
+    var bv = ge('v-brand');
+    if(bv && bv.classList.contains('active') && currentBrand){ selectBrandView(currentBrand, currentRunId); }
+    else { renderBrandGrid(); }
+    if(btn){ btn.classList.remove('spinning'); }
+  }).catch(function(){ if(btn){ btn.classList.remove('spinning'); } });
+}
+(function(){
+  var b1 = ge('lib-refresh-btn'); if(b1){ b1.addEventListener('click', function(){ refreshAdsView(b1); }); }
+  var b2 = ge('lib-refresh-btn2'); if(b2){ b2.addEventListener('click', function(){ refreshAdsView(b2); }); }
+})();
 
 function groupByBrand(){
   var brands = {};
@@ -1703,7 +1865,7 @@ var Q=[
 
 var CONCEPT_OPTS=["UGC","VO + B-Roll","Podcast","Street Interview","First-Person POV","Skit / Comedy","Green Screen","Animation","B-Roll Only","TTS / Screen Recording","Trend","Reaction","Split-Screen","Whiteboard / Explainer"];
 
-var ALL_BRANDS=["Arbor","ARDMOR, Inc.","Bellini","Brick","Centerfield","ClaimWise","Current","Delta Children","Dr. Wolff","Dream Games","Entreprenista","Evolv","Finance Advisors","Frontlands","Get More Legal Clients","Golf Carts of ATX","Happy Aging","Harley Meds","Hometap","Huckleberry","immy","Innerwell","Kickback","Kind Water","Kudoboard","Mistplay","My Social Calendar","Natural Force","ODDITY","OnlyRx","OpenSky","Path Social","Pattern Brands","Plixi","push\u00fcl","RentRedi","ResQ","Scale Media","SiderAL","Simple Path Financial","Symple Lending","The Flowery","ThreadBeast","Throne","True Classic","Trusted Company Reviews","WTH","zak!"].sort();
+var ALL_BRANDS=["Accredited Debt Relief","Alantara","Alpecin","Arbor","ARDMOR, Inc.","ARMRA","Atticus","AutoInsurance.com","Bellini","Beyond Brew","Beyond Collagen","Bioniq Toothpaste","Brick","Bridge","Business.com","Centerfield","CheapCruises.com","ClaimWise","Collagen Peptides","ConsumerVoice.org","Cruises.com","CruisesOnly","Current","Delta Children","Dr. Wolff","Dream Games","Entreprenista","Entreprenista League","Evolv","Finance Advisors","Frontlands","Get More Legal Clients","GIR","Golf Carts of ATX","Grade Potential","Grade Potential Tutoring","Graduation Alliance","Hair La Vie Clinical Formula","Happy Aging","Harley Meds","Hometap","Huckleberry","IL MAKIAGE","immy","InMyArea.com","Innerwell","Kickback","Kind Water","Kinder Karex","Kudoboard","Linola","LiverMD","Miracle Made","Mistplay","MoveMD","Mulberrys Garment Care","My Social Calendar","Natural Force","Nurx","Oasis Mental Health","ODDITY","OnlyRx","Onsen","OpenSky","Path Social","Pattern Brands","PharmaNutra","Plantur 39","Plixi","pushp\u00fcl","QuoteManage.com","RentRedi","ResQ","Royal Kingdom","Royal Match","Scale Media","Score More Clients","SiderAL","Simple Closure","Simple Path Financial","Smooth Sailing","SpoiledChild","Symple Lending","Tapouts","The Flowery","T-Hero Platinum","ThreadBeast","Throne","True Classic","Trusted Company Reviews","VisionMD","We Live Conscious","WTH","zak!"].sort();
 
 var S=[
   {id:1,nm:"Batch Scope",ac:"#22c55e",lh:"How big is this batch?",ls:"Set concepts and assign concept types.",ft:"Define Batch Scope",fd:"Set how many concepts for this batch and assign a type to each one.",fields:[{id:"concepts",label:"Number of concepts",type:"number",hint:"How many concepts for this batch?"},{type:"concept_slots"},{id:"scope_notes",label:"Additional scope notes",type:"textarea",hint:"Any specific formatting or dimension requirements?"}]},
@@ -1723,23 +1885,32 @@ ge("mode-concepts").addEventListener("click",function(){ ge("mode-modal-overlay"
 ge("mode-static").addEventListener("click",function(){ ge("mode-modal-overlay").classList.remove("open"); showStaticAds(); });
 ge("mode-library").addEventListener("click",function(){ ge("mode-modal-overlay").classList.remove("open"); showLibrary(); });
 
+// ── SIDEBAR NAV ──
+function setActiveNav(view){
+  ['concepts','static','library'].forEach(function(v){ var el = ge('nav-'+v); if(el) el.classList.toggle('active', v===view); });
+}
+ge("nav-concepts").addEventListener("click",function(){ showConcepts(); });
+ge("nav-static").addEventListener("click",function(){ showStaticAds(); });
+ge("nav-library").addEventListener("click",function(){ showLibrary(); });
+
 function showConcepts(pushHash){
   if(pushHash!==false) setHash('#concepts');
-  ge('home-btn').classList.add('visible');
+  setActiveNav('concepts');
   setLC("Unleash your brand's potential.","AI-powered creative engine. Data-driven ad production at scale.");
   showOV();
 }
 
 function showStaticAds(pushHash){
   if(pushHash!==false) setHash('#static');
-  var bv = ge('v-brand'); if(bv) bv.style.display='none';
+  setActiveNav('static');
+  resetMainViews();
   ge("vo").style.display="none"; ge("vf").style.display="none"; ge("vs").style.display="none"; ge("v-static").style.display="block";
   ge("ff").className=""; ge("sa-ff").className="vis"; ge("rs").scrollTop=0;
   setLC("Static Ad Generation","Fill in the brief and the pipeline will generate your static creatives.");
   ge("st").innerHTML="";
-  ge('home-btn').classList.add('visible');
   initStaticAdsRefsUpload();
   initAvatarUpload();
+  initTemplateGrid();
 }
 
 // Reference upload — uploads directly to Supabase Storage, sends URLs only (no base64)
@@ -1945,14 +2116,14 @@ var saPlats=["sa-plat-1","sa-plat-2","sa-plat-3","sa-plat-4","sa-plat-5"];
 saPlats.forEach(function(id){ var el=ge(id); if(el){ var inp=el.querySelector("input"); inp.addEventListener("change",function(){ el.classList.toggle("sel",inp.checked); }); } });
 
 // Generation mode radio styling
-document.querySelectorAll('.sa-mode-opt input[type="radio"]').forEach(function(inp){
-  inp.addEventListener('change', function(){
-    document.querySelectorAll('.sa-mode-opt').forEach(function(opt){ opt.classList.remove('sel'); });
-    if(inp.checked) inp.closest('.sa-mode-opt').classList.add('sel');
-  });
-});
-// Set initial sel state for default checked
-(function(){ var def = document.querySelector('.sa-mode-opt input[type="radio"]:checked'); if(def) def.closest('.sa-mode-opt').classList.add('sel'); })();
+function updateModeSections(){
+  var sel = ge('sa-mode-select'); var m = sel ? sel.value : 'top_performers';
+  var tpl = ge('sa-templates-section');
+  if(tpl) tpl.style.display = (m === 'top_performers') ? 'block' : 'none';
+  updateTplSelInfo();
+}
+ge('sa-mode-select').addEventListener('change', updateModeSections);
+updateModeSections();
 
 ge("sa-browse-btn").addEventListener("click",function(){ currentBrowseTarget="static"; openClientModal(); });
 
@@ -2060,12 +2231,118 @@ ge('sa-prod-clear-all').addEventListener('click', function(){
   renderSelectedProductsBar();
 });
 
+// ── TEMPLATE PICKER (inline grid, multi-select from Supabase creative_os_templates) ──
+var saSelectedTemplates = {}; // map id -> {id, image_url, category}
+var TPL_PAGE = 60;
+var tplOffset = 0, tplLoading = false, tplExhausted = false, tplCatFilter = '', tplSearch = '', tplCatsLoaded = false, tmSearchTimer = null, tplReqSeq = 0, tplGridInit = false;
+
+function loadTemplateCategories(){
+  if(tplCatsLoaded) return;
+  tplCatsLoaded = true;
+  var cats = {};
+  function page(from){
+    sb.from('creative_os_templates').select('category').range(from, from + 999).then(function(res){
+      var rows = res.data || [];
+      rows.forEach(function(r){ if(r.category){ cats[r.category] = (cats[r.category]||0) + 1; } });
+      if(rows.length === 1000){ page(from + 1000); return; }
+      var sel = ge('tm-category');
+      Object.keys(cats).sort().forEach(function(c){ var o = document.createElement('option'); o.value = c; o.textContent = c + ' (' + cats[c] + ')'; sel.appendChild(o); });
+    }).catch(function(){ tplCatsLoaded = false; });
+  }
+  page(0);
+}
+
+function loadTemplates(reset){
+  if(!reset && tplLoading) return;
+  if(!reset && tplExhausted) return;
+  if(reset){ tplOffset = 0; tplExhausted = false; ge('tm-grid').innerHTML = ''; }
+  var mySeq = ++tplReqSeq;
+  tplLoading = true;
+  if(reset){ ge('tm-loading').style.display = 'flex'; ge('tm-empty').style.display = 'none'; ge('tm-loadmore-wrap').style.display = 'none'; }
+  var q = sb.from('creative_os_templates').select('id,image_url,category,style,industry_tags', { count: 'exact' });
+  if(tplCatFilter){ q = q.eq('category', tplCatFilter); }
+  if(tplSearch){ var s = tplSearch; q = q.or('category.ilike.%' + s + '%,style.ilike.%' + s + '%,industry_tags.ilike.%' + s + '%'); }
+  q = q.order('category', { ascending: true, nullsFirst: false }).order('id', { ascending: true }).range(tplOffset, tplOffset + TPL_PAGE - 1);
+  q.then(function(res){
+    if(mySeq !== tplReqSeq) return;
+    tplLoading = false;
+    ge('tm-loading').style.display = 'none';
+    var rows = res.data || [];
+    if(res.count != null){ ge('tm-count').textContent = res.count + ' template' + (res.count === 1 ? '' : 's'); }
+    if(reset && !rows.length){ ge('tm-empty').style.display = 'block'; } else if(rows.length){ ge('tm-empty').style.display = 'none'; }
+    renderTemplateCards(rows);
+    tplOffset += rows.length;
+    if(rows.length < TPL_PAGE){ tplExhausted = true; }
+    ge('tm-loadmore-wrap').style.display = tplExhausted ? 'none' : 'block';
+  }).catch(function(){ if(mySeq !== tplReqSeq) return; tplLoading = false; ge('tm-loading').style.display = 'none'; });
+}
+
+function renderTemplateCards(rows){
+  var grid = ge('tm-grid');
+  rows.forEach(function(t){
+    var card = document.createElement('div'); card.className = 'tm-card'; card.dataset.tid = t.id;
+    if(saSelectedTemplates[t.id]){ card.classList.add('sel'); }
+    var img = document.createElement('img'); img.className = 'tm-thumb'; img.loading = 'lazy'; img.src = t.image_url; img.alt = t.category || 'template';
+    var chk = document.createElement('div'); chk.className = 'tm-check'; chk.innerHTML = '&#10003;';
+    var ov = document.createElement('div'); ov.className = 'tm-overlay';
+    if(t.category){ var oc = document.createElement('div'); oc.className = 'tm-ov-cat'; oc.textContent = t.category; ov.appendChild(oc); }
+    var meta = []; if(t.style) meta.push(t.style); if(t.industry_tags) meta.push(t.industry_tags);
+    if(meta.length){ var om = document.createElement('div'); om.className = 'tm-ov-meta'; om.textContent = meta.join(' · '); ov.appendChild(om); }
+    card.appendChild(img); card.appendChild(chk); card.appendChild(ov);
+    card.addEventListener('click', function(){
+      if(saSelectedTemplates[t.id]){ delete saSelectedTemplates[t.id]; card.classList.remove('sel'); }
+      else { saSelectedTemplates[t.id] = { id: t.id, image_url: t.image_url, category: t.category || '' }; card.classList.add('sel'); }
+      updateTplSelInfo();
+    });
+    grid.appendChild(card);
+  });
+}
+
+function updateTplSelInfo(){
+  var map = (typeof saSelectedTemplates !== 'undefined' && saSelectedTemplates) ? saSelectedTemplates : {};
+  var n = Object.keys(map).length;
+  var el = ge('sa-ff-count'); if(el){ el.textContent = n + ' template' + (n === 1 ? '' : 's') + ' selected'; }
+  var clr = ge('tm-clear'); if(clr){ clr.style.display = n ? 'inline-flex' : 'none'; }
+  var sel = ge('sa-mode-select'), cnt = ge('sa-count');
+  if(sel && cnt && sel.value === 'top_performers' && n){ cnt.value = String(n); }
+}
+
+function initTemplateGrid(){
+  if(tplGridInit) return;
+  tplGridInit = true;
+  loadTemplateCategories();
+  loadTemplates(true);
+  updateTplSelInfo();
+}
+
+ge('tm-loadmore').addEventListener('click', function(){ loadTemplates(false); });
+ge('tm-category').addEventListener('change', function(){ tplCatFilter = this.value; loadTemplates(true); });
+ge('tm-search').addEventListener('input', function(){
+  var v = this.value; clearTimeout(tmSearchTimer);
+  tmSearchTimer = setTimeout(function(){ tplSearch = v.replace(/[,()%]/g, ' ').trim(); loadTemplates(true); }, 400);
+});
+var tmClearBtn = ge('tm-clear');
+if(tmClearBtn){ tmClearBtn.addEventListener('click', function(){
+  saSelectedTemplates = {};
+  document.querySelectorAll('#tm-grid .tm-card.sel').forEach(function(c){ c.classList.remove('sel'); });
+  updateTplSelInfo();
+}); }
+
 var STATIC_ADS_URL="https://n8n-i3t9.srv1486031.hstgr.cloud/webhook/Static-Ads";
 ge("sa-submit").addEventListener("click", function(){
   var client = ge("sa-client").value.trim();
   if(!client){ alert("Please select or enter a client name."); return; }
-  var count = ge("sa-count").value;
-  if(!count || parseInt(count) < 1){ alert("Please enter the number of static ads to generate."); return; }
+  var generationModeEl = ge('sa-mode-select');
+  var generationMode = generationModeEl ? generationModeEl.value : 'top_performers';
+  var selectedTemplatesArr = Object.keys(saSelectedTemplates).map(function(k){ return saSelectedTemplates[k]; });
+  var count;
+  if(generationMode === 'top_performers'){
+    if(!selectedTemplatesArr.length){ alert("Please select at least one template from the library below."); return; }
+    count = selectedTemplatesArr.length;
+  } else {
+    count = ge("sa-count").value;
+    if(!count || parseInt(count) < 1){ alert("Please enter the number of static ads to generate."); return; }
+  }
   var platforms = [];
   saPlats.forEach(function(id){
     var el = ge(id);
@@ -2091,15 +2368,16 @@ ge("sa-submit").addEventListener("click", function(){
   ge("vs").innerHTML="<div class='sico' style='animation:spin 1s linear infinite'>&#8635;</div><div class='sttl'>Submitting static ad request\u2026</div><div class='sdsc'>Sending to the pipeline. Please wait.</div>";
   setLC("Pipeline initialising\u2026","Sending static ad request to production.");
 
-  var generationModeEl = document.querySelector('[name="sa-mode"]:checked');
-  var generationMode = generationModeEl ? generationModeEl.value : 'top_performers';
-
+  var tplForPayload = (generationMode === 'top_performers') ? selectedTemplatesArr : [];
   var payload={
     submitted_at: new Date().toISOString(),
     client_name: client,
     static_ads_count: count,
     platforms: platforms.join(", "),
     generation_mode: generationMode,
+    selected_templates: tplForPayload,
+    selected_template_ids: tplForPayload.map(function(t){ return t.id; }),
+    selected_template_urls: tplForPayload.map(function(t){ return t.image_url; }),
     brief: ge("sa-brief").value.trim(),
     references: ge("sa-refs").value.trim(),
     product_names: productNames,
@@ -2144,7 +2422,17 @@ function rST(){
 function rP(){ ge("pf").style.width=Math.round(done.length/6*100)+"%"; }
 function setLC(h,s){ var lh=ge("lh"),ls=ge("ls"); lh.style.opacity="0"; ls.style.opacity="0"; setTimeout(function(){ lh.textContent=h; ls.textContent=s; lh.style.opacity="1"; ls.style.opacity="1"; },280); }
 
+// Hide the library/brand gallery views and restore normal page scroll.
+// showLibrary/showBrandDetail force #rs to overflow:hidden and paint v-library/v-brand;
+// every other view MUST undo both, or the form sits behind the gallery and cannot scroll.
+function resetMainViews(){
+  var lv=ge('v-library'); if(lv){ lv.style.display='none'; lv.classList.remove('active'); }
+  var bv=ge('v-brand'); if(bv){ bv.style.display='none'; bv.classList.remove('active'); }
+  ge('rs').style.overflow='';
+}
+
 function showOV(){
+  resetMainViews();
   si=null;
   ge("vo").style.display="flex"; ge("vf").style.display="none"; ge("vs").style.display="none"; ge("v-static").style.display="none";
   ge("ff").className=""; ge("sa-ff").className=""; ge("rs").scrollTop=0;
@@ -2166,6 +2454,7 @@ function rPills(){
 function openS(id){
   var s=null; for(var i=0;i<S.length;i++){if(S[i].id===id){s=S[i];break;}} if(!s)return;
   si=id;
+  resetMainViews();
   ge("vo").style.display="none"; ge("vf").style.display="block"; ge("vs").style.display="none"; ge("v-static").style.display="none";
   ge("ff").className="vis"; ge("sa-ff").className=""; ge("rs").scrollTop=0;
   ge("flbl").textContent="0"+s.id+" \u2014 "+s.nm.toUpperCase(); ge("flbl").style.color=s.ac;

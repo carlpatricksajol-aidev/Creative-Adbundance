@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "creative-adbundance/figma-comment-digest/brief.schema.json",
+  "title": "Figma Comment Digest — Designer Revision Brief",
+  "description": "The single data contract the engine emits and the dashboard + n8n consume. One brief per Figma file (per batch). All prose fields (summary/action) are LLM-generated; all counts/ids/pins are deterministic from the Figma REST API.",
+  "type": "object",
+  "required": ["schemaVersion", "file", "generatedAt", "cursor", "stats", "themes", "ads", "unplaced"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "file": {
+      "type": "object",
+      "required": ["key", "name", "url", "lastModified"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "type": "string", "description": "Figma file key parsed from the /design/<key>/ URL" },
+        "name": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "lastModified": { "type": "string", "format": "date-time", "description": "file.last_modified from GET /v1/files/:key" },
+        "batchLabel": { "type": ["string", "null"], "description": "e.g. 'Batch 2' — derived from the page name the comments cluster on, or null" }
+      }
+    },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "cursor": {
+      "type": "object",
+      "description": "Change-detection watermark. n8n stores this per file and only re-summarizes when it moves.",
+      "required": ["latestCommentId", "latestActivityAt", "commentCount"],
+      "additionalProperties": false,
+      "properties": {
+        "latestCommentId": { "type": ["string", "null"] },
+        "latestActivityAt": { "type": ["string", "null"], "format": "date-time", "description": "max(created_at) across all comments incl. replies" },
+        "commentCount": { "type": "integer", "description": "total comments incl. replies; a change here or in latestActivityAt triggers regeneration" }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "required": ["totalComments", "totalThreads", "openThreads", "resolvedThreads", "byClient", "byType", "byRoute"],
+      "additionalProperties": false,
+      "properties": {
+        "totalComments": { "type": "integer", "description": "top-level comments + replies" },
+        "totalThreads": { "type": "integer", "description": "top-level comments only" },
+        "openThreads": { "type": "integer" },
+        "resolvedThreads": { "type": "integer" },
+        "byClient": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["handle", "count"],
+            "additionalProperties": false,
+            "properties": {
+              "handle": { "type": "string" },
+              "userId": { "type": ["string", "null"] },
+              "count": { "type": "integer", "description": "comments authored (threads + replies)" },
+              "isClient": { "type": "boolean", "description": "true = external client stakeholder; false = internal team. Heuristic set by engine, editable." }
+            }
+          }
+        },
+        "byType": {
+          "type": "object",
+          "description": "thread counts per category",
+          "additionalProperties": { "type": "integer" }
+        },
+        "byRoute": {
+          "type": "object",
+          "description": "thread counts per owner the item is routed to",
+          "additionalProperties": { "type": "integer" }
+        }
+      }
+    },
+    "themes": {
+      "type": "array",
+      "description": "Cross-ad clusters (the LLM groups repeated/duplicate feedback). This is the 'don't make the designer read 4 copies of the same note' layer.",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "type", "route", "priority", "summary", "threadIds", "adRefs"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string", "description": "short human title, e.g. 'Value proposition unclear'" },
+          "type": { "$ref": "#/$defs/commentType" },
+          "route": { "$ref": "#/$defs/route" },
+          "priority": { "$ref": "#/$defs/priority" },
+          "summary": { "type": "string", "description": "1-2 sentence synthesis of what the client wants across the grouped threads" },
+          "threadIds": { "type": "array", "items": { "type": "string" }, "description": "commentIds of the top-level threads in this cluster" },
+          "adRefs": { "type": "array", "items": { "type": "string" }, "description": "ad names this theme touches" }
+        }
+      }
+    },
+    "ads": {
+      "type": "array",
+      "description": "One entry per commented frame/ad, in canvas reading order.",
+      "items": {
+        "type": "object",
+        "required": ["nodeId", "name", "page", "thumbnailUrl", "threads"],
+        "additionalProperties": false,
+        "properties": {
+          "nodeId": { "type": "string", "description": "the enclosing frame node id the comment pins resolved to" },
+          "name": { "type": "string", "description": "the frame's Figma layer name" },
+          "page": { "type": "string", "description": "canvas/page name the frame lives on" },
+          "sectionLabel": { "type": ["string", "null"], "description": "nearest heading/section text above the frame, e.g. 'Colostrum Soda', if detectable" },
+          "thumbnailUrl": { "type": ["string", "null"], "description": "PNG render URL from GET /v1/images (24h TTL) — dashboard should cache/persist" },
+          "openCount": { "type": "integer" },
+          "threads": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/thread" }
+          }
+        }
+      }
+    },
+    "unplaced": {
+      "type": "array",
+      "description": "Threads whose pin could not be resolved to a frame (canvas-level pins, deleted nodes). Shown in a catch-all lane so nothing is silently dropped.",
+      "items": { "$ref": "#/$defs/thread" }
+    }
+  },
+  "$defs": {
+    "commentType": {
+      "type": "string",
+      "enum": ["copy", "value-prop", "design", "compliance", "question", "approval", "other"],
+      "description": "copy=wording/language edit; value-prop=messaging/angle/pain-point; design=layout/visual/color/hierarchy; compliance=claim/legal/brand-rule; question=needs an answer before work; approval=sign-off/positive; other=uncategorized"
+    },
+    "route": {
+      "type": "string",
+      "enum": ["designer", "strategist", "copywriter", "account", "none"],
+      "description": "who should action this. 'strategist' = a messaging/value-prop decision the designer can't make; 'none' = approval/no-op"
+    },
+    "priority": { "type": "string", "enum": ["high", "medium", "low"] },
+    "thread": {
+      "type": "object",
+      "required": ["commentId", "author", "createdAt", "resolved", "type", "route", "priority", "verbatim", "action", "replies"],
+      "additionalProperties": false,
+      "properties": {
+        "commentId": { "type": "string" },
+        "author": {
+          "type": "object",
+          "required": ["handle"],
+          "additionalProperties": false,
+          "properties": {
+            "handle": { "type": "string" },
+            "userId": { "type": ["string", "null"] },
+            "isClient": { "type": "boolean" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "resolved": { "type": "boolean" },
+        "type": { "$ref": "#/$defs/commentType" },
+        "route": { "$ref": "#/$defs/route" },
+        "priority": { "$ref": "#/$defs/priority" },
+        "verbatim": { "type": "string", "description": "the client's exact words (never paraphrased) — the designer must see what was literally said" },
+        "action": { "type": "string", "description": "LLM's concrete, imperative restatement of what to do; empty string if route!=designer or it's a pure question/approval" },
+        "themeId": { "type": ["string", "null"], "description": "the cluster this thread belongs to, or null" },
+        "reactionCount": { "type": "integer" },
+        "replies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["author", "text", "createdAt"],
+            "additionalProperties": false,
+            "properties": {
+              "author": { "type": "string" },
+              "text": { "type": "string" },
+              "createdAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

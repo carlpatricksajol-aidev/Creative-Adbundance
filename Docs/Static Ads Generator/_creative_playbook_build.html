@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Static Ads — Creative Playbook</title>
+<style>
+  @page { size: A4; margin: 15mm 14mm 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, Helvetica, sans-serif; color: #1f2430; font-size: 10.6pt; line-height: 1.5; margin: 0; }
+
+  /* cover */
+  .cover { padding: 30mm 4mm 0 4mm; }
+  .brandline { display:flex; align-items:center; gap:10px; margin-bottom:34mm; }
+  .brandmark { width:34px; height:34px; border-radius:9px; background:#6B47FF; color:#fff; font-weight:800; font-size:17pt; display:flex; align-items:center; justify-content:center; }
+  .brandname { font-weight:700; font-size:12pt; letter-spacing:.2px; }
+  .brandname .dot { color:#6B47FF; }
+  h1 { font-size: 33pt; color:#1f2430; margin: 0 0 6px 0; line-height:1.08; letter-spacing:-.5px; }
+  h1 .accent { color:#6B47FF; }
+  .cover .tag { font-size: 13pt; color:#5b6472; margin: 0 0 26px 0; max-width: 150mm; }
+  .cover .meta { font-size: 9.5pt; color:#98a0ad; }
+  .rule { height:5px; width:70px; background:#6B47FF; border-radius:3px; margin: 0 0 22px 0; }
+
+  h2 { font-size: 14.5pt; color:#fff; background:#6B47FF; padding: 8px 13px; border-radius:6px; margin: 26px 0 13px 0; }
+  h3 { font-size: 12pt; color:#5a34e0; margin: 18px 0 5px 0; }
+  h4 { font-size: 10.6pt; color:#1f2430; margin: 12px 0 3px 0; }
+  p { margin: 6px 0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 12px 0; font-size: 9.9pt; }
+  th { background:#2a2540; color:#fff; text-align:left; padding: 7px 9px; font-weight:600; }
+  td { padding: 7px 9px; border-bottom: 1px solid #ececf0; vertical-align: top; }
+  tr:nth-child(even) td { background:#f7f5ff; }
+
+  ul, ol { margin: 5px 0 9px 0; padding-left: 20px; }
+  li { margin: 3px 0; }
+  strong { color:#1f2430; }
+  code { background:#f0ecff; color:#5a34e0; padding: 1px 5px; border-radius:3px; font-family: Consolas, monospace; font-size: 9.1pt; }
+
+  .note { background:#f4f1ff; border-left:4px solid #6B47FF; padding: 9px 13px; margin: 10px 0; border-radius:4px; font-size:10pt; }
+  .warn { background:#fff6f0; border-left:4px solid #f08c3a; padding: 9px 13px; margin: 10px 0; border-radius:4px; font-size:10pt; }
+  .win  { background:#effaf3; border-left:4px solid #2fae63; padding: 9px 13px; margin: 10px 0; border-radius:4px; font-size:10pt; }
+
+  .cols { display:flex; gap:12px; }
+  .col { flex:1; border-radius:7px; padding: 4px 0; }
+  .do  { border:1.5px solid #b7e4c7; background:#f2fbf6; }
+  .dont{ border:1.5px solid #f5c6b6; background:#fff6f2; }
+  .col h4 { padding: 9px 13px 0 13px; margin:0; }
+  .col .hd { font-size:10.4pt; font-weight:700; padding: 8px 13px 4px; }
+  .do .hd { color:#1a7a44; }
+  .dont .hd { color:#c0442a; }
+  .col ul { padding-left: 30px; }
+
+  .stack .row { display:flex; align-items:stretch; margin:6px 0; border-radius:6px; overflow:hidden; border:1px solid #e3e0f5; }
+  .stack .n { background:#6B47FF; color:#fff; font-weight:800; font-size:15pt; width:40px; display:flex; align-items:center; justify-content:center; }
+  .stack .b { padding:8px 12px; }
+  .stack .b .t { font-weight:700; color:#2a2540; font-size:10.8pt; }
+  .stack .b .d { color:#5b6472; font-size:9.7pt; }
+  .stack .row:nth-child(1) .n { background:#4a28d6; }
+  .stack .row:nth-child(2) .n { background:#6B47FF; }
+  .stack .row:nth-child(3) .n { background:#7d5cff; }
+  .stack .row:nth-child(4) .n { background:#977dff; }
+  .stack .row:nth-child(5) .n { background:#b0a0ff; }
+  .stack .row:nth-child(6) .n { background:#c8bdff; }
+
+  .pill { display:inline-block; background:#6B47FF; color:#fff; border-radius:11px; padding:1px 9px; font-size:8.3pt; font-weight:600; margin-right:4px; }
+  .keep { page-break-inside: avoid; }
+  .pagebreak { page-break-before: always; }
+  hr { border:none; border-top:1px solid #e3e8ef; margin: 14px 0; }
+  .foothint { color:#98a0ad; font-size:8.6pt; margin-top:2px; }
+</style>
+</head>
+<body>
+
+<!-- ===================== COVER ===================== -->
+<div class="cover">
+  <div class="brandline">
+    <div class="brandmark">CA</div>
+    <div class="brandname">Creative Ad<span class="dot">·</span>Bundance</div>
+  </div>
+  <div class="rule"></div>
+  <h1>Static Ads<br><span class="accent">Creative Playbook</span></h1>
+  <p class="tag">How we produce on-brand, performance-ready static ads that clients actually approve — the focus order, the hard rules, and the traps that ruin a batch.</p>
+  <p class="meta">Internal creative + operator reference &middot; Creative Ad·Bundance &middot; v1</p>
+</div>
+
+<!-- ===================== INTRO ===================== -->
+<h2 class="pagebreak">1. The one idea behind everything</h2>
+<p>We do not invent ads from a blank page. We <strong>take a proven concept and re-skin it truthfully for the brand.</strong> Every rule in this document flows from that. A winning ad already solved the hard part — the hook, the layout, the psychology. Our job is to preserve what makes it work and swap in the correct brand, product, and message without breaking it.</p>
+
+<div class="note"><strong>The mindset (Eric's rule):</strong> When you have a proven performer, you <em>keep it and adapt it to the objective</em> — you do not reinvent the angle. The fastest way to lose is to "improve" a winner into something unproven.</div>
+
+<p>So the question "is the focus the headline or the visuals?" has a specific answer: <strong>neither is first.</strong> The first job is getting the <em>right concept, right product, and right brand</em> on screen. A beautiful headline on the wrong product is an instant reject. Here is the actual order of priority.</p>
+
+<h2>2. Where to focus — the priority stack</h2>
+<p>When judging or fixing an ad, work top-down. A failure high on this list kills the ad no matter how good everything below it is.</p>
+
+<div class="stack keep">
+  <div class="row"><div class="n">1</div><div class="b"><div class="t">Concept fidelity</div><div class="d">Is it a clear, single, proven format — and did we stay inside it? One hook, one visual, one CTA. Not a brochure.</div></div></div>
+  <div class="row"><div class="n">2</div><div class="b"><div class="t">Product &amp; brand truth</div><div class="d">The exact product, exact colorway, real logo, real app screens. Correct brand, never a sister brand. This is the #1 reason a batch gets rejected.</div></div></div>
+  <div class="row"><div class="n">3</div><div class="b"><div class="t">The hook / headline</div><div class="d">One dominant message. For a winner, keep its proven copy. For a new concept, one sharp benefit- or pain-led hook. Only real facts.</div></div></div>
+  <div class="row"><div class="n">4</div><div class="b"><div class="t">Visual hierarchy &amp; layout</div><div class="d">Headline largest and readable at thumbnail size; text in clean zones off the product; CTA is the obvious click target.</div></div></div>
+  <div class="row"><div class="n">5</div><div class="b"><div class="t">Render quality</div><div class="d">Sharp, no blur, no floating objects, correct anatomy, no gibberish text.</div></div></div>
+  <div class="row"><div class="n">6</div><div class="b"><div class="t">Compliance &amp; truth-in-claims</div><div class="d">Offers and dates verbatim, no invented awards or stats, disclaimers small and correct.</div></div></div>
+</div>
+
+<div class="win"><strong>Rule of thumb:</strong> A <em>sparse but true</em> ad beats a <em>rich but fabricated</em> one every time. The same is true of the Brand Brain that feeds it.</div>
+
+<!-- ===================== MODES ===================== -->
+<h2 class="pagebreak">3. The three ways we build an ad</h2>
+<p>Every run is one of three modes. The mode decides how faithfully we copy the source.</p>
+
+<table class="keep">
+  <thead><tr><th>Mode</th><th>What the source is</th><th>How faithful we stay</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Hand-picked templates</strong><br>(top performers)</td><td>Templates the requester chose from the library (other brands' proven ads).</td><td>Borrow the <em>structure</em>, re-map the story to this brand. One ad per pick.</td></tr>
+    <tr><td><strong>Client winners / references</strong></td><td>The brand's own top ad, or a reference they uploaded for this run.</td><td>Clone the proven layout closely. If there is an offer, keep the ad and only overlay the promo. Variants change exactly one thing.</td></tr>
+    <tr><td><strong>Library fallback</strong></td><td>Auto-picked library templates when nothing was chosen or uploaded.</td><td>Borrow structure, impose our strict one-hook copy.</td></tr>
+  </tbody>
+</table>
+
+<div class="note"><strong>Borrow the structure, not the story.</strong> A picked template keeps its layout, its graphic device (toggle rows, quiz pills, split panel, arch, badge), its typography style and negative space. Everything about <em>content</em> — product, copy, logo — becomes this brand's. Never keep an object or scene that has no meaning for the brand.</div>
+
+<!-- ===================== CONCEPT FORMATS ===================== -->
+<h2>4. Concept formats — pick ONE, stay inside it</h2>
+<p>Direct-response statics work because each one commits to a single recognizable format. Mixing two formats in one ad is the fastest way to look amateur. The proven formats we work in:</p>
+<table class="keep">
+  <tbody>
+    <tr><td>iOS push notification</td><td>Lock-screen mock, app icon, title, body, Skip/CTA.</td></tr>
+    <tr><td>iOS Notes screenshot</td><td>Notes header, title, bulleted checklist, CTA button.</td></tr>
+    <tr><td>iMessage toggle comparison</td><td>Two iOS toggle rows: pain vs solution.</td></tr>
+    <tr><td>Handwritten / sticky note</td><td>Paper texture, marker handwriting, casual.</td></tr>
+    <tr><td>Whiteboard line-drawing story</td><td>"This is [Name]. [Story]." stick figures.</td></tr>
+    <tr><td>Billboard / out-of-home mock</td><td>Product on a real billboard, sky behind.</td></tr>
+    <tr><td>Customer review screenshot</td><td>5-star card, name, review text, optional photo.</td></tr>
+    <tr><td>Lifestyle hero + feature checklist</td><td>Product photo plus 3–4 checkmark bullets.</td></tr>
+    <tr><td>Bold typography on dark</td><td>Large stencil text, single price/claim anchor.</td></tr>
+    <tr><td>Gift-box reveal</td><td>Product emerging from a wrapped present.</td></tr>
+    <tr><td>Family / UGC testimonial + stickers</td><td>Photo, quote bubble, feature stickers.</td></tr>
+  </tbody>
+</table>
+<div class="warn"><strong>This is not a brochure.</strong> One hook (the headline), one primary visual, one CTA. Do not show three product variants as equal heroes, do not stack five feature icons in a row, do not add a big legal block. If legal text is needed, one 8&nbsp;pt footer line only.</div>
+
+<!-- ===================== PRODUCT TRUTH ===================== -->
+<h2 class="pagebreak">5. Product &amp; brand truth (the batch-killer)</h2>
+<p>More rejected batches come from this than anything else. The product on screen must be <em>the client's real product</em>, rendered exactly. The rules change by brand type.</p>
+
+<h3>Physical-product brands</h3>
+<ul>
+  <li>Use the <strong>exact product image</strong> — same shape, label, packaging text, and <strong>packaging form</strong> (pouch, bottle, jar, box, tube). If the template shows a different form, discard the template's product and render the real one. Never turn a pouch into a jar.</li>
+  <li>Reproduce <strong>every colorway</strong>. If the winning ad shows a stack of grey, white, light-blue and green towels, the new ad shows that same multi-color stack — never collapse it to one color.</li>
+  <li>Never swap in a look-alike product from the model's imagination. Never alter label copy, ingredient lists, or product names.</li>
+</ul>
+
+<h3>Digital / app brands</h3>
+<div class="note">Their "products" are <strong>real app screenshots</strong>, not packaging. Composite the actual screens into a clean phone mockup as the hero. Reproduce the screen exactly — invent no UI, buttons, charts, numbers, or text. Ignore every packaging rule: there is no box or bottle. If several screens are supplied, show a small set (hero + 1–2 supporting) or pick the one that fits the concept — never merge screens into one fake screen.</div>
+
+<h3>Service / B2B brands</h3>
+<ul>
+  <li>No physical product, so never stamp the brand name onto random objects (cups, bags, signs).</li>
+  <li>Represent the <em>outcome</em>: a clean workspace, documents, a professional environment.</li>
+</ul>
+
+<h3>Logo</h3>
+<ul>
+  <li>Composite the <strong>exact logo file</strong> — never redraw, retype, or approximate the wordmark. Same logo on every ad in a batch. One placement only.</li>
+  <li>No logo on file? Render the brand name once as clean plain type in the logo zone — same simple treatment on every ad.</li>
+</ul>
+
+<h3>Brand isolation</h3>
+<p>An ad is for one brand only. Never pull products, packaging, colors, or cues from a sister brand or parent company (e.g. a brand under a portfolio must not borrow a sibling's look). The supplied product images and logo are the <em>only</em> identity sources.</p>
+
+<!-- ===================== HEADLINES / COPY ===================== -->
+<h2 class="pagebreak">6. Headlines &amp; copy</h2>
+<p>Copy is focus #3 — powerful, but only after the concept and product are right. The discipline:</p>
+<table class="keep">
+  <thead><tr><th>Element</th><th>Spec</th></tr></thead>
+  <tbody>
+    <tr><td>Headline</td><td>4–7 words, Title Case, the single dominant hook. Rendered largest.</td></tr>
+    <tr><td>Subline</td><td>8–14 words, sentence case, supports the headline directly.</td></tr>
+    <tr><td>CTA</td><td>3–5 words, action-driven button text.</td></tr>
+    <tr><td>Total text</td><td>Max 3 text elements — unless the format (Notes, review, iMessage) needs its own structure.</td></tr>
+  </tbody>
+</table>
+
+<h3>The non-negotiables</h3>
+<ul>
+  <li><strong>On a proven winner, keep the copy.</strong> Reproduce the winning ad's headline and subline word-for-word. Do not write a new angle on a winner — that turns a tested ad into an untested one.</li>
+  <li><strong>Only real facts.</strong> Use dates, prices, percentages, and stats <em>only</em> if they appear in the brief or Brand Brain. Never invent or change a number.</li>
+  <li><strong>Never restamp a date.</strong> A "Wirecutter 2024" badge stays 2024. Do not move a sale year onto an award or press mention.</li>
+  <li><strong>No em dashes</strong> in visible ad text. Use commas or colons.</li>
+  <li>Every visible word is a real, intentional word — no gibberish.</li>
+</ul>
+
+<!-- ===================== VISUAL / LAYOUT ===================== -->
+<h2>7. Visual hierarchy &amp; layout</h2>
+<ul>
+  <li>The headline is the <strong>largest</strong> element and must read when the ad is shrunk to a 200&nbsp;px thumbnail.</li>
+  <li>Hierarchy: <strong>headline &gt; subhead &gt; CTA &gt; legal</strong>. The CTA is the obvious click target, not the fourth step in a flow.</li>
+  <li>Text sits in clean, aligned zones (a tidy top band or clear negative space) with balanced margins. Do not float, tilt, or scatter text.</li>
+  <li>Keep all text <strong>off the product and off any badge</strong> — no collisions.</li>
+  <li>Senior-audience personas: scale body text ~20% larger.</li>
+</ul>
+
+<h2>8. Render quality</h2>
+<ul>
+  <li>Sharp and crisp — every element razor-clear. No blur, soft focus, or compression mush; do not bury the product in heavy background blur.</li>
+  <li>No floating objects: everything rests on a surface or is held logically. Realistic shadows and reflections.</li>
+  <li>If a person appears: correct anatomy (right count of fingers, eyes, limbs), and shown <strong>using or wearing the product in context</strong> — never underwear/lingerie or styling that ignores the product.</li>
+  <li>Icons are clean and vector-style, sharp at full size.</li>
+</ul>
+
+<!-- ===================== PROMOS ===================== -->
+<h2 class="pagebreak">9. Promotions &amp; offers</h2>
+<p>When the objective is a promo, the winner stays and the offer is added — we do not rebuild the ad around the discount.</p>
+<h3>Keep-and-overlay (a proven ad + an offer)</h3>
+<ul>
+  <li>Keep the ad exactly — same concept, hook, imagery, product, layout, existing copy.</li>
+  <li>Add <strong>one</strong> promo callout (banner, badge, ribbon) with the offer and dates <em>verbatim</em>, framed as limited-time (the deadline must be visible, e.g. "Ends July 27"). Change nothing else.</li>
+</ul>
+<h3>Promo variants (single-variable tests on a winner)</h3>
+<p>Each variant changes exactly one thing — the scene — and keeps the message, logo, and typography identical. The four archetypes:</p>
+<table class="keep">
+  <tbody>
+    <tr><td><strong>Image swap</strong></td><td>Same message, the exact product re-staged in one fresh on-brand scene.</td></tr>
+    <tr><td><strong>UGC in-context</strong></td><td>One person naturally using the product; authentic natural-light feel.</td></tr>
+    <tr><td><strong>Offer-led urgency</strong></td><td>The one variant where the offer is the headline: "SITEWIDE SALE", discount huge, deadline under it.</td></tr>
+    <tr><td><strong>Limited-time banner</strong></td><td>Offer strip + the proven headline + the exact product.</td></tr>
+  </tbody>
+</table>
+<div class="note">State the offer <strong>once</strong>, cleanly (e.g. "LIMITED TIME SITEWIDE SALE / 20% OFF / Ends July 27"). Never paste the raw brief sentence, never show it twice, never round or extend a date. Award badges are optional — do not force a Wirecutter badge onto every creative.</div>
+
+<!-- ===================== BRAND BRAIN ===================== -->
+<h2>10. The Brand Brain feeds all of it</h2>
+<p>Every ad is only as good as the brand record behind it. One record per brand holds the tone, personas, offer, pain points, guidelines, colors, fonts, dos/don'ts, competitors, winning concepts, and losing patterns. It now lives in Supabase (we retired the Airtable version after it hit its record and monthly-API limits).</p>
+<ul>
+  <li><strong>Fill from the real source</strong> — the Creative Brief and Onboarding deck — never from guesswork. A field with no evidence is left empty, not invented.</li>
+  <li><strong>Sister brands map to a parent</strong> where they share a record (e.g. Onsen / GIR / Miracle Made resolve under their portfolio parent). Aliases make the lookup forgiving of spelling.</li>
+  <li><strong>Fonts and colors are real brand assets.</strong> The headline must render in the brand's actual typeface — if the brand's headline face is a serif, it must be that serif, never a default sans.</li>
+</ul>
+
+<!-- ===================== CD GATE ===================== -->
+<h2>11. The Creative Director review gate (mandatory)</h2>
+<p>Nothing ships without a human pass. Eric's non-negotiable checks:</p>
+<ul>
+  <li><strong>Label truth</strong> — the product label/packaging is the real one, not a hallucinated variant, and no invented third-party packaging (no fake snack boxes, no blank competitor jugs).</li>
+  <li><strong>Hand &amp; body anatomy</strong> — correct where a person appears.</li>
+  <li><strong>Product / box scale</strong> — the product sits at a believable size in the scene.</li>
+</ul>
+<p>An automated QA pass scores each render 1–10 and flags issues before you even look, but it assists the human gate — it does not replace it. Flags it raises:</p>
+<p>
+  <span class="pill">logo_distorted</span><span class="pill">logo_missing</span><span class="pill">duplicate_logo</span><span class="pill">packaging_wrong</span><span class="pill">text_garbled</span><span class="pill">fake_text</span><span class="pill">floating_objects</span><span class="pill">broken_anatomy</span><span class="pill">text_too_small</span><span class="pill">weak_hierarchy</span><span class="pill">color_off_brand</span><span class="pill">disclaimer_missing</span><span class="pill">hallucinated_elements</span>
+</p>
+
+<!-- ===================== DO / DONT ===================== -->
+<h2 class="pagebreak">12. Do / Don't quick reference</h2>
+<div class="cols keep">
+  <div class="col do">
+    <div class="hd">DO</div>
+    <ul>
+      <li>Start from a proven concept and adapt it.</li>
+      <li>Render the exact product, colorway, and packaging form.</li>
+      <li>Composite the real logo file, one placement.</li>
+      <li>Keep a winner's copy word-for-word.</li>
+      <li>Commit to one concept format per ad.</li>
+      <li>One hook, one visual, one CTA.</li>
+      <li>Put the offer in verbatim, with the deadline visible.</li>
+      <li>Use the brand's real fonts and colors.</li>
+      <li>Show people using the product in context.</li>
+      <li>Leave a field empty when there's no evidence.</li>
+    </ul>
+  </div>
+  <div class="col dont">
+    <div class="hd">DON'T</div>
+    <ul>
+      <li>Reinvent the angle of a proven winner.</li>
+      <li>Swap in a look-alike product or wrong colorway.</li>
+      <li>Treat an app screenshot as physical packaging.</li>
+      <li>Redraw or retype the logo from memory.</li>
+      <li>Invent or change any date, price, or stat.</li>
+      <li>Restamp an award/press year with the sale year.</li>
+      <li>Mix two concept formats in one ad.</li>
+      <li>Stack 5 feature icons or 3 equal hero products.</li>
+      <li>Float text over the product or add a big legal block.</li>
+      <li>Pull assets or colors from a sister brand.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===================== FAILURE MODES ===================== -->
+<h2>13. Failure modes we've hit (and the fix)</h2>
+<table class="keep">
+  <thead><tr><th>Symptom</th><th>Real cause</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>Every ad has the same headline (e.g. "Find Your Solution")</td><td>The copy AI call failed and fell back to a hardcoded default. Usually a rotated/dead API key or a bad model id.</td><td>Confirm the copy service key is live; watch the surfaced <code>copy_error</code>; the fallback now uses real brand data, not a generic line.</td></tr>
+    <tr><td>Right concept, wrong product / one flat color</td><td>The exact product/colorway wasn't given as truth, so the model invented one.</td><td>Attach the exact product image; on a winner, let the winning ad itself be the product truth (don't override with a mismatched packshot).</td></tr>
+    <tr><td>App shown as a bottle/box</td><td>A digital brand's screenshots were treated as physical packaging.</td><td>Digital-brand handling: composite the real screens into a phone, no packaging rules.</td></tr>
+    <tr><td>The picked template layout isn't respected</td><td>Image model mismatch — the prompt is written for positional multi-image compositing.</td><td>Render with nano-banana-pro (template + product + logo by position), not a model that blends references loosely.</td></tr>
+    <tr><td>One or two junk ads with a broken source</td><td>A picked template URL 404'd (gallery out of sync with the library).</td><td>Dead template URLs are now dropped before building.</td></tr>
+    <tr><td>Twice as many ads as requested</td><td>Manual picks generated 2 variants each.</td><td>One ad per hand-picked template.</td></tr>
+    <tr><td>"Nothing saved / results don't match"</td><td>The flow was run only to the first node in the editor and never reached the save step.</td><td>Trigger the full flow end-to-end, not a single-node test.</td></tr>
+  </tbody>
+</table>
+
+<!-- ===================== PREFLIGHT ===================== -->
+<h2 class="pagebreak">14. Pre-flight checklist</h2>
+<p>Before you trust a batch:</p>
+<ul>
+  <li>☐ The client resolves to the right Brand Brain record (parent or sister name).</li>
+  <li>☐ Fonts, colors, and logo are present and correct for that brand.</li>
+  <li>☐ Product truth is set: exact product image (physical), app screenshots (digital), or outcome scene (service).</li>
+  <li>☐ Generation mode matches intent (hand-picked vs winners/references vs library).</li>
+  <li>☐ Every picked template URL resolves.</li>
+  <li>☐ The copy service is live (spot-check one ad's headline is written, not the fallback).</li>
+  <li>☐ Any offer in the brief is copied verbatim, deadline included.</li>
+  <li>☐ Aspect ratio matches the platform field on the form.</li>
+  <li>☐ Ran the full flow — outputs are actually saved.</li>
+  <li>☐ Human CD gate: label truth, anatomy, product scale.</li>
+</ul>
+
+<!-- ===================== TECH GUARDRAILS ===================== -->
+<h2>15. Technical guardrails (for the operator)</h2>
+<table class="keep">
+  <thead><tr><th>Setting</th><th>Value / rule</th></tr></thead>
+  <tbody>
+    <tr><td>Image model</td><td><code>nano-banana-pro</code> on KIE. Images field is <code>image_input</code> (array). Add <code>resolution: 2K</code>, <code>output_format: png</code>.</td></tr>
+    <tr><td>Input images per ad</td><td>Max <strong>8</strong>: template first, then product/screenshots, logo last.</td></tr>
+    <tr><td>Prompt length</td><td>KIE cap is 10,000 chars; we clamp the build to ~9,400 to leave room for the copy block.</td></tr>
+    <tr><td>Aspect ratio</td><td>Follows the platform field on the intake form (e.g. Square 1:1), not the brief text.</td></tr>
+    <tr><td>Templates &amp; Brand Brain</td><td>Both in Supabase (public-read). Airtable retired after hitting record + monthly-API limits.</td></tr>
+    <tr><td>Copy &amp; QA models</td><td>Run through OpenRouter. If copy fails after a key rotation, update the key in both the copy node and the QA node.</td></tr>
+  </tbody>
+</table>
+
+<div class="note" style="margin-top:18px;"><strong>The whole playbook in one line:</strong> Start from something proven, put the <em>real</em> brand and product on it exactly, say one true thing loudly, and let a human check it before it ships.</div>
+
+<p class="foothint">Creative Ad·Bundance — Static Ads Creative Playbook. Internal reference; captures the working rules and the fixes learned in production.</p>
+
+</body>
+</html>

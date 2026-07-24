@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>A Better Version of Their Own Website</title>
+<style>
+  @page {
+    size: A4;
+    margin: 22mm 18mm;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #2c2c2c;
+    line-height: 1.62;
+    font-size: 11.2pt;
+    margin: 0;
+  }
+  .title-block {
+    background: #15543a;
+    color: #ffffff;
+    padding: 30px 28px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+  }
+  .title-block h1 {
+    margin: 0 0 8px 0;
+    font-size: 24pt;
+    letter-spacing: 0.3px;
+  }
+  .title-block .sub {
+    margin: 0;
+    color: #cfe6da;
+    font-size: 12pt;
+    font-style: italic;
+  }
+  .title-block .meta {
+    margin-top: 14px;
+    font-size: 9.5pt;
+    color: #a9d2bf;
+    letter-spacing: 0.5px;
+  }
+  .intro {
+    background: #f3f8f5;
+    border-left: 4px solid #2e8b63;
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 26px;
+    font-size: 11.4pt;
+  }
+  h2 {
+    color: #15543a;
+    font-size: 14.5pt;
+    margin: 28px 0 10px 0;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #d8e8e0;
+    break-after: avoid;
+  }
+  p { margin: 0 0 12px 0; }
+  ol { margin: 0 0 14px 0; padding-left: 22px; }
+  ol li { margin-bottom: 7px; }
+  ul {
+    list-style: none;
+    margin: 0 0 14px 0;
+    padding-left: 4px;
+  }
+  ul li {
+    position: relative;
+    padding-left: 20px;
+    margin-bottom: 7px;
+  }
+  ul li:before {
+    content: "\2022";
+    color: #2e8b63;
+    font-weight: bold;
+    position: absolute;
+    left: 2px;
+  }
+  .lead { font-weight: 600; color: #1d6b48; }
+  .cost-wrap {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 14px;
+    break-inside: avoid;
+  }
+  .cost-card {
+    flex: 1;
+    background: #f3f8f5;
+    border: 1px solid #d8e8e0;
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .cost-card h3 {
+    margin: 0 0 10px 0;
+    color: #15543a;
+    font-size: 11pt;
+  }
+  .cost-card ul li { font-size: 10.4pt; margin-bottom: 6px; }
+  .note {
+    background: #fff7e8;
+    border-left: 4px solid #e0a93b;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 14px;
+    font-size: 10.8pt;
+  }
+  .pick {
+    background: #eef6f1;
+    border: 1px solid #cfe3d8;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    font-size: 10.9pt;
+  }
+  .footer {
+    margin-top: 34px;
+    padding-top: 14px;
+    border-top: 1px solid #d8e8e0;
+    text-align: center;
+    color: #8a8a8a;
+    font-size: 9pt;
+    letter-spacing: 0.4px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="title-block">
+    <h1>A Better Version of Their Own Website</h1>
+    <p class="sub">How we build the part that makes people say yes</p>
+    <div class="meta">5StarSites &middot; Internal Plan &middot; Confidential</div>
+  </div>
+
+  <div class="intro">
+    Hey team. Here is how we build the part that matters most. Read this before anything else, because this is the piece that turns a stranger into a customer.
+  </div>
+
+  <h2>The big idea</h2>
+  <p>We are not handing anyone a template with their name dropped in. We are showing them their own website, rebuilt better. When a local owner opens the preview, we want one reaction: "that is my business, but it finally looks the way it should." Everything below serves that single feeling.</p>
+
+  <h2>How the flow runs</h2>
+  <ol>
+    <li>We take their current website link.</li>
+    <li>Our automation visits the site with a simple HTTP request and pulls everything that makes it theirs. It can also grab extra details from their listing on Google or Yellow Pages.</li>
+    <li>The AI reads all of it, including a picture of how their site looks today, and rebuilds a much better version.</li>
+    <li>We deploy the three versions straight to live preview links, right away.</li>
+    <li>They open the preview, see their own business done right, and the link is set to expire after a few days so there is a reason to act now.</li>
+    <li>When they are ready, we build the real thing for $499 and take it live.</li>
+  </ol>
+  <div class="note">
+    For the first version we keep it lean. Once we have their details, we go straight to building and deploying. No extra menus or selection steps slowing things down.
+  </div>
+
+  <h2>What we capture from their site</h2>
+  <p>This is the heart of it. The preview only feels personal if the capture is rich. So we pull:</p>
+  <ul>
+    <li>All their real words: headline, services, about text, hours, contact details, anything they wrote.</li>
+    <li>Their structure: which sections they actually have and the order they sit in.</li>
+    <li>Their branding: logo, the colors they already use, and their fonts.</li>
+    <li>Their photos, so we can reuse or upgrade them.</li>
+    <li>A full screenshot of the site as it looks right now.</li>
+  </ul>
+  <p>The richer this capture, the more the new version feels like theirs. If we get this step right, everything after it looks like magic.</p>
+
+  <h2>How the AI rebuilds it</h2>
+  <p>We give the AI two things: the words and details we captured, and the screenshot of their current site. Then we ask it to redesign, not to invent. Same business, same real content, but modern, clean, fast, and easy to read on a phone. Because the AI can actually see their old site, it knows exactly what to fix.</p>
+  <p>We reach the models through OpenRouter, so one connection gives us our pick of the strong models. A lighter model carries the previews, and a stronger one handles the paid build.</p>
+  <p>The output is one HTML file that holds everything inside it. No setup, no moving parts. It drops straight onto a preview link and just works.</p>
+
+  <h2>Where the images come from</h2>
+  <p>We reuse their own photos when they are good enough. When we need fresh or upgraded visuals, KIE handles the image generation inside the workflow, creating them with GPT Image 2.0 or Nano Banana. We only spend on images when we actually need them.</p>
+
+  <h2>The three versions</h2>
+  <p>For every prospect we create three design directions of their own site. Same business, same content, three different looks. They pick the one they love. It also gives us a natural opening line: "we built you three, which feels right?"</p>
+
+  <h2>Two situations to plan for</h2>
+  <ul>
+    <li>They already have a website: we capture it and rebuild it better. This is the main flow and where the wow lives.</li>
+    <li>They have no website at all: there is nothing to copy, so here we build from their business type and their listing on Google or Yellow Pages instead. This is the only case where we lean on sensible defaults.</li>
+  </ul>
+
+  <h2>One safety net</h2>
+  <p>AI built pages are impressive, but they can break now and then. So before any preview reaches a person, the automation runs a quick check: does it load, do the images show, are all the sections there. If something is off, we catch it before the customer ever sees it. For the paid $499 build we add a second polish pass for extra shine.</p>
+
+  <h2>The tools behind it</h2>
+  <ul>
+    <li><span class="lead">n8n</span> runs the whole automation as one connected flow.</li>
+    <li><span class="lead">OpenRouter</span> gives us one connection to the language models that write and redesign the site. A lighter model for previews, a stronger one for the paid build.</li>
+    <li><span class="lead">A screenshot step</span> captures how their current site looks today.</li>
+    <li><span class="lead">KIE</span> handles the image generation, using GPT Image 2.0 or Nano Banana, only when we need custom visuals.</li>
+    <li><span class="lead">Netlify and Vercel</span> host the live sites, both connected through GitHub.</li>
+    <li><span class="lead">GitHub</span> keeps a backup of every client build and lets any developer open the files in VS Code.</li>
+  </ul>
+
+  <h2>Where we host it: Vercel or Netlify</h2>
+  <p>Both do the same core job here. They connect to GitHub, deploy automatically, hand us live links, and stay free at our volume. So we do not have to pick just one. We use each for what it is best at.</p>
+  <ul>
+    <li><span class="lead">Netlify</span> carries the automated previews. n8n can push a single generated HTML file straight to a fresh Netlify link, and we already have it set up. Perfect for the temporary previews that expire.</li>
+    <li><span class="lead">Vercel</span> is the more open, developer friendly side. We connect the GitHub repo, developers edit the HTML files in VS Code, push their changes, and Vercel deploys them on its own. Anyone on the team can jump in and check a build.</li>
+  </ul>
+  <div class="pick">
+    In short: Netlify for the fast automated previews, Vercel plus GitHub for the client builds the team keeps editing. Best of both, nothing lost.
+  </div>
+
+  <h2>Cost estimate</h2>
+  <div class="cost-wrap">
+    <div class="cost-card">
+      <h3>Per prospect (three versions)</h3>
+      <ul>
+        <li>Model writing and redesign through OpenRouter: about 5 to 15 cents.</li>
+        <li>Screenshot capture: basically free when we run it ourselves.</li>
+        <li>KIE image generation (GPT Image 2.0 or Nano Banana): roughly 5 to 30 cents, and only when we need custom visuals.</li>
+        <li>Preview hosting on Netlify or Vercel: free.</li>
+      </ul>
+    </div>
+    <div class="cost-card">
+      <h3>Monthly to keep it running</h3>
+      <ul>
+        <li>n8n: free if we host it ourselves, or around $20 a month on their cloud.</li>
+        <li>Netlify and Vercel: free at this volume.</li>
+        <li>OpenRouter model usage: grows with how many previews we make, stays tiny per build.</li>
+        <li>Screenshot tool: free when we run our own.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">
+    A normal preview costs us pennies, and even the heavy ones stay under a dollar. Running this whole piece sits somewhere around $20 to $50 a month while we are starting. In short, it barely adds to the budget already in the plan.
+  </div>
+
+  <h2>What is left to set up</h2>
+  <p>Most of the stack is already in place. OpenRouter reaches the models, n8n runs the flows, and we already have Netlify with Vercel ready too. What is left is small:</p>
+  <ul>
+    <li>A reliable screenshot method, confirmed and wired into the flow.</li>
+    <li>A handful of real local business sites to test on.</li>
+  </ul>
+
+  <div class="footer">
+    5StarSites &middot; Your town deserves a better website &middot; Confidential
+  </div>
+
+</body>
+</html>

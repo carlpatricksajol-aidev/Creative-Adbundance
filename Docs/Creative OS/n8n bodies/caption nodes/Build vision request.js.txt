@@ -1,0 +1,15 @@
+const items = $input.all();
+const meta = $('Parse scenes').first().json;
+const sb = $('Extract URL').first().json.storyboard || {};
+const content = [];
+for (let i = 0; i < items.length; i++) {
+  const buf = await this.helpers.getBinaryDataBuffer(i, 'data');
+  content.push({ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + buf.toString('base64') } });
+}
+const beats = (sb.beats || []).map((b, i) => `${i + 1}. ${b.time} ${b.label}`).join('; ');
+content.push({ type: 'text', text: 'These are frames from a 9:16 video ad, one per scene, in order. Scenes: ' + beats +
+  '. Caption script:' + String.fromCharCode(10) + (meta.captions || '') + String.fromCharCode(10) +
+  'Task 1: for EACH frame in order, pick where burned captions should sit so they do not cover the product or a face: lower (default, about 70% height), center, or upper. '
+  + 'Task 2: pick up to 4 words from the caption script that deserve emphasis color (brand or product names, numbers, the single strongest power word). '
+  + 'Reply with ONLY strict JSON: {"zones":["lower",...] (one per frame), "emphasis":["WORD",...]}' });
+return [{ json: { body: { model: 'anthropic/claude-sonnet-4.6', max_tokens: 400, messages: [{ role: 'user', content }] } } }];

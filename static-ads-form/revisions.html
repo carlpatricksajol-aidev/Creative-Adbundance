@@ -1,0 +1,1203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Client Comments · Creative Ad·Bundance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+/* ============ TOKENS (dark primary, light supported both directions) ============ */
+:root{
+  --bg:#0b0b0f; --bg-2:#0d0d0d;
+  --surface:#141414; --surface-2:#181818; --surface-3:#1b1b26;
+  --border:rgba(255,255,255,.07); --border-strong:rgba(255,255,255,.12); --hair:rgba(255,255,255,.05);
+  --text:#ffffff; --text-2:rgba(255,255,255,.62); --text-3:rgba(255,255,255,.4); --text-4:rgba(255,255,255,.26);
+  --accent:#6B47FF; --accent-light:#a78bfa; --accent-wash:rgba(107,71,255,.14); --accent-wash-2:rgba(107,71,255,.08);
+  --shadow:0 10px 28px rgba(0,0,0,.5);
+  /* semantic type colors: SEPARATE from brand accent */
+  --c-valueprop:#fbbf24; --c-copy:#60a5fa; --c-design:#2dd4bf; --c-compliance:#f87171;
+  --c-question:#c084fc; --c-approval:#4ade80; --c-other:#cbd5e1;
+  /* priority */
+  --p-high:#f87171; --p-medium:#fbbf24; --p-low:#7c8496;
+  --ok:#4ade80; --danger:#f87171;
+}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){
+    --bg:#f4f4f7; --bg-2:#eeeef2;
+    --surface:#ffffff; --surface-2:#f6f6f9; --surface-3:#eef0f6;
+    --border:rgba(0,0,0,.09); --border-strong:rgba(0,0,0,.16); --hair:rgba(0,0,0,.06);
+    --text:#14141c; --text-2:rgba(20,20,28,.66); --text-3:rgba(20,20,28,.5); --text-4:rgba(20,20,28,.36);
+    --accent:#6B47FF; --accent-light:#7c5cff; --accent-wash:rgba(107,71,255,.12); --accent-wash-2:rgba(107,71,255,.06);
+    --shadow:0 10px 28px rgba(20,20,40,.12);
+    --c-valueprop:#b45309; --c-copy:#1d4ed8; --c-design:#0f766e; --c-compliance:#b91c1c;
+    --c-question:#7e22ce; --c-approval:#15803d; --c-other:#475569;
+    --p-high:#dc2626; --p-medium:#d97706; --p-low:#64748b;
+    --ok:#15803d; --danger:#dc2626;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f4f4f7; --bg-2:#eeeef2;
+  --surface:#ffffff; --surface-2:#f6f6f9; --surface-3:#eef0f6;
+  --border:rgba(0,0,0,.09); --border-strong:rgba(0,0,0,.16); --hair:rgba(0,0,0,.06);
+  --text:#14141c; --text-2:rgba(20,20,28,.66); --text-3:rgba(20,20,28,.5); --text-4:rgba(20,20,28,.36);
+  --accent:#6B47FF; --accent-light:#7c5cff; --accent-wash:rgba(107,71,255,.12); --accent-wash-2:rgba(107,71,255,.06);
+  --shadow:0 10px 28px rgba(20,20,40,.12);
+  --c-valueprop:#b45309; --c-copy:#1d4ed8; --c-design:#0f766e; --c-compliance:#b91c1c;
+  --c-question:#7e22ce; --c-approval:#15803d; --c-other:#475569;
+  --p-high:#dc2626; --p-medium:#d97706; --p-low:#64748b;
+  --ok:#15803d; --danger:#dc2626;
+}
+:root[data-theme="dark"]{
+  --bg:#0b0b0f; --bg-2:#0d0d0d;
+  --surface:#141414; --surface-2:#181818; --surface-3:#1b1b26;
+  --border:rgba(255,255,255,.07); --border-strong:rgba(255,255,255,.12); --hair:rgba(255,255,255,.05);
+  --text:#ffffff; --text-2:rgba(255,255,255,.62); --text-3:rgba(255,255,255,.4); --text-4:rgba(255,255,255,.26);
+  --c-valueprop:#fbbf24; --c-copy:#60a5fa; --c-design:#2dd4bf; --c-compliance:#f87171;
+  --c-question:#c084fc; --c-approval:#4ade80; --c-other:#cbd5e1;
+  --p-high:#f87171; --p-medium:#fbbf24; --p-low:#7c8496;
+}
+
+*,*::before,*::after{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:"Poppins",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden;}
+.tnum{font-variant-numeric:tabular-nums;}
+h1,h2,h3{text-wrap:balance;margin:0;}
+button{font-family:inherit;cursor:pointer;}
+a{color:inherit;}
+:focus-visible{outline:2px solid var(--accent-light);outline-offset:2px;border-radius:6px;}
+.micro{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--text-4);}
+
+.wrap{max-width:1180px;margin:0 auto;padding:24px 26px 90px;}
+
+/* ============ STUDIO SIDEBAR + LAYOUT ============ */
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:240px;background:#0b0b12;border-right:1px solid rgba(255,255,255,.06);
+  display:flex;flex-direction:column;padding:20px 14px;overflow-y:auto;z-index:50;}
+.main{margin-left:240px;min-width:0;}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:6px 8px 4px;}
+.sb-brand-mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#6B47FF,#a78bfa);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+.sb-brand-name{font-size:13px;font-weight:700;color:#fff;line-height:1.2;}
+.sb-section-label{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.28);margin:22px 10px 8px;}
+.sb-nav{display:flex;flex-direction:column;gap:3px;}
+.sb-nav-item{display:flex;align-items:center;gap:11px;width:100%;background:transparent;border:none;color:rgba(255,255,255,.62);padding:10px 11px;border-radius:9px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:'Poppins',sans-serif;text-align:left;transition:background .15s,color .15s;text-decoration:none;}
+.sb-nav-item svg{flex-shrink:0;opacity:.75;}
+.sb-nav-item:hover{background:rgba(255,255,255,.05);color:#fff;}
+.sb-nav-item.active{background:rgba(107,71,255,.16);color:#fff;}
+.sb-nav-item.active svg{opacity:1;color:#a78bfa;}
+
+/* file picker + fallback banner */
+.filebar{display:flex;align-items:center;gap:11px;margin-top:18px;flex-wrap:wrap;}
+.filebar .fl{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-4);}
+#file-picker{max-width:360px;}
+.banner{margin-top:16px;background:var(--accent-wash-2);border:1px solid color-mix(in srgb,var(--accent) 30%,var(--border));
+  border-radius:12px;padding:11px 15px;font-size:12px;color:var(--text-2);display:flex;align-items:center;gap:9px;line-height:1.5;}
+.banner svg{color:var(--accent-light);flex-shrink:0;}
+
+/* ============ HEADER ============ */
+.hdr{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-bottom:18px;border-bottom:1px solid var(--border);}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#6B47FF,#a78bfa);
+  color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-name{font-size:13px;font-weight:700;color:var(--text);line-height:1.15;}
+.brand-name .sub{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-light);display:block;margin-top:2px;}
+.hdr-file{flex:1;min-width:220px;}
+.hdr-file h1{font-size:20px;font-weight:700;line-height:1.2;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.batch{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-light);
+  background:var(--accent-wash);border:1px solid color-mix(in srgb,var(--accent) 34%,transparent);border-radius:100px;padding:3px 10px;}
+.hdr-meta{font-size:11px;color:var(--text-3);margin-top:5px;}
+.hdr-actions{display:flex;align-items:center;gap:8px;}
+.btn{display:inline-flex;align-items:center;gap:7px;border-radius:100px;padding:9px 20px;font-size:12px;font-weight:600;
+  border:none;transition:opacity .2s,transform .15s,background .2s,border-color .2s,color .2s;text-decoration:none;white-space:nowrap;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{opacity:.88;transform:translateX(2px);}
+.btn-ghost{background:transparent;color:var(--text-2);border:1px solid var(--border-strong);}
+.btn-ghost:hover{border-color:var(--accent-light);color:var(--text);}
+.icon-btn{width:36px;height:36px;padding:0;justify-content:center;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text-2);border-radius:10px;}
+.icon-btn:hover{color:var(--text);border-color:var(--accent-light);}
+
+/* ============ SECTION SCAFFOLD ============ */
+.sec{margin-top:26px;}
+.sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.sec-head h2{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-2);}
+.sec-head .sec-hint{font-size:11px;color:var(--text-4);}
+
+/* ============ SUMMARY BAR ============ */
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(212px,1fr));gap:12px;}
+.card{background:var(--surface);border:1.5px solid var(--border);border-radius:13px;padding:13px 14px 12px;}
+.card-lbl{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--text-4);margin-bottom:9px;}
+.tally{display:flex;flex-wrap:wrap;gap:7px;}
+.chip{display:inline-flex;align-items:center;gap:7px;border-radius:100px;padding:4px 11px 4px 9px;font-size:12px;font-weight:500;
+  border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-2);}
+.chip .dot{width:7px;height:7px;border-radius:50%;background:var(--text-4);flex-shrink:0;}
+.chip .cnt{font-size:11px;font-weight:700;color:var(--text);opacity:.85;}
+.chip.is-client{border-color:color-mix(in srgb,var(--accent) 40%,transparent);background:var(--accent-wash-2);color:var(--text);}
+.chip.is-client .dot{background:var(--accent);}
+.chip .tag{font-size:8px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:1px 5px;border-radius:4px;}
+.chip.is-client .tag{background:var(--accent-wash);color:var(--accent-light);}
+.chip.is-internal .tag{background:var(--surface-3);color:var(--text-3);}
+
+.oc-row{display:flex;gap:10px;}
+.oc{flex:1;text-align:center;border-radius:10px;padding:10px 8px;background:var(--surface-2);border:1px solid var(--border);}
+.oc .n{font-size:24px;font-weight:700;line-height:1;}
+.oc .l{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-4);margin-top:6px;}
+.oc.open .n{color:var(--p-high);}
+.oc.resolved .n{color:var(--ok);}
+
+.meter{display:flex;width:100%;height:10px;border-radius:100px;overflow:hidden;background:var(--surface-2);border:1px solid var(--border);}
+.meter span{height:100%;display:block;}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:11px;}
+.legend .li{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-2);}
+.legend .sw{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
+.legend .lc{font-weight:700;color:var(--text);margin-left:1px;}
+
+/* type color helpers */
+.tc-valueprop{--tc:var(--c-valueprop);} .tc-copy{--tc:var(--c-copy);} .tc-design{--tc:var(--c-design);}
+.tc-compliance{--tc:var(--c-compliance);} .tc-question{--tc:var(--c-question);} .tc-approval{--tc:var(--c-approval);}
+.tc-other{--tc:var(--c-other);}
+
+/* ============ THEMES BANNER ============ */
+.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;}
+.theme-card{background:linear-gradient(180deg,var(--accent-wash-2),transparent);border:1.5px solid color-mix(in srgb,var(--accent) 28%,var(--border));
+  border-radius:14px;padding:16px;position:relative;}
+.theme-card .theme-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px;}
+.theme-card h3{font-size:14.5px;font-weight:700;flex:1;min-width:150px;line-height:1.3;}
+.theme-card .theme-sum{font-size:12.5px;color:var(--text-2);line-height:1.55;}
+.theme-refs{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;}
+.ref-chip{font-size:10.5px;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:3px 9px;}
+.theme-refs .rl{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-4);align-self:center;margin-right:2px;}
+
+/* type chip (loud semantic) */
+.type-chip{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--tc);background:color-mix(in srgb,var(--tc) 15%,transparent);
+  border:1px solid color-mix(in srgb,var(--tc) 40%,transparent);border-radius:100px;padding:3px 9px;white-space:nowrap;}
+.type-chip .tdot{width:6px;height:6px;border-radius:50%;background:var(--tc);flex-shrink:0;}
+/* route badge (quiet, outline + dot) */
+.route-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;letter-spacing:.03em;text-transform:capitalize;
+  color:var(--text-2);background:transparent;border:1px solid var(--border-strong);border-radius:6px;padding:2px 8px;white-space:nowrap;}
+.route-badge .rdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.rt-designer .rdot{background:var(--accent-light);} .rt-copywriter .rdot{background:var(--c-copy);}
+.rt-strategist .rdot{background:var(--c-valueprop);} .rt-account .rdot{background:var(--c-design);}
+.rt-none .rdot{background:var(--text-4);}
+.prio-pill{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:5px;padding:2px 7px;white-space:nowrap;}
+.pr-high{color:var(--p-high);background:color-mix(in srgb,var(--p-high) 16%,transparent);}
+.pr-medium{color:var(--p-medium);background:color-mix(in srgb,var(--p-medium) 16%,transparent);}
+.pr-low{color:var(--p-low);background:color-mix(in srgb,var(--p-low) 18%,transparent);}
+
+/* ============ FILTER BAR ============ */
+.filters{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 92%,transparent);
+  backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:14px;padding:12px 14px;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:20px;}
+.filters .fl{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-4);margin-right:-2px;}
+.sel{background:var(--surface-2);border:1px solid var(--border-strong);border-radius:8px;padding:7px 11px;
+  font-size:12px;color:var(--text);font-family:inherit;outline:none;transition:border-color .2s;max-width:200px;}
+.sel:focus{border-color:var(--accent);}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);
+  background:var(--surface-2);border:1px solid var(--border-strong);border-radius:100px;padding:6px 13px;user-select:none;}
+.toggle input{accent-color:var(--accent);width:14px;height:14px;}
+.toggle.on{border-color:var(--accent);color:var(--text);background:var(--accent-wash-2);}
+.filter-spacer{flex:1;}
+.filter-reset{background:none;border:none;color:var(--text-3);font-size:11px;text-decoration:underline;padding:4px;}
+.filter-reset:hover{color:var(--text);}
+.result-note{font-size:11px;color:var(--text-4);white-space:nowrap;}
+
+/* ============ CHECKLIST ============ */
+.chk-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px;}
+.chk-progress{flex:1;min-width:180px;}
+.chk-bar{height:8px;border-radius:100px;background:var(--surface-2);border:1px solid var(--border);overflow:hidden;}
+.chk-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-light));transition:width .3s;}
+.chk-count{font-size:12px;font-weight:600;color:var(--text-2);white-space:nowrap;}
+.chk-count b{color:var(--text);}
+.chk-list{display:flex;flex-direction:column;gap:8px;}
+.chk-item{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1.5px solid var(--border);
+  border-radius:11px;padding:12px 14px;transition:border-color .2s,opacity .2s;}
+.chk-item:hover{border-color:var(--border-strong);}
+.chk-item.done{opacity:.55;}
+.chk-item.done .ci-action{text-decoration:line-through;}
+.ci-box{appearance:none;-webkit-appearance:none;flex-shrink:0;width:20px;height:20px;margin-top:1px;border-radius:6px;
+  border:2px solid var(--border-strong);background:var(--surface-2);position:relative;transition:all .15s;}
+.ci-box:hover{border-color:var(--accent-light);}
+.ci-box:checked{background:var(--accent);border-color:var(--accent);}
+.ci-box:checked::after{content:"";position:absolute;left:5px;top:1.5px;width:5px;height:10px;
+  border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg);}
+.ci-body{flex:1;min-width:0;}
+.ci-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+.ci-ad{font-size:11px;font-weight:600;color:var(--text-3);max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ci-action{font-size:13.5px;font-weight:500;color:var(--text);line-height:1.45;}
+.ci-verbatim{font-size:11.5px;color:var(--text-3);font-style:italic;margin-top:3px;}
+
+/* ============ ADS ============ */
+.ad-card{background:var(--surface);border:1.5px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:16px;box-shadow:var(--shadow);}
+.ad-top{display:flex;gap:16px;padding:16px;align-items:flex-start;border-bottom:1px solid var(--hair);flex-wrap:wrap;}
+.ad-thumb{width:132px;flex-shrink:0;border-radius:10px;overflow:hidden;background:var(--surface-2);
+  border:1px solid var(--border);aspect-ratio:4/5;position:relative;}
+.ad-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.ad-thumb.placeholder{border-style:dashed;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:14px 12px;gap:8px;}
+.ad-thumb.placeholder svg{color:var(--text-4);opacity:.7;}
+.ad-thumb.placeholder .ph-name{font-size:11px;font-weight:600;color:var(--text-2);line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;}
+.ad-thumb.placeholder .ph-sec{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-4);}
+.ad-title{flex:1;min-width:200px;}
+.ad-section-lbl{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-light);margin-bottom:4px;}
+.ad-name{font-size:16px;font-weight:700;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;}
+.ad-page{font-size:11px;color:var(--text-4);margin-top:4px;}
+.ad-open-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-3);margin-top:10px;}
+.ad-open-tag .odot{width:7px;height:7px;border-radius:50%;background:var(--p-high);}
+.ad-open-tag.all-clear .odot{background:var(--ok);}
+
+.threads{display:flex;flex-direction:column;}
+.thread{display:flex;gap:14px;padding:14px 16px 14px 16px;border-top:1px solid var(--hair);position:relative;}
+.thread:first-child{border-top:none;}
+.thread .stripe{width:4px;border-radius:100px;flex-shrink:0;align-self:stretch;background:var(--p-low);}
+.thread.p-high .stripe{background:var(--p-high);} .thread.p-medium .stripe{background:var(--p-medium);} .thread.p-low .stripe{background:var(--p-low);}
+.thread.resolved{opacity:.62;}
+.th-body{flex:1;min-width:0;}
+.th-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:9px;}
+.th-author{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-2);margin-left:auto;}
+.th-author .who{font-weight:600;color:var(--text);}
+.mini-tag{font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1px 5px;border-radius:4px;}
+.mini-tag.client{background:var(--accent-wash);color:var(--accent-light);}
+.mini-tag.internal{background:var(--surface-3);color:var(--text-3);}
+.resolved-chk{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:var(--ok);}
+.resolved-chk svg{flex-shrink:0;}
+.th-when{font-size:10px;color:var(--text-4);white-space:nowrap;}
+.th-react{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--text-3);}
+.th-react svg{color:var(--accent-light);flex-shrink:0;}
+.theme-link{font-size:9.5px;font-weight:600;color:var(--accent-light);background:var(--accent-wash);
+  border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:6px;padding:2px 8px;cursor:help;}
+.verbatim{font-size:15px;font-weight:500;color:var(--text);line-height:1.5;
+  border-left:3px solid color-mix(in srgb,var(--tc,var(--accent)) 55%,transparent);padding-left:12px;margin:2px 0;}
+.thread.resolved .verbatim{text-decoration:line-through;text-decoration-color:var(--text-4);}
+.action-line{font-size:12.5px;color:var(--text-3);line-height:1.5;margin-top:8px;display:flex;gap:7px;}
+.action-line .al-tag{font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-light);
+  background:var(--accent-wash);border-radius:4px;padding:2px 6px;flex-shrink:0;height:fit-content;margin-top:1px;}
+.replies-toggle{margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:100px;
+  padding:4px 12px;font-size:11px;font-weight:600;color:var(--text-2);display:inline-flex;align-items:center;gap:6px;}
+.replies-toggle:hover{border-color:var(--accent-light);color:var(--text);}
+.replies-toggle svg{transition:transform .2s;}
+.replies-toggle[aria-expanded="true"] svg{transform:rotate(90deg);}
+.replies{margin-top:10px;display:none;flex-direction:column;gap:8px;padding-left:14px;border-left:2px solid var(--border);}
+.replies.open{display:flex;}
+.reply{font-size:12px;color:var(--text-2);line-height:1.5;}
+.reply .ry-who{font-weight:600;color:var(--text);font-size:11px;}
+.reply .ry-when{font-size:10px;color:var(--text-4);margin-left:6px;}
+
+.empty{text-align:center;padding:48px 20px;color:var(--text-4);font-size:13px;background:var(--surface);border:1.5px dashed var(--border);border-radius:16px;}
+
+/* unplaced */
+.unplaced-card{border-style:dashed;}
+.unplaced-note{font-size:11px;color:var(--text-4);padding:0 16px 14px;}
+
+/* ============ CHANGES TO MAKE (primary to-do) ============ */
+.chk-list{gap:9px;}
+.todo{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;margin-bottom:0;
+  overflow:hidden;transition:border-color .2s,opacity .2s;}
+.todo:hover{border-color:var(--border-strong);}
+.todo.done{opacity:.58;}
+.todo-main{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;}
+.todo-body{flex:1;min-width:0;cursor:pointer;}
+.todo-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;}
+.todo-caret{margin-left:auto;color:var(--text-4);transition:transform .2s;flex-shrink:0;}
+.todo-body[aria-expanded="true"] .todo-caret{transform:rotate(90deg);}
+.todo-task{font-size:14px;font-weight:600;color:var(--text);line-height:1.42;}
+.todo.done .todo-task{text-decoration:line-through;text-decoration-color:var(--text-4);}
+.todo-ads{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;}
+.todo-ads .ta-lbl{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-4);}
+.todo-detail{display:none;flex-direction:column;gap:10px;padding:0 15px 14px 47px;}
+.todo-detail.open{display:flex;}
+.todo-cmt{border-left:3px solid color-mix(in srgb,var(--tc,var(--accent)) 55%,transparent);padding-left:12px;}
+.cmt-who{font-size:10.5px;font-weight:600;color:var(--text-3);margin-bottom:3px;}
+.cmt-who .cmt-on{font-weight:400;color:var(--text-4);}
+.cmt-words{font-size:13.5px;font-weight:500;color:var(--text);line-height:1.5;}
+
+/* ============ COLLAPSIBLE SECONDARY SECTIONS ============ */
+.collapse{margin-top:16px;}
+.collapse-head{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:var(--surface);
+  border:1.5px solid var(--border);border-radius:12px;padding:13px 16px;color:var(--text);
+  transition:border-color .2s,background .2s;}
+.collapse-head:hover{border-color:var(--border-strong);background:var(--surface-2);}
+.collapse-head .cc-caret{flex-shrink:0;color:var(--text-3);transition:transform .2s;}
+.collapse-head[aria-expanded="true"] .cc-caret{transform:rotate(90deg);}
+.collapse-head .cc-title{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-2);}
+.collapse-head .cc-count{font-size:11px;font-weight:700;color:var(--text);background:var(--surface-3);
+  border:1px solid var(--border);border-radius:100px;padding:2px 9px;min-width:24px;text-align:center;}
+.collapse-head .cc-hint{font-size:11px;color:var(--text-4);font-weight:400;}
+.collapse-head .cc-sp{flex:1;}
+.collapse-body{padding:14px 2px 2px;}
+.collapse-body[hidden]{display:none;}
+
+/* ============ DECISION / QUESTIONS / FYI items ============ */
+.dec-item{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;}
+.dec-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.dec-item h4{font-size:13.5px;font-weight:700;line-height:1.35;flex:1;min-width:150px;}
+.dec-sum{font-size:12.5px;color:var(--text-2);line-height:1.55;}
+.dec-refs{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px;align-items:center;}
+.dec-refs .rl{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-4);margin-right:2px;}
+.dec-author{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-2);margin-left:auto;}
+.dec-author .who{font-weight:600;color:var(--text);}
+
+.q-item{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:13px 15px;margin-bottom:9px;}
+.q-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.q-head .who{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-2);margin-left:auto;}
+.q-head .who b{font-weight:600;color:var(--text);}
+
+.fyi-item{display:flex;gap:11px;align-items:flex-start;background:var(--surface-2);border:1px solid var(--hair);
+  border-radius:10px;padding:11px 14px;margin-bottom:8px;}
+.fyi-item .fyi-ic{color:var(--ok);flex-shrink:0;margin-top:1px;}
+.fyi-who{font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:3px;}
+.fyi-who .fyi-role{font-weight:400;color:var(--text-4);}
+.fyi-words{font-size:12.5px;color:var(--text-3);line-height:1.5;font-style:italic;}
+
+#toggle-all{margin-top:6px;}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important;}}
+@media (max-width:900px){ .sidebar{display:none;} .main{margin-left:0;} }
+@media (max-width:560px){
+  .wrap{padding:18px 14px 80px;}
+  .ad-thumb{width:100%;aspect-ratio:16/9;}
+  .th-author{margin-left:0;}
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sb-brand">
+    <div class="sb-brand-mark">CA</div>
+    <div class="sb-brand-name">Creative Ad&bull;Bundance</div>
+  </div>
+  <div class="sb-section-label">Workflows</div>
+  <nav class="sb-nav">
+    <a class="sb-nav-item" href="/#concepts">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+      <span>Concept Generator</span>
+    </a>
+    <a class="sb-nav-item" href="/#static">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <span>Static Ads Generator</span>
+    </a>
+    <a class="sb-nav-item" href="/#library">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Ad Library</span>
+    </a>
+    <a class="sb-nav-item" href="https://videoeditor.srv1486031.hstgr.cloud/">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.2 6 3 11l-.9-2.4c-.3-.9.2-1.9 1.1-2.2l13.4-4c.9-.3 1.9.2 2.2 1.1z"/><path d="m6.2 5.3 3.1 3.9M12.4 3.4l3.1 4M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      <span>Video Editor</span>
+    </a>
+    <a class="sb-nav-item active" href="/revisions">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>Client Comments</span>
+    </a>
+  </nav>
+</aside>
+
+<div class="main">
+<div class="wrap">
+  <header class="hdr">
+    <div class="brand">
+      <div class="brand-mark">CA</div>
+      <div class="brand-name">Creative Ad&bull;Bundance<span class="sub">Client Comments</span></div>
+    </div>
+    <div class="hdr-file">
+      <h1 id="h-file"></h1>
+      <div class="hdr-meta" id="h-meta"></div>
+    </div>
+    <div class="hdr-actions">
+      <button class="icon-btn" id="theme-toggle" title="Toggle light / dark" aria-label="Toggle theme">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <a class="btn btn-primary" id="h-figma" target="_blank" rel="noopener">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+        Open in Figma
+      </a>
+    </div>
+  </header>
+
+  <!-- FALLBACK BANNER -->
+  <div class="banner" id="sample-banner" style="display:none">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+    <span>No synced briefs yet. Showing sample data. Briefs appear here automatically once the Figma sync is running.</span>
+  </div>
+
+  <!-- FILE PICKER -->
+  <div class="filebar" id="filebar">
+    <span class="fl">Reviewing</span>
+    <select class="sel" id="file-picker" aria-label="Choose a file to review"></select>
+  </div>
+
+  <!-- SUMMARY (compact) -->
+  <section class="sec" id="sec-summary">
+    <div class="summary" id="summary"></div>
+  </section>
+
+  <!-- FILTERS -->
+  <div class="filters" role="region" aria-label="Filters">
+    <span class="fl">Filter</span>
+    <select class="sel" id="f-client" aria-label="Filter by client"></select>
+    <select class="sel" id="f-type" aria-label="Filter by type"></select>
+    <select class="sel" id="f-route" aria-label="Filter by route"></select>
+    <label class="toggle" id="f-open-wrap"><input type="checkbox" id="f-open"> Open only</label>
+    <button class="filter-reset" id="f-reset">Reset</button>
+    <span class="filter-spacer"></span>
+    <span class="result-note" id="result-note"></span>
+  </div>
+
+  <!-- PRIMARY: CHANGES TO MAKE -->
+  <section class="sec" id="sec-changes">
+    <div class="sec-head">
+      <h2>Changes to make</h2>
+      <span class="sec-hint">Everything routed to design or copy, grouped so you action each change once. Check items off as you go.</span>
+    </div>
+    <div class="chk-head">
+      <div class="chk-progress"><div class="chk-bar"><span id="chk-fill"></span></div></div>
+      <div class="chk-count" id="chk-count"></div>
+    </div>
+    <div class="chk-list" id="changes"></div>
+  </section>
+
+  <!-- SECONDARY: NEEDS A DECISION -->
+  <section class="sec collapse" id="sec-decision">
+    <button class="collapse-head" type="button" aria-expanded="false" aria-controls="decision-body">
+      <svg class="cc-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="cc-title">Needs a decision</span>
+      <span class="cc-count tnum" id="decision-count">0</span>
+      <span class="cc-hint">Messaging and claim calls for the strategist, not design edits.</span>
+      <span class="cc-sp"></span>
+    </button>
+    <div class="collapse-body" id="decision-body" hidden>
+      <div id="decision"></div>
+    </div>
+  </section>
+
+  <!-- SECONDARY: QUESTIONS -->
+  <section class="sec collapse" id="sec-questions">
+    <button class="collapse-head" type="button" aria-expanded="false" aria-controls="questions-body">
+      <svg class="cc-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="cc-title">Questions</span>
+      <span class="cc-count tnum" id="questions-count">0</span>
+      <span class="cc-hint">The client asked something. It needs an answer before the work starts.</span>
+      <span class="cc-sp"></span>
+    </button>
+    <div class="collapse-body" id="questions-body" hidden>
+      <div id="questions"></div>
+    </div>
+  </section>
+
+  <!-- SECONDARY: APPROVED / FYI -->
+  <section class="sec collapse" id="sec-fyi">
+    <button class="collapse-head" type="button" aria-expanded="false" aria-controls="fyi-body">
+      <svg class="cc-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="cc-title">Approved / FYI</span>
+      <span class="cc-count tnum" id="fyi-count">0</span>
+      <span class="cc-hint">Sign-offs and resolved notes. Nothing to action.</span>
+      <span class="cc-sp"></span>
+    </button>
+    <div class="collapse-body" id="fyi-body" hidden>
+      <div id="fyi"></div>
+    </div>
+  </section>
+
+  <!-- SHOW ALL COMMENTS (full per-ad view) -->
+  <section class="sec" id="sec-allcomments">
+    <button class="btn btn-ghost" id="toggle-all" type="button" aria-expanded="false" aria-controls="ads-region">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span id="toggle-all-label">Show all comments</span>
+    </button>
+    <div id="ads-region" hidden>
+      <div class="sec-head" style="margin-top:18px;">
+        <h2>All comments, in canvas order</h2>
+        <span class="sec-hint">Every thread on every ad, the client's exact words in bold, for raw context.</span>
+      </div>
+      <div id="ads"></div>
+    </div>
+  </section>
+
+  <!-- EXPORT -->
+  <div class="hdr-actions" style="margin-top:24px;gap:10px;flex-wrap:wrap;">
+    <button class="btn btn-ghost" id="ex-md">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+      <span id="ex-md-label">Copy brief as Markdown</span>
+    </button>
+    <button class="btn btn-ghost" id="ex-csv">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      Download CSV
+    </button>
+  </div>
+</div>
+</div>
+
+<script>
+/* ================= SUPABASE CONFIG (from studio index.html) ================= */
+var SUPABASE_URL = 'https://xakngjsybyytldyqfsmi.supabase.co';
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhha25nanN5Ynl5dGxkeXFmc21pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NzAwMjUsImV4cCI6MjA5NDQ0NjAyNX0.Aqm2gv_LUdM4Bo233mNL9AwHmRhwGEEaLGHmNaT-VXk';
+var sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+/* ================= DEFAULT INLINED BRIEF (sample.brief.json) ================= */
+const BRIEF = {"schemaVersion":1,"file":{"key":"M5yNWTlaG4Ah2NgYhZ6Hqu","name":"ARMRA_EXT","url":"https://www.figma.com/design/M5yNWTlaG4Ah2NgYhZ6Hqu/ARMRA_EXT","lastModified":"2026-07-20T16:42:00Z","batchLabel":"Batch 2"},"generatedAt":"2026-07-22T23:30:00Z","cursor":{"latestCommentId":"318","latestActivityAt":"2026-07-20T16:42:00Z","commentCount":11},"stats":{"totalComments":11,"totalThreads":9,"openThreads":7,"resolvedThreads":2,"byClient":[{"handle":"S. Rahal","userId":"u_rahal","count":9,"isClient":true},{"handle":"K. Rao","userId":"u_krao","count":1,"isClient":false},{"handle":"M. Lopez","userId":"u_mlopez","count":1,"isClient":false}],"byType":{"value-prop":4,"copy":3,"design":1,"approval":1,"compliance":0,"question":0,"other":0},"byRoute":{"strategist":4,"designer":3,"copywriter":1,"none":1}},"themes":[{"id":"t1","label":"Value proposition unclear across Batch 2","type":"value-prop","route":"strategist","priority":"high","summary":"S. Rahal repeatedly asks what pain point / value prop each ad is solving, and pushes back that the current angle isn't a value prop. This is a messaging decision, not a design fix. The strategist should define the angle (energy vs. immunity vs. gut health) for these ads before the designer revises them.","threadIds":["316","315","314","317"],"adRefs":["Colostrum Soda · 03","Colostrum Soda · 05","Colostrum Powder · 02","Colostrum Soda · 07"]}],"ads":[{"nodeId":"2410:11","name":"Colostrum Soda · 03","page":"Statics | Batch Two","sectionLabel":"Colostrum Soda","thumbnailUrl":null,"openCount":1,"threads":[{"commentId":"316","author":{"handle":"S. Rahal","userId":"u_rahal","isClient":true},"createdAt":"2026-07-20T16:30:00Z","resolved":false,"type":"value-prop","route":"strategist","priority":"high","verbatim":"what is the value prop/pain point we are solving?","action":"","themeId":"t1","reactionCount":0,"replies":[]}]},{"nodeId":"2410:24","name":"Colostrum Soda · 05","page":"Statics | Batch Two","sectionLabel":"Colostrum Soda","thumbnailUrl":null,"openCount":1,"threads":[{"commentId":"315","author":{"handle":"S. Rahal","userId":"u_rahal","isClient":true},"createdAt":"2026-07-20T16:28:00Z","resolved":false,"type":"value-prop","route":"strategist","priority":"high","verbatim":"this is not a value prop? are you talking about energy or immunity here?","action":"","themeId":"t1","reactionCount":0,"replies":[]}]},{"nodeId":"2410:37","name":"Colostrum Soda · 07","page":"Statics | Batch Two","sectionLabel":"Colostrum Soda","thumbnailUrl":null,"openCount":1,"threads":[{"commentId":"317","author":{"handle":"S. Rahal","userId":"u_rahal","isClient":true},"createdAt":"2026-07-20T16:33:00Z","resolved":false,"type":"value-prop","route":"strategist","priority":"high","verbatim":"same feedback here","action":"","themeId":"t1","reactionCount":0,"replies":[]},{"commentId":"312","author":{"handle":"S. Rahal","userId":"u_rahal","isClient":true},"createdAt":"2026-07-20T16:20:00Z","resolved":false,"type":"copy","route":"designer","priority":"medium","verbatim":"change language","action":"Revise the on-ad copy (client flagged the wording; pair with the strategist's value-prop direction for this ad before rewording).","themeId":null,"reactionCount":0,"replies":[]},{"commentId":"318","author":{"handle":"S. Rahal","userId":"u_rahal","isClient":true},"createdAt":"2026-07-20T16:42:00Z","resolved":true,"type":"copy","route":"designer","priority":"low","verbatim":"ritual","action":"Use the word “ritual” in the headline framing.","themeId":null,"reactionCount":1,"replies":[]}]},{"nodeId":"2620:14","name":"Colostrum Powder · 02","page":"Statics | Batch Two","sectionLabel":"Colostrum Powder","thumbnailUrl":null,"openCount":1,"threads":[{"commentId":"314","author":{"handle":"S. Rahal","userId":"u_rahal","isClient":true},"createdAt":"2026-07-20T16:26:00Z","resolved":false,"type":"value-prop","route":"strategist","priority":"high","verbatim":"what is this value prop?","action":"","themeId":"t1","reactionCount":0,"replies":[{"author":"K. Rao","text":"This block is about gut + immunity. I'll tighten the headline once we lock the angle.","createdAt":"2026-07-20T17:10:00Z"}]}]},{"nodeId":"2620:29","name":"Colostrum Powder · 04","page":"Statics | Batch Two","sectionLabel":"Colostrum Powder","thumbnailUrl":null,"openCount":1,"threads":[{"commentId":"313","author":{"handle":"S. Rahal","userId":"u_rahal","isClient":true},"createdAt":"2026-07-20T16:24:00Z","resolved":false,"type":"copy","route":"copywriter","priority":"medium","verbatim":"it also strengthens my skin barrier so it's giving me that glow","action":"Add the skin-barrier / “glow” benefit to this ad's copy. Client is offering approved benefit language to work in.","themeId":null,"reactionCount":0,"replies":[]},{"commentId":"310","author":{"handle":"S. Rahal","userId":"u_rahal","isClient":true},"createdAt":"2026-07-20T16:15:00Z","resolved":false,"type":"design","route":"designer","priority":"medium","verbatim":"logo feels small here, bump it up","action":"Increase the ARMRA logo size on this frame.","themeId":null,"reactionCount":0,"replies":[{"author":"M. Lopez","text":"On it, will match the logo scale to the Soda set.","createdAt":"2026-07-20T17:20:00Z"}]}]},{"nodeId":"2620:41","name":"Colostrum Powder · 06","page":"Statics | Batch Two","sectionLabel":"Colostrum Powder","thumbnailUrl":null,"openCount":0,"threads":[{"commentId":"311","author":{"handle":"S. Rahal","userId":"u_rahal","isClient":true},"createdAt":"2026-07-20T16:18:00Z","resolved":true,"type":"approval","route":"none","priority":"low","verbatim":"love this one, approved ✅","action":"","themeId":null,"reactionCount":2,"replies":[]}]}],"unplaced":[]};
+
+/* ================= HELPERS ================= */
+const $ = (s,r=document)=>r.querySelector(s);
+const el = (tag,cls,html)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(html!=null)n.innerHTML=html;return n;};
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const TYPE_CLASS = {"value-prop":"valueprop","copy":"copy","design":"design","compliance":"compliance","question":"question","approval":"approval","other":"other"};
+const TYPE_LABEL = {"value-prop":"Value prop","copy":"Copy","design":"Design","compliance":"Compliance","question":"Question","approval":"Approval","other":"Other"};
+const TYPE_VAR = {"value-prop":"--c-valueprop","copy":"--c-copy","design":"--c-design","compliance":"--c-compliance","question":"--c-question","approval":"--c-approval","other":"--c-other"};
+
+function relTime(iso){
+  const t = new Date(iso).getTime(); if(isNaN(t)) return "";
+  let s = Math.round((Date.now()-t)/1000);
+  const fut = s<0; s=Math.abs(s);
+  const u=[["year",31536000],["month",2592000],["week",604800],["day",86400],["hour",3600],["minute",60]];
+  for(const [n,sec] of u){ if(s>=sec){ const v=Math.floor(s/sec); return `${fut?"in ":""}${v} ${n}${v>1?"s":""}${fut?"":" ago"}`; } }
+  return "just now";
+}
+function fmtDate(iso){ const d=new Date(iso); if(isNaN(d)) return ""; return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+" "+d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}); }
+
+let DATA;                        // active brief
+let themeById = {};              // id -> theme, for per-thread back-links
+const state = { client:"all", type:"all", route:"all", openOnly:false };
+
+/* ================= HEADER ================= */
+function renderHeader(){
+  const f = DATA.file;
+  $("#h-file").innerHTML = esc(f.name) + (f.batchLabel?` <span class="batch">${esc(f.batchLabel)}</span>`:"");
+  const gen = DATA.generatedAt ? `Generated ${relTime(DATA.generatedAt)}` : "";
+  const mod = f.lastModified ? ` &middot; File last edited ${fmtDate(f.lastModified)}` : "";
+  const cnt = DATA.cursor ? ` &middot; ${DATA.cursor.commentCount} comments` : "";
+  $("#h-meta").innerHTML = `${gen}${mod}${cnt}`;
+  const a = $("#h-figma"); a.href = f.url || "#";
+}
+
+/* ================= SUMMARY ================= */
+function renderSummary(){
+  const s = DATA.stats, host = $("#summary"); host.innerHTML="";
+
+  // client tally
+  const c1 = el("div","card");
+  c1.appendChild(el("div","card-lbl","Who commented"));
+  const tally = el("div","tally");
+  (s.byClient||[]).forEach(c=>{
+    const chip = el("div","chip "+(c.isClient?"is-client":"is-internal"));
+    chip.innerHTML = `<span class="dot"></span>${esc(c.handle)} <span class="cnt tnum">${c.count}</span>
+      <span class="tag">${c.isClient?"Client":"Team"}</span>`;
+    tally.appendChild(chip);
+  });
+  c1.appendChild(tally); host.appendChild(c1);
+
+  // open vs resolved
+  const c2 = el("div","card");
+  c2.appendChild(el("div","card-lbl","Threads"));
+  const oc = el("div","oc-row");
+  oc.innerHTML = `
+    <div class="oc open"><div class="n tnum">${s.openThreads}</div><div class="l">Open</div></div>
+    <div class="oc resolved"><div class="n tnum">${s.resolvedThreads}</div><div class="l">Resolved</div></div>
+    <div class="oc"><div class="n tnum">${s.totalThreads}</div><div class="l">Total</div></div>`;
+  c2.appendChild(oc); host.appendChild(c2);
+
+  // type meter
+  host.appendChild(meterCard("By type", s.byType, k=>({
+    color:`var(${TYPE_VAR[k]||"--c-other"})`, label:TYPE_LABEL[k]||k })));
+  // route meter
+  const routeColor = {designer:"var(--accent-light)",copywriter:"var(--c-copy)",strategist:"var(--c-valueprop)",account:"var(--c-design)",none:"var(--text-4)"};
+  host.appendChild(meterCard("By route", s.byRoute, k=>({
+    color: routeColor[k]||"var(--text-4)", label: k.charAt(0).toUpperCase()+k.slice(1) })));
+}
+function meterCard(title, obj, meta){
+  const entries = Object.entries(obj||{}).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const total = entries.reduce((a,[,v])=>a+v,0)||1;
+  const card = el("div","card");
+  card.appendChild(el("div","card-lbl",title));
+  const bar = el("div","meter");
+  entries.forEach(([k,v])=>{ const m=meta(k); const sp=el("span"); sp.style.width=(v/total*100)+"%"; sp.style.background=m.color; sp.title=`${m.label}: ${v}`; bar.appendChild(sp); });
+  if(!entries.length){ const sp=el("span"); sp.style.width="100%"; sp.style.background="var(--surface-3)"; bar.appendChild(sp); }
+  card.appendChild(bar);
+  const leg = el("div","legend");
+  entries.forEach(([k,v])=>{ const m=meta(k); const li=el("div","li");
+    li.innerHTML=`<span class="sw" style="background:${m.color}"></span>${esc(m.label)} <span class="lc tnum">${v}</span>`; leg.appendChild(li); });
+  card.appendChild(leg);
+  return card;
+}
+
+/* ================= DIGEST BUCKETING ================= */
+// Index every top-level thread by commentId, carrying its ad context.
+function threadIndex(){ const m={}; allThreadsFlat().forEach(({ad,th})=>{ m[th.commentId]={ad,th}; }); return m; }
+
+// Partition the brief into the four designer-first buckets. useFilter=false ignores
+// the active filters (used by export so the Markdown is the full brief).
+function buildBuckets(useFilter){
+  const pass = useFilter ? threadPasses : (function(){ return true; });
+  const idx = threadIndex();
+  const rows = allThreadsFlat();
+  const themes = DATA.themes || [];
+  const changeThemes = themes.filter(t=>["designer","copywriter"].includes(t.route));
+  const decisionThemes = themes.filter(t=>t.route==="strategist");
+  const consumed = new Set();
+  changeThemes.concat(decisionThemes).forEach(t=>(t.threadIds||[]).forEach(id=>consumed.add(id)));
+  const surfaced = new Set();
+  const PW = {high:0, medium:1, low:2};
+
+  // 1. CHANGES TO MAKE (designer + copywriter, with an action)
+  const changes = [];
+  changeThemes.forEach(t=>{
+    const members = (t.threadIds||[]).map(id=>idx[id]).filter(Boolean).filter(m=>pass(m.th));
+    if(!members.length) return;
+    changes.push({kind:"theme", id:t.id, theme:t, members,
+      priority:t.priority||"low", type:t.type||"other", adRefs:t.adRefs||[], adCount:(t.adRefs||[]).length});
+  });
+  rows.forEach(({ad,th})=>{
+    if(consumed.has(th.commentId)) return;
+    if(["designer","copywriter"].includes(th.route) && th.action && th.action.trim() && pass(th)){
+      changes.push({kind:"thread", id:th.commentId, ad, th, members:[{ad,th}],
+        priority:th.priority||"low", type:th.type||"other", adRefs:[ad.name], adCount:1});
+    }
+  });
+  changes.sort((a,b)=> (PW[a.priority]-PW[b.priority]) || (b.adCount-a.adCount));
+  changes.forEach(r=>r.members.forEach(m=>surfaced.add(m.th.commentId)));
+
+  // 2. NEEDS A DECISION (strategist route: messaging / claim calls)
+  const decision = [];
+  decisionThemes.forEach(t=>{
+    const members = (t.threadIds||[]).map(id=>idx[id]).filter(Boolean).filter(m=>pass(m.th));
+    if(!members.length) return;
+    members.forEach(m=>surfaced.add(m.th.commentId));
+    decision.push({kind:"theme", theme:t, members, adRefs:t.adRefs||[]});
+  });
+  rows.forEach(({ad,th})=>{
+    if(surfaced.has(th.commentId) || consumed.has(th.commentId)) return;
+    if(th.route==="strategist" && th.type!=="question" && pass(th)){
+      surfaced.add(th.commentId);
+      decision.push({kind:"thread", ad, th});
+    }
+  });
+
+  // 3. QUESTIONS (anything asking for an answer)
+  const questions = [];
+  rows.forEach(({ad,th})=>{
+    if(surfaced.has(th.commentId)) return;
+    if(th.type==="question" && pass(th)){ surfaced.add(th.commentId); questions.push({ad,th}); }
+  });
+
+  // 4. APPROVED / FYI (sign-offs + resolved, whatever is left)
+  const fyi = [];
+  rows.forEach(({ad,th})=>{
+    if(surfaced.has(th.commentId)) return;
+    if(!(th.type==="approval" || th.resolved)) return;
+    if(!pass(th)) return;
+    fyi.push({ad,th});
+  });
+
+  return {changes, decision, questions, fyi};
+}
+
+function showSec(sel, show){ const n=$(sel); if(n) n.style.display = show ? "" : "none"; }
+
+function renderDigest(){
+  const B = buildBuckets(true);
+  renderChanges(B.changes);
+
+  const decThreads = B.decision.reduce((n,it)=> n + (it.kind==="theme" ? it.members.length : 1), 0);
+  $("#decision-count").textContent = decThreads;
+  showSec("#sec-decision", B.decision.length>0);
+  renderDecision(B.decision);
+
+  $("#questions-count").textContent = B.questions.length;
+  showSec("#sec-questions", B.questions.length>0);
+  renderQuestions(B.questions);
+
+  $("#fyi-count").textContent = B.fyi.length;
+  showSec("#sec-fyi", B.fyi.length>0);
+  renderFyi(B.fyi);
+}
+
+/* ================= FILTERS ================= */
+function buildFilterOptions(){
+  const fc=$("#f-client"); fc.innerHTML=`<option value="all">All commenters</option>`+
+    (DATA.stats.byClient||[]).map(c=>`<option value="${esc(c.handle)}">${esc(c.handle)}${c.isClient?" (client)":" (team)"}</option>`).join("");
+  const ft=$("#f-type"); ft.innerHTML=`<option value="all">All types</option>`+
+    Object.keys(TYPE_LABEL).map(k=>`<option value="${k}">${TYPE_LABEL[k]}</option>`).join("");
+  const fr=$("#f-route"); fr.innerHTML=`<option value="all">All routes</option>`+
+    ["designer","copywriter","strategist","account","none"].map(r=>`<option value="${r}">${r.charAt(0).toUpperCase()+r.slice(1)}</option>`).join("");
+}
+function threadPasses(th){
+  if(state.client!=="all"){
+    const inThread = th.author.handle===state.client || (th.replies||[]).some(r=>r.author===state.client);
+    if(!inThread) return false; // match threads the person authored OR replied on
+  }
+  if(state.type!=="all" && th.type!==state.type) return false;
+  if(state.route!=="all" && th.route!==state.route) return false;
+  if(state.openOnly && th.resolved) return false;
+  return true;
+}
+
+/* ================= DONE-STATE (localStorage persisted) ================= */
+const lsKey = (id)=>`figma-digest:${DATA.file.key}:${id}`;
+function isDoneId(id, def){ const v=localStorage.getItem(lsKey(id)); return v===null ? !!def : v==="1"; }
+function setDoneId(id,v){ try{ localStorage.setItem(lsKey(id), v?"1":"0"); }catch(e){} }
+// A to-do row's default done-state: standalone follows its thread's resolved flag,
+// a grouped theme is done only when every member thread is resolved.
+function rowDefaultDone(r){ return r.kind==="theme" ? r.members.every(m=>m.th.resolved) : r.th.resolved; }
+function rowDone(r){ return isDoneId(r.id, rowDefaultDone(r)); }
+
+/* ================= CHANGES TO MAKE (primary) ================= */
+function renderChanges(rows){
+  const host=$("#changes"); host.innerHTML="";
+  const total = rows.length;
+  const done = rows.filter(rowDone).length;
+  $("#chk-fill").style.width = total ? (done/total*100)+"%" : "0%";
+  $("#chk-count").innerHTML = total
+    ? `<b class="tnum">${done}</b> of <b class="tnum">${total}</b> done`
+    : "Nothing routed to design or copy in this view";
+  if(!total){ host.appendChild(el("div","empty","No design or copy changes match the current filters.")); return; }
+  rows.forEach(r=> host.appendChild(todoRow(r)));
+}
+function todoRow(r){
+  const tv = TYPE_VAR[r.type]||"--c-other";
+  const route = r.kind==="theme" ? r.theme.route : r.th.route;
+  const label = r.kind==="theme" ? r.theme.label : r.th.action;
+  const ads = r.kind==="theme" ? r.adRefs : [r.ad.name];
+  const done = rowDone(r);
+
+  const wrap = el("div","todo"+(done?" done":""));
+  wrap.style.setProperty("--tc",`var(${tv})`);
+  const main = el("div","todo-main");
+
+  const cb = el("input","ci-box"); cb.type="checkbox"; cb.checked=done;
+  cb.setAttribute("aria-label","Mark done: "+label);
+  cb.addEventListener("change",()=>{ setDoneId(r.id, cb.checked); renderDigest(); });
+
+  const body = el("div","todo-body");
+  body.setAttribute("role","button"); body.tabIndex=0; body.setAttribute("aria-expanded","false");
+  const adLbl = r.kind==="theme" ? `Affects ${ads.length} ad${ads.length>1?"s":""}` : "Ad";
+  body.innerHTML = `<div class="todo-top">
+      <span class="type-chip tc-${TYPE_CLASS[r.type]||"other"}"><span class="tdot"></span>${esc(TYPE_LABEL[r.type]||r.type)}</span>
+      <span class="prio-pill pr-${esc(r.priority)}">${esc(r.priority)}</span>
+      <span class="route-badge rt-${esc(route)}"><span class="rdot"></span>${esc(route)}</span>
+      <svg class="todo-caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+    </div>
+    <div class="todo-task">${esc(label)}</div>
+    <div class="todo-ads"><span class="ta-lbl">${esc(adLbl)}</span>${ads.map(a=>`<span class="ref-chip">${esc(a)}</span>`).join("")}</div>`;
+
+  const detail = el("div","todo-detail");
+  r.members.forEach(({ad,th})=>{
+    const c = el("div","todo-cmt");
+    const role = th.author.isClient?"Client":"Team";
+    c.innerHTML = `<div class="cmt-who">${esc(th.author.handle)} &middot; ${role}${th.resolved?" &middot; resolved":""} <span class="cmt-on">on ${esc(ad.name)}</span></div>
+      <div class="cmt-words">&ldquo;${esc(th.verbatim)}&rdquo;</div>`;
+    detail.appendChild(c);
+  });
+  const toggle=()=>{ const open=detail.classList.toggle("open"); body.setAttribute("aria-expanded",open?"true":"false"); };
+  body.addEventListener("click",toggle);
+  body.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggle(); } });
+
+  main.appendChild(cb); main.appendChild(body);
+  wrap.appendChild(main); wrap.appendChild(detail);
+  return wrap;
+}
+
+/* ================= NEEDS A DECISION (secondary, not actionable) ================= */
+function renderDecision(items){
+  const host=$("#decision"); host.innerHTML="";
+  items.forEach(it=>{
+    const card = el("div","dec-item");
+    if(it.kind==="theme"){
+      const t = it.theme, tv = TYPE_VAR[t.type]||"--c-other";
+      card.style.setProperty("--tc",`var(${tv})`);
+      const top = el("div","dec-top");
+      top.innerHTML = `<h4>${esc(t.label)}</h4>
+        <span class="type-chip tc-${TYPE_CLASS[t.type]||"other"}"><span class="tdot"></span>${esc(TYPE_LABEL[t.type]||t.type)}</span>
+        <span class="prio-pill pr-${esc(t.priority)}">${esc(t.priority)}</span>`;
+      card.appendChild(top);
+      card.appendChild(el("p","dec-sum",esc(t.summary)));
+      const refs = el("div","dec-refs");
+      refs.innerHTML = `<span class="rl">Affects ${it.adRefs.length}</span>` + it.adRefs.map(a=>`<span class="ref-chip">${esc(a)}</span>`).join("");
+      card.appendChild(refs);
+    } else {
+      const th = it.th, tv = TYPE_VAR[th.type]||"--c-other";
+      card.style.setProperty("--tc",`var(${tv})`);
+      const top = el("div","dec-top");
+      top.innerHTML = `<span class="type-chip tc-${TYPE_CLASS[th.type]||"other"}"><span class="tdot"></span>${esc(TYPE_LABEL[th.type]||th.type)}</span>
+        <span class="prio-pill pr-${esc(th.priority)}">${esc(th.priority)}</span>
+        <span class="route-badge rt-${esc(th.route)}"><span class="rdot"></span>${esc(th.route)}</span>
+        <span class="dec-author"><span class="who">${esc(th.author.handle)}</span></span>`;
+      card.appendChild(top);
+      card.appendChild(el("div","verbatim",`&ldquo;${esc(th.verbatim)}&rdquo;`));
+      const refs = el("div","dec-refs");
+      refs.innerHTML = `<span class="rl">On</span><span class="ref-chip">${esc(it.ad.name)}</span>`;
+      card.appendChild(refs);
+    }
+    host.appendChild(card);
+  });
+}
+
+/* ================= QUESTIONS (secondary) ================= */
+function renderQuestions(items){
+  const host=$("#questions"); host.innerHTML="";
+  items.forEach(({ad,th})=>{
+    const tv = TYPE_VAR[th.type]||"--c-other";
+    const card = el("div","q-item"); card.style.setProperty("--tc",`var(${tv})`);
+    const head = el("div","q-head");
+    head.innerHTML = `<span class="type-chip tc-${TYPE_CLASS[th.type]||"other"}"><span class="tdot"></span>${esc(TYPE_LABEL[th.type]||th.type)}</span>
+      <span class="route-badge rt-${esc(th.route)}"><span class="rdot"></span>${esc(th.route)}</span>
+      <span class="ref-chip">${esc(ad.name)}</span>
+      <span class="who"><span class="th-when">${esc(relTime(th.createdAt))}</span><b>${esc(th.author.handle)}</b>
+        <span class="mini-tag ${th.author.isClient?"client":"internal"}">${th.author.isClient?"Client":"Team"}</span></span>`;
+    card.appendChild(head);
+    card.appendChild(el("div","verbatim",`&ldquo;${esc(th.verbatim)}&rdquo;`));
+    host.appendChild(card);
+  });
+}
+
+/* ================= APPROVED / FYI (secondary, quiet) ================= */
+function renderFyi(items){
+  const host=$("#fyi"); host.innerHTML="";
+  items.forEach(({ad,th})=>{
+    const item = el("div","fyi-item");
+    const role = th.author.isClient?"Client":"Team";
+    const kind = th.type==="approval" ? "approval" : (TYPE_LABEL[th.type]||th.type);
+    item.innerHTML = `<svg class="fyi-ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <div>
+        <div class="fyi-who">${esc(th.author.handle)} <span class="fyi-role">&middot; ${role} &middot; ${esc(kind)}${th.resolved?" &middot; resolved":""} &middot; ${esc(ad.name)}</span></div>
+        <div class="fyi-words">&ldquo;${esc(th.verbatim)}&rdquo;</div>
+      </div>`;
+    host.appendChild(item);
+  });
+}
+
+/* ================= ADS ================= */
+function threadRow(th){
+  const tv = TYPE_VAR[th.type]||"--c-other";
+  const row = el("div",`thread p-${th.priority}${th.resolved?" resolved":""}`);
+  row.style.setProperty("--tc",`var(${tv})`);
+  const stripe = el("div","stripe"); row.appendChild(stripe);
+  const body = el("div","th-body");
+
+  const theme = th.themeId ? themeById[th.themeId] : null;
+  const meta = el("div","th-meta");
+  meta.innerHTML = `
+    <span class="type-chip tc-${TYPE_CLASS[th.type]}"><span class="tdot"></span>${esc(TYPE_LABEL[th.type])}</span>
+    <span class="route-badge rt-${esc(th.route)}"><span class="rdot"></span>${esc(th.route)}</span>
+    <span class="prio-pill pr-${esc(th.priority)}">${esc(th.priority)}</span>
+    ${theme?`<span class="theme-link" title="Grouped theme: ${esc(theme.summary)}">In theme: ${esc(theme.label)}</span>`:""}
+    ${th.resolved?`<span class="resolved-chk"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Resolved</span>`:""}
+    ${th.reactionCount>0?`<span class="th-react" title="${th.reactionCount} reaction${th.reactionCount>1?"s":""}"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.55-4.6-10-9.28C.5 8.4 2.02 5 5.2 5c1.86 0 3.16 1.06 3.8 2.09C9.64 6.06 10.94 5 12.8 5 15.98 5 17.5 8.4 22 11.72 19.55 16.4 12 21 12 21z"/></svg>${th.reactionCount}</span>`:""}
+    <span class="th-author"><span class="th-when">${esc(relTime(th.createdAt))}</span><span class="who">${esc(th.author.handle)}</span>
+      <span class="mini-tag ${th.author.isClient?"client":"internal"}">${th.author.isClient?"Client":"Team"}</span></span>`;
+  body.appendChild(meta);
+
+  body.appendChild(el("div","verbatim",`&ldquo;${esc(th.verbatim)}&rdquo;`));
+
+  if(th.action && th.action.trim()){
+    const a = el("div","action-line");
+    a.innerHTML = `<span class="al-tag">Do</span><span>${esc(th.action)}</span>`;
+    body.appendChild(a);
+  }
+
+  if(th.replies && th.replies.length){
+    const btn = el("button","replies-toggle"); btn.setAttribute("aria-expanded","false");
+    btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>${th.replies.length} repl${th.replies.length>1?"ies":"y"}`;
+    const box = el("div","replies");
+    th.replies.forEach(r=>{ box.appendChild(el("div","reply",`<span class="ry-who">${esc(r.author)}</span><span class="ry-when">${esc(relTime(r.createdAt))}</span><br>${esc(r.text)}`)); });
+    btn.addEventListener("click",()=>{ const open=box.classList.toggle("open"); btn.setAttribute("aria-expanded",open?"true":"false"); });
+    body.appendChild(btn); body.appendChild(box);
+  }
+  row.appendChild(body);
+  return row;
+}
+
+function adCard(ad, isUnplaced){
+  const card = el("div","ad-card"+(isUnplaced?" unplaced-card":""));
+  const top = el("div","ad-top");
+
+  // thumbnail or placeholder
+  if(ad.thumbnailUrl){
+    const t = el("div","ad-thumb");
+    const img = el("img"); img.src=ad.thumbnailUrl; img.alt=ad.name; img.loading="lazy";
+    img.addEventListener("error",()=>{ t.classList.add("placeholder"); t.innerHTML=placeholderHTML(ad); });
+    t.appendChild(img); top.appendChild(t);
+  } else if(!isUnplaced){
+    const t = el("div","ad-thumb placeholder",placeholderHTML(ad));
+    top.appendChild(t);
+  }
+
+  const title = el("div","ad-title");
+  const openN = ad.threads.filter(t=>!t.resolved).length;
+  title.innerHTML = `${ad.sectionLabel?`<div class="ad-section-lbl">${esc(ad.sectionLabel)}</div>`:""}
+    <div class="ad-name" title="${esc(ad.name)}">${esc(ad.name)}</div>
+    ${ad.page?`<div class="ad-page">${esc(ad.page)}</div>`:""}
+    <div class="ad-open-tag ${openN?"":"all-clear"}"><span class="odot"></span>${openN? openN+" open":"All resolved"}</div>`;
+  top.appendChild(title);
+  card.appendChild(top);
+
+  if(isUnplaced){
+    card.appendChild(el("div","unplaced-note","Pin could not be matched to a frame. Shown here so nothing is dropped."));
+  }
+
+  const threads = el("div","threads");
+  ad.threads.filter(threadPasses).forEach(th=>threads.appendChild(threadRow(th)));
+  card.appendChild(threads);
+  return card;
+}
+function placeholderHTML(ad){
+  return `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    <div class="ph-name">${esc(ad.name)}</div>${ad.sectionLabel?`<div class="ph-sec">${esc(ad.sectionLabel)}</div>`:""}
+    <div class="micro" style="opacity:.7">No render</div>`;
+}
+
+function renderAds(){
+  const host=$("#ads"); host.innerHTML="";
+  let visibleAds=0, visibleThreads=0;
+  DATA.ads.forEach(ad=>{
+    const matching = ad.threads.filter(threadPasses);
+    if(!matching.length) return;
+    visibleAds++; visibleThreads+=matching.length;
+    host.appendChild(adCard(ad,false));
+  });
+  const upl = (DATA.unplaced||[]).filter(threadPasses);
+  if(upl.length){
+    visibleThreads+=upl.length;
+    host.appendChild(adCard({name:"Unplaced comments",page:null,sectionLabel:null,thumbnailUrl:null,threads:DATA.unplaced},true));
+  }
+  if(!visibleAds && !upl.length){ host.appendChild(el("div","empty","No comments match the current filters. Try resetting.")); }
+  $("#result-note").innerHTML = `Showing <span class="tnum">${visibleThreads}</span> thread${visibleThreads===1?"":"s"} across <span class="tnum">${visibleAds}</span> ad${visibleAds===1?"":"s"}`;
+}
+
+/* ================= EXPORTS ================= */
+function allThreadsFlat(){
+  const rows=[];
+  DATA.ads.forEach(ad=>ad.threads.forEach(th=>rows.push({ad,th})));
+  (DATA.unplaced||[]).forEach(th=>rows.push({ad:{name:"Unplaced",sectionLabel:""},th}));
+  return rows;
+}
+function buildMarkdown(){
+  const f=DATA.file; const B=buildBuckets(false);
+  let md=`# Revision brief: ${f.name}${f.batchLabel?` (${f.batchLabel})`:""}\n\n`;
+  md+=`Figma: ${f.url}\nGenerated ${relTime(DATA.generatedAt)} · ${DATA.stats.openThreads} open / ${DATA.stats.resolvedThreads} resolved\n\n`;
+
+  // Lead with the designer's actionable to-do list.
+  md+=`## Changes to make\n\n`;
+  if(!B.changes.length){ md+=`_Nothing routed to design or copy._\n\n`; }
+  B.changes.forEach(r=>{
+    const label = r.kind==="theme" ? r.theme.label : r.th.action;
+    const done  = rowDefaultDone(r);
+    const scope = r.kind==="theme" ? `${r.adCount} ad${r.adCount>1?"s":""}` : r.ad.name;
+    md+=`- [${done?"x":" "}] **[${TYPE_LABEL[r.type]||r.type} · ${r.priority} · ${scope}]** ${label}\n`;
+    r.members.forEach(m=>{
+      md+=`  > ${m.th.verbatim}\n`;
+      md+=`  >   ${m.th.author.handle}${m.th.author.isClient?" (client)":""}${m.ad&&m.ad.name?`, ${m.ad.name}`:""}\n`;
+    });
+  });
+  md+=`\n`;
+
+  if(B.decision.length){
+    md+=`## Needs a decision\n\n`;
+    B.decision.forEach(it=>{
+      if(it.kind==="theme"){
+        md+=`### ${it.theme.label}  \n_${it.theme.type} · ${it.theme.route} · ${it.theme.priority}_\n\n${it.theme.summary}\n\nAffects: ${it.adRefs.join(", ")}\n\n`;
+      } else {
+        md+=`- **[${TYPE_LABEL[it.th.type]||it.th.type} · ${it.th.priority}]** ${it.th.author.handle} on ${it.ad.name}\n  > ${it.th.verbatim}\n`;
+      }
+    });
+    md+=`\n`;
+  }
+  if(B.questions.length){
+    md+=`## Questions\n\n`;
+    B.questions.forEach(({ad,th})=>{ md+=`- ${th.author.handle}${th.author.isClient?" (client)":""} on ${ad.name}\n  > ${th.verbatim}\n`; });
+    md+=`\n`;
+  }
+  if(B.fyi.length){
+    md+=`## Approved / FYI\n\n`;
+    B.fyi.forEach(({ad,th})=>{ md+=`- ${th.author.handle} on ${ad.name}${th.resolved?" (resolved)":""}\n  > ${th.verbatim}\n`; });
+    md+=`\n`;
+  }
+
+  // Full raw context, in canvas order.
+  md+=`## All comments, in canvas order\n\n`;
+  DATA.ads.forEach(ad=>{
+    md+=`### ${ad.name}${ad.sectionLabel?`  \n_${ad.sectionLabel}_`:""}\n\n`;
+    ad.threads.forEach(th=>{
+      md+=`- **[${TYPE_LABEL[th.type]} · ${th.route} · ${th.priority}${th.resolved?" · resolved":""}]** ${th.author.handle}${th.author.isClient?" (client)":""}\n`;
+      md+=`  > ${th.verbatim}\n`;
+      if(th.action&&th.action.trim()) md+=`  - Do: ${th.action}\n`;
+      (th.replies||[]).forEach(r=>{ md+=`  - ${r.author}: ${r.text}\n`; });
+    });
+    md+=`\n`;
+  });
+  if((DATA.unplaced||[]).length){
+    md+=`### Unplaced\n\n`;
+    DATA.unplaced.forEach(th=>{ md+=`- **[${TYPE_LABEL[th.type]} · ${th.route}]** ${th.author.handle}\n  > ${th.verbatim}\n`; });
+  }
+  return md;
+}
+function buildCSV(){
+  const cols=["ad","section","author","type","route","priority","resolved","verbatim","action"];
+  const q=s=>`"${String(s==null?"":s).replace(/"/g,'""')}"`;
+  const lines=[cols.join(",")];
+  allThreadsFlat().forEach(({ad,th})=>{
+    lines.push([ad.name,ad.sectionLabel||"",th.author.handle,th.type,th.route,th.priority,th.resolved?"yes":"no",th.verbatim,th.action].map(q).join(","));
+  });
+  return lines.join("\r\n");
+}
+function download(name,text,mime){
+  const blob=new Blob([text],{type:mime}); const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+/* ================= WIRE UP ================= */
+function wireControls(){
+  $("#f-client").addEventListener("change",e=>{state.client=e.target.value;refreshFiltered();});
+  $("#f-type").addEventListener("change",e=>{state.type=e.target.value;refreshFiltered();});
+  $("#f-route").addEventListener("change",e=>{state.route=e.target.value;refreshFiltered();});
+  const ot=$("#f-open"), ow=$("#f-open-wrap");
+  ot.addEventListener("change",()=>{state.openOnly=ot.checked;ow.classList.toggle("on",ot.checked);refreshFiltered();});
+  $("#f-reset").addEventListener("click",()=>{
+    state.client="all";state.type="all";state.route="all";state.openOnly=false;
+    $("#f-client").value="all";$("#f-type").value="all";$("#f-route").value="all";ot.checked=false;ow.classList.remove("on");
+    refreshFiltered();
+  });
+  $("#ex-md").addEventListener("click",async()=>{
+    const md=buildMarkdown(); const lbl=$("#ex-md-label"); const orig=lbl.textContent;
+    try{ await navigator.clipboard.writeText(md); lbl.textContent="Copied to clipboard"; }
+    catch(e){ download(`${DATA.file.name}-brief.md`, md, "text/markdown"); lbl.textContent="Downloaded .md"; }
+    setTimeout(()=>lbl.textContent=orig,1800);
+  });
+  $("#ex-csv").addEventListener("click",()=>download(`${DATA.file.name}-comments.csv`, buildCSV(), "text/csv"));
+
+  // theme toggle
+  $("#theme-toggle").addEventListener("click",()=>{
+    const cur = document.documentElement.getAttribute("data-theme");
+    const isDark = cur ? cur==="dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.setAttribute("data-theme", isDark?"light":"dark");
+  });
+
+  // file picker
+  $("#file-picker").addEventListener("change",e=>selectFile(e.target.value, true));
+
+  // collapsible secondary sections
+  document.querySelectorAll(".collapse-head").forEach(h=>{
+    h.addEventListener("click",()=>{
+      const body = document.getElementById(h.getAttribute("aria-controls"));
+      const wasOpen = h.getAttribute("aria-expanded")==="true";
+      h.setAttribute("aria-expanded", wasOpen?"false":"true");
+      if(body) body.hidden = wasOpen;
+    });
+  });
+
+  // show all comments toggle (full per-ad view)
+  const ta=$("#toggle-all");
+  ta.addEventListener("click",()=>{
+    const region=$("#ads-region");
+    const wasOpen = ta.getAttribute("aria-expanded")==="true";
+    ta.setAttribute("aria-expanded", wasOpen?"false":"true");
+    if(region) region.hidden = wasOpen;
+    $("#toggle-all-label").textContent = wasOpen ? "Show all comments" : "Hide all comments";
+  });
+}
+function resetCollapses(){
+  document.querySelectorAll(".collapse-head").forEach(h=>{
+    h.setAttribute("aria-expanded","false");
+    const b=document.getElementById(h.getAttribute("aria-controls")); if(b) b.hidden=true;
+  });
+  const ta=$("#toggle-all");
+  if(ta){ ta.setAttribute("aria-expanded","false");
+    const r=$("#ads-region"); if(r) r.hidden=true;
+    const l=$("#toggle-all-label"); if(l) l.textContent="Show all comments"; }
+}
+function refreshFiltered(){ renderDigest(); renderAds(); }
+
+/* ================= DATA SOURCE: Supabase figma_briefs ================= */
+let FILES = [];          // [{file_key, brief, generated_at}] newest per file
+let USING_SAMPLE = false;
+
+async function loadFiles(){
+  try{
+    if(!sb) throw new Error("Supabase library unavailable");
+    const { data, error } = await sb
+      .from("figma_briefs")
+      .select("file_key, brief, generated_at")
+      .order("generated_at", { ascending:false });
+    if(error) throw error;
+    if(!data || !data.length) throw new Error("No briefs returned");
+    // rows are newest-first, so the first time we see a file_key it is the newest brief
+    const seen = new Set(); const files = [];
+    for(const row of data){
+      if(!row || !row.file_key || seen.has(row.file_key)) continue;
+      let brief = row.brief;
+      if(typeof brief === "string"){ try{ brief = JSON.parse(brief); }catch(e){ continue; } }
+      if(!brief || !brief.file || !Array.isArray(brief.ads)) continue;
+      seen.add(row.file_key);
+      files.push({ file_key: row.file_key, brief, generated_at: row.generated_at });
+    }
+    if(!files.length) throw new Error("No usable briefs");
+    return { files, sample:false };
+  }catch(e){
+    console.warn("figma_briefs unavailable, showing inlined sample brief:", e);
+    return { files:[{ file_key: BRIEF.file.key, brief: BRIEF, generated_at: BRIEF.generatedAt }], sample:true };
+  }
+}
+
+function buildFilePicker(){
+  const bar = $("#filebar"), pick = $("#file-picker"), banner = $("#sample-banner");
+  if(USING_SAMPLE){
+    bar.style.display = "none";
+    pick.disabled = true;
+    banner.style.display = "";
+    return;
+  }
+  banner.style.display = "none";
+  bar.style.display = "";
+  pick.innerHTML = FILES.map(f=>{
+    const b = f.brief;
+    const open = (b.stats && b.stats.openThreads!=null) ? b.stats.openThreads : 0;
+    const label = (b.file.name || "Untitled")
+      + (b.file.batchLabel ? " · " + b.file.batchLabel : "")
+      + "  (" + open + " open)";
+    return `<option value="${esc(f.file_key)}">${esc(label)}</option>`;
+  }).join("");
+  pick.disabled = FILES.length <= 1;
+}
+
+function selectFile(key, updateUrl){
+  const entry = FILES.find(f=>f.file_key===key) || FILES[0];
+  if(!entry) return;
+  DATA = entry.brief;
+  themeById = Object.fromEntries((DATA.themes||[]).map(t=>[t.id,t]));
+
+  // reset filters for the newly selected file
+  state.client="all"; state.type="all"; state.route="all"; state.openOnly=false;
+  const ot=$("#f-open"), ow=$("#f-open-wrap");
+  if(ot) ot.checked=false;
+  if(ow) ow.classList.remove("on");
+
+  resetCollapses();
+  renderHeader();
+  renderSummary();
+  buildFilterOptions();
+  const fc=$("#f-client"), ft=$("#f-type"), fr=$("#f-route");
+  if(fc) fc.value="all"; if(ft) ft.value="all"; if(fr) fr.value="all";
+  refreshFiltered();
+
+  const pick=$("#file-picker");
+  if(pick && !USING_SAMPLE) pick.value = key;
+
+  if(updateUrl){
+    try{ const u=new URL(location.href); u.searchParams.set("file", key); history.replaceState(null,"",u); }catch(e){}
+  }
+}
+
+(async function init(){
+  const res = await loadFiles();
+  FILES = res.files;
+  USING_SAMPLE = res.sample;
+  buildFilePicker();
+  wireControls();
+
+  // deep link: ?file=<file_key> preselects a file
+  let startKey = FILES[0].file_key;
+  const wanted = new URLSearchParams(location.search).get("file");
+  if(wanted && FILES.some(f=>f.file_key===wanted)) startKey = wanted;
+  selectFile(startKey, false);
+})();
+</script>
+</body>
+</html>

@@ -1,2 +1,44 @@
 # Third-party skill repos cloned locally — kept on disk, not tracked in this project
 external-skills/
+
+# VideoEditor: media + heavy artifacts stay on disk, not tracked
+VideoEditor/input/
+VideoEditor/work/
+VideoEditor/output/
+VideoEditor/assets/broll/
+VideoEditor/assets/music/
+VideoEditor/bin/
+VideoEditor/node_modules/
+VideoEditor/.venv/
+VideoEditor/.env
+VideoEditor/.secrets*
+
+# Python cache
+__pycache__/
+*.pyc
+
+# MaxFusion API: secret key + fetched spec stay local, never tracked
+.maxfusion.env
+maxfusion-openapi.json
+
+# Node dependencies — never tracked, regenerated from package.json
+node_modules/
+
+# Heavy media stays on disk, not tracked (matches VideoEditor convention)
+*.mp4
+*.mov
+*.webm
+
+# CONFIDENTIAL CLIENT DATA — this repo is PUBLIC.
+# Brand Brain harvest holds 50 clients' Creative Brief internals: positioning, personas,
+# competitor lists, compliance notes, CAC targets. Never publish these.
+Docs/Static Ads Generator/brand-brain-harvest/
+Docs/Static Ads Generator/workflow-updates/brand_brain_migration.sql
+Docs/Static Ads Generator/workflow-updates/brand_brain_sql/
+*.mkv
+
+# Local secret files, wherever they live
+.env
+.env.*
+*.secret
+*.secrets*

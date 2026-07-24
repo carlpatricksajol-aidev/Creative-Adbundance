@@ -1,0 +1,8 @@
+const sb = $('Extract URL').first().json.storyboard || {};
+const beats = Array.isArray(sb.beats) ? sb.beats : [];
+let mids = beats.map(b => { const m = /([\d.]+)\s*[-\u2013\u2014]\s*([\d.]+)/.exec(String(b.time||'')); return m ? (parseFloat(m[1]) + parseFloat(m[2])) / 2 : null; }).filter(x => x !== null && x >= 0 && x < 15);
+if (!mids.length) mids = [2, 7.5, 12];
+mids = mids.slice(0, 6);
+const T = '/tmp', E = $execution.id;
+const cmd = mids.map((m, i) => `ffmpeg -y -ss ${m.toFixed(2)} -i ${T}/${E}.mp4 -frames:v 1 -q:v 5 ${T}/${E}_f${i}.jpg`).join(' && ');
+return [{ json: { framesCmd: cmd, mids } }];
