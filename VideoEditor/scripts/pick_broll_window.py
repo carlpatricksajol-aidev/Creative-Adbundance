@@ -222,23 +222,30 @@ def main():
     mode = "vision" if (OR_KEY or AN_KEY) else "heuristic (no vision key set)"
     print(f"b-roll window pick: {mode}")
     windows = {}
+    jobs = []
     for r in picked:
-        if r.get("type") != "broll" or not r.get("broll"):
+        if r.get("type") != "broll":
             continue
-        src = os.path.join(a.input_dir, r["broll"])
+        bl = r.get("brolls") or ([r["broll"]] if r.get("broll") else [])
+        for b in bl:                                     # a scene's clip LIST shares the scene time,
+            jobs.append((r, b, float(r["dur"]) / max(1, len(bl))))   # so each shot needs its own share
+
+    for r, bname, need in jobs:
+        src = os.path.join(a.input_dir, bname)
         if not os.path.exists(src):
-            hits = glob.glob(os.path.join(a.input_dir, "**", r["broll"]), recursive=True)
+            hits = glob.glob(os.path.join(a.input_dir, "**", bname), recursive=True)
             if not hits:
                 continue
             src = hits[0]
-        need = float(r["dur"])
         total = dur_of(src)
         if total <= need + 0.6:                      # clip barely fits - nothing to choose
             continue
         lo, hi = 0.3, max(0.4, total - need - 0.2)   # a window START must leave room for the window
         n = max(4, a.frames)
         times = [lo + (hi - lo) * i / (n - 1) for i in range(n)]
-        desc = notes.get(str(r["scene"])) or os.path.splitext(r["broll"])[0].replace("_", " ")
+        # the clip's own name is the most precise description of that shot; the scene note
+        # covers the whole sequence, so use it only as extra context
+        desc = os.path.splitext(os.path.basename(bname))[0].replace("_", " ") + ". " + notes.get(str(r["scene"]), "")
         print(f"  {r['scene']}: {os.path.basename(src)}  ({total:.1f}s, need {need:.1f}s)")
         start = ask_vision(frames_at(src, times), desc, need) if (OR_KEY or AN_KEY) else None
         if start is None:                                        # no key, or the call failed

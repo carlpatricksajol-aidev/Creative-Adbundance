@@ -105,8 +105,8 @@ def main():
         else:
             out = run([PY, s("pick_broll_window.py"), "--picked", refined, "--storyboard", sb_json,
                        "--input-dir", footage, "--out", bwin])
-            if "no vision key" in out:
-                status["warnings"].append("b-roll windows: no vision key set - in-points used the default offset")
+            if "0 b-roll window(s)" in out and "heuristic" in out:
+                status["warnings"].append("b-roll in-points: could not analyse the clips, used the default offset")
         run([PY, s("build_talkinghead.py"), "--picked", refined, "--input-dir", footage, "--out-dir", work,
              "--broll-windows", bwin])
         assembly, vo_track, lines = (os.path.join(work, f) for f in ("assembly.json", "vo_track.json", "lines.json"))

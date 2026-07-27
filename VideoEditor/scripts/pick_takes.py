@@ -141,10 +141,17 @@ def main():
             if not bt:
                 print(f"!! {sc['id']}: no matching take found"); continue
             fpath, p = bt
-            broll = resolve(sc["broll"][0], files) if (sc.get("type") == "broll" and sc.get("broll") and files) else None
+            # a scene can list SEVERAL b-roll clips ("call + swish + mask on") -- keep them all,
+            # in storyboard order, so the scene is cut as that sequence instead of one long shot
+            brolls = []
+            if sc.get("type") == "broll" and sc.get("broll") and files:
+                for nm in sc["broll"]:
+                    hit = resolve(nm, files)
+                    if hit and hit not in brolls:
+                        brolls.append(hit)
             out.append({"scene": sc["id"], "file": fpath, "type": sc.get("type", "talkinghead"),
-                        "broll": broll, "line": line, **p})
-            tag = "broll:" + os.path.basename(broll) if broll else "TH"
+                        "broll": brolls[0] if brolls else None, "brolls": brolls, "line": line, **p})
+            tag = ("broll x%d:" % len(brolls) + os.path.basename(brolls[0])) if brolls else "TH"
             flag = "  <<LOW MATCH - check>>" if p["match"] < 0.6 else ""
             print(f"{str(sc['id']):8} m={p['match']:.2f} {p['in']:6.2f}-{p['out']:6.2f} <- {os.path.basename(fpath)[:24]:24} {tag}{flag}")
     else:

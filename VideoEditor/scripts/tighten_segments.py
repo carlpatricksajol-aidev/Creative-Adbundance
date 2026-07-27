@@ -59,7 +59,9 @@ def main():
     vt = json.load(open(a.vo_track, encoding="utf-8-sig"))
     words = json.load(open(a.words, encoding="utf-8-sig"))
     types = {str(p["scene"]): p["type"] for p in json.load(open(a.picked, encoding="utf-8-sig"))}
-    clips = {c["scene"]: c for c in asm["clips"]}
+    clips = {}                                       # a scene can hold SEVERAL video clips (a b-roll sequence)
+    for c in asm["clips"]:
+        clips.setdefault(c["scene"], []).append(c)
     by_scene = {}
     for w in words:
         by_scene.setdefault(w["scene"], []).append(w)
@@ -79,11 +81,22 @@ def main():
         new_mp3 = os.path.join(tight, os.path.basename(e["file"]))    # stays .wav -> no encoder delay
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{f:.3f}", "-i", e["file"],
                         "-t", f"{new_dur:.3f}", "-c:a", "pcm_s16le", "-ar", "44100", new_mp3], capture_output=True)
-        clip = clips.get(sc)
-        if clip:
+        group = clips.get(sc) or []
+        if len(group) == 1:
+            clip = group[0]
             if types.get(sc) == "talkinghead":
                 clip["in"] = round(float(clip["in"]) + f, 3)      # shift TH video to match trimmed audio (lip sync)
             clip["dur"] = new_dur                                 # b-roll just shortens
+        elif group:                                               # b-roll sequence: rescale the shots to the
+            old = sum(float(c["dur"]) for c in group) or 1.0      # trimmed scene, keeping their proportions
+            acc = 0.0
+            for i, c in enumerate(group):
+                if i < len(group) - 1:
+                    d = round(round(new_dur * (float(c["dur"]) / old) * a.fps) / a.fps, 4)
+                    d = max(round(1.0 / a.fps, 4), d)
+                    c["dur"], acc = d, acc + d
+                else:
+                    c["dur"] = round(max(round(1.0 / a.fps, 4), new_dur - acc), 4)   # last takes the remainder
         for w in sw:
             st = cum + max(0.0, (w["start"] - e["start"]) - f)
             new_words.append({"start": round(st, 3), "end": round(cum + max(st - cum, (w["end"] - e["start"]) - f), 3),

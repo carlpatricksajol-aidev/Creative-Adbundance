@@ -45,19 +45,29 @@ def main():
         vo.append({"scene": r["scene"], "file": wav.replace("\\", "/"), "start": round(cum, 3),
                    "dur": round(dur, 3), "text": r["line"]})
 
-        if r["type"] == "broll" and r.get("broll"):
-            bsrc = os.path.join(a.input_dir, r["broll"])
-            bmax = max(0.0, dur_of(bsrc) - dur - 0.2)
-            bkey = os.path.basename(r["broll"])
-            bin_ = min(wins[bkey], bmax) if bkey in wins else min(a.broll_offset, bmax)   # vision-picked action window, else the old offset
-            clips.append({"scene": r["scene"], "file": bsrc.replace("\\", "/"), "in": round(bin_, 3),
-                          "dur": round(dur, 3), "caption": r["line"]})
+        brolls = r.get("brolls") or ([r["broll"]] if r.get("broll") else [])
+        if r["type"] == "broll" and brolls:
+            # the storyboard's clip LIST becomes a cut sequence inside the scene: split the
+            # scene's VO time across the clips so "call + swish + mask on" actually plays as
+            # three shots instead of one long take
+            n = len(brolls)
+            share = dur / n
+            for k, b in enumerate(brolls):
+                bsrc = os.path.join(a.input_dir, b)
+                sub = round(dur - share * (n - 1), 3) if k == n - 1 else round(share, 3)
+                bmax = max(0.0, dur_of(bsrc) - sub - 0.2)
+                bkey = os.path.basename(b)
+                bin_ = min(wins[bkey], bmax) if bkey in wins else min(a.broll_offset, bmax)
+                clips.append({"scene": r["scene"], "file": bsrc.replace("\\", "/"), "in": round(bin_, 3),
+                              "dur": sub, "caption": r["line"]})
+                print(f"{r['scene']:9} {'BROLL':5} {os.path.basename(bsrc)[:42]:42} {sub:4.1f}s"
+                      f"{'  (%d/%d)' % (k + 1, n) if n > 1 else ''}")
         else:                                            # talking head: video = the same take, synced to its VO
             clips.append({"scene": r["scene"], "file": th.replace("\\", "/"), "in": round(float(r["in"]), 3),
                           "dur": round(dur, 3), "caption": r["line"]})
+            print(f"{r['scene']:9} {'TH':5} {os.path.basename(th)[:42]:42} {dur:4.1f}s")
         lines.append({"scene": r["scene"], "text": r["line"]})
         cum += dur
-        print(f"{r['scene']:9} {'BROLL' if r['type'] == 'broll' else 'TH':5} {os.path.basename(clips[-1]['file'])[:42]:42} {dur:4.1f}s")
 
     json.dump({"width": a.w, "height": a.h, "fps": a.fps, "clips": clips},
               open(os.path.join(a.out_dir, "assembly.json"), "w", encoding="utf-8"), indent=2)
