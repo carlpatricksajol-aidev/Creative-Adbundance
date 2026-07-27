@@ -166,6 +166,45 @@ white-space:pre-wrap;font-size:11.5px;line-height:1.5;max-height:300px;overflow:
 .big .ic{width:20px;height:20px}
 .foot{margin-top:20px;color:var(--tx3);font-size:12px;display:flex;gap:16px;align-items:center}
 .empty{color:var(--tx3);font-size:13px;padding:26px 0}
+/* preview popup: watch without leaving the jobs list */
+.pv{position:fixed;inset:0;background:rgba(0,0,0,.84);backdrop-filter:blur(6px);display:none;
+align-items:center;justify-content:center;z-index:60;padding:20px}
+.pv.on{display:flex}
+.pvbox{position:relative;background:var(--sf);border:1px solid rgba(107,71,255,.35);border-radius:18px;
+padding:14px;box-shadow:0 32px 100px rgba(0,0,0,.7);animation:pin .18s ease;
+display:flex;flex-direction:column;align-items:center}
+@keyframes pin{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
+.pvbox video{display:block;max-height:76vh;max-width:86vw;border-radius:12px;background:#000}
+/* width:0 + min-width:100% keeps a long title from stretching the box past the video */
+.pvt{margin-top:11px;font-size:12.5px;color:var(--tx2);text-align:center;line-height:1.7;
+width:0;min-width:100%}
+.pvx{position:absolute;top:-13px;right:-13px;width:34px;height:34px;border-radius:50%;background:var(--pp);
+color:#fff;border:0;font-size:19px;line-height:1;cursor:pointer;display:flex;align-items:center;
+justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+.pvx:hover{opacity:.88}
+"""
+
+MODAL = """
+<div class="pv" id="pv"><div class="pvbox">
+  <button class="pvx" id="pvx" title="Close">&times;</button>
+  <video id="pvv" controls playsinline></video>
+  <div class="pvt" id="pvt"></div>
+</div></div>
+<script>
+(function(){
+  var m=document.getElementById('pv'), v=document.getElementById('pvv'), t=document.getElementById('pvt');
+  function close(){ v.pause(); v.removeAttribute('src'); v.load(); m.classList.remove('on'); }
+  document.addEventListener('click', function(e){
+    var a=e.target.closest ? e.target.closest('.pvlink') : null;
+    if(a){ e.preventDefault(); v.src=a.dataset.src; t.innerHTML=a.dataset.title+
+      ' &middot; <a href="'+a.dataset.src+'" download>download</a>'+
+      ' &middot; <a href="'+a.dataset.job+'">job details</a>';
+      m.classList.add('on'); v.play().catch(function(){}); return; }
+    if(e.target===m || e.target.id==='pvx'){ close(); }
+  });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape') close(); });
+})();
+</script>
 """
 
 
@@ -187,7 +226,7 @@ def sidebar(active=""):
 
 def page(body, active="", bare=False):
     shell = (f'<main class="content bare"><div class="wrap" style="max-width:400px">{body}</div></main>'
-             if bare else f'{sidebar(active)}<main class="content"><div class="wrap">{body}</div></main>')
+             if bare else f'{sidebar(active)}<main class="content"><div class="wrap">{body}</div></main>{MODAL}')
     return ("<!doctype html><html><head><meta charset='utf-8'>"
             "<meta name=viewport content='width=device-width,initial-scale=1'>"
             f"<link rel='icon' href=\"{FAVICON}\">"
@@ -359,7 +398,10 @@ def jobs():
         out_cell = '<span style="color:var(--tx3)">&mdash;</span>'
         if st.get("ok") and st.get("outputs"):
             o = st["outputs"]
-            out_cell = (f'<span class="out"><a href="/file/{jid}/{o["preview"]}">{ic("play")}Preview</a>'
+            out_cell = (f'<span class="out"><a class="pvlink" href="/file/{jid}/{o["preview"]}" '
+                        f'data-src="/file/{jid}/{o["preview"]}" data-job="/job/{jid}" '
+                        f'data-title="{esc(meta.get("brand", ""))} &middot; {esc(meta.get("concept", jid))}">'
+                        f'{ic("play")}Preview</a>'
                         f'<a href="/file/{jid}/{o["xml"]}">{ic("code")}XML</a>'
                         f'<a href="/file/{jid}/{o["srt"]}">{ic("captions")}SRT</a>'
                         f'<a href="/zip/{jid}">{ic("archive")}Zip</a></span>')
