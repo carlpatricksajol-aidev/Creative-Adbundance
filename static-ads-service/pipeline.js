@@ -370,10 +370,66 @@ async function produceOne(templateUrl, brain, tok, assets, meta) {
   return null; // fully-automatic: below the bar → does not ship
 }
 
+// ---- auto-select industry-matched templates (when the client does NOT hand-pick) ----------
+// The client can just request N ads; we look at their industry and pick N on-industry templates
+// (a diverse spread of layout categories, no seasonal/occasion templates) from the 972-row library.
+let _templateIndex = null;
+async function loadTemplates() {
+  if (_templateIndex) return _templateIndex;
+  const rows = []; let from = 0;
+  while (true) {
+    const r = await fetch(`${SB_URL}/rest/v1/creative_os_templates?select=image_url,category,industry_tags&limit=1000&offset=${from}`, { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } });
+    const d = r.ok ? await r.json() : [];
+    if (!Array.isArray(d) || !d.length) break;
+    rows.push(...d); if (d.length < 1000) break; from += 1000;
+  }
+  _templateIndex = rows.filter(r => r.image_url);
+  return _templateIndex;
+}
+const SEASONAL = /black friday|holiday|mother|father|valentine|christmas|halloween|new year|cyber monday|easter|thanksgiving|prime day/i;
+const INDUSTRY_MAP = [
+  [/supplement|vitamin|colostrum|collagen|nutrition|probiotic|nootropic|\bliver\b|\bgut\b|peptide|mushroom/i, ['Supplements', 'Health & Wellness']],
+  [/fintech|financ|\bdebt\b|lending|\bloan\b|credit|insurance|mortgage|\bbank|invest|\btax\b/i, ['Finance']],
+  [/\blaw\b|legal|attorney|lawyer|\bclaim/i, ['Lawyers', 'Professional Services']],
+  [/skin|serum|acne|beauty|cosmetic|makeup|lash/i, ['Skincare', 'Beauty', 'Personal Care']],
+  [/\bhair\b/i, ['Hair Care', 'Personal Care']],
+  [/apparel|clothing|\btee\b|shirt|fashion|\bwear\b/i, ['Apparel']],
+  [/food|beverage|\bdrink|coffee|soda|snack|\btea\b|water|wafel|jerky/i, ['Food & Beverage']],
+  [/\bbaby|kids|child|infant|toddler|crib|nursery/i, ['Baby & Kids']],
+  [/\bpet\b|\bdog\b|\bcat\b/i, ['Pets']],
+  [/\btech\b|software|\bapp\b|saas|platform|digital|\bai\b|\bgame/i, ['Technology', 'Digital Products', 'App Installs']],
+  [/jewel|\bring\b|necklace|bracelet/i, ['Jewelry', 'Accessories']],
+  [/\bhome\b|furniture|garment|cleaning|mattress|\bbed\b|kitchen|dresser|\bcart/i, ['Home Goods', 'Home Services', 'Kitchen & Dining']],
+  [/education|tutor|school|learn|course|graduat/i, ['Education', 'Info Products']],
+  [/travel|cruise|vacation|flight/i, ['Travel']],
+  [/\bdating\b|singles/i, ['Dating']],
+  [/entrepreneur|business|coach|agency|consult/i, ['Business/Professional', 'Info Products', 'Professional Services']],
+  [/health|wellness|medical|doctor|therap|mental/i, ['Health & Wellness']],
+];
+function templateTags(brain) {
+  const industry = pick(brain, ['industry']);
+  const text = (industry && industry.trim()) ? (industry + ' ' + pick(brain, ['brand_name'], '')) : [pick(brain, ['key_offer']), pick(brain, ['brand_name'])].filter(Boolean).join(' ');
+  const tags = new Set();
+  for (const [re, t] of INDUSTRY_MAP) if (re.test(text)) t.forEach(x => tags.add(x));
+  return tags.size ? [...tags] : ['Health & Wellness', 'Supplements'];
+}
+async function selectTemplates(brain, count) {
+  const idx = (await loadTemplates()).filter(r => !SEASONAL.test(r.category || ''));
+  const tags = templateTags(brain).map(t => t.toLowerCase());
+  const tagsOf = (r) => Array.isArray(r.industry_tags) ? r.industry_tags : String(r.industry_tags || '').split(/[,|;]/);
+  const matches = idx.filter(r => tagsOf(r).some(x => tags.includes(String(x).trim().toLowerCase())));
+  const pool = (matches.length >= count ? matches : idx).slice();
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  const perCat = Math.max(1, Math.ceil(count / 4)), catCount = {}, picks = [];
+  for (const r of pool) { if (picks.length >= count) break; const c = r.category || 'x'; if ((catCount[c] || 0) >= perCat) continue; catCount[c] = (catCount[c] || 0) + 1; picks.push(r); }
+  for (const r of pool) { if (picks.length >= count) break; if (!picks.includes(r)) picks.push(r); }
+  return picks.slice(0, count).map(r => r.image_url);
+}
+
 // ---- produce a whole batch from a form submission -----------------------------------------
 async function produceBatch(body) {
   const brand = String(body.client_name || body.clientName || body.brand_name || body.brand || '').trim();
-  const templates = asArray(body.selected_template_urls || body.template_urls || body.selected_templates);
+  let templates = asArray(body.selected_template_urls || body.template_urls || body.selected_templates);
   const runId = 'agent-' + Date.now();
   const platform = String(body.platforms || '').split(',')[0].trim();
 
@@ -385,12 +441,18 @@ async function produceBatch(body) {
   if (!productNames.length && Array.isArray(body.products)) productNames = body.products.map(p => (p && (p.name || p.product_name)) || '').filter(Boolean);
   const references = asArray(body.reference_urls);
 
-  log(`RUN ${runId} — "${brand}" — ${templates.length} templates, ${productImages.length} product image(s)`);
-
   const brain = await fetchBrand(brand, body.sister_brand);
   if (!brain._found) log(`  WARNING: no Brand Brain row for "${brand}" — copy will be thin`);
   const tok = tokens(brain);
   const name = pick(brain, ['brand_name', 'client_name'], brand || 'The Brand');
+
+  // AUTO-SELECT industry-matched templates when the client didn't hand-pick any (they just request N ads)
+  if (!templates.length) {
+    const n = Math.max(1, Math.min(30, +(body.static_ads_count || body.count) || 5));
+    try { templates = await selectTemplates(brain, n); log(`  auto-picked ${templates.length} templates for industry "${pick(brain, ['industry'], '?')}"`); }
+    catch (e) { log('  auto-pick failed: ' + String(e.message || e).slice(0, 80)); }
+  }
+  log(`RUN ${runId} — "${brand}" — ${templates.length} templates, ${productImages.length} product image(s)`);
 
   // fall back to the brand-brain packshot / logo when the form didn't carry them
   if (!productImages.length) productImages = asArray(brain.product_image).slice(0, 1);
