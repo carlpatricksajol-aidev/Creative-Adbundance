@@ -41,6 +41,7 @@ function extractBriefs(raw) {
   try { const v = JSON.parse(s); if (Array.isArray(v)) return v; const a = v && (v.briefs || v.concepts || v.ads || v.array); if (Array.isArray(a)) return a; } catch (e) {}
   const start = s.search(/\[\s*\{/);
   if (start >= 0) {
+    // bracket-match the whole array (string-aware)
     let depth = 0, inStr = false, esc = false;
     for (let i = start; i < s.length; i++) {
       const c = s[i];
@@ -49,6 +50,17 @@ function extractBriefs(raw) {
       else if (c === '[') depth++;
       else if (c === ']') { if (--depth === 0) { try { const v = JSON.parse(s.slice(start, i + 1)); if (Array.isArray(v)) return v; } catch (e) {} break; } }
     }
+    // SALVAGE: array was truncated (model hit the token cap) or malformed → collect every COMPLETE
+    // top-level {...} object from the array start; the incomplete final object is simply dropped.
+    const objs = []; let d = 0, os = -1, inS = false, es = false;
+    for (let i = start; i < s.length; i++) {
+      const c = s[i];
+      if (inS) { if (es) es = false; else if (c === '\\') es = true; else if (c === '"') inS = false; continue; }
+      if (c === '"') { inS = true; continue; }
+      if (c === '{') { if (d === 0) os = i; d++; }
+      else if (c === '}') { if (d > 0 && --d === 0 && os >= 0) { try { objs.push(JSON.parse(s.slice(os, i + 1))); } catch (e) {} os = -1; } }
+    }
+    if (objs.length) return objs;
   }
   try { const m = s.match(/\{[\s\S]*\}/); if (m) { const o = JSON.parse(m[0]); const a = o.briefs || o.concepts || o.ads; if (Array.isArray(a)) return a; } } catch (e) {}
   return null;
@@ -537,13 +549,14 @@ async function creativeDirector(brain, templateCats, assets) {
   if (!n) return null;
   const view = directorBrain(brain, assets);
   const user = `BRAND_BRAIN:\n${JSON.stringify(view)}\n\nTEMPLATE_CATEGORIES (in order; brief i uses category i):\n${JSON.stringify(templateCats)}\n\nN = ${n}\n\nOutput ONLY the JSON array of exactly ${n} briefs.`;
-  // Output budget must fit N briefs (~800 tok each) plus the thinking budget; cap so a 50-ad batch still fits.
-  const outBudget = DIRECTOR_THINK + Math.min(28000, Math.max(3500, n * 800));
+  // Output budget must comfortably fit N briefs (each ~400 tok incl. a verbose device_note) PLUS the
+  // thinking budget; generous floor so it never truncates (Sonnet output is cheap; max_tokens is a cap).
+  const outBudget = DIRECTOR_THINK + Math.min(30000, Math.max(9000, n * 1100));
   const raw = await chat(MODEL_DIRECTOR,
     [{ role: 'system', content: DIRECTOR_PROMPT }, { role: 'user', content: user }],
     outBudget, DIRECTOR_THINK ? { max_tokens: DIRECTOR_THINK } : null);
   const arr = extractBriefs(raw);
-  if (!Array.isArray(arr) || !arr.length) { log('  director: could not parse briefs from output head: ' + String(raw || '').replace(/\s+/g, ' ').slice(0, 220)); return null; }
+  if (!Array.isArray(arr) || !arr.length) { const t = String(raw || '').replace(/\s+/g, ' '); log('  director: could not parse briefs; len=' + t.length + ' tail=…' + t.slice(-140)); return null; }
   return arr;
 }
 // Build the reconstruct guidance for a decided concept: the device's known-good SVG pattern + how to adapt it.
