@@ -25,6 +25,7 @@ const crypto       = require('crypto');
 const { cutoutBuffer } = require('./cutout');    // background knockout for product packshots
 const { PNG }      = require('pngjs');            // only to detect an already-transparent product PNG (pure JS)
 const { DIRECTOR_PROMPT, DEVICES } = require('./director-data'); // creative-director brain + inline-SVG device library
+const { kieGenerate, kieEnabled } = require('./kie');            // KIE AI photoreal render lane (product brands)
 
 // ---- tiny helpers -------------------------------------------------------------------------
 const log = (...a) => console.log(new Date().toISOString(), ...a);
@@ -451,6 +452,78 @@ async function produceOne(templateUrl, brief, brain, tok, assets, meta) {
   return null; // fully-automatic: below the bar → does not ship
 }
 
+// ============================================================================================
+// KIE AI LANE — photoreal PRODUCT ads. Claude's Creative Director decides the concept + copy;
+// KIE (nano-banana-pro) generates the actual picture image-to-image from the REAL product photo,
+// so the ad FEATURES the real product photoreal (what the HTML/vector lane structurally can't do).
+// ============================================================================================
+function composeKiePrompt(brief, brain, assets, platform, lastIssues) {
+  const name = assets.name || pick(brain, ['brand_name', 'client_name'], 'the brand');
+  const t = tokens(brain);
+  const prod = (assets.productNames && assets.productNames.filter(Boolean).join(', ')) || pick(brain, ['key_offer'], 'the product');
+  const hl = String(brief && brief.headline || '').replace(/\s*\/\s*/g, ' ');
+  const sub = String(brief && brief.subhead || '').trim();
+  const cta = String(brief && brief.cta || 'Learn more').trim();
+  const proof = brief && brief.proof ? String(brief.proof).trim() : '';
+  const refNote = assets.logoDark
+    ? 'Reference image 1 is the REAL PRODUCT (the hero). The final reference image is the BRAND LOGO, place it small and clean in a top corner.'
+    : 'Reference image 1 is the REAL PRODUCT (the hero).';
+  return [
+    `A premium, scroll-stopping ${platform || 'Meta / Instagram'} PRODUCT ADVERTISEMENT for the brand "${name}", 1:1 square, high-end commercial quality (think a top DTC brand's paid social ad).`,
+    `${refNote} Reproduce the product from the reference EXACTLY, its real packaging, label text, shape and colours, do NOT redesign or relabel it. Make the product the clear HERO: large, sharp, beautifully lit product photography with a soft realistic shadow, integrated into the scene (never a floating cut-out sticker).`,
+    `CONCEPT (the single idea this ad lands): ${brief ? brief.big_idea : prod}. Angle: ${brief ? brief.angle : 'benefit-led'}.`,
+    `ON-IMAGE TEXT, rendered crisply and spelled EXACTLY, with clear hierarchy and generous spacing (no other text anywhere):`,
+    `  - HEADLINE (large, dominant, top or side): "${hl}".`,
+    sub ? `  - SUBHEAD (smaller, supporting): "${sub}".` : '',
+    `  - CTA BUTTON (a rounded pill): "${cta}".`,
+    proof ? `  - One small proof line, verbatim, do not alter the number: "${proof}".` : '',
+    `BRAND STYLE: brand palette ${t.brand}${pick(brain, ['secondary_color_hex']) ? ' + ' + pick(brain, ['secondary_color_hex']) : ''} + accent ${t.accent}; clean modern layout; strong contrast; the composition fills the frame with intentional negative space; nothing cut off by the edges.`,
+    `HARD NEGATIVES: no misspelled, garbled or gibberish text; no lorem ipsus; no extra or invented logos, no watermark; do NOT invent any statistic, price, star rating, review count or "as seen in" press badge that is not given above; no duplicate products; no clutter; no busy background competing with the product.`,
+    lastIssues ? `FIX these problems from the last attempt: ${lastIssues}` : '',
+  ].filter(Boolean).join('\n');
+}
+// QA a KIE-generated image: product fidelity + legible correct text + on-brand + no garble/fabrication.
+async function qaKie(renderedUrl, brain, brief, productNames) {
+  const name = pick(brain, ['brand_name', 'client_name'], 'the brand');
+  const subject = (Array.isArray(productNames) && productNames.length) ? productNames.filter(Boolean).join(', ') : 'the product';
+  const wantHeadline = brief ? String(brief.headline || '').replace(/\s*\/\s*/g, ' ') : '';
+  const content = [
+    { type: 'text', text: `You are a TOUGH art director doing QA on this AI-GENERATED 1:1 product ad for "${name}" (product: ${subject}). Return JSON {"score": <1-10 integer; 10=ship-ready paid-social ad, 7=good with minor nits, 6 or below=a designer would reject>, "issues":[specific fixes]}. This ad was image-generated, so CHECK HARD FOR: (1) GARBLED / MISSPELLED / gibberish text anywhere, warped letters, nonsense words, or a wrong/misspelled brand name — score 4 or below if present; (2) the product must be the real ${subject}, the HERO, clean and undistorted (not warped, duplicated, or a floating sticker); (3) the headline${wantHeadline ? ` should read "${wantHeadline}"` : ''} must be legible and correctly spelled; (4) on-brand, professional, uncluttered, nothing cut off by the frame; (5) NO fabricated stats / prices / star ratings / press logos that were not intended. A clean, photoreal, correctly-spelled, on-brand product ad scores 8-9. Be strict — garbled text is an automatic fail.` },
+    { type: 'text', text: 'THE AD:' }, { type: 'image_url', image_url: { url: renderedUrl } },
+  ];
+  const v = jsonOf(await chat(MODEL_VISION, [{ role: 'user', content }], 800)) || {};
+  return { score: typeof v.score === 'number' ? v.score : 0, issues: Array.isArray(v.issues) ? v.issues : ['QA unparseable'] };
+}
+async function produceOneKie(brief, brain, tok, assets, meta) {
+  let lastIssues = '';
+  let best = { score: 0, url: null };
+  // KIE wants the ORIGINAL product photo (full packshot), not the transparent HTML cutout.
+  const refs = [...(assets.productImagesRaw || assets.productImages || []), assets.logoDark].filter(Boolean).slice(0, 6);
+  const aspect = /9:16|story|reel/i.test(meta.platform || '') ? '9:16' : '1:1';
+  for (let t = 1; t <= MAX_TRIES; t++) {
+    try {
+      const prompt = composeKiePrompt(brief, brain, assets, meta.platform, lastIssues);
+      const kieUrl = await kieGenerate({ prompt, imageUrls: refs, aspect }, log);
+      const r = await fetch(kieUrl);
+      if (!r.ok) { lastIssues = 'generated image fetch failed'; log(`  [${meta.i}] KIE try ${t}: image fetch ${r.status}`); continue; }
+      const buf = Buffer.from(await r.arrayBuffer());              // rehost immediately (KIE URLs die in ~24h)
+      const url = await store(buf, `produced/${norm(meta.brand)}/${meta.runId}-${meta.i}-t${t}.png`);
+      const v = await qaKie(url, brain, brief, assets.productNames);
+      log(`  [${meta.i}] KIE try ${t}: score ${v.score}${v.issues && v.issues.length ? ' — ' + v.issues.join('; ').slice(0, 110) : ''}`);
+      if (v.score > best.score) best = { score: v.score, url };
+      if (v.score >= SHIP_SCORE) break;
+      lastIssues = (v.issues || []).map(x => '- ' + x).join('\n');
+    } catch (e) { lastIssues = String(e.message || e); log(`  [${meta.i}] KIE error try ${t}: ${lastIssues.slice(0, 140)}`); }
+  }
+  if (best.url && best.score >= SHIP_SCORE) {
+    await insertRow(best.url, brain, meta);
+    log(`  [${meta.i}] SHIP (score ${best.score}) → ${best.url}`);
+    return { image_url: best.url, score: best.score };
+  }
+  log(`  [${meta.i}] DROPPED (best score ${best.score})`);
+  return null;
+}
+
 // ---- auto-select industry-matched templates (when the client does NOT hand-pick) ----------
 // The client can just request N ads; we look at their industry and pick N on-industry templates
 // (a diverse spread of layout categories, no seasonal/occasion templates) from the 972-row library.
@@ -608,14 +681,20 @@ async function produceBatch(body) {
 
   // fall back to the brand-brain packshot / logo when the form didn't carry them
   if (!productImages.length) productImages = asArray(brain.product_image).slice(0, 1);
-  // knock the background out of each product packshot so it composites cleanly (no white box)
+  const productImagesRaw = productImages.slice();   // ORIGINAL packshots (with bg) — the KIE lane wants these
+  // knock the background out of each product packshot so it composites cleanly (no white box) — HTML lane
   productImages = (await Promise.all(productImages.map(cutoutProduct))).filter(Boolean);
   const logos = asArray(brain.logo_urls);
   const logoDark = logos[0] || null;   // dark mark → for LIGHT backgrounds
   const logoLight = logos[1] || null;  // white mark → for DARK backgrounds
-  const assets = { logoDark, logoLight, name, productImages, productNames, references };
+  const assets = { logoDark, logoLight, name, productImages, productImagesRaw, productNames, references };
   if (!logoDark) log(`  NOTE: no logo in brand_brain.logo_urls for "${name}" — using a text wordmark. Add the real logo with set-logo.js to get the brand mark.`);
   if (!productImages.length) log(`  NOTE: no product image (form or brand_brain) — ads will be typographic with no product shown.`);
+
+  // RENDER LANE: photoreal KIE (nano-banana-pro) for PRODUCT brands when a KIE key is set — Claude's
+  // concept + the real product photo → a real product ad. Else the HTML/vector lane. Force with FORCE_KIE=1.
+  const useKie = kieEnabled() && (productImagesRaw.length > 0 || String(E.FORCE_KIE || '') === '1');
+  if (useKie) log(`  render lane: KIE (nano-banana-pro) — photoreal product ads`);
 
   // CREATIVE DIRECTOR: decide the concept (a sharp angle + a visual device) for every ad ONCE, up front.
   // This is the heavy thinking, done a single time; each reconstruct below just EXECUTES its brief (fast +
@@ -638,7 +717,10 @@ async function produceBatch(body) {
   async function worker() {
     while (idx < templates.length) {
       const i = idx++;
-      const r = await produceOne(templates[i].image_url, briefs ? briefs[i] : null, brain, tok, assets, { brand: name, i: i + 1, runId, platform });
+      const meta = { brand: name, i: i + 1, runId, platform };
+      const r = useKie
+        ? await produceOneKie(briefs ? briefs[i] : null, brain, tok, assets, meta)
+        : await produceOne(templates[i].image_url, briefs ? briefs[i] : null, brain, tok, assets, meta);
       if (r) results.push(r);
     }
   }
