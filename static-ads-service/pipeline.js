@@ -17,9 +17,9 @@ const MAX_TRIES    = +(E.MAX_TRIES || 3);
 const SHIP_SCORE   = +(E.SHIP_SCORE || 7);   // QA score (1-10) an ad must clear to ship
 const CONCURRENCY  = +(E.CONCURRENCY || 4);
 const MODEL_DIRECTOR  = E.MODEL_DIRECTOR || 'anthropic/claude-sonnet-4.5'; // creative-director stage; Sonnet is cheap+fast and the prompt is prescriptive. Set MODEL_DIRECTOR=anthropic/claude-opus-4.8 for premium concepts.
-const MODEL_BUILD_FAST = E.MODEL_BUILD_FAST || 'anthropic/claude-sonnet-4.5'; // EXECUTE a decided brief (fast; ideation is done)
+const MODEL_BUILD_FAST = E.MODEL_BUILD_FAST || 'anthropic/claude-opus-4.8'; // EXECUTE a decided brief; Opus for enterprise-grade builds. Set MODEL_BUILD_FAST=anthropic/claude-sonnet-4.5 to cut cost once dialed in.
 const DIRECTOR_THINK  = +(E.DIRECTOR_THINK || 2200);    // the heavy creative thinking happens ONCE per batch, here (kept modest for latency)
-const BUILD_THINK     = +(E.THINK_TOKENS || 0);         // reconstruct: NO thinking by default — the concept is already decided
+const BUILD_THINK     = +(E.THINK_TOKENS || 1800);      // reconstruct: modest thinking so the builder composes a clean, in-frame layout
 const puppeteer    = require('puppeteer-core');  // local headless Chrome render — free, no per-image limit
 const crypto       = require('crypto');
 const { cutoutBuffer } = require('./cutout');    // background knockout for product packshots
@@ -251,7 +251,8 @@ async function reconstruct(templateUrl, brain, assets, lastIssues, brief) {
   else txt += `No logo asset — use a plain TEXT wordmark "${name}" in the brand font (never invent a logo graphic).\n\n`;
 
   txt += (brief
-      ? `Execute the concept above exactly. The device must be visibly BUILT (inline SVG), labelled per the build spec, not just implied by the words.\n\n`
+      ? `Execute the concept as a POLISHED, ENTERPRISE-GRADE ad a senior designer would ship to a paying client: ONE dominant headline, the device richly designed as the amplifier, generous spacing, a single clear reading order. This must look intentionally art-directed, never like a wireframe or a template with placeholder shapes.\n` +
+        `HARD, non-negotiable: nothing overlaps; no element leaves the 1080x1080 frame; NO text is wider than its container (size big display words and numbers to FIT within the margins, shrink or wrap before they spill); every phrase appears ONCE (never repeat the headline or a word in two places); the device is visibly built and clean. If something would not fit, make it smaller, do not let it clip.\n\n`
       : `First decide the SINGLE hook (the one idea this ad lands), then compose around it. Write the headline, subhead, CTA and any support copy yourself from the offer and pains: specific, bold, on-brand.\n\n`) +
     `DESIGN SYSTEM: stage is <div class="stage" style="...">, 1080x1080. CSS vars: --brand --brand2 --onbrand --accent --ink --sub --line --light --paper --green --red --yellow. Body font is the brand sans; class "serif" for the display headline; class "product" for the product <img> (object-fit:contain, size it large); class "logo" for the logo <img>; .cta pill. Inline <svg> for the visual device inherits these vars.\n\n` +
     `HARD REQUIREMENTS: headline at least 76px, subhead at least 30px, body at least 26px (an automated check REJECTS text under 20px, any overlap, and anything off the frame). Keep copy SHORT so it fits big. PUNCTUATION: NEVER use em-dashes, en-dashes or hyphens in the copy; use commas and periods only (write "grass fed colostrum, now a soda", not "grass-fed soda").\n\n` +
@@ -564,10 +565,10 @@ function deviceGuide(brief) {
   if (!brief || !brief.device) return '';
   const d = DEVICES[brief.device];
   if (!d) return '';
-  if (brief.device === 'type-only') return `VISUAL DEVICE: type-only (NO illustration). ${d.notes} ${brief.device_note || ''}\n\n`;
-  return `VISUAL DEVICE: "${brief.device}" — ${d.when}\n` +
-    `PASTE THIS EXACT SVG inline in the HTML as the visual device (it already uses the ad's CSS vars, so it inherits the brand colours — red=pain, green=exit). Change ONLY the <text> label contents to fit the build spec below; KEEP every shape, coordinate, transform, colour and the viewBox exactly as given. Do NOT redraw, restructure, or re-scale the shapes. Wrap it in a fixed container sized to about 40% of the frame, e.g. <div style="width:42%;max-width:460px">…svg…</div>, placed as the AMPLIFIER under the headline so it never overflows the frame. Never use <img> for it.\n${d.svg}\n` +
-    `RELABEL ONLY (swap the placeholder text for the real labels; do not touch the geometry): ${brief.device_note || ''}\n\n`;
+  if (brief.device === 'type-only' || !d) return `VISUAL: type-led, NO illustration. Make the type itself the drama, extreme scale contrast, a hard two tone split, tight leading. ${brief.device_note || ''}\n\n`;
+  return `VISUAL CONCEPT: a "${brief.device}" — ${d.when}\n` +
+    `DESIGN IT RICHLY, the way a senior art director at a top agency would, a polished, enterprise-grade graphic built with clean HTML and CSS and inline <svg> (never an <img>). NOT a crude clip-art icon, NOT a flat wireframe, NOT a childish shape. Give it real depth, considered proportions, tasteful labels, soft shadows and brand-coloured styling, on the level of a designed Meta ad. Build this metaphor: ${brief.device_note || d.notes}\n` +
+    `Use the ad's CSS vars for colour (red = the pain, green = the way out, brand and accent = the subject). Put it in its OWN container as the amplifier beneath the headline so it never overlaps other elements or spills past the frame. Do NOT repeat the headline wording inside the device.\n\n`;
 }
 
 // ---- produce a whole batch from a form submission -----------------------------------------
