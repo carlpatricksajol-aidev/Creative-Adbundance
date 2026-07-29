@@ -161,11 +161,13 @@ const lum = (h) => { const [r, g, b] = rgb(h).map(v => { v /= 255; return v <= 0
 
 function tokens(brain) {
   const brand = pick(brain, ['primary_color_hex'], '#2E6BFF');
+  const secondary = pick(brain, ['secondary_color_hex'], '');
   const accent = pick(brain, ['accent_color_hex', 'secondary_color_hex'], brand);
   const light = lum(brand) > 0.55;
   const f = resolveFonts(pick(brain, ['brand_fonts'], ''));
   return {
-    brand, accent, brand2: toHex(rgb(brand).map(v => v * (light ? 0.86 : 0.78))),
+    brand, accent, secondary: secondary || toHex(rgb(brand).map(v => v * (light ? 0.86 : 0.78))),
+    brand2: toHex(rgb(brand).map(v => v * (light ? 0.86 : 0.78))),
     onbrand: light ? '#12142B' : '#FFFFFF', ink: '#12142B',
     lightBg: toHex(rgb(brand).map(v => v * 0.1 + 255 * 0.9)),
     sans: f.body, serif: f.head, fontImport: f.import,
@@ -173,7 +175,7 @@ function tokens(brain) {
 }
 function baseCss(t) {
   return `${t.fontImport}
-:root{ --brand:${t.brand}; --brand2:${t.brand2}; --onbrand:${t.onbrand}; --accent:${t.accent};
+:root{ --brand:${t.brand}; --brand2:${t.brand2}; --secondary:${t.secondary}; --onbrand:${t.onbrand}; --accent:${t.accent};
   --ink:${t.ink}; --sub:#5A6377; --line:#E6EAF2; --light:${t.lightBg}; --paper:#FFFFFF; --green:#12A150; --red:#E5484D; --yellow:#F3E85C; }
 *{margin:0;padding:0;box-sizing:border-box} html,body{background:#000}
 .stage{width:1080px;height:1080px;position:relative;overflow:hidden;font-family:${t.sans};-webkit-font-smoothing:antialiased;color:var(--ink)}
@@ -181,7 +183,7 @@ function baseCss(t) {
 img{display:block;max-width:100%}
 .product{object-fit:contain;display:block}    /* the REAL product photo — never a drawn shape */
 .logo{height:46px;width:auto;object-fit:contain;display:block}
-.cta{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:23px;padding:15px 30px;border-radius:999px;white-space:nowrap;background:var(--brand);color:var(--onbrand)}`;
+.cta{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:31px;padding:18px 34px;border-radius:999px;white-space:nowrap;background:var(--brand);color:var(--onbrand)}`;
 }
 
 const STANDARDS = `DESIGN STANDARDS — the authentic, hand-designed bar. This is what separates a real ad from AI slop:
@@ -254,7 +256,8 @@ async function reconstruct(templateUrl, brain, assets, lastIssues, brief) {
       ? `Execute the concept as a POLISHED, ENTERPRISE-GRADE ad a senior designer would ship to a paying client: ONE dominant headline, the device richly designed as the amplifier, generous spacing, a single clear reading order. This must look intentionally art-directed, never like a wireframe or a template with placeholder shapes.\n` +
         `HARD, non-negotiable: nothing overlaps; no element leaves the 1080x1080 frame; NO text is wider than its container (size big display words and numbers to FIT within the margins, shrink or wrap before they spill); every phrase appears ONCE (never repeat the headline or a word in two places); the device is visibly built and clean. If something would not fit, make it smaller, do not let it clip.\n\n`
       : `First decide the SINGLE hook (the one idea this ad lands), then compose around it. Write the headline, subhead, CTA and any support copy yourself from the offer and pains: specific, bold, on-brand.\n\n`) +
-    `DESIGN SYSTEM: stage is <div class="stage" style="...">, 1080x1080. CSS vars: --brand --brand2 --onbrand --accent --ink --sub --line --light --paper --green --red --yellow. Body font is the brand sans; class "serif" for the display headline; class "product" for the product <img> (object-fit:contain, size it large); class "logo" for the logo <img>; .cta pill. Inline <svg> for the visual device inherits these vars.\n\n` +
+    `DESIGN SYSTEM: stage is <div class="stage" style="...">, 1080x1080. CSS vars: --brand --brand2 --secondary --onbrand --accent --ink --sub --line --light --paper --green --red --yellow. Body font is the brand sans; class "serif" for the display headline; class "product" for the product <img> (object-fit:contain, size it large); class "logo" for the logo <img>; .cta pill. Inline <svg> for the visual device inherits these vars.\n\n` +
+    `BRAND FIDELITY, STRICT: colour the ad ONLY from these CSS vars, which ARE this brand's real palette: --brand (primary), --secondary, --accent, plus --ink/--sub/--line/--light/--paper neutrals, and --red = pain / --green = the way out. Do NOT invent or introduce ANY other colour (no random orange, purple, teal or off-brand accents). Type ONLY in the brand fonts (the "serif" display class for headlines, the brand sans for the rest); never a novelty or system font. This must look like THIS brand's own ad, on-brand, not a random-coloured template.\n\n` +
     `HARD SIZE FLOORS (this is a phone-feed ad; err LARGER): headline 84px+; subhead 38px+; body and support lines 30px+; brand name, eyebrow and labels 26px+ and bold; CTA 30px+. NOTHING under 24px except fine legal print. An automated check REJECTS timid text (subheads/body under 24px, labels under 20px), any overlap, and anything off the frame. Keep copy SHORT so it fits big. PUNCTUATION: NEVER use em-dashes, en-dashes or hyphens in the copy; use commas and periods only (write "grass fed colostrum, now a soda", not "grass-fed soda").\n\n` +
     `${STANDARDS}\n\n${RULES}\n` +
     (lastIssues ? `\nThe previous attempt FAILED the art-director QA — fix EXACTLY this, keep everything else:\n${lastIssues}\n` : '');
@@ -568,8 +571,8 @@ function deviceGuide(brief) {
   if (!d) return '';
   if (brief.device === 'type-only' || !d) return `VISUAL: type-led, NO illustration. Make the type itself the drama, extreme scale contrast, a hard two tone split, tight leading. ${brief.device_note || ''}\n\n`;
   return `VISUAL CONCEPT: a "${brief.device}" — ${d.when}\n` +
-    `DESIGN IT RICHLY, the way a senior art director at a top agency would, a polished, enterprise-grade graphic built with clean HTML and CSS and inline <svg> (never an <img>). NOT a crude clip-art icon, NOT a flat wireframe, NOT a childish shape. Give it real depth, considered proportions, tasteful labels, soft shadows and brand-coloured styling, on the level of a designed Meta ad. Build this metaphor: ${brief.device_note || d.notes}\n` +
-    `Use the ad's CSS vars for colour (red = the pain, green = the way out, brand and accent = the subject). Put it in its OWN container as the amplifier beneath the headline so it never overlaps other elements or spills past the frame. Do NOT repeat the headline wording inside the device.\n\n`;
+    `DESIGN IT RICHLY and REALISTICALLY, the way a senior art director at a top agency would, a polished, DIMENSIONAL, enterprise-grade illustration built with clean HTML/CSS and inline <svg> (never an <img>). Use SVG gradients (<linearGradient>/<radialGradient>), soft drop shadows, subtle highlights, rounded volumetric forms and depth so it reads as a crafted 3D-style illustration, NOT a crude clip-art icon, flat wireframe, or childish shape. Think of the quality of a professionally designed Meta ad graphic (e.g. a real weighted scale with shaded weights and a metal beam, not two plain rectangles). Build this metaphor: ${brief.device_note || d.notes}\n` +
+    `Colour it strictly from the ad's brand CSS vars (--red = the pain, --green = the way out, --brand/--secondary/--accent = the subject); no invented colours. Put it in its OWN container as the amplifier beneath the headline so it never overlaps other elements or spills past the frame. Do NOT repeat the headline wording inside the device.\n\n`;
 }
 
 // ---- produce a whole batch from a form submission -----------------------------------------
