@@ -38,6 +38,10 @@ const asArray = (v) => {
           .map(x => String(x).trim()).filter(Boolean);
 };
 
+// Claude vision accepts JPEG/PNG/GIF/WebP — NOT SVG. Skip SVG URLs from image INPUTS (they still
+// render fine in the HTML output; the model places them by URL, it just can't "see" them as vision).
+const visionSafe = (u) => !!u && !/\.svg(\?|$)/i.test(String(u));
+
 async function chat(model, messages, max_tokens = 4000, reasoning = null) {
   const body = { model, messages, max_tokens };
   if (reasoning) { body.reasoning = reasoning; body.temperature = 1; } else { body.temperature = 0.4; }
@@ -186,10 +190,12 @@ async function reconstruct(templateUrl, brain, assets, lastIssues) {
     (lastIssues ? `\nThe previous attempt FAILED the art-director QA — fix EXACTLY this, keep everything else:\n${lastIssues}\n` : '');
 
   const parts = [{ type: 'text', text: txt }];
-  if (templateUrl) parts.push({ type: 'text', text: 'TEMPLATE (copy this layout skeleton):' }, { type: 'image_url', image_url: { url: templateUrl } });
-  (productImages || []).slice(0, 3).forEach((u, k) => parts.push({ type: 'text', text: `REAL PRODUCT PHOTO ${k + 1} (place this exact image, do not redraw):` }, { type: 'image_url', image_url: { url: u } }));
-  if (logoDark) parts.push({ type: 'text', text: 'REAL LOGO — dark variant (for light backgrounds):' }, { type: 'image_url', image_url: { url: logoDark } });
-  if (logoLight) parts.push({ type: 'text', text: 'REAL LOGO — white variant (for dark backgrounds):' }, { type: 'image_url', image_url: { url: logoLight } });
+  // NOTE: only RASTER images go to the vision model (SVG 400s the API); SVG assets are still placed
+  // via their URL in the text above and render fine in the HTML.
+  if (visionSafe(templateUrl)) parts.push({ type: 'text', text: 'TEMPLATE (copy this layout skeleton):' }, { type: 'image_url', image_url: { url: templateUrl } });
+  (productImages || []).slice(0, 3).forEach((u, k) => { if (visionSafe(u)) parts.push({ type: 'text', text: `REAL PRODUCT PHOTO ${k + 1} (place this exact image, do not redraw):` }, { type: 'image_url', image_url: { url: u } }); });
+  if (visionSafe(logoDark)) parts.push({ type: 'text', text: 'REAL LOGO — dark variant (for light backgrounds):' }, { type: 'image_url', image_url: { url: logoDark } });
+  if (visionSafe(logoLight)) parts.push({ type: 'text', text: 'REAL LOGO — white variant (for dark backgrounds):' }, { type: 'image_url', image_url: { url: logoLight } });
   (references || []).slice(0, 2).forEach((u) => parts.push({ type: 'text', text: 'BRAND REFERENCE (style cue only — do NOT copy its product or text):' }, { type: 'image_url', image_url: { url: u } }));
 
   // Big output budget so the HTML isn't starved by the thinking budget (thinking is separate).
@@ -229,7 +235,7 @@ async function qa(templateUrl, renderedUrl, brain, flags) {
   const content = [
     { type: 'text', text: `You are a TOUGH art director doing QA on this 1080x1080 ad for "${name}" (offer: ${pick(brain, ['key_offer'])}). Hold it to a hand-designed, scroll-stopping bar and REJECT AI slop. Return JSON {"score": <integer 1-10; 10=ship-ready hand-designed, 7=good with only minor nits, 6 or below=a designer would redo it>, "issues":[specific, ACTIONABLE fixes with sizes/percentages]}. ${req.length ? 'REQUIRED: ' + req.join('; ') + '. ' : ''}Score 6 or below for ANY of: TIMID / too-small type (headline not clearly dominant, or body copy that reads small/weak); text SCATTERED with weak hierarchy or everything roughly the same size; a cluttered "every zone filled" look instead of ONE clear concept that reads in 2 seconds; a product that is a small thumbnail or pasted in a clashing white box; a large dead area; generic filler copy ("get expert guidance", "find solutions") instead of specifics; an off-brand colour or a wrong / novelty font; a meaningless decorative object; a fabricated SPECIFIC claim (invented $ figure, statistic, award, press / "as featured in" logo, review count, or a real-looking full name with age/city); or copy naming a category that is NOT this brand's. ALLOWED — do NOT penalise: soft illustrative ★★★★★ quotes with a first name + initial only; clean inline-SVG line icons; the brand colour as a bold fill; the product on a panel that MATCHES its own background (that is correct integration, not a clash). A BOLD, art-directed, on-brand ad with a large integrated product and confident type scores 8-9. Make issues concrete, e.g. "headline ~40px — take it to ~90px"; "product ~15% of frame — make it the hero at ~45%"; "product sits in a white box on cream — blend the panel to white or go full-bleed".` },
   ];
-  if (templateUrl) content.push({ type: 'text', text: 'REFERENCE TEMPLATE:' }, { type: 'image_url', image_url: { url: templateUrl } });
+  if (visionSafe(templateUrl)) content.push({ type: 'text', text: 'REFERENCE TEMPLATE:' }, { type: 'image_url', image_url: { url: templateUrl } });
   content.push({ type: 'text', text: 'RENDERED AD:' }, { type: 'image_url', image_url: { url: renderedUrl } });
   const v = jsonOf(await chat(MODEL_VISION, [{ role: 'user', content }], 800)) || {};
   return { score: typeof v.score === 'number' ? v.score : 0, issues: Array.isArray(v.issues) ? v.issues : ['QA unparseable'] };
