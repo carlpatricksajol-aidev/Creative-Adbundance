@@ -565,7 +565,9 @@ function deviceGuide(brief) {
   const d = DEVICES[brief.device];
   if (!d) return '';
   if (brief.device === 'type-only') return `VISUAL DEVICE: type-only (NO illustration). ${d.notes} ${brief.device_note || ''}\n\n`;
-  return `VISUAL DEVICE: "${brief.device}" — ${d.when}\nBUILD IT AS INLINE SVG (paste an <svg> directly in the HTML so it inherits the CSS vars; do NOT use <img>). Here is a known-good reference implementation in the SAME CSS variables — adapt its LABELS, proportions and exact text to the build spec below, keep it flat and primitive-only, size it to occupy its zone (roughly 34 to 48% of the frame) as the AMPLIFIER under the headline:\n${d.svg}\nADAPT NOTES: ${d.notes}\nBUILD SPEC for THIS ad (follow literally — every label, what sits where, what is red=pain vs green=exit, arrow direction, dominant element): ${brief.device_note || ''}\n\n`;
+  return `VISUAL DEVICE: "${brief.device}" — ${d.when}\n` +
+    `PASTE THIS EXACT SVG inline in the HTML as the visual device (it already uses the ad's CSS vars, so it inherits the brand colours — red=pain, green=exit). Change ONLY the <text> label contents to fit the build spec below; KEEP every shape, coordinate, transform, colour and the viewBox exactly as given. Do NOT redraw, restructure, or re-scale the shapes. Wrap it in a fixed container sized to about 40% of the frame, e.g. <div style="width:42%;max-width:460px">…svg…</div>, placed as the AMPLIFIER under the headline so it never overflows the frame. Never use <img> for it.\n${d.svg}\n` +
+    `RELABEL ONLY (swap the placeholder text for the real labels; do not touch the geometry): ${brief.device_note || ''}\n\n`;
 }
 
 // ---- produce a whole batch from a form submission -----------------------------------------
