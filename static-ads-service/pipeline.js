@@ -19,6 +19,7 @@ const CONCURRENCY  = +(E.CONCURRENCY || 3);
 const puppeteer    = require('puppeteer-core');  // local headless Chrome render — free, no per-image limit
 const crypto       = require('crypto');
 const { cutoutBuffer } = require('./cutout');    // background knockout for product packshots
+const sharp        = require('sharp');           // only to detect an already-transparent product PNG
 
 // ---- tiny helpers -------------------------------------------------------------------------
 const log = (...a) => console.log(new Date().toISOString(), ...a);
@@ -307,6 +308,17 @@ async function insertRow(imageUrl, brain, meta) {
   if (!ins.ok) throw new Error('insert ' + ins.status + ' ' + (await ins.text()).slice(0, 160));
 }
 
+// true if the image already has a transparent background (client supplied a clean cut-out PNG) —
+// then the pipeline uses it EXACTLY as-is instead of re-matting it.
+async function isAlreadyCut(buf) {
+  try {
+    if (!(buf[0] === 0x89 && buf[1] === 0x50)) return false; // only PNG carries alpha
+    const { data, info } = await sharp(buf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const W = info.width, H = info.height, C = 4, a = (x, y) => data[(y * W + x) * C + 3];
+    return [a(1, 1), a(W - 2, 1), a(1, H - 2), a(W - 2, H - 2)].filter(v => v < 20).length >= 3;
+  } catch (e) { return false; }
+}
+
 // fetch a product packshot, knock out its background, cache the transparent PNG in Supabase, return its URL
 async function cutoutProduct(url) {
   try {
@@ -316,7 +328,9 @@ async function cutoutProduct(url) {
     const publicUrl = SB_URL + '/storage/v1/object/public/' + BUCKET + '/' + path;
     if ((await fetch(publicUrl, { method: 'HEAD' })).ok) return publicUrl;   // already cut — reuse
     const r = await fetch(url); if (!r.ok) return url;
-    const cut = await cutoutBuffer(Buffer.from(await r.arrayBuffer()));
+    const inBuf = Buffer.from(await r.arrayBuffer());
+    if (await isAlreadyCut(inBuf)) { log('  product already transparent — using as-is'); return url; }
+    const cut = await cutoutBuffer(inBuf);
     if (!cut) { log('  cutout: not a clean packshot, using original'); return url; }
     const out = await store(cut, path);
     log('  cutout: background removed → ' + path);
