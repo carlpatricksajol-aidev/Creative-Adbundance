@@ -50,7 +50,17 @@ const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').re
   let q = `products?brand_name=eq.${encodeURIComponent(brand)}&select=id,product_name`;
   if (filter) q += `&product_name=ilike.*${encodeURIComponent(filter)}*`;
   const rows = await get(q);
-  if (!rows.length) throw new Error(`no products for brand "${brand}"${filter ? ` matching "${filter}"` : ''}`);
+  if (!rows.length) {
+    // no existing product for this brand — insert a new one (product_name from the filter, else the brand)
+    const name = filter || brand;
+    const ins = await fetch(`${SB_URL}/rest/v1/products`, {
+      method: 'POST', headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ brand_name: brand, product_name: name, product_image_url: publicUrl }),
+    });
+    if (!ins.ok) throw new Error('insert product ' + ins.status + ' ' + (await ins.text()).slice(0, 200));
+    console.log(`✓ inserted new product "${name}" for "${brand}"`);
+    return;
+  }
 
   // 4. point them at the new image
   for (const row of rows) {
