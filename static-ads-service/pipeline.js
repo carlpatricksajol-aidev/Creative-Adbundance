@@ -13,13 +13,13 @@ const SB_KEY       = E.SUPABASE_SERVICE_KEY;
 const BUCKET       = E.BUCKET || 'static-ads';
 const MODEL_BUILD  = E.MODEL_BUILD  || 'anthropic/claude-opus-4.8';   // reconstruct — needs a strong model
 const MODEL_VISION = E.MODEL_VISION || 'anthropic/claude-sonnet-4.5'; // QA (judgment; cheaper is fine)
-const MAX_TRIES    = +(E.MAX_TRIES || 3);
+const MAX_TRIES    = +(E.MAX_TRIES || 2);
 const SHIP_SCORE   = +(E.SHIP_SCORE || 7);   // QA score (1-10) an ad must clear to ship
 const CONCURRENCY  = +(E.CONCURRENCY || 4);
 const MODEL_DIRECTOR  = E.MODEL_DIRECTOR || 'anthropic/claude-sonnet-4.5'; // creative-director stage; Sonnet is cheap+fast and the prompt is prescriptive. Set MODEL_DIRECTOR=anthropic/claude-opus-4.8 for premium concepts.
-const MODEL_BUILD_FAST = E.MODEL_BUILD_FAST || 'anthropic/claude-opus-4.8'; // EXECUTE a decided brief; Opus for enterprise-grade builds. Set MODEL_BUILD_FAST=anthropic/claude-sonnet-4.5 to cut cost once dialed in.
-const DIRECTOR_THINK  = +(E.DIRECTOR_THINK || 2200);    // the heavy creative thinking happens ONCE per batch, here (kept modest for latency)
-const BUILD_THINK     = +(E.THINK_TOKENS || 1800);      // reconstruct: modest thinking so the builder composes a clean, in-frame layout
+const MODEL_BUILD_FAST = E.MODEL_BUILD_FAST || 'anthropic/claude-sonnet-4.5'; // EXECUTE a decided brief — Sonnet is FAST and the prompts carry the quality. Set MODEL_BUILD_FAST=anthropic/claude-opus-4.8 for premium (slower) builds.
+const DIRECTOR_THINK  = +(E.DIRECTOR_THINK || 1500);    // the heavy creative thinking happens ONCE per batch, here (kept modest for latency)
+const BUILD_THINK     = +(E.THINK_TOKENS || 0);         // reconstruct: NO thinking — Sonnet builds fast; the prompt + retry loop handle layout
 const puppeteer    = require('puppeteer-core');  // local headless Chrome render — free, no per-image limit
 const crypto       = require('crypto');
 const { cutoutBuffer } = require('./cutout');    // background knockout for product packshots
