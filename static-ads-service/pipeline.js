@@ -16,9 +16,10 @@ const MODEL_VISION = E.MODEL_VISION || 'anthropic/claude-sonnet-4.5'; // QA (jud
 const MAX_TRIES    = +(E.MAX_TRIES || 3);
 const SHIP_SCORE   = +(E.SHIP_SCORE || 7);   // QA score (1-10) an ad must clear to ship
 const CONCURRENCY  = +(E.CONCURRENCY || 4);
-const MODEL_DIRECTOR = E.MODEL_DIRECTOR || MODEL_BUILD;  // creative-director stage (needs a strong model)
-const DIRECTOR_THINK = +(E.DIRECTOR_THINK || 3500);     // the heavy creative thinking happens ONCE per batch, here
-const BUILD_THINK    = +(E.THINK_TOKENS || 1500);       // reconstruct: LOW thinking — the concept is already decided
+const MODEL_DIRECTOR  = E.MODEL_DIRECTOR || MODEL_BUILD;               // creative-director stage (needs a strong model)
+const MODEL_BUILD_FAST = E.MODEL_BUILD_FAST || 'anthropic/claude-sonnet-4.5'; // EXECUTE a decided brief (fast; ideation is done)
+const DIRECTOR_THINK  = +(E.DIRECTOR_THINK || 3000);    // the heavy creative thinking happens ONCE per batch, here
+const BUILD_THINK     = +(E.THINK_TOKENS || 0);         // reconstruct: NO thinking by default — the concept is already decided
 const puppeteer    = require('puppeteer-core');  // local headless Chrome render — free, no per-image limit
 const crypto       = require('crypto');
 const { cutoutBuffer } = require('./cutout');    // background knockout for product packshots
@@ -235,8 +236,11 @@ async function reconstruct(templateUrl, brain, assets, lastIssues, brief) {
   if (visionSafe(logoLight)) parts.push({ type: 'text', text: 'REAL LOGO — white variant (for dark backgrounds):' }, { type: 'image_url', image_url: { url: logoLight } });
   (references || []).slice(0, 2).forEach((u) => parts.push({ type: 'text', text: 'BRAND REFERENCE (style cue only — do NOT copy its product or text):' }, { type: 'image_url', image_url: { url: u } }));
 
-  // The concept is decided, so reconstruct thinks LIGHT (BUILD_THINK) and outputs a bounded HTML budget.
-  return stripFence(await chat(MODEL_BUILD, [{ role: 'user', content: parts }], 9000, BUILD_THINK ? { max_tokens: BUILD_THINK } : null));
+  // With a decided brief this is EXECUTION, not ideation → use the FAST model, no thinking. Hand-picked
+  // template rebuilds (no brief) keep the strong model + a little thinking for faithful reconstruction.
+  const model = brief ? MODEL_BUILD_FAST : MODEL_BUILD;
+  const think = brief ? BUILD_THINK : +(E.THINK_TOKENS || 1500);
+  return stripFence(await chat(model, [{ role: 'user', content: parts }], 9000, think ? { max_tokens: think } : null));
 }
 
 // ---- render HTML → PNG Buffer via LOCAL headless Chrome (free, unlimited) ------------------
@@ -272,7 +276,7 @@ function detectLayout() {
     const full = (o.el.textContent || '').trim();
     if (full.length >= 24 && full.length <= 140 && !/evaluated|\bFDA\b|diagnose|disease|statement/i.test(full)) {
       const fs = parseFloat(getComputedStyle(o.el).fontSize) || 99;
-      if (fs < 20) issues.push('TEXT-TOO-SMALL: "' + o.t + '" is ' + Math.round(fs) + 'px — headline/subhead/body must be big (body 26px+)');
+      if (fs < 15) issues.push('TEXT-TOO-SMALL: "' + o.t + '" is ' + Math.round(fs) + 'px — unreadable, enlarge it');
     }
   }
   for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
@@ -519,7 +523,8 @@ async function creativeDirector(brain, templateCats, assets) {
     [{ role: 'system', content: DIRECTOR_PROMPT }, { role: 'user', content: user }],
     outBudget, DIRECTOR_THINK ? { max_tokens: DIRECTOR_THINK } : null);
   const arr = jsonArrayOf(raw);
-  return (Array.isArray(arr) && arr.length) ? arr : null;
+  if (!Array.isArray(arr) || !arr.length) { log('  director: could not parse briefs from output head: ' + String(raw || '').replace(/\s+/g, ' ').slice(0, 180)); return null; }
+  return arr;
 }
 // Build the reconstruct guidance for a decided concept: the device's known-good SVG pattern + how to adapt it.
 function deviceGuide(brief) {
@@ -580,9 +585,11 @@ async function produceBatch(body) {
     const cats = templates.map(t => t.category || '');
     try {
       briefs = await creativeDirector(brain, cats, assets);
-      if (briefs && briefs.length >= templates.length) log(`  creative director: ${templates.length} concepts — ${briefs.slice(0, templates.length).map(b => `${b.angle || '?'}/${b.device || '?'}`).join(', ')}`);
-      else { log(`  creative director returned ${briefs ? briefs.length : 0}/${templates.length}; proceeding template-faithful`); briefs = null; }
-    } catch (e) { log('  creative director failed: ' + String(e.message || e).slice(0, 100) + ' — proceeding template-faithful'); briefs = null; }
+      if (briefs && briefs.length) {
+        while (briefs.length < templates.length) briefs.push(null);  // pad short outputs → those ads go template-faithful
+        log(`  creative director: ${briefs.filter(Boolean).length}/${templates.length} concepts — ${briefs.slice(0, templates.length).map(b => b ? `${b.angle || '?'}/${b.device || '?'}` : 'faithful').join(', ')}`);
+      } else { log(`  creative director returned nothing; proceeding template-faithful`); briefs = null; }
+    } catch (e) { log('  creative director failed: ' + String(e.message || e).slice(0, 120) + ' — proceeding template-faithful'); briefs = null; }
   }
 
   // concurrency-limited pool
