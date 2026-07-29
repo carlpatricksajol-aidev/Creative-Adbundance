@@ -136,17 +136,24 @@ img{display:block;max-width:100%}
 .cta{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:23px;padding:15px 30px;border-radius:999px;white-space:nowrap;background:var(--brand);color:var(--onbrand)}`;
 }
 
-const RULES = `HARD RULES — this is a RECONSTRUCTION that PLACES THE BRAND'S REAL ASSETS:
-1. THE TEMPLATE IS ONLY A LAYOUT. Its original words, product and logo are placeholders — DISCARD them. Every word is THIS brand's real offer; every product shown is THIS brand's REAL product photo (provided). A template's category or brand must NEVER leak in.
-2. Reconstruct the template's SKELETON faithfully (same zones, concept device, reading order, proportions); all copy new and grounded.
-3. THE PRODUCT: wherever the layout shows a product, package, bottle, can, jar, box or device, place the REAL product photo with <img src="EXACT_PRODUCT_URL" class="product" style="width:...;height:..."> and object-fit:contain. NEVER draw, illustrate, sketch or CSS-build a product; NEVER invent a bottle/can/package. If NO product image is provided, build a clean typographic/benefit ad with NO product shown — do not fabricate one.
-4. THE LOGO: place the REAL logo with <img src="EXACT_LOGO_URL" class="logo"> where the brand mark sits. If no logo URL is provided, use a plain TEXT wordmark of the brand name — never invent a logo graphic.
-5. IMAGES ARE WHITELISTED: the ONLY <img> allowed are the exact product photo URL(s) and the logo URL given below. No other <img>, no emoji, no stock/fabricated imagery, no icon fonts. Clean inline-SVG line icons (checks, arrows, shields) are fine.
-6. FILL EVERY ZONE WITH SPECIFIC COPY (comparison rows, checklist items, toggle labels, stat callouts, review quotes) from the brand's offer/benefits/pains. NEVER blank, NEVER vague filler ("get expert guidance", "find solutions").
-7. NOTHING OVERLAPS; everything inside the 1080x1080 frame with margins; nothing touches an edge; the product image sits cleanly with room around it (contain, not stretched, not clipped), on a background that suits it.
-8. FILL THE FRAME — no large dead zones. BRAND COLOURS ONLY (--brand/--accent/--ink/--paper/--light + semantic green/red), strong contrast. BRAND FONTS ONLY (body sans + "serif" class for headlines); no monospace/novelty font.
-9. NO FABRICATED SPECIFICS: no invented $ amounts, stats, awards, review counts, or press logos. Review cards may use soft ★★★★★ quotes with a first name + initial, clearly illustrative.
-10. Crisp HTML only. Output ONLY the <div class="stage" ...>...</div>.`;
+const STANDARDS = `DESIGN STANDARDS — the authentic, hand-designed bar. This is what separates a real ad from AI slop:
+CONCEPT: ONE concept, ONE hook, ONE hero visual, ONE CTA — it must read in under 2 seconds. Decide the single hook FIRST, then compose around it. Do not cram.
+HIERARCHY: one dominant focal element (the headline OR the product); everything else clearly subordinate. Big beats small. Use strong scale contrast and confident, intentional whitespace — NEVER evenly-sized, evenly-spaced "form-filling".
+TYPE SCALE (in the 1080x1080 frame): headline 72-108px, weight 800-900, tight leading (~1.0), the clear focal point, in the "serif" display face; subhead 30-42px; body / benefit lines 26-34px (NEVER below 24px), weight 500-700; eyebrow/label 18-22px uppercase letter-spaced; CTA 22-28px bold in a pill. When unsure, go LARGER — timid type is the #1 slop tell.
+PRODUCT = THE SUBJECT: the real product photo is the HERO — large, roughly 40-55% of the frame in a product-led layout, NEVER a small thumbnail. Handle its background: packshots usually sit on white/light, so NEVER show a hard white rectangle floating on a coloured background. Do ONE of: (a) place it on a panel of the SAME colour as its own background so it blends seamlessly, (b) feature it large / full-bleed so its background becomes part of the composition, or (c) set the whole product zone to that light colour. It must look placed by a designer, not pasted. Use ONE clean product shot as the focal image; don't scatter small product boxes.
+LOGO: real logo, correct contrast variant, undistorted, small and tasteful in a corner — it is a mark, not the hero.
+COLOUR: a deliberate palette — one dominant brand colour + one accent — with strong contrast; brand fonts only.
+ANTI-SLOP: no evenly-tiled cards, no everything-centred, no timid mid-sized text everywhere, no clashing white rectangles, no meaningless decorative objects. Every element earns its place and points to the one message.`;
+
+const RULES = `HARD RULES:
+1. THE TEMPLATE IS ONLY A STARTING LAYOUT. Discard its words, product and logo (placeholders). Borrow its concept device and structure, but EXECUTE to the DESIGN STANDARDS above — simplify toward one clear hero and strong hierarchy rather than cramming every zone. A template's category or brand must NEVER leak in.
+2. THE PRODUCT: wherever a product belongs, place the REAL product photo with <img src="EXACT_PRODUCT_URL" class="product"> as the HERO (large, integrated per the standards). NEVER draw, illustrate or CSS-build a product; NEVER invent one; NEVER a small pasted white box. If NO product image is provided, build a clean typographic ad with no product.
+3. THE LOGO: place the REAL logo <img class="logo"> (correct contrast variant) small in a corner. If none provided, a plain TEXT wordmark — never invent a logo graphic.
+4. IMAGES ARE WHITELISTED: the ONLY <img> allowed are the exact product photo URL(s) and logo URL(s) below. No other imagery, no emoji, no stock/fabricated images, no icon fonts. Clean inline-SVG line icons are fine.
+5. COPY: every word is THIS brand's real offer, grounded in the material below — specific, never vague filler ("get expert guidance", "find solutions"). Write the hook, subhead, CTA and any support copy yourself. Use copy where it earns impact; do NOT pad zones just to fill them.
+6. IN-FRAME: everything inside the 1080x1080 frame with margins; nothing clipped or touching an edge; nothing overlaps illegibly.
+7. NO FABRICATED SPECIFICS: no invented $ amounts, stats, awards, review counts, or press logos. Soft illustrative ★★★★★ quotes may use a first name + initial only.
+8. Crisp HTML only. Output ONLY the <div class="stage" ...>...</div>.`;
 
 // ---- reconstruct: LOOK at the template + the real assets, write grounded HTML --------------
 async function reconstruct(templateUrl, brain, assets, lastIssues) {
@@ -160,23 +167,23 @@ async function reconstruct(templateUrl, brain, assets, lastIssues) {
   ].filter(Boolean).join('\n');
 
   let txt =
-    `Rebuild the ATTACHED ad TEMPLATE faithfully for "${name}", as HTML — but replace its layout content with THIS brand's real copy and REAL assets. Copy the template's skeleton (every zone, the concept device, reading order, proportions), then: write specific grounded copy in every zone, DROP IN the real product photo where a product belongs, and place the real logo. Match the quality of a hand-designed ad.\n\n` +
+    `Design a scroll-stopping, hand-designed 1080x1080 ad for "${name}". It must look ART-DIRECTED, not auto-generated. Use the ATTACHED template ONLY as a structural starting point (its concept device and rough zones) — then EXECUTE to the DESIGN STANDARDS below: one bold concept, a single dominant focal element, big confident type, and the REAL product photo as a large integrated hero. Do NOT slavishly copy the template or cram every zone; a clean, bold ad beats a busy faithful one.\n\n` +
     `BRAND: ${name}.\n${material}\n\n`;
 
   if (productImages && productImages.length) {
-    txt += `REAL PRODUCT PHOTO(S) — place the most fitting one where the layout shows a product, with <img src="URL" class="product">. Use the EXACT URL(s); NEVER redraw:\n` +
+    txt += `REAL PRODUCT PHOTO(S) — this is the HERO of the ad. Place the most fitting one LARGE (roughly 40-55% of the frame) with <img class="product">, INTEGRATED per the standards (the packshot likely sits on white/light — blend its panel to that same colour or feature it full-bleed; NEVER a hard white box pasted on a coloured background). Use the EXACT URL(s); NEVER redraw:\n` +
       productImages.map((u, k) => `  PRODUCT_URL_${k + 1} (${productNames[k] || 'product'}): ${u}`).join('\n') + `\n\n`;
   } else {
-    txt += `NO product photo provided — do NOT draw or invent a product. Build a clean typographic/benefit ad instead.\n\n`;
+    txt += `NO product photo provided — do NOT draw or invent a product. Build a bold typographic ad instead.\n\n`;
   }
   if (logoDark && logoLight) txt += `REAL LOGO — two variants provided; place the ONE that CONTRASTS with the background where the mark sits, as <img class="logo"> with the EXACT URL. Never a dark logo on a dark area or a white logo on a light one:\n  DARK logo (use on LIGHT / neon / cream backgrounds): ${logoDark}\n  WHITE logo (use on DARK backgrounds): ${logoLight}\n\n`;
   else if (logoDark) txt += `REAL LOGO — place with <img src="${logoDark}" class="logo"> where the brand mark sits, on a background it CONTRASTS with. Use this EXACT URL.\n\n`;
   else txt += `No logo asset — use a plain TEXT wordmark "${name}" in the brand font (never invent a logo graphic).\n\n`;
 
-  txt += `Write the headline, subhead and CTA yourself from the offer/pains, plus concrete copy for every other zone (comparison rows, checklist, toggles, stat callouts, review quotes) — never blank, never vague.\n\n` +
-    `DESIGN SYSTEM: stage is <div class="stage" style="...">, 1080x1080. CSS vars: --brand --brand2 --onbrand --accent --ink --sub --line --light --paper --green --red --yellow. Body font is the brand sans; class "serif" for headlines; class "product" for the product <img> (object-fit:contain); class "logo" for the logo <img>; .cta pill.\n\n` +
-    `AVOID THESE FAILURES: never a drawn/fake product or invented bottle; the product <img> must sit cleanly with room around it (contain, not stretched or clipped); illustrative review quotes use ONLY a first name + initial (e.g. "Sarah M.") — no age, city or dollar figure; keep every element inside the frame with clear padding; icons never overlap text; output the COMPLETE ad, not a skeleton.\n\n${RULES}\n` +
-    (lastIssues ? `\nThe previous attempt FAILED QA — fix exactly this:\n${lastIssues}\n` : '');
+  txt += `First decide the SINGLE hook (the one idea this ad lands), then compose around it. Write the headline, subhead, CTA and any support copy yourself from the offer/pains — specific, bold, on-brand.\n\n` +
+    `DESIGN SYSTEM: stage is <div class="stage" style="...">, 1080x1080. CSS vars: --brand --brand2 --onbrand --accent --ink --sub --line --light --paper --green --red --yellow. Body font is the brand sans; class "serif" for the display headline; class "product" for the product <img> (object-fit:contain — size it large); class "logo" for the logo <img>; .cta pill.\n\n` +
+    `${STANDARDS}\n\n${RULES}\n` +
+    (lastIssues ? `\nThe previous attempt FAILED the art-director QA — fix EXACTLY this, keep everything else:\n${lastIssues}\n` : '');
 
   const parts = [{ type: 'text', text: txt }];
   if (templateUrl) parts.push({ type: 'text', text: 'TEMPLATE (copy this layout skeleton):' }, { type: 'image_url', image_url: { url: templateUrl } });
@@ -204,7 +211,7 @@ async function getBrowser() {
 async function render(fullHtml) {
   const page = await (await getBrowser()).newPage();
   try {
-    await page.setViewport({ width: 1080, height: 1080, deviceScaleFactor: 1 });
+    await page.setViewport({ width: 1080, height: 1080, deviceScaleFactor: 2 }); // 2x → crisp 2160² output
     await page.setContent(fullHtml, { waitUntil: 'networkidle0', timeout: 45000 });
     // make sure the external images (product photo, logo) are fully decoded before the screenshot
     await page.evaluate(() => Promise.all(Array.from(document.images).map(i => (i.complete ? Promise.resolve() : i.decode().catch(() => {}))))).catch(() => {});
@@ -217,10 +224,10 @@ async function render(fullHtml) {
 async function qa(templateUrl, renderedUrl, brain, flags) {
   const name = pick(brain, ['brand_name', 'client_name'], 'the brand');
   const req = [];
-  if (flags && flags.hasProduct) req.push(`the ad MUST show the brand's REAL PHOTOGRAPHIC product — score 4 or below if the product looks hand-drawn, illustrated, cartoonish, CSS-built, fabricated, a generic blank package, or stretched/squished/clipped, or if the product is missing entirely`);
-  if (flags && flags.hasLogo) req.push(`the ad MUST show the real logo image (not a re-typed guess) and it MUST be legible — score 5 or below if the logo is invisible or low-contrast against its background (e.g. a dark logo on a dark area)`);
+  if (flags && flags.hasProduct) req.push(`the REAL product photo must be the HERO — large (roughly 40-55% of the frame) and integrated; score 4 or below if the product is a small thumbnail, is drawn/illustrated/CSS-built/fabricated, is stretched/clipped, is missing, or sits in a hard white / contrasting rectangle pasted onto the background`);
+  if (flags && flags.hasLogo) req.push(`the real logo image must be present and legible (correct contrast variant); score 5 or below if it is missing, distorted, or low-contrast against its background`);
   const content = [
-    { type: 'text', text: `QA this rendered ad for "${name}" (offer: ${pick(brain, ['key_offer'])}). Judge it as a paying client would. Return JSON {"score": <integer 1-10; 10=ship-ready and hand-designed, 7=good with only minor nits, 6 or below=a designer would redo it>, "issues":["..."]}. ${req.length ? 'REQUIRED: ' + req.join('; ') + '. ' : ''}Score 6 or below for ANY of: a drawn/fabricated product instead of the real photo; content clipped by an edge / overflowing / cut off; garbled or illegibly low-contrast text; a card/badge/wordmark/CTA overlaps other copy; a large empty / dead area; generic filler copy ("get expert guidance", "find solutions") instead of specifics; an off-brand colour or a monospace / novelty font; a random decorative object that means nothing for the brand; a fabricated SPECIFIC claim (an invented dollar figure, statistic, award, press / "as featured in" logo, review count, or a real-looking full name with age/city); or copy that names a category that is NOT this brand's. ALLOWED — do NOT penalise: soft illustrative ★★★★★ review quotes with a first name + initial only; clean inline-SVG line icons or a monogram avatar (this design uses NO stock photos on purpose); the brand colour used as a bold fill; the real product photo sitting on a matching background. Score honestly — a clean, on-brand, frame-filling ad that uses the real product photo + real logo with specific copy should score 7-9.` },
+    { type: 'text', text: `You are a TOUGH art director doing QA on this 1080x1080 ad for "${name}" (offer: ${pick(brain, ['key_offer'])}). Hold it to a hand-designed, scroll-stopping bar and REJECT AI slop. Return JSON {"score": <integer 1-10; 10=ship-ready hand-designed, 7=good with only minor nits, 6 or below=a designer would redo it>, "issues":[specific, ACTIONABLE fixes with sizes/percentages]}. ${req.length ? 'REQUIRED: ' + req.join('; ') + '. ' : ''}Score 6 or below for ANY of: TIMID / too-small type (headline not clearly dominant, or body copy that reads small/weak); text SCATTERED with weak hierarchy or everything roughly the same size; a cluttered "every zone filled" look instead of ONE clear concept that reads in 2 seconds; a product that is a small thumbnail or pasted in a clashing white box; a large dead area; generic filler copy ("get expert guidance", "find solutions") instead of specifics; an off-brand colour or a wrong / novelty font; a meaningless decorative object; a fabricated SPECIFIC claim (invented $ figure, statistic, award, press / "as featured in" logo, review count, or a real-looking full name with age/city); or copy naming a category that is NOT this brand's. ALLOWED — do NOT penalise: soft illustrative ★★★★★ quotes with a first name + initial only; clean inline-SVG line icons; the brand colour as a bold fill; the product on a panel that MATCHES its own background (that is correct integration, not a clash). A BOLD, art-directed, on-brand ad with a large integrated product and confident type scores 8-9. Make issues concrete, e.g. "headline ~40px — take it to ~90px"; "product ~15% of frame — make it the hero at ~45%"; "product sits in a white box on cream — blend the panel to white or go full-bleed".` },
   ];
   if (templateUrl) content.push({ type: 'text', text: 'REFERENCE TEMPLATE:' }, { type: 'image_url', image_url: { url: templateUrl } });
   content.push({ type: 'text', text: 'RENDERED AD:' }, { type: 'image_url', image_url: { url: renderedUrl } });
