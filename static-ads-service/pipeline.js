@@ -17,6 +17,8 @@ const MAX_TRIES    = +(E.MAX_TRIES || 3);
 const SHIP_SCORE   = +(E.SHIP_SCORE || 7);   // QA score (1-10) an ad must clear to ship
 const CONCURRENCY  = +(E.CONCURRENCY || 3);
 const puppeteer    = require('puppeteer-core');  // local headless Chrome render — free, no per-image limit
+const crypto       = require('crypto');
+const { cutoutBuffer } = require('./cutout');    // background knockout for product packshots
 
 // ---- tiny helpers -------------------------------------------------------------------------
 const log = (...a) => console.log(new Date().toISOString(), ...a);
@@ -97,13 +99,16 @@ function resolveFont(nameRaw) {
   const family = String(nameRaw).trim().replace(/\s+/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
   return { family, serif: SERIF_HINT.test(nameRaw) };
 }
+const KNOWN_GOOGLE = new Set([...Object.values(FONT_MAP), 'Playfair Display', 'Manrope', 'Fraunces', 'Inter', 'Poppins', 'Montserrat', 'Nunito', 'Nunito Sans', 'DM Sans', 'Work Sans', 'Lora', 'Merriweather', 'EB Garamond', 'Libre Caslon Text', 'PT Serif', 'Roboto', 'Fredoka', 'Quicksand', 'Source Sans 3', 'Raleway', 'Cormorant Garamond', 'Spectral']);
 function resolveFonts(brandFonts) {
   const names = String(brandFonts || '').split(/[,/;|+]|\band\b/).map(s => s.replace(/[()]/g, ' ').trim()).filter(Boolean).slice(0, 4);
   const resolved = names.map(resolveFont).filter(Boolean);
   const head = resolved.find(r => r.serif) || resolved[0];
   const body = resolved.find(r => !r.serif) || resolved[1] || resolved[0];
-  const headFam = head ? head.family : 'Playfair Display';
-  const bodyFam = body ? body.family : 'Manrope';
+  let headFam = head ? head.family : 'Playfair Display';
+  let bodyFam = body ? body.family : 'Manrope';
+  if (!KNOWN_GOOGLE.has(headFam)) headFam = 'Playfair Display';  // proprietary/unknown → tasteful default that loads
+  if (!KNOWN_GOOGLE.has(bodyFam)) bodyFam = 'Manrope';
   const wanted = [...new Set([bodyFam, headFam])];
   // request only 400+700 — every mapped family has these, so the @import can't 400 and drop the font
   const imp = wanted.map(f => `@import url('https://fonts.googleapis.com/css2?family=${f.replace(/\s+/g, '+')}:wght@400;700&display=swap');`).join('\n');
@@ -155,7 +160,7 @@ const RULES = `HARD RULES:
 3. THE LOGO: place the REAL logo <img class="logo"> (correct contrast variant) small in a corner. If none provided, a plain TEXT wordmark — never invent a logo graphic.
 4. IMAGES ARE WHITELISTED: the ONLY <img> allowed are the exact product photo URL(s) and logo URL(s) below. No other imagery, no emoji, no stock/fabricated images, no icon fonts. Clean inline-SVG line icons are fine.
 5. COPY: every word is THIS brand's real offer, grounded in the material below — specific, never vague filler ("get expert guidance", "find solutions"). Write the hook, subhead, CTA and any support copy yourself. Use copy where it earns impact; do NOT pad zones just to fill them.
-6. IN-FRAME: everything inside the 1080x1080 frame with margins; nothing clipped or touching an edge; nothing overlaps illegibly.
+6. LAYOUT: build with normal document flow / flexbox / grid in SEPARATE containers — do NOT absolutely-position text on top of other text. Everything inside the 1080x1080 frame with margins; nothing clipped, no text wider than its box, nothing overlaps. (An automated check rejects overlaps, off-frame elements and clipped text — a clean flow layout passes it.)
 7. NO FABRICATED SPECIFICS: no invented $ amounts, stats, awards, review counts, or press logos. Soft illustrative ★★★★★ quotes may use a first name + initial only.
 8. Crisp HTML only. Output ONLY the <div class="stage" ...>...</div>.`;
 
@@ -175,7 +180,7 @@ async function reconstruct(templateUrl, brain, assets, lastIssues) {
     `BRAND: ${name}.\n${material}\n\n`;
 
   if (productImages && productImages.length) {
-    txt += `REAL PRODUCT PHOTO(S) — this is the HERO of the ad. Place the most fitting one LARGE (roughly 40-55% of the frame) with <img class="product">, INTEGRATED per the standards (the packshot likely sits on white/light — blend its panel to that same colour or feature it full-bleed; NEVER a hard white box pasted on a coloured background). Use the EXACT URL(s); NEVER redraw:\n` +
+    txt += `REAL PRODUCT PHOTO(S) — the HERO of the ad, with the background ALREADY REMOVED (transparent PNG). Place the most fitting one LARGE (roughly 40-55% of the frame) with <img class="product"> directly on the ad background — it composites cleanly on ANY colour, so NO panel, card or white box behind it. Give it a generous area; it is the subject. Use the EXACT URL(s); NEVER redraw:\n` +
       productImages.map((u, k) => `  PRODUCT_URL_${k + 1} (${productNames[k] || 'product'}): ${u}`).join('\n') + `\n\n`;
   } else {
     txt += `NO product photo provided — do NOT draw or invent a product. Build a bold typographic ad instead.\n\n`;
@@ -214,6 +219,35 @@ async function getBrowser() {
   });
   return _browser;
 }
+// deterministic layout check (runs in the page): catches text that overlaps, overflows its box, or
+// spills outside the 1080² frame — the spatial failures a vision QA misses. Returns a list of issues.
+function detectLayout() {
+  const stage = document.querySelector('.stage');
+  if (!stage) return [];
+  const sb = stage.getBoundingClientRect();
+  const issues = [];
+  const nodes = [...stage.querySelectorAll('*')].filter(el => {
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return false;
+    return [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim().length > 1);
+  });
+  const items = nodes.map(el => ({ el, r: el.getBoundingClientRect(), t: (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 28) }))
+    .filter(o => o.r.width > 4 && o.r.height > 4);
+  for (const o of items) {
+    if (o.r.left < sb.left - 3 || o.r.top < sb.top - 3 || o.r.right > sb.right + 3 || o.r.bottom > sb.bottom + 3)
+      issues.push('OUT-OF-FRAME: "' + o.t + '" extends past the canvas edge');
+    else if (o.el.scrollWidth > o.el.clientWidth + 6) issues.push('TEXT-OVERFLOW: "' + o.t + '" is wider than its box (spills / clips)');
+  }
+  for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
+    const a = items[i], b = items[j];
+    if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+    const ox = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
+    const oy = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+    const minA = Math.min(a.r.width * a.r.height, b.r.width * b.r.height);
+    if (ox > 2 && oy > 2 && ox * oy > 0.28 * minA && minA > 1400) issues.push('OVERLAP: "' + a.t + '" overlaps "' + b.t + '"');
+  }
+  return [...new Set(issues)].slice(0, 6);
+}
 async function render(fullHtml) {
   const page = await (await getBrowser()).newPage();
   try {
@@ -221,8 +255,10 @@ async function render(fullHtml) {
     await page.setContent(fullHtml, { waitUntil: 'networkidle0', timeout: 45000 });
     // make sure the external images (product photo, logo) are fully decoded before the screenshot
     await page.evaluate(() => Promise.all(Array.from(document.images).map(i => (i.complete ? Promise.resolve() : i.decode().catch(() => {}))))).catch(() => {});
+    const issues = await page.evaluate(detectLayout).catch(() => []);
     const el = await page.$('.stage');
-    return await (el || page).screenshot({ type: 'png' });   // PNG Buffer @ 1080² (small enough for QA)
+    const buf = await (el || page).screenshot({ type: 'png' });   // PNG Buffer @ 2160²
+    return { buf, issues: Array.isArray(issues) ? issues : [] };
   } finally { await page.close().catch(() => {}); }
 }
 
@@ -264,6 +300,23 @@ async function insertRow(imageUrl, brain, meta) {
   if (!ins.ok) throw new Error('insert ' + ins.status + ' ' + (await ins.text()).slice(0, 160));
 }
 
+// fetch a product packshot, knock out its background, cache the transparent PNG in Supabase, return its URL
+async function cutoutProduct(url) {
+  try {
+    if (!url || /\.svg(\?|$)/i.test(url)) return url;
+    const key = crypto.createHash('md5').update(url).digest('hex').slice(0, 16);
+    const path = `cutouts/${key}.png`;
+    const publicUrl = SB_URL + '/storage/v1/object/public/' + BUCKET + '/' + path;
+    if ((await fetch(publicUrl, { method: 'HEAD' })).ok) return publicUrl;   // already cut — reuse
+    const r = await fetch(url); if (!r.ok) return url;
+    const cut = await cutoutBuffer(Buffer.from(await r.arrayBuffer()));
+    if (!cut) { log('  cutout: not a clean packshot, using original'); return url; }
+    const out = await store(cut, path);
+    log('  cutout: background removed → ' + path);
+    return out;
+  } catch (e) { log('  cutout failed (' + String(e.message || e).slice(0, 60) + '), using original'); return url; }
+}
+
 // ---- produce ONE ad from ONE template (reconstruct → render → QA → retry) ------------------
 async function produceOne(templateUrl, brain, tok, assets, meta) {
   const base = baseCss(tok);
@@ -274,7 +327,9 @@ async function produceOne(templateUrl, brain, tok, assets, meta) {
     try {
       const stage = await reconstruct(templateUrl, brain, assets, lastIssues);
       if (!/class=["']stage/.test(stage) || stage.length < 500) { lastIssues = 'Output was empty or a skeleton — build the COMPLETE ad with real content in every zone.'; log(`  [${meta.i}] try ${t}: empty/skeleton, retrying`); continue; }
-      const buf = await render(`<!doctype html><html><head><meta charset="utf8"><style>${base}</style></head><body>${stage}</body></html>`);
+      const { buf, issues: layoutIssues } = await render(`<!doctype html><html><head><meta charset="utf8"><style>${base}</style></head><body>${stage}</body></html>`);
+      // deterministic layout gate — never ship overlapping / clipped / off-frame text (vision QA misses these)
+      if (layoutIssues.length) { lastIssues = 'LAYOUT ERRORS — rebuild with normal flow/flex/grid in separate containers, keep everything inside the frame:\n' + layoutIssues.map(x => '- ' + x).join('\n'); log(`  [${meta.i}] try ${t}: ${layoutIssues.length} layout issue(s) — ${layoutIssues[0].slice(0, 70)}`); continue; }
       // Upload each attempt so QA scores a real https image (the API rejects data: URLs).
       const url = await store(buf, `produced/${norm(meta.brand)}/${meta.runId}-${meta.i}-t${t}.png`);
       const v = await qa(templateUrl, url, brain, flags);
@@ -317,6 +372,8 @@ async function produceBatch(body) {
 
   // fall back to the brand-brain packshot / logo when the form didn't carry them
   if (!productImages.length) productImages = asArray(brain.product_image).slice(0, 1);
+  // knock the background out of each product packshot so it composites cleanly (no white box)
+  productImages = (await Promise.all(productImages.map(cutoutProduct))).filter(Boolean);
   const logos = asArray(brain.logo_urls);
   const logoDark = logos[0] || null;   // dark mark → for LIGHT backgrounds
   const logoLight = logos[1] || null;  // white mark → for DARK backgrounds

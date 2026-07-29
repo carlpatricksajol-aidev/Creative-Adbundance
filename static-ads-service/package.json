@@ -7,10 +7,13 @@
     "start": "node server.js",
     "test:local": "node test-local.js"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "puppeteer-core": "^23.0.0"
+    "puppeteer-core": "^23.0.0",
+    "sharp": "^0.34.5"
   }
 }
