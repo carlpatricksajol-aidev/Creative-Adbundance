@@ -15,11 +15,15 @@ const MODEL_BUILD  = E.MODEL_BUILD  || 'anthropic/claude-opus-4.8';   // reconst
 const MODEL_VISION = E.MODEL_VISION || 'anthropic/claude-sonnet-4.5'; // QA (judgment; cheaper is fine)
 const MAX_TRIES    = +(E.MAX_TRIES || 3);
 const SHIP_SCORE   = +(E.SHIP_SCORE || 7);   // QA score (1-10) an ad must clear to ship
-const CONCURRENCY  = +(E.CONCURRENCY || 3);
+const CONCURRENCY  = +(E.CONCURRENCY || 4);
+const MODEL_DIRECTOR = E.MODEL_DIRECTOR || MODEL_BUILD;  // creative-director stage (needs a strong model)
+const DIRECTOR_THINK = +(E.DIRECTOR_THINK || 3500);     // the heavy creative thinking happens ONCE per batch, here
+const BUILD_THINK    = +(E.THINK_TOKENS || 1500);       // reconstruct: LOW thinking — the concept is already decided
 const puppeteer    = require('puppeteer-core');  // local headless Chrome render — free, no per-image limit
 const crypto       = require('crypto');
 const { cutoutBuffer } = require('./cutout');    // background knockout for product packshots
 const { PNG }      = require('pngjs');            // only to detect an already-transparent product PNG (pure JS)
+const { DIRECTOR_PROMPT, DEVICES } = require('./director-data'); // creative-director brain + inline-SVG device library
 
 // ---- tiny helpers -------------------------------------------------------------------------
 const log = (...a) => console.log(new Date().toISOString(), ...a);
@@ -27,6 +31,7 @@ const norm = (s) => String(s || '').toLowerCase().replace(/\(.*?\)/g, ' ').repla
 const pick = (o, keys, d = '') => { for (const k of keys) if (o && o[k] != null && String(o[k]).trim() !== '') return o[k]; return d; };
 const stripFence = (s) => String(s || '').replace(/^```(?:html|json)?/i, '').replace(/```$/, '').trim();
 const jsonOf = (s) => { try { return JSON.parse(stripFence(s).match(/\{[\s\S]*\}/)[0]); } catch (e) { return null; } };
+const jsonArrayOf = (s) => { try { const m = stripFence(s).match(/\[[\s\S]*\]/); return m ? JSON.parse(m[0]) : null; } catch (e) { return null; } };
 // coerce a field that may arrive as an array, an attachment array [{url}], a JSON-array string, or a
 // comma/newline list → a clean array of URL strings.
 const asArray = (v) => {
@@ -166,8 +171,9 @@ const RULES = `HARD RULES:
 8. Crisp HTML only. Output ONLY the <div class="stage" ...>...</div>.`;
 
 // ---- reconstruct: LOOK at the template + the real assets, write grounded HTML --------------
-async function reconstruct(templateUrl, brain, assets, lastIssues) {
+async function reconstruct(templateUrl, brain, assets, lastIssues, brief) {
   const { logoDark, logoLight, name, productImages, productNames, references } = assets;
+  const hasProd = !!(productImages && productImages.length);
   const material = [
     `Offer: ${pick(brain, ['key_offer'])}`,
     `Voice: ${pick(brain, ['brand_tone'], 'clear, direct')}`,
@@ -176,13 +182,34 @@ async function reconstruct(templateUrl, brain, assets, lastIssues) {
     pick(brain, ['core_pain_points']) ? `Pain points: ${String(pick(brain, ['core_pain_points'])).slice(0, 300)}` : '',
   ].filter(Boolean).join('\n');
 
-  let txt =
-    `Recreate the ATTACHED TEMPLATE as a polished 1080x1080 ad for "${name}". FOLLOW THE TEMPLATE'S LAYOUT FAITHFULLY: the same concept device (e.g. checklist, VS/comparison, product-hero, before/after, handwritten note), the same zones in the same arrangement, the same reading order and visual rhythm. The finished ad must be immediately recognizable as THIS template, rebuilt for ${name}. Then swap ALL of the template's content for this brand: write this brand's real copy in every zone, use this brand's colours and fonts, and (when a real product photo is provided below) drop it in where the template places its product; if NO product is provided, replace any product zone with bold type instead of a hole. Depart from the template ONLY where needed to stay on-brand and to meet the quality standards below (readable type, nothing overlapping, product clear and recognizable).\n\n` +
-    `BRAND: ${name}.\n${material}\n\n`;
+  let txt;
+  if (brief) {
+    // CONCEPT-DRIVEN: the Creative Director already decided the angle + device; EXECUTE it (fast, no re-inventing).
+    txt =
+      `Build a polished, scroll-stopping 1080x1080 ad for "${name}" that EXECUTES the decided creative concept below. This is NOT a template fill: the concept and its visual device ARE the ad. Make the headline the single dominant hero and the visual device its amplifier (device roughly a third to a half of the frame, under or beside the headline).\n\n` +
+      `BRAND: ${name}.\n${material}\n\n` +
+      `DECIDED CONCEPT (execute precisely; do NOT invent a different angle or device):\n` +
+      `  Angle: ${brief.angle}\n  Big idea: ${brief.big_idea}\n` +
+      `  HEADLINE (the hero, HUGE; render this text, breaking a new line where you see " / "): ${brief.headline}\n` +
+      `  Subhead: ${brief.subhead || ''}\n  CTA pill label: ${brief.cta || ''}\n` +
+      (brief.proof ? `  AUTHORIZED PROOF you MAY show, verbatim, and the ONLY figure/claim allowed anywhere: ${brief.proof}\n`
+                   : `  Proof: NONE authorized. Do NOT show any number, stat, rating, review count, award, or named person.\n`) +
+      `  Palette: ${brief.palette || 'brand'} (light = bright --light/--paper ground, --ink text; dark = --ink or dark --accent ground, --light text; brand = --brand ground). Give the .cta the brand's OWN colour, not a default green unless green is the brand.\n\n` +
+      deviceGuide(brief);
+  } else {
+    // TEMPLATE-FAITHFUL: client hand-picked this template — rebuild it exactly.
+    txt =
+      `Recreate the ATTACHED TEMPLATE as a polished 1080x1080 ad for "${name}". FOLLOW THE TEMPLATE'S LAYOUT FAITHFULLY: the same concept device (e.g. checklist, VS/comparison, product-hero, before/after, handwritten note), the same zones in the same arrangement, the same reading order and visual rhythm. The finished ad must be immediately recognizable as THIS template, rebuilt for ${name}. Then swap ALL of the template's content for this brand: write this brand's real copy in every zone, use this brand's colours and fonts, and (when a real product photo is provided below) drop it in where the template places its product; if NO product is provided, replace any product zone with bold type instead of a hole. Depart from the template ONLY where needed to stay on-brand and to meet the quality standards below (readable type, nothing overlapping, product clear and recognizable).\n\n` +
+      `BRAND: ${name}.\n${material}\n\n`;
+  }
 
-  if (productImages && productImages.length) {
-    txt += `REAL PRODUCT PHOTO(S) — the HERO of the ad, with the background ALREADY REMOVED (transparent PNG). Place the most fitting one LARGE (roughly 40-55% of the frame) with <img class="product"> directly on the ad background — it composites cleanly on ANY colour, so NO panel, card or white box behind it. Give it a generous area; it is the subject. Use the EXACT URL(s); NEVER redraw:\n` +
-      productImages.map((u, k) => `  PRODUCT_URL_${k + 1} (${productNames[k] || 'product'}): ${u}`).join('\n') + `\n\n`;
+  if (hasProd) {
+    txt += brief
+      ? `REAL PRODUCT PHOTO(S) — background ALREADY REMOVED (transparent PNG). Place per the concept above (the build spec says if and where it sits): as the hero, or alongside the device. <img class="product">, EXACT URL, NEVER redraw, no white box behind it:\n`
+      : `REAL PRODUCT PHOTO(S) — the HERO of the ad, with the background ALREADY REMOVED (transparent PNG). Place the most fitting one LARGE (roughly 40-55% of the frame) with <img class="product"> directly on the ad background — it composites cleanly on ANY colour, so NO panel, card or white box behind it. Give it a generous area; it is the subject. Use the EXACT URL(s); NEVER redraw:\n`;
+    txt += productImages.map((u, k) => `  PRODUCT_URL_${k + 1} (${productNames[k] || 'product'}): ${u}`).join('\n') + `\n\n`;
+  } else if (brief) {
+    txt += `No product photo — this is a type-and-device ad. Do NOT draw or invent a product; the headline and the visual device carry it.\n\n`;
   } else {
     txt += `THIS BRAND HAS NO PRODUCT PHOTO. Do NOT draw, invent, or reproduce any product, device, phone, card, car, person, or lifestyle scene that may appear in the reference — use the reference ONLY for its energy, colour-blocking and type hierarchy. Build a BOLD, TYPE-LED ad: a GIANT headline as the hero (fill roughly 55-70% of the frame, weight 800-900, tight leading), one short supporting proof or benefit line, and the brand mark. Big confident type IS the design; leave no product-shaped hole.\n\n`;
   }
@@ -190,23 +217,26 @@ async function reconstruct(templateUrl, brain, assets, lastIssues) {
   else if (logoDark) txt += `REAL LOGO — place with <img src="${logoDark}" class="logo"> where the brand mark sits, on a background it CONTRASTS with. Use this EXACT URL.\n\n`;
   else txt += `No logo asset — use a plain TEXT wordmark "${name}" in the brand font (never invent a logo graphic).\n\n`;
 
-  txt += `First decide the SINGLE hook (the one idea this ad lands), then compose around it. Write the headline, subhead, CTA and any support copy yourself from the offer and pains: specific, bold, on-brand.\n\n` +
-    `DESIGN SYSTEM: stage is <div class="stage" style="...">, 1080x1080. CSS vars: --brand --brand2 --onbrand --accent --ink --sub --line --light --paper --green --red --yellow. Body font is the brand sans; class "serif" for the display headline; class "product" for the product <img> (object-fit:contain, size it large); class "logo" for the logo <img>; .cta pill.\n\n` +
+  txt += (brief
+      ? `Execute the concept above exactly. The device must be visibly BUILT (inline SVG), labelled per the build spec, not just implied by the words.\n\n`
+      : `First decide the SINGLE hook (the one idea this ad lands), then compose around it. Write the headline, subhead, CTA and any support copy yourself from the offer and pains: specific, bold, on-brand.\n\n`) +
+    `DESIGN SYSTEM: stage is <div class="stage" style="...">, 1080x1080. CSS vars: --brand --brand2 --onbrand --accent --ink --sub --line --light --paper --green --red --yellow. Body font is the brand sans; class "serif" for the display headline; class "product" for the product <img> (object-fit:contain, size it large); class "logo" for the logo <img>; .cta pill. Inline <svg> for the visual device inherits these vars.\n\n` +
     `HARD REQUIREMENTS: headline at least 76px, subhead at least 30px, body at least 26px (an automated check REJECTS text under 20px, any overlap, and anything off the frame). Keep copy SHORT so it fits big. PUNCTUATION: NEVER use em-dashes, en-dashes or hyphens in the copy; use commas and periods only (write "grass fed colostrum, now a soda", not "grass-fed soda").\n\n` +
     `${STANDARDS}\n\n${RULES}\n` +
     (lastIssues ? `\nThe previous attempt FAILED the art-director QA — fix EXACTLY this, keep everything else:\n${lastIssues}\n` : '');
 
   const parts = [{ type: 'text', text: txt }];
   // NOTE: only RASTER images go to the vision model (SVG 400s the API); SVG assets are still placed
-  // via their URL in the text above and render fine in the HTML.
-  if (visionSafe(templateUrl)) parts.push({ type: 'text', text: 'TEMPLATE (copy this layout skeleton):' }, { type: 'image_url', image_url: { url: templateUrl } });
+  // via their URL in the text above and render fine in the HTML. In CONCEPT-DRIVEN mode we do NOT send the
+  // template image (the concept is the spec; showing the template only tempts the model to copy its product/scene).
+  if (!brief && visionSafe(templateUrl)) parts.push({ type: 'text', text: 'TEMPLATE (copy this layout skeleton):' }, { type: 'image_url', image_url: { url: templateUrl } });
   (productImages || []).slice(0, 3).forEach((u, k) => { if (visionSafe(u)) parts.push({ type: 'text', text: `REAL PRODUCT PHOTO ${k + 1} (place this exact image, do not redraw):` }, { type: 'image_url', image_url: { url: u } }); });
   if (visionSafe(logoDark)) parts.push({ type: 'text', text: 'REAL LOGO — dark variant (for light backgrounds):' }, { type: 'image_url', image_url: { url: logoDark } });
   if (visionSafe(logoLight)) parts.push({ type: 'text', text: 'REAL LOGO — white variant (for dark backgrounds):' }, { type: 'image_url', image_url: { url: logoLight } });
   (references || []).slice(0, 2).forEach((u) => parts.push({ type: 'text', text: 'BRAND REFERENCE (style cue only — do NOT copy its product or text):' }, { type: 'image_url', image_url: { url: u } }));
 
-  // Big output budget so the HTML isn't starved by the thinking budget (thinking is separate).
-  return stripFence(await chat(MODEL_BUILD, [{ role: 'user', content: parts }], 16000, { max_tokens: +(E.THINK_TOKENS || 6000) }));
+  // The concept is decided, so reconstruct thinks LIGHT (BUILD_THINK) and outputs a bounded HTML budget.
+  return stripFence(await chat(MODEL_BUILD, [{ role: 'user', content: parts }], 9000, BUILD_THINK ? { max_tokens: BUILD_THINK } : null));
 }
 
 // ---- render HTML → PNG Buffer via LOCAL headless Chrome (free, unlimited) ------------------
@@ -270,23 +300,26 @@ async function render(fullHtml) {
 }
 
 // ---- QA the render against the template (strict, hand-designed bar) ------------------------
-async function qa(templateUrl, renderedUrl, brain, flags, productNames) {
+async function qa(templateUrl, renderedUrl, brain, flags, productNames, brief) {
   const name = pick(brain, ['brand_name', 'client_name'], 'the brand');
   const subject = (Array.isArray(productNames) && productNames.length) ? productNames.filter(Boolean).join(', ') : '';
   const req = [];
-  if (flags && flags.hasProduct) req.push(`the REAL product photo must be the HERO, large (roughly 40-55% of the frame) and integrated; score 4 or below if the product is a small thumbnail, is drawn/illustrated/CSS-built/fabricated, is stretched/clipped, is missing, or sits in a hard white or contrasting rectangle pasted onto the background`);
+  if (flags && flags.hasProduct) req.push(`the REAL product photo must be present and integrated cleanly (never a small thumbnail in a clashing white box, never drawn/CSS-built/fabricated, never stretched/clipped)`);
   if (flags && flags.hasLogo) req.push(`the real logo image must be present and legible (correct contrast variant); score 5 or below if it is missing, distorted, or low-contrast against its background`);
   const noProduct = !(flags && flags.hasProduct);
-  // For a no-product brand (service, app, review site) there is no product to reproduce, so DON'T judge
-  // fidelity to a reference — judge the ad standalone as a bold type-led piece. (The reference is not even
-  // shown to QA in that case, so it can't cry "template abandonment".) Product brands still get held to the template.
-  const fidelity = noProduct
+  // Three judging modes: (1) CONCEPT-DRIVEN (a Director brief) — judge whether the decided angle + visual device
+  // actually LANDED, never template fidelity. (2) no-product template — judge as a standalone type-led piece.
+  // (3) product template — judge faithful rebuild of the reference. Only mode 3 shows QA the reference image.
+  const concept = brief
+    ? `This ad executes a DECIDED creative concept: "${brief.big_idea}" (angle: ${brief.angle}; intended visual device: ${brief.device}). Judge whether the ad LANDS it: the headline must be the dominant hero, and ${brief.device === 'type-only' ? 'the drama must come from bold type and scale contrast (this concept is deliberately type-only, so do NOT demand an illustration)' : `the "${brief.device}" visual device must be visibly BUILT as a real labelled inline-SVG metaphor (a scale tipping, a wheel, a maze with a shortcut, a falling or rising line, a leak, a checklist resolving, a split, a giant number, a funnel to one, a shield, a stamp, or a guiding arrow), NOT a bare type-card and NOT a meaningless decoration`}. Score 6 or below if ${brief.device === 'type-only' ? 'the type is timid or there is no clear dominant idea' : 'the intended device is missing (a plain type-card), is unlabelled decoration, or the executed angle drifts from the brief'}, or for overlap, scatter, tiny type, off-brand colour/font, or a fabricated specific claim. Do NOT judge fidelity to any template. A bold ad that clearly lands the concept with a dominant headline scores 8 or 9.`
+    : '';
+  const fidelity = concept || (noProduct
     ? `This brand has NO product. Judge the ad ONLY on its own merits as a bold, TYPE-LED piece: (a) is the headline HUGE and clearly the dominant element? (b) is there ONE idea that reads in under 2 seconds? (c) is it on-brand (brand colour + brand font) and clean (no overlap, no scatter, no tiny text)? Do NOT compare it to any reference layout and NEVER say "template abandonment" — a strong type-led ad with no product is exactly right. A bold, clean, on-brand typographic ad scores 8 or 9; drop to 6 or below ONLY for genuinely timid/small type, clutter, overlap, off-brand colour/font, or a fabricated specific claim.`
-    : `The ad should be a faithful REBUILD of the REFERENCE TEMPLATE below for this brand (same layout, concept device and zones, with the brand's own content); if it abandons the template's core layout/concept and invents an unrelated one, dock 2 points and say so. A BOLD, art-directed, on-brand ad that follows the template with a large integrated product and confident type scores 8-9.`;
+    : `The ad should be a faithful REBUILD of the REFERENCE TEMPLATE below for this brand (same layout, concept device and zones, with the brand's own content); if it abandons the template's core layout/concept and invents an unrelated one, dock 2 points and say so. A BOLD, art-directed, on-brand ad that follows the template with a large integrated product and confident type scores 8-9.`);
   const content = [
     { type: 'text', text: `You are a TOUGH art director doing QA on this 1080x1080 ad for "${name}"${subject ? `, featuring the client's own chosen product: ${subject}` : ''}. Hold it to a hand-designed, scroll-stopping bar and REJECT AI slop. Return JSON {"score": <integer 1-10; 10=ship-ready hand-designed, 7=good with only minor nits, 6 or below=a designer would redo it>, "issues":[specific, ACTIONABLE fixes with sizes/percentages]}. ${subject ? 'IMPORTANT: the product shown IS the client\'s real, chosen product, so NEVER flag it as the wrong product, wrong category, or "not what this brand sells" even if the brand also sells other formats; judge craft only, not product choice. ' : ''}${req.length ? 'REQUIRED: ' + req.join('; ') + '. ' : ''}Score 6 or below for ANY of: TIMID or too-small type (headline not clearly dominant, or body copy under ~26px that reads small/weak); text that OVERLAPS, is SCATTERED, or has weak hierarchy; a cluttered "every zone filled" look instead of ONE clear concept that reads in 2 seconds; a product that is a small thumbnail or pasted in a clashing white box; a large dead area; generic filler copy ("get expert guidance", "find solutions") instead of specifics; an off-brand colour or a wrong / novelty font; a meaningless decorative object; a fabricated SPECIFIC claim (invented $ figure, statistic, award, press / "as featured in" logo, review count, or a real-looking full name with age/city). ALLOWED (do NOT penalise): soft illustrative ★★★★★ quotes with a first name + initial only; clean inline-SVG line icons; the brand colour as a bold fill. ${fidelity} Make issues concrete, e.g. "headline ~40px, take it to ~90px"; "product ~15% of frame, make it the hero at ~45%".` },
   ];
-  if (!noProduct && visionSafe(templateUrl)) content.push({ type: 'text', text: 'REFERENCE TEMPLATE:' }, { type: 'image_url', image_url: { url: templateUrl } });
+  if (!brief && !noProduct && visionSafe(templateUrl)) content.push({ type: 'text', text: 'REFERENCE TEMPLATE:' }, { type: 'image_url', image_url: { url: templateUrl } });
   content.push({ type: 'text', text: 'RENDERED AD:' }, { type: 'image_url', image_url: { url: renderedUrl } });
   const v = jsonOf(await chat(MODEL_VISION, [{ role: 'user', content }], 800)) || {};
   return { score: typeof v.score === 'number' ? v.score : 0, issues: Array.isArray(v.issues) ? v.issues : ['QA unparseable'] };
@@ -346,14 +379,14 @@ async function cutoutProduct(url) {
 }
 
 // ---- produce ONE ad from ONE template (reconstruct → render → QA → retry) ------------------
-async function produceOne(templateUrl, brain, tok, assets, meta) {
+async function produceOne(templateUrl, brief, brain, tok, assets, meta) {
   const base = baseCss(tok);
   let lastIssues = '';
   let best = { score: 0, url: null };
   const flags = { hasProduct: !!(assets.productImages && assets.productImages.length), hasLogo: !!assets.logoDark };
   for (let t = 1; t <= MAX_TRIES; t++) {
     try {
-      let stage = await reconstruct(templateUrl, brain, assets, lastIssues);
+      let stage = await reconstruct(templateUrl, brain, assets, lastIssues, brief);
       if (!/class=["']stage/.test(stage) || stage.length < 500) { lastIssues = 'Output was empty or a skeleton. Build the COMPLETE ad with real content in every zone.'; log(`  [${meta.i}] try ${t}: empty/skeleton, retrying`); continue; }
       stage = stage.replace(/\s*[—–]\s*/g, ', ').replace(/([A-Za-z0-9]) - ([A-Za-z0-9])/g, '$1, $2'); // strip em/en dashes and dash-hyphens from the copy (never ship them)
       const { buf, issues: layoutIssues } = await render(`<!doctype html><html><head><meta charset="utf8"><style>${base}</style></head><body>${stage}</body></html>`);
@@ -361,7 +394,7 @@ async function produceOne(templateUrl, brain, tok, assets, meta) {
       if (layoutIssues.length) { lastIssues = 'LAYOUT ERRORS to fix (use normal flow/flex/grid in separate containers, keep everything inside the frame, make text big):\n' + layoutIssues.map(x => '- ' + x).join('\n'); log(`  [${meta.i}] try ${t}: ${layoutIssues.length} layout issue(s): ${layoutIssues[0].slice(0, 70)}`); continue; }
       // Upload each attempt so QA scores a real https image (the API rejects data: URLs).
       const url = await store(buf, `produced/${norm(meta.brand)}/${meta.runId}-${meta.i}-t${t}.png`);
-      const v = await qa(templateUrl, url, brain, flags, assets.productNames);
+      const v = await qa(templateUrl, url, brain, flags, assets.productNames, brief);
       log(`  [${meta.i}] try ${t}: score ${v.score}${v.issues && v.issues.length ? ' — ' + v.issues.join('; ').slice(0, 110) : ''}`);
       if (v.score > best.score) best = { score: v.score, url };
       if (v.score >= SHIP_SCORE) break;
@@ -444,13 +477,65 @@ async function selectTemplates(brain, count, hasProduct) {
   const perCat = Math.max(1, Math.ceil(count / 4)), catCount = {}, picks = [];
   for (const r of pool) { if (picks.length >= count) break; const c = r.category || 'x'; if ((catCount[c] || 0) >= perCat) continue; catCount[c] = (catCount[c] || 0) + 1; picks.push(r); }
   for (const r of pool) { if (picks.length >= count) break; if (!picks.includes(r)) picks.push(r); }
-  return picks.slice(0, count).map(r => r.image_url);
+  return picks.slice(0, count).map(r => ({ image_url: r.image_url, category: r.category || '' }));
+}
+
+// ---- CREATIVE DIRECTOR: decide the concept (sharp angle + a visual device) for every ad ONCE ----
+// This is where the heavy thinking happens, so each reconstruct downstream just EXECUTES a decided brief
+// (fast) instead of improvising a concept (slow + generic). Generalises to every client via the brain.
+function directorBrain(brain, assets) {
+  const g = (k, n = 700) => { const v = pick(brain, [k]); return v ? String(v).slice(0, n) : ''; };
+  return {
+    brand_name: pick(brain, ['brand_name', 'client_name'], 'The Brand'),
+    industry: g('industry', 260),
+    key_offer: g('key_offer'),
+    brand_tone: g('brand_tone'),
+    brand_personality: g('brand_personality', 400),
+    target_personas: g('target_personas'),
+    core_pain_points: g('core_pain_points'),
+    product_benefits: g('product_benefits'),
+    winning_concepts: g('winning_concepts'),
+    winning_hooks: g('winning_hooks', 400),
+    losing_patterns: g('losing_patterns'),
+    creative_boundaries: g('creative_boundaries', 400),
+    dos_and_donts: g('dos_and_donts', 400),
+    compliance_notes: g('compliance_notes', 300) || g('compliance_disclaimer', 300),
+    // authorized proof = only claims/numbers that literally appear in these fields may be used verbatim
+    authorized_proof: [g('product_benefits'), g('winning_hooks', 400), g('key_offer')].filter(Boolean).join('  ||  ').slice(0, 900),
+    brand_colors: { primary: pick(brain, ['primary_color_hex']), secondary: pick(brain, ['secondary_color_hex']), accent: pick(brain, ['accent_color_hex']) },
+    brand_fonts: g('brand_fonts', 200),
+    has_product: !!(assets && assets.productImages && assets.productImages.length),
+    product_names: (assets && assets.productNames) || [],
+  };
+}
+async function creativeDirector(brain, templateCats, assets) {
+  const n = templateCats.length;
+  if (!n) return null;
+  const view = directorBrain(brain, assets);
+  const user = `BRAND_BRAIN:\n${JSON.stringify(view)}\n\nTEMPLATE_CATEGORIES (in order; brief i uses category i):\n${JSON.stringify(templateCats)}\n\nN = ${n}\n\nOutput ONLY the JSON array of exactly ${n} briefs.`;
+  // Output budget must fit N briefs (~800 tok each) plus the thinking budget; cap so a 50-ad batch still fits.
+  const outBudget = DIRECTOR_THINK + Math.min(28000, Math.max(3500, n * 800));
+  const raw = await chat(MODEL_DIRECTOR,
+    [{ role: 'system', content: DIRECTOR_PROMPT }, { role: 'user', content: user }],
+    outBudget, DIRECTOR_THINK ? { max_tokens: DIRECTOR_THINK } : null);
+  const arr = jsonArrayOf(raw);
+  return (Array.isArray(arr) && arr.length) ? arr : null;
+}
+// Build the reconstruct guidance for a decided concept: the device's known-good SVG pattern + how to adapt it.
+function deviceGuide(brief) {
+  if (!brief || !brief.device) return '';
+  const d = DEVICES[brief.device];
+  if (!d) return '';
+  if (brief.device === 'type-only') return `VISUAL DEVICE: type-only (NO illustration). ${d.notes} ${brief.device_note || ''}\n\n`;
+  return `VISUAL DEVICE: "${brief.device}" — ${d.when}\nBUILD IT AS INLINE SVG (paste an <svg> directly in the HTML so it inherits the CSS vars; do NOT use <img>). Here is a known-good reference implementation in the SAME CSS variables — adapt its LABELS, proportions and exact text to the build spec below, keep it flat and primitive-only, size it to occupy its zone (roughly 34 to 48% of the frame) as the AMPLIFIER under the headline:\n${d.svg}\nADAPT NOTES: ${d.notes}\nBUILD SPEC for THIS ad (follow literally — every label, what sits where, what is red=pain vs green=exit, arrow direction, dominant element): ${brief.device_note || ''}\n\n`;
 }
 
 // ---- produce a whole batch from a form submission -----------------------------------------
 async function produceBatch(body) {
   const brand = String(body.client_name || body.clientName || body.brand_name || body.brand || '').trim();
-  let templates = asArray(body.selected_template_urls || body.template_urls || body.selected_templates);
+  // hand-picked templates arrive as URL strings → normalise to {image_url, category:''} (no category ⇒ template-faithful).
+  let templates = asArray(body.selected_template_urls || body.template_urls || body.selected_templates).map(u => ({ image_url: u, category: '' }));
+  let autoPicked = false;
   const runId = 'agent-' + Date.now();
   const platform = String(body.platforms || '').split(',')[0].trim();
 
@@ -471,7 +556,7 @@ async function produceBatch(body) {
   if (!templates.length) {
     const n = Math.max(1, Math.min(50, +(body.static_ads_count || body.count) || 5));
     const hasProduct = productImages.length > 0 || asArray(brain.product_image).length > 0;
-    try { templates = await selectTemplates(brain, n, hasProduct); log(`  auto-picked ${templates.length} ${hasProduct ? 'product' : 'typographic'} templates for industry "${pick(brain, ['industry'], '?')}"`); }
+    try { templates = await selectTemplates(brain, n, hasProduct); autoPicked = templates.length > 0; log(`  auto-picked ${templates.length} ${hasProduct ? 'product' : 'typographic'} templates for industry "${pick(brain, ['industry'], '?')}"`); }
     catch (e) { log('  auto-pick failed: ' + String(e.message || e).slice(0, 80)); }
   }
   log(`RUN ${runId} — "${brand}" — ${templates.length} templates, ${productImages.length} product image(s)`);
@@ -487,13 +572,26 @@ async function produceBatch(body) {
   if (!logoDark) log(`  NOTE: no logo in brand_brain.logo_urls for "${name}" — using a text wordmark. Add the real logo with set-logo.js to get the brand mark.`);
   if (!productImages.length) log(`  NOTE: no product image (form or brand_brain) — ads will be typographic with no product shown.`);
 
+  // CREATIVE DIRECTOR: decide the concept (a sharp angle + a visual device) for every ad ONCE, up front.
+  // This is the heavy thinking, done a single time; each reconstruct below just EXECUTES its brief (fast +
+  // on-concept). Only for auto-picked batches — a hand-picked template is rebuilt faithfully (no brief).
+  let briefs = null;
+  if (autoPicked && templates.length) {
+    const cats = templates.map(t => t.category || '');
+    try {
+      briefs = await creativeDirector(brain, cats, assets);
+      if (briefs && briefs.length >= templates.length) log(`  creative director: ${templates.length} concepts — ${briefs.slice(0, templates.length).map(b => `${b.angle || '?'}/${b.device || '?'}`).join(', ')}`);
+      else { log(`  creative director returned ${briefs ? briefs.length : 0}/${templates.length}; proceeding template-faithful`); briefs = null; }
+    } catch (e) { log('  creative director failed: ' + String(e.message || e).slice(0, 100) + ' — proceeding template-faithful'); briefs = null; }
+  }
+
   // concurrency-limited pool
   const results = [];
   let idx = 0;
   async function worker() {
     while (idx < templates.length) {
       const i = idx++;
-      const r = await produceOne(templates[i], brain, tok, assets, { brand: name, i: i + 1, runId, platform });
+      const r = await produceOne(templates[i].image_url, briefs ? briefs[i] : null, brain, tok, assets, { brand: name, i: i + 1, runId, platform });
       if (r) results.push(r);
     }
   }
