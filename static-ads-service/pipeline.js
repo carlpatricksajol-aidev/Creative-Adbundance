@@ -150,7 +150,7 @@ const RULES = `HARD RULES — this is a RECONSTRUCTION that PLACES THE BRAND'S R
 
 // ---- reconstruct: LOOK at the template + the real assets, write grounded HTML --------------
 async function reconstruct(templateUrl, brain, assets, lastIssues) {
-  const { logoUrl, name, productImages, productNames, references } = assets;
+  const { logoDark, logoLight, name, productImages, productNames, references } = assets;
   const material = [
     `Offer: ${pick(brain, ['key_offer'])}`,
     `Voice: ${pick(brain, ['brand_tone'], 'clear, direct')}`,
@@ -169,7 +169,8 @@ async function reconstruct(templateUrl, brain, assets, lastIssues) {
   } else {
     txt += `NO product photo provided — do NOT draw or invent a product. Build a clean typographic/benefit ad instead.\n\n`;
   }
-  if (logoUrl) txt += `REAL LOGO — place with <img src="${logoUrl}" class="logo"> where the brand mark sits. Use this EXACT URL.\n\n`;
+  if (logoDark && logoLight) txt += `REAL LOGO — two variants provided; place the ONE that CONTRASTS with the background where the mark sits, as <img class="logo"> with the EXACT URL. Never a dark logo on a dark area or a white logo on a light one:\n  DARK logo (use on LIGHT / neon / cream backgrounds): ${logoDark}\n  WHITE logo (use on DARK backgrounds): ${logoLight}\n\n`;
+  else if (logoDark) txt += `REAL LOGO — place with <img src="${logoDark}" class="logo"> where the brand mark sits, on a background it CONTRASTS with. Use this EXACT URL.\n\n`;
   else txt += `No logo asset — use a plain TEXT wordmark "${name}" in the brand font (never invent a logo graphic).\n\n`;
 
   txt += `Write the headline, subhead and CTA yourself from the offer/pains, plus concrete copy for every other zone (comparison rows, checklist, toggles, stat callouts, review quotes) — never blank, never vague.\n\n` +
@@ -180,7 +181,8 @@ async function reconstruct(templateUrl, brain, assets, lastIssues) {
   const parts = [{ type: 'text', text: txt }];
   if (templateUrl) parts.push({ type: 'text', text: 'TEMPLATE (copy this layout skeleton):' }, { type: 'image_url', image_url: { url: templateUrl } });
   (productImages || []).slice(0, 3).forEach((u, k) => parts.push({ type: 'text', text: `REAL PRODUCT PHOTO ${k + 1} (place this exact image, do not redraw):` }, { type: 'image_url', image_url: { url: u } }));
-  if (logoUrl) parts.push({ type: 'text', text: 'REAL LOGO (place this exact image):' }, { type: 'image_url', image_url: { url: logoUrl } });
+  if (logoDark) parts.push({ type: 'text', text: 'REAL LOGO — dark variant (for light backgrounds):' }, { type: 'image_url', image_url: { url: logoDark } });
+  if (logoLight) parts.push({ type: 'text', text: 'REAL LOGO — white variant (for dark backgrounds):' }, { type: 'image_url', image_url: { url: logoLight } });
   (references || []).slice(0, 2).forEach((u) => parts.push({ type: 'text', text: 'BRAND REFERENCE (style cue only — do NOT copy its product or text):' }, { type: 'image_url', image_url: { url: u } }));
 
   // Big output budget so the HTML isn't starved by the thinking budget (thinking is separate).
@@ -216,7 +218,7 @@ async function qa(templateUrl, renderedUrl, brain, flags) {
   const name = pick(brain, ['brand_name', 'client_name'], 'the brand');
   const req = [];
   if (flags && flags.hasProduct) req.push(`the ad MUST show the brand's REAL PHOTOGRAPHIC product — score 4 or below if the product looks hand-drawn, illustrated, cartoonish, CSS-built, fabricated, a generic blank package, or stretched/squished/clipped, or if the product is missing entirely`);
-  if (flags && flags.hasLogo) req.push(`the ad MUST show the real logo image, not a re-typed guess`);
+  if (flags && flags.hasLogo) req.push(`the ad MUST show the real logo image (not a re-typed guess) and it MUST be legible — score 5 or below if the logo is invisible or low-contrast against its background (e.g. a dark logo on a dark area)`);
   const content = [
     { type: 'text', text: `QA this rendered ad for "${name}" (offer: ${pick(brain, ['key_offer'])}). Judge it as a paying client would. Return JSON {"score": <integer 1-10; 10=ship-ready and hand-designed, 7=good with only minor nits, 6 or below=a designer would redo it>, "issues":["..."]}. ${req.length ? 'REQUIRED: ' + req.join('; ') + '. ' : ''}Score 6 or below for ANY of: a drawn/fabricated product instead of the real photo; content clipped by an edge / overflowing / cut off; garbled or illegibly low-contrast text; a card/badge/wordmark/CTA overlaps other copy; a large empty / dead area; generic filler copy ("get expert guidance", "find solutions") instead of specifics; an off-brand colour or a monospace / novelty font; a random decorative object that means nothing for the brand; a fabricated SPECIFIC claim (an invented dollar figure, statistic, award, press / "as featured in" logo, review count, or a real-looking full name with age/city); or copy that names a category that is NOT this brand's. ALLOWED — do NOT penalise: soft illustrative ★★★★★ review quotes with a first name + initial only; clean inline-SVG line icons or a monogram avatar (this design uses NO stock photos on purpose); the brand colour used as a bold fill; the real product photo sitting on a matching background. Score honestly — a clean, on-brand, frame-filling ad that uses the real product photo + real logo with specific copy should score 7-9.` },
   ];
@@ -254,7 +256,7 @@ async function produceOne(templateUrl, brain, tok, assets, meta) {
   const base = baseCss(tok);
   let lastIssues = '';
   let best = { score: 0, url: null };
-  const flags = { hasProduct: !!(assets.productImages && assets.productImages.length), hasLogo: !!assets.logoUrl };
+  const flags = { hasProduct: !!(assets.productImages && assets.productImages.length), hasLogo: !!assets.logoDark };
   for (let t = 1; t <= MAX_TRIES; t++) {
     try {
       const stage = await reconstruct(templateUrl, brain, assets, lastIssues);
@@ -302,9 +304,11 @@ async function produceBatch(body) {
 
   // fall back to the brand-brain packshot / logo when the form didn't carry them
   if (!productImages.length) productImages = asArray(brain.product_image).slice(0, 1);
-  const logoUrl = asArray(brain.logo_urls)[0] || null;
-  const assets = { logoUrl, name, productImages, productNames, references };
-  if (!logoUrl) log(`  NOTE: no logo in brand_brain.logo_urls for "${name}" — using a text wordmark. Add the real logo to logo_urls to get the brand mark.`);
+  const logos = asArray(brain.logo_urls);
+  const logoDark = logos[0] || null;   // dark mark → for LIGHT backgrounds
+  const logoLight = logos[1] || null;  // white mark → for DARK backgrounds
+  const assets = { logoDark, logoLight, name, productImages, productNames, references };
+  if (!logoDark) log(`  NOTE: no logo in brand_brain.logo_urls for "${name}" — using a text wordmark. Add the real logo with set-logo.js to get the brand mark.`);
   if (!productImages.length) log(`  NOTE: no product image (form or brand_brain) — ads will be typographic with no product shown.`);
 
   // concurrency-limited pool
