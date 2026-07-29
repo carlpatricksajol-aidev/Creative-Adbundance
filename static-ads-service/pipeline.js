@@ -18,7 +18,7 @@ const SHIP_SCORE   = +(E.SHIP_SCORE || 7);   // QA score (1-10) an ad must clear
 const CONCURRENCY  = +(E.CONCURRENCY || 4);
 const MODEL_DIRECTOR  = E.MODEL_DIRECTOR || MODEL_BUILD;               // creative-director stage (needs a strong model)
 const MODEL_BUILD_FAST = E.MODEL_BUILD_FAST || 'anthropic/claude-sonnet-4.5'; // EXECUTE a decided brief (fast; ideation is done)
-const DIRECTOR_THINK  = +(E.DIRECTOR_THINK || 3000);    // the heavy creative thinking happens ONCE per batch, here
+const DIRECTOR_THINK  = +(E.DIRECTOR_THINK || 2200);    // the heavy creative thinking happens ONCE per batch, here (kept modest for latency)
 const BUILD_THINK     = +(E.THINK_TOKENS || 0);         // reconstruct: NO thinking by default — the concept is already decided
 const puppeteer    = require('puppeteer-core');  // local headless Chrome render — free, no per-image limit
 const crypto       = require('crypto');
@@ -33,6 +33,26 @@ const pick = (o, keys, d = '') => { for (const k of keys) if (o && o[k] != null 
 const stripFence = (s) => String(s || '').replace(/^```(?:html|json)?/i, '').replace(/```$/, '').trim();
 const jsonOf = (s) => { try { return JSON.parse(stripFence(s).match(/\{[\s\S]*\}/)[0]); } catch (e) { return null; } };
 const jsonArrayOf = (s) => { try { const m = stripFence(s).match(/\[[\s\S]*\]/); return m ? JSON.parse(m[0]) : null; } catch (e) { return null; } };
+// Robustly pull an array of objects out of an LLM response even when it is wrapped in reasoning
+// preamble (which may contain stray "[" brackets) or an object like {"briefs":[...]}. Bracket-matches
+// from the first "[{" while ignoring brackets INSIDE strings (device_note text often contains them).
+function extractBriefs(raw) {
+  const s = stripFence(String(raw || ''));
+  try { const v = JSON.parse(s); if (Array.isArray(v)) return v; const a = v && (v.briefs || v.concepts || v.ads || v.array); if (Array.isArray(a)) return a; } catch (e) {}
+  const start = s.search(/\[\s*\{/);
+  if (start >= 0) {
+    let depth = 0, inStr = false, esc = false;
+    for (let i = start; i < s.length; i++) {
+      const c = s[i];
+      if (inStr) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') inStr = false; continue; }
+      if (c === '"') inStr = true;
+      else if (c === '[') depth++;
+      else if (c === ']') { if (--depth === 0) { try { const v = JSON.parse(s.slice(start, i + 1)); if (Array.isArray(v)) return v; } catch (e) {} break; } }
+    }
+  }
+  try { const m = s.match(/\{[\s\S]*\}/); if (m) { const o = JSON.parse(m[0]); const a = o.briefs || o.concepts || o.ads; if (Array.isArray(a)) return a; } } catch (e) {}
+  return null;
+}
 // coerce a field that may arrive as an array, an attachment array [{url}], a JSON-array string, or a
 // comma/newline list → a clean array of URL strings.
 const asArray = (v) => {
@@ -522,8 +542,8 @@ async function creativeDirector(brain, templateCats, assets) {
   const raw = await chat(MODEL_DIRECTOR,
     [{ role: 'system', content: DIRECTOR_PROMPT }, { role: 'user', content: user }],
     outBudget, DIRECTOR_THINK ? { max_tokens: DIRECTOR_THINK } : null);
-  const arr = jsonArrayOf(raw);
-  if (!Array.isArray(arr) || !arr.length) { log('  director: could not parse briefs from output head: ' + String(raw || '').replace(/\s+/g, ' ').slice(0, 180)); return null; }
+  const arr = extractBriefs(raw);
+  if (!Array.isArray(arr) || !arr.length) { log('  director: could not parse briefs from output head: ' + String(raw || '').replace(/\s+/g, ' ').slice(0, 220)); return null; }
   return arr;
 }
 // Build the reconstruct guidance for a decided concept: the device's known-good SVG pattern + how to adapt it.
