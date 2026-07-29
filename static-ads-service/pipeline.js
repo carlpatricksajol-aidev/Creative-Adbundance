@@ -1,21 +1,18 @@
 // ===========================================================================================
-// Static Ads Service — the agent pipeline that produces concept-first, template-faithful ads
-// and pushes them to the Supabase library. This is the reliable, headless version of the work
-// we proved by hand: look at each template, rebuild it as grounded HTML, render, QA, retry,
-// keep only the passers.  Runs in plain Node 18+ (global fetch).  Keys come from .env.
+// Static Ads Service — concept-first, template-faithful ads that PLACE THE CLIENT'S REAL ASSETS
+// (the SELECTED product photo, the real logo, brand colours + fonts) — it never redraws a product.
+// Reliable headless version: look at the template, rebuild its skeleton as grounded HTML with the
+// real product image + logo dropped in, render, QA, retry, keep only the passers. Node 18+. Keys in .env.
 // ===========================================================================================
 'use strict';
 
 const E = process.env;
 const OR_KEY       = E.OPENROUTER_API_KEY;
-const HCTI_USER    = E.HCTI_USER_ID;
-const HCTI_KEY     = E.HCTI_API_KEY;
 const SB_URL       = (E.SUPABASE_URL || 'https://xakngjsybyytldyqfsmi.supabase.co').replace(/\/$/, '');
 const SB_KEY       = E.SUPABASE_SERVICE_KEY;
 const BUCKET       = E.BUCKET || 'static-ads';
 const MODEL_BUILD  = E.MODEL_BUILD  || 'anthropic/claude-opus-4.8';   // reconstruct — needs a strong model
 const MODEL_VISION = E.MODEL_VISION || 'anthropic/claude-sonnet-4.5'; // QA (judgment; cheaper is fine)
-const THINK        = E.THINK || 'high';                              // extended-thinking effort for reconstruct
 const MAX_TRIES    = +(E.MAX_TRIES || 3);
 const SHIP_SCORE   = +(E.SHIP_SCORE || 7);   // QA score (1-10) an ad must clear to ship
 const CONCURRENCY  = +(E.CONCURRENCY || 3);
@@ -27,6 +24,19 @@ const norm = (s) => String(s || '').toLowerCase().replace(/\(.*?\)/g, ' ').repla
 const pick = (o, keys, d = '') => { for (const k of keys) if (o && o[k] != null && String(o[k]).trim() !== '') return o[k]; return d; };
 const stripFence = (s) => String(s || '').replace(/^```(?:html|json)?/i, '').replace(/```$/, '').trim();
 const jsonOf = (s) => { try { return JSON.parse(stripFence(s).match(/\{[\s\S]*\}/)[0]); } catch (e) { return null; } };
+// coerce a field that may arrive as an array, an attachment array [{url}], a JSON-array string, or a
+// comma/newline list → a clean array of URL strings.
+const asArray = (v) => {
+  let a = [];
+  if (Array.isArray(v)) a = v;
+  else if (v != null && String(v).trim() !== '') {
+    const s = String(v).trim();
+    if (s[0] === '[') { try { const p = JSON.parse(s); a = Array.isArray(p) ? p : [s]; } catch (e) { a = s.split(/[\n,]+/); } }
+    else a = s.split(/[\n,]+/);
+  }
+  return a.map(x => (typeof x === 'string' ? x : (x && (x.url || x.image_url || x.product_image_url)) || ''))
+          .map(x => String(x).trim()).filter(Boolean);
+};
 
 async function chat(model, messages, max_tokens = 4000, reasoning = null) {
   const body = { model, messages, max_tokens };
@@ -60,6 +70,42 @@ async function fetchBrand(clientName, sisterBrand) {
   return Object.assign({ _found: true }, (rows && rows[0]) || {});
 }
 
+// ---- fonts: resolve the brand's scraped typefaces to Google-hostable families --------------
+// Proprietary/foundry fonts aren't on Google Fonts; map the common ones to their closest match so
+// the render uses a brand-faithful typeface instead of a system default.
+const FONT_MAP = {
+  canela: 'Fraunces', gtsuper: 'Fraunces', ppeditorial: 'Fraunces', editorialnew: 'Fraunces', reckless: 'Fraunces',
+  tiempos: 'Fraunces', ogg: 'Fraunces', freight: 'Fraunces', domaine: 'Fraunces', signifier: 'Fraunces', recoleta: 'Fraunces',
+  garamond: 'EB Garamond', ebgaramond: 'EB Garamond', caslon: 'Libre Caslon Text', times: 'PT Serif', georgia: 'PT Serif',
+  merriweather: 'Merriweather', lora: 'Lora', playfair: 'Playfair Display', playfairdisplay: 'Playfair Display',
+  sohne: 'Inter', soehne: 'Inter', neuehaas: 'Inter', helvetica: 'Inter', helveticanow: 'Inter', arial: 'Inter',
+  founders: 'Inter', foundersgrotesk: 'Inter', aktivgrotesk: 'Inter', suisse: 'Inter', suisseintl: 'Inter', graphik: 'Inter',
+  geist: 'Inter', untitledsans: 'Inter', inter: 'Inter', roboto: 'Roboto', worksans: 'Work Sans',
+  circular: 'Poppins', gilroy: 'Poppins', futura: 'Poppins', gotham: 'Poppins', gothamrounded: 'Poppins',
+  avenir: 'Nunito Sans', avenirnext: 'Nunito Sans', proximanova: 'Nunito Sans', proxima: 'Nunito Sans',
+  montserrat: 'Montserrat', poppins: 'Poppins', nunito: 'Nunito', nunitosans: 'Nunito Sans', dmsans: 'DM Sans',
+  manrope: 'Manrope', fredoka: 'Fredoka', quicksand: 'Quicksand', sourcesans: 'Source Sans 3', raleway: 'Raleway',
+};
+const SERIF_HINT = /serif|canela|garamond|caslon|times|georgia|fraunces|playfair|tiempos|reckless|ogg|freight|domaine|signifier|lora|merriweather|editorial|didone|recoleta|slab/i;
+function resolveFont(nameRaw) {
+  const key = norm(nameRaw); if (!key) return null;
+  for (const k in FONT_MAP) if (key.includes(k)) return { family: FONT_MAP[k], serif: SERIF_HINT.test(nameRaw) || SERIF_HINT.test(FONT_MAP[k]) };
+  const family = String(nameRaw).trim().replace(/\s+/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  return { family, serif: SERIF_HINT.test(nameRaw) };
+}
+function resolveFonts(brandFonts) {
+  const names = String(brandFonts || '').split(/[,/;|+]|\band\b/).map(s => s.replace(/[()]/g, ' ').trim()).filter(Boolean).slice(0, 4);
+  const resolved = names.map(resolveFont).filter(Boolean);
+  const head = resolved.find(r => r.serif) || resolved[0];
+  const body = resolved.find(r => !r.serif) || resolved[1] || resolved[0];
+  const headFam = head ? head.family : 'Playfair Display';
+  const bodyFam = body ? body.family : 'Manrope';
+  const wanted = [...new Set([bodyFam, headFam])];
+  // request only 400+700 — every mapped family has these, so the @import can't 400 and drop the font
+  const imp = wanted.map(f => `@import url('https://fonts.googleapis.com/css2?family=${f.replace(/\s+/g, '+')}:wght@400;700&display=swap');`).join('\n');
+  return { head: `'${headFam}', Georgia, serif`, body: `'${bodyFam}', system-ui, sans-serif`, import: imp };
+}
+
 // ---- brand → design tokens (auto-contrast, brand fonts) -----------------------------------
 const rgb = (h) => { const n = parseInt(String(h).replace('#', '').slice(0, 6) || '2E6BFF', 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
 const toHex = (a) => '#' + a.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
@@ -69,15 +115,12 @@ function tokens(brain) {
   const brand = pick(brain, ['primary_color_hex'], '#2E6BFF');
   const accent = pick(brain, ['accent_color_hex', 'secondary_color_hex'], brand);
   const light = lum(brand) > 0.55;
-  const font = pick(brain, ['brand_fonts'], '').split(/[.,/(]/)[0].trim();
-  const fams = ['Manrope:wght@400;600;700;800', 'Playfair+Display:wght@600;700;800'];
-  if (font && !/manrope|playfair/i.test(font)) fams.unshift(font.replace(/\s+/g, '+') + ':wght@400;600;700;800');
+  const f = resolveFonts(pick(brain, ['brand_fonts'], ''));
   return {
     brand, accent, brand2: toHex(rgb(brand).map(v => v * (light ? 0.86 : 0.78))),
     onbrand: light ? '#12142B' : '#FFFFFF', ink: '#12142B',
     lightBg: toHex(rgb(brand).map(v => v * 0.1 + 255 * 0.9)),
-    sans: `'${font || 'Manrope'}','Manrope',system-ui,sans-serif`,
-    fontImport: `@import url('https://fonts.googleapis.com/css2?${fams.map(f => 'family=' + f).join('&')}&display=swap');`,
+    sans: f.body, serif: f.head, fontImport: f.import,
   };
 }
 function baseCss(t) {
@@ -86,24 +129,28 @@ function baseCss(t) {
   --ink:${t.ink}; --sub:#5A6377; --line:#E6EAF2; --light:${t.lightBg}; --paper:#FFFFFF; --green:#12A150; --red:#E5484D; --yellow:#F3E85C; }
 *{margin:0;padding:0;box-sizing:border-box} html,body{background:#000}
 .stage{width:1080px;height:1080px;position:relative;overflow:hidden;font-family:${t.sans};-webkit-font-smoothing:antialiased;color:var(--ink)}
-.serif{font-family:'Playfair Display',Georgia,serif}
+.serif{font-family:${t.serif}}
+img{display:block;max-width:100%}
+.product{object-fit:contain;display:block}    /* the REAL product photo — never a drawn shape */
+.logo{height:46px;width:auto;object-fit:contain;display:block}
 .cta{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:23px;padding:15px 30px;border-radius:999px;white-space:nowrap;background:var(--brand);color:var(--onbrand)}`;
 }
 
-const RULES = `HARD RULES — this is a RECONSTRUCTION, not a reuse:
-1. THE TEMPLATE IS ONLY A LAYOUT. Its original words are placeholders — DISCARD them. Write EVERY word from THIS brand's real offer. A template's category must NEVER leak in.
+const RULES = `HARD RULES — this is a RECONSTRUCTION that PLACES THE BRAND'S REAL ASSETS:
+1. THE TEMPLATE IS ONLY A LAYOUT. Its original words, product and logo are placeholders — DISCARD them. Every word is THIS brand's real offer; every product shown is THIS brand's REAL product photo (provided). A template's category or brand must NEVER leak in.
 2. Reconstruct the template's SKELETON faithfully (same zones, concept device, reading order, proportions); all copy new and grounded.
-3. FILL EVERY ZONE WITH SPECIFIC COPY (comparison rows, checklist items, toggle labels, stat callouts, review quotes) from the brand's offer/benefits/pain points. NEVER blank, NEVER vague filler ("get expert guidance", "find solutions").
-4. NOTHING OVERLAPS; everything INSIDE the 1080x1080 frame with margins; nothing touches an edge.
-5. FILL THE FRAME — no large empty/dead zones. A half-empty ad is a FAIL.
-6. EVERY VISUAL ELEMENT MEANS SOMETHING for this brand. No random decorative objects (floating coin, gem, pill, unrelated icon).
-7. BRAND COLOURS ONLY (var(--brand)/--accent/--ink/--paper/--light + semantic green/red). No off-brand colour. Strong contrast.
-8. BRAND FONTS ONLY (default sans + "serif" class for headlines). No monospace/novelty font.
-9. NO FABRICATED SPECIFICS: no invented $ amounts, stats, awards, review counts, or "As Featured In" press logos. Review cards may use soft ★★★★★ quotes with a first name + initial, clearly illustrative.
-10. Crisp HTML only; typographic wordmark; no <img>/emoji/external assets; clean inline-SVG icons. Output ONLY the <div class="stage" ...>...</div>.`;
+3. THE PRODUCT: wherever the layout shows a product, package, bottle, can, jar, box or device, place the REAL product photo with <img src="EXACT_PRODUCT_URL" class="product" style="width:...;height:..."> and object-fit:contain. NEVER draw, illustrate, sketch or CSS-build a product; NEVER invent a bottle/can/package. If NO product image is provided, build a clean typographic/benefit ad with NO product shown — do not fabricate one.
+4. THE LOGO: place the REAL logo with <img src="EXACT_LOGO_URL" class="logo"> where the brand mark sits. If no logo URL is provided, use a plain TEXT wordmark of the brand name — never invent a logo graphic.
+5. IMAGES ARE WHITELISTED: the ONLY <img> allowed are the exact product photo URL(s) and the logo URL given below. No other <img>, no emoji, no stock/fabricated imagery, no icon fonts. Clean inline-SVG line icons (checks, arrows, shields) are fine.
+6. FILL EVERY ZONE WITH SPECIFIC COPY (comparison rows, checklist items, toggle labels, stat callouts, review quotes) from the brand's offer/benefits/pains. NEVER blank, NEVER vague filler ("get expert guidance", "find solutions").
+7. NOTHING OVERLAPS; everything inside the 1080x1080 frame with margins; nothing touches an edge; the product image sits cleanly with room around it (contain, not stretched, not clipped), on a background that suits it.
+8. FILL THE FRAME — no large dead zones. BRAND COLOURS ONLY (--brand/--accent/--ink/--paper/--light + semantic green/red), strong contrast. BRAND FONTS ONLY (body sans + "serif" class for headlines); no monospace/novelty font.
+9. NO FABRICATED SPECIFICS: no invented $ amounts, stats, awards, review counts, or press logos. Review cards may use soft ★★★★★ quotes with a first name + initial, clearly illustrative.
+10. Crisp HTML only. Output ONLY the <div class="stage" ...>...</div>.`;
 
-// ---- reconstruct: LOOK at the template image, write grounded HTML --------------------------
-async function reconstruct(templateUrl, brain, wordmark, lastIssues) {
+// ---- reconstruct: LOOK at the template + the real assets, write grounded HTML --------------
+async function reconstruct(templateUrl, brain, assets, lastIssues) {
+  const { logoUrl, name, productImages, productNames, references } = assets;
   const material = [
     `Offer: ${pick(brain, ['key_offer'])}`,
     `Voice: ${pick(brain, ['brand_tone'], 'clear, direct')}`,
@@ -111,18 +158,33 @@ async function reconstruct(templateUrl, brain, wordmark, lastIssues) {
     pick(brain, ['target_personas']) ? `Audience: ${String(pick(brain, ['target_personas'])).slice(0, 300)}` : '',
     pick(brain, ['core_pain_points']) ? `Pain points: ${String(pick(brain, ['core_pain_points'])).slice(0, 300)}` : '',
   ].filter(Boolean).join('\n');
-  const name = pick(brain, ['brand_name', 'client_name'], 'The Brand');
-  const content = [{ type: 'text', text:
-    `Rebuild the ATTACHED ad template faithfully for "${name}", as HTML. LOOK at the image: copy its exact skeleton — every zone, the concept device, reading order, proportions — then fill EVERY zone with copy grounded in this brand. Match the quality of a hand-designed ad: specific copy, a composition that fills the frame, on-brand colours and fonts, nothing generic.\n\n` +
-    `BRAND: ${name}.\n${material}\n\n` +
-    `Write the headline, subhead and CTA yourself from the offer/pains, plus concrete copy for every other zone (comparison rows, checklist, toggles, stat callouts, review quotes) — never blank, never vague.\n\n` +
-    `WORDMARK to place where the template's brand mark sits (paste verbatim): ${wordmark}\n\n` +
-    `DESIGN SYSTEM: stage is <div class="stage" style="...">, 1080x1080. CSS vars: --brand --brand2 --onbrand --accent --ink --sub --line --light --paper --green --red --yellow. Default font is the brand sans; class "serif" for headlines; .cta pill.\n\n` +
-    `AVOID THESE COMMON FAILURES: if the template shows a phone/device, FILL its screen completely with real content (a ranked list, a UI) — never leave a device screen empty. Illustrative review quotes use ONLY a first name + initial (e.g. "Sarah M.") — no age, no city, no dollar figure. Keep every element inside the frame with clear padding; icons never overlap text. Output the COMPLETE ad, not a skeleton.\n\n${RULES}\n` +
-    (lastIssues ? `\nThe previous attempt FAILED QA — fix exactly this:\n${lastIssues}\n` : '') }];
-  if (templateUrl) content.push({ type: 'image_url', image_url: { url: templateUrl } });
+
+  let txt =
+    `Rebuild the ATTACHED ad TEMPLATE faithfully for "${name}", as HTML — but replace its layout content with THIS brand's real copy and REAL assets. Copy the template's skeleton (every zone, the concept device, reading order, proportions), then: write specific grounded copy in every zone, DROP IN the real product photo where a product belongs, and place the real logo. Match the quality of a hand-designed ad.\n\n` +
+    `BRAND: ${name}.\n${material}\n\n`;
+
+  if (productImages && productImages.length) {
+    txt += `REAL PRODUCT PHOTO(S) — place the most fitting one where the layout shows a product, with <img src="URL" class="product">. Use the EXACT URL(s); NEVER redraw:\n` +
+      productImages.map((u, k) => `  PRODUCT_URL_${k + 1} (${productNames[k] || 'product'}): ${u}`).join('\n') + `\n\n`;
+  } else {
+    txt += `NO product photo provided — do NOT draw or invent a product. Build a clean typographic/benefit ad instead.\n\n`;
+  }
+  if (logoUrl) txt += `REAL LOGO — place with <img src="${logoUrl}" class="logo"> where the brand mark sits. Use this EXACT URL.\n\n`;
+  else txt += `No logo asset — use a plain TEXT wordmark "${name}" in the brand font (never invent a logo graphic).\n\n`;
+
+  txt += `Write the headline, subhead and CTA yourself from the offer/pains, plus concrete copy for every other zone (comparison rows, checklist, toggles, stat callouts, review quotes) — never blank, never vague.\n\n` +
+    `DESIGN SYSTEM: stage is <div class="stage" style="...">, 1080x1080. CSS vars: --brand --brand2 --onbrand --accent --ink --sub --line --light --paper --green --red --yellow. Body font is the brand sans; class "serif" for headlines; class "product" for the product <img> (object-fit:contain); class "logo" for the logo <img>; .cta pill.\n\n` +
+    `AVOID THESE FAILURES: never a drawn/fake product or invented bottle; the product <img> must sit cleanly with room around it (contain, not stretched or clipped); illustrative review quotes use ONLY a first name + initial (e.g. "Sarah M.") — no age, city or dollar figure; keep every element inside the frame with clear padding; icons never overlap text; output the COMPLETE ad, not a skeleton.\n\n${RULES}\n` +
+    (lastIssues ? `\nThe previous attempt FAILED QA — fix exactly this:\n${lastIssues}\n` : '');
+
+  const parts = [{ type: 'text', text: txt }];
+  if (templateUrl) parts.push({ type: 'text', text: 'TEMPLATE (copy this layout skeleton):' }, { type: 'image_url', image_url: { url: templateUrl } });
+  (productImages || []).slice(0, 3).forEach((u, k) => parts.push({ type: 'text', text: `REAL PRODUCT PHOTO ${k + 1} (place this exact image, do not redraw):` }, { type: 'image_url', image_url: { url: u } }));
+  if (logoUrl) parts.push({ type: 'text', text: 'REAL LOGO (place this exact image):' }, { type: 'image_url', image_url: { url: logoUrl } });
+  (references || []).slice(0, 2).forEach((u) => parts.push({ type: 'text', text: 'BRAND REFERENCE (style cue only — do NOT copy its product or text):' }, { type: 'image_url', image_url: { url: u } }));
+
   // Big output budget so the HTML isn't starved by the thinking budget (thinking is separate).
-  return stripFence(await chat(MODEL_BUILD, [{ role: 'user', content }], 16000, { max_tokens: +(E.THINK_TOKENS || 6000) }));
+  return stripFence(await chat(MODEL_BUILD, [{ role: 'user', content: parts }], 16000, { max_tokens: +(E.THINK_TOKENS || 6000) }));
 }
 
 // ---- render HTML → PNG Buffer via LOCAL headless Chrome (free, unlimited) ------------------
@@ -141,17 +203,22 @@ async function render(fullHtml) {
   const page = await (await getBrowser()).newPage();
   try {
     await page.setViewport({ width: 1080, height: 1080, deviceScaleFactor: 1 });
-    await page.setContent(fullHtml, { waitUntil: 'networkidle0', timeout: 30000 });
+    await page.setContent(fullHtml, { waitUntil: 'networkidle0', timeout: 45000 });
+    // make sure the external images (product photo, logo) are fully decoded before the screenshot
+    await page.evaluate(() => Promise.all(Array.from(document.images).map(i => (i.complete ? Promise.resolve() : i.decode().catch(() => {}))))).catch(() => {});
     const el = await page.$('.stage');
     return await (el || page).screenshot({ type: 'png' });   // PNG Buffer @ 1080² (small enough for QA)
   } finally { await page.close().catch(() => {}); }
 }
 
 // ---- QA the render against the template (strict, hand-designed bar) ------------------------
-async function qa(templateUrl, renderedUrl, brain) {
+async function qa(templateUrl, renderedUrl, brain, flags) {
   const name = pick(brain, ['brand_name', 'client_name'], 'the brand');
+  const req = [];
+  if (flags && flags.hasProduct) req.push(`the ad MUST show the brand's REAL PHOTOGRAPHIC product — score 4 or below if the product looks hand-drawn, illustrated, cartoonish, CSS-built, fabricated, a generic blank package, or stretched/squished/clipped, or if the product is missing entirely`);
+  if (flags && flags.hasLogo) req.push(`the ad MUST show the real logo image, not a re-typed guess`);
   const content = [
-    { type: 'text', text: `QA this rendered ad for "${name}" (offer: ${pick(brain, ['key_offer'])}). Judge it as a paying client would. Return JSON {"score": <integer 1-10; 10=ship-ready and hand-designed, 7=good with only minor nits, 6 or below=a designer would redo it>, "issues":["..."]}. Score 6 or below for ANY of: content clipped by an edge / overflowing / cut off; garbled or illegibly low-contrast text; a card/badge/wordmark/CTA overlaps other copy; a large empty / dead area or an empty device screen; generic filler copy ("get expert guidance", "find solutions") instead of specifics about this brand; an off-brand colour or a monospace / novelty font; a random decorative object that means nothing for the brand; a fabricated SPECIFIC claim (an invented dollar figure, statistic, award, press / "as featured in" logo, review count, or a real-looking full name with age/city); or copy that names a category that is NOT this brand's. ALLOWED — do NOT penalise these: soft illustrative ★★★★★ review quotes with a first name + initial only; a clean icon or monogram avatar (this design uses NO photos on purpose — never require a real photo); the brand colour used as a bold fill. Score honestly — a clean, on-brand, frame-filling ad with specific copy should score 7-9.` },
+    { type: 'text', text: `QA this rendered ad for "${name}" (offer: ${pick(brain, ['key_offer'])}). Judge it as a paying client would. Return JSON {"score": <integer 1-10; 10=ship-ready and hand-designed, 7=good with only minor nits, 6 or below=a designer would redo it>, "issues":["..."]}. ${req.length ? 'REQUIRED: ' + req.join('; ') + '. ' : ''}Score 6 or below for ANY of: a drawn/fabricated product instead of the real photo; content clipped by an edge / overflowing / cut off; garbled or illegibly low-contrast text; a card/badge/wordmark/CTA overlaps other copy; a large empty / dead area; generic filler copy ("get expert guidance", "find solutions") instead of specifics; an off-brand colour or a monospace / novelty font; a random decorative object that means nothing for the brand; a fabricated SPECIFIC claim (an invented dollar figure, statistic, award, press / "as featured in" logo, review count, or a real-looking full name with age/city); or copy that names a category that is NOT this brand's. ALLOWED — do NOT penalise: soft illustrative ★★★★★ review quotes with a first name + initial only; clean inline-SVG line icons or a monogram avatar (this design uses NO stock photos on purpose); the brand colour used as a bold fill; the real product photo sitting on a matching background. Score honestly — a clean, on-brand, frame-filling ad that uses the real product photo + real logo with specific copy should score 7-9.` },
   ];
   if (templateUrl) content.push({ type: 'text', text: 'REFERENCE TEMPLATE:' }, { type: 'image_url', image_url: { url: templateUrl } });
   content.push({ type: 'text', text: 'RENDERED AD:' }, { type: 'image_url', image_url: { url: renderedUrl } });
@@ -160,7 +227,6 @@ async function qa(templateUrl, renderedUrl, brain) {
 }
 
 // ---- own the asset: pull the render, store in Supabase, insert the library row -------------
-// upload a PNG buffer to Supabase Storage, return its public https URL
 async function store(buf, path) {
   const up = await fetch(SB_URL + '/storage/v1/object/' + BUCKET + '/' + path, {
     method: 'POST',
@@ -170,7 +236,6 @@ async function store(buf, path) {
   if (!up.ok) throw new Error('upload ' + up.status + ' ' + (await up.text()).slice(0, 160));
   return SB_URL + '/storage/v1/object/public/' + BUCKET + '/' + path;
 }
-// insert the library row for a passed ad (image already stored)
 async function insertRow(imageUrl, brain, meta) {
   const ins = await fetch(SB_URL + '/rest/v1/static_ads', {
     method: 'POST',
@@ -185,18 +250,19 @@ async function insertRow(imageUrl, brain, meta) {
 }
 
 // ---- produce ONE ad from ONE template (reconstruct → render → QA → retry) ------------------
-async function produceOne(templateUrl, brain, tok, wordmark, meta) {
+async function produceOne(templateUrl, brain, tok, assets, meta) {
   const base = baseCss(tok);
   let lastIssues = '';
   let best = { score: 0, url: null };
+  const flags = { hasProduct: !!(assets.productImages && assets.productImages.length), hasLogo: !!assets.logoUrl };
   for (let t = 1; t <= MAX_TRIES; t++) {
     try {
-      const stage = await reconstruct(templateUrl, brain, wordmark, lastIssues);
+      const stage = await reconstruct(templateUrl, brain, assets, lastIssues);
       if (!/class=["']stage/.test(stage) || stage.length < 500) { lastIssues = 'Output was empty or a skeleton — build the COMPLETE ad with real content in every zone.'; log(`  [${meta.i}] try ${t}: empty/skeleton, retrying`); continue; }
       const buf = await render(`<!doctype html><html><head><meta charset="utf8"><style>${base}</style></head><body>${stage}</body></html>`);
       // Upload each attempt so QA scores a real https image (the API rejects data: URLs).
       const url = await store(buf, `produced/${norm(meta.brand)}/${meta.runId}-${meta.i}-t${t}.png`);
-      const v = await qa(templateUrl, url, brain);
+      const v = await qa(templateUrl, url, brain, flags);
       log(`  [${meta.i}] try ${t}: score ${v.score}${v.issues && v.issues.length ? ' — ' + v.issues.join('; ').slice(0, 110) : ''}`);
       if (v.score > best.score) best = { score: v.score, url };
       if (v.score >= SHIP_SCORE) break;
@@ -214,20 +280,32 @@ async function produceOne(templateUrl, brain, tok, wordmark, meta) {
 
 // ---- produce a whole batch from a form submission -----------------------------------------
 async function produceBatch(body) {
-  const brand = String(body.client_name || '').trim();
-  const templates = (Array.isArray(body.selected_template_urls) ? body.selected_template_urls : []).filter(Boolean);
+  const brand = String(body.client_name || body.clientName || body.brand_name || body.brand || '').trim();
+  const templates = asArray(body.selected_template_urls || body.template_urls || body.selected_templates);
   const runId = 'agent-' + Date.now();
   const platform = String(body.platforms || '').split(',')[0].trim();
-  log(`RUN ${runId} — "${brand}" — ${templates.length} templates`);
+
+  // the REAL product photos the client selected in the form (product_image_urls / products[])
+  let productImages = asArray(body.product_image_urls);
+  if (!productImages.length && Array.isArray(body.products)) productImages = asArray(body.products);
+  if (!productImages.length) productImages = asArray(body.product_image_url);
+  let productNames = asArray(body.product_names);
+  if (!productNames.length && Array.isArray(body.products)) productNames = body.products.map(p => (p && (p.name || p.product_name)) || '').filter(Boolean);
+  const references = asArray(body.reference_urls);
+
+  log(`RUN ${runId} — "${brand}" — ${templates.length} templates, ${productImages.length} product image(s)`);
 
   const brain = await fetchBrand(brand, body.sister_brand);
   if (!brain._found) log(`  WARNING: no Brand Brain row for "${brand}" — copy will be thin`);
   const tok = tokens(brain);
   const name = pick(brain, ['brand_name', 'client_name'], brand || 'The Brand');
-  const logo = (Array.isArray(brain.logo_urls) ? brain.logo_urls.map(x => (x && x.url) || x).filter(Boolean) : [])[0];
-  const wordmark = logo
-    ? `<img src="${logo}" alt="${name}" style="height:52px;width:auto;display:block"/>`
-    : `<span style="font-weight:800;font-size:30px;color:var(--ink)">${name}</span>`;
+
+  // fall back to the brand-brain packshot / logo when the form didn't carry them
+  if (!productImages.length) productImages = asArray(brain.product_image).slice(0, 1);
+  const logoUrl = asArray(brain.logo_urls)[0] || null;
+  const assets = { logoUrl, name, productImages, productNames, references };
+  if (!logoUrl) log(`  NOTE: no logo in brand_brain.logo_urls for "${name}" — using a text wordmark. Add the real logo to logo_urls to get the brand mark.`);
+  if (!productImages.length) log(`  NOTE: no product image (form or brand_brain) — ads will be typographic with no product shown.`);
 
   // concurrency-limited pool
   const results = [];
@@ -235,7 +313,7 @@ async function produceBatch(body) {
   async function worker() {
     while (idx < templates.length) {
       const i = idx++;
-      const r = await produceOne(templates[i], brain, tok, wordmark, { brand: name, i: i + 1, runId, platform });
+      const r = await produceOne(templates[i], brain, tok, assets, { brand: name, i: i + 1, runId, platform });
       if (r) results.push(r);
     }
   }
@@ -244,4 +322,4 @@ async function produceBatch(body) {
   return { runId, brand: name, requested: templates.length, shipped: results.length, ads: results };
 }
 
-module.exports = { produceBatch, produceOne, fetchBrand, tokens, baseCss };
+module.exports = { produceBatch, produceOne, fetchBrand, tokens, baseCss, resolveFonts };
