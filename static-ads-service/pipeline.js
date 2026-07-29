@@ -19,7 +19,7 @@ const CONCURRENCY  = +(E.CONCURRENCY || 3);
 const puppeteer    = require('puppeteer-core');  // local headless Chrome render — free, no per-image limit
 const crypto       = require('crypto');
 const { cutoutBuffer } = require('./cutout');    // background knockout for product packshots
-const sharp        = require('sharp');           // only to detect an already-transparent product PNG
+const { PNG }      = require('pngjs');            // only to detect an already-transparent product PNG (pure JS)
 
 // ---- tiny helpers -------------------------------------------------------------------------
 const log = (...a) => console.log(new Date().toISOString(), ...a);
@@ -310,11 +310,11 @@ async function insertRow(imageUrl, brain, meta) {
 
 // true if the image already has a transparent background (client supplied a clean cut-out PNG) —
 // then the pipeline uses it EXACTLY as-is instead of re-matting it.
-async function isAlreadyCut(buf) {
+function isAlreadyCut(buf) {
   try {
     if (!(buf[0] === 0x89 && buf[1] === 0x50)) return false; // only PNG carries alpha
-    const { data, info } = await sharp(buf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-    const W = info.width, H = info.height, C = 4, a = (x, y) => data[(y * W + x) * C + 3];
+    const png = PNG.sync.read(buf);
+    const W = png.width, H = png.height, d = png.data, a = (x, y) => d[(y * W + x) * 4 + 3];
     return [a(1, 1), a(W - 2, 1), a(1, H - 2), a(W - 2, H - 2)].filter(v => v < 20).length >= 3;
   } catch (e) { return false; }
 }
