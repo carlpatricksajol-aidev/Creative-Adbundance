@@ -16,7 +16,7 @@ const MODEL_VISION = E.MODEL_VISION || 'anthropic/claude-sonnet-4.5'; // QA (jud
 const MAX_TRIES    = +(E.MAX_TRIES || 3);
 const SHIP_SCORE   = +(E.SHIP_SCORE || 7);   // QA score (1-10) an ad must clear to ship
 const CONCURRENCY  = +(E.CONCURRENCY || 4);
-const MODEL_DIRECTOR  = E.MODEL_DIRECTOR || MODEL_BUILD;               // creative-director stage (needs a strong model)
+const MODEL_DIRECTOR  = E.MODEL_DIRECTOR || 'anthropic/claude-sonnet-4.5'; // creative-director stage; Sonnet is cheap+fast and the prompt is prescriptive. Set MODEL_DIRECTOR=anthropic/claude-opus-4.8 for premium concepts.
 const MODEL_BUILD_FAST = E.MODEL_BUILD_FAST || 'anthropic/claude-sonnet-4.5'; // EXECUTE a decided brief (fast; ideation is done)
 const DIRECTOR_THINK  = +(E.DIRECTOR_THINK || 2200);    // the heavy creative thinking happens ONCE per batch, here (kept modest for latency)
 const BUILD_THINK     = +(E.THINK_TOKENS || 0);         // reconstruct: NO thinking by default — the concept is already decided
