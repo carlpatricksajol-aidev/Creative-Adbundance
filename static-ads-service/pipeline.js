@@ -189,8 +189,9 @@ async function reconstruct(templateUrl, brain, assets, lastIssues) {
   else if (logoDark) txt += `REAL LOGO — place with <img src="${logoDark}" class="logo"> where the brand mark sits, on a background it CONTRASTS with. Use this EXACT URL.\n\n`;
   else txt += `No logo asset — use a plain TEXT wordmark "${name}" in the brand font (never invent a logo graphic).\n\n`;
 
-  txt += `First decide the SINGLE hook (the one idea this ad lands), then compose around it. Write the headline, subhead, CTA and any support copy yourself from the offer/pains — specific, bold, on-brand.\n\n` +
-    `DESIGN SYSTEM: stage is <div class="stage" style="...">, 1080x1080. CSS vars: --brand --brand2 --onbrand --accent --ink --sub --line --light --paper --green --red --yellow. Body font is the brand sans; class "serif" for the display headline; class "product" for the product <img> (object-fit:contain — size it large); class "logo" for the logo <img>; .cta pill.\n\n` +
+  txt += `First decide the SINGLE hook (the one idea this ad lands), then compose around it. Write the headline, subhead, CTA and any support copy yourself from the offer and pains: specific, bold, on-brand.\n\n` +
+    `DESIGN SYSTEM: stage is <div class="stage" style="...">, 1080x1080. CSS vars: --brand --brand2 --onbrand --accent --ink --sub --line --light --paper --green --red --yellow. Body font is the brand sans; class "serif" for the display headline; class "product" for the product <img> (object-fit:contain, size it large); class "logo" for the logo <img>; .cta pill.\n\n` +
+    `HARD REQUIREMENTS: headline at least 76px, subhead at least 30px, body at least 26px (an automated check REJECTS text under 20px, any overlap, and anything off the frame). Keep copy SHORT so it fits big. PUNCTUATION: NEVER use em-dashes, en-dashes or hyphens in the copy; use commas and periods only (write "grass fed colostrum, now a soda", not "grass-fed soda").\n\n` +
     `${STANDARDS}\n\n${RULES}\n` +
     (lastIssues ? `\nThe previous attempt FAILED the art-director QA — fix EXACTLY this, keep everything else:\n${lastIssues}\n` : '');
 
@@ -237,6 +238,11 @@ function detectLayout() {
     if (o.r.left < sb.left - 3 || o.r.top < sb.top - 3 || o.r.right > sb.right + 3 || o.r.bottom > sb.bottom + 3)
       issues.push('OUT-OF-FRAME: "' + o.t + '" extends past the canvas edge');
     else if (o.el.scrollWidth > o.el.clientWidth + 6) issues.push('TEXT-OVERFLOW: "' + o.t + '" is wider than its box (spills / clips)');
+    const full = (o.el.textContent || '').trim();
+    if (full.length >= 24 && full.length <= 140 && !/evaluated|\bFDA\b|diagnose|disease|statement/i.test(full)) {
+      const fs = parseFloat(getComputedStyle(o.el).fontSize) || 99;
+      if (fs < 20) issues.push('TEXT-TOO-SMALL: "' + o.t + '" is ' + Math.round(fs) + 'px — headline/subhead/body must be big (body 26px+)');
+    }
   }
   for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
     const a = items[i], b = items[j];
@@ -263,13 +269,14 @@ async function render(fullHtml) {
 }
 
 // ---- QA the render against the template (strict, hand-designed bar) ------------------------
-async function qa(templateUrl, renderedUrl, brain, flags) {
+async function qa(templateUrl, renderedUrl, brain, flags, productNames) {
   const name = pick(brain, ['brand_name', 'client_name'], 'the brand');
+  const subject = (Array.isArray(productNames) && productNames.length) ? productNames.filter(Boolean).join(', ') : '';
   const req = [];
-  if (flags && flags.hasProduct) req.push(`the REAL product photo must be the HERO — large (roughly 40-55% of the frame) and integrated; score 4 or below if the product is a small thumbnail, is drawn/illustrated/CSS-built/fabricated, is stretched/clipped, is missing, or sits in a hard white / contrasting rectangle pasted onto the background`);
+  if (flags && flags.hasProduct) req.push(`the REAL product photo must be the HERO, large (roughly 40-55% of the frame) and integrated; score 4 or below if the product is a small thumbnail, is drawn/illustrated/CSS-built/fabricated, is stretched/clipped, is missing, or sits in a hard white or contrasting rectangle pasted onto the background`);
   if (flags && flags.hasLogo) req.push(`the real logo image must be present and legible (correct contrast variant); score 5 or below if it is missing, distorted, or low-contrast against its background`);
   const content = [
-    { type: 'text', text: `You are a TOUGH art director doing QA on this 1080x1080 ad for "${name}" (offer: ${pick(brain, ['key_offer'])}). Hold it to a hand-designed, scroll-stopping bar and REJECT AI slop. Return JSON {"score": <integer 1-10; 10=ship-ready hand-designed, 7=good with only minor nits, 6 or below=a designer would redo it>, "issues":[specific, ACTIONABLE fixes with sizes/percentages]}. ${req.length ? 'REQUIRED: ' + req.join('; ') + '. ' : ''}Score 6 or below for ANY of: TIMID / too-small type (headline not clearly dominant, or body copy that reads small/weak); text SCATTERED with weak hierarchy or everything roughly the same size; a cluttered "every zone filled" look instead of ONE clear concept that reads in 2 seconds; a product that is a small thumbnail or pasted in a clashing white box; a large dead area; generic filler copy ("get expert guidance", "find solutions") instead of specifics; an off-brand colour or a wrong / novelty font; a meaningless decorative object; a fabricated SPECIFIC claim (invented $ figure, statistic, award, press / "as featured in" logo, review count, or a real-looking full name with age/city); or copy naming a category that is NOT this brand's. ALLOWED — do NOT penalise: soft illustrative ★★★★★ quotes with a first name + initial only; clean inline-SVG line icons; the brand colour as a bold fill; the product on a panel that MATCHES its own background (that is correct integration, not a clash). A BOLD, art-directed, on-brand ad with a large integrated product and confident type scores 8-9. Make issues concrete, e.g. "headline ~40px — take it to ~90px"; "product ~15% of frame — make it the hero at ~45%"; "product sits in a white box on cream — blend the panel to white or go full-bleed".` },
+    { type: 'text', text: `You are a TOUGH art director doing QA on this 1080x1080 ad for "${name}"${subject ? `, featuring the client's own chosen product: ${subject}` : ''}. Hold it to a hand-designed, scroll-stopping bar and REJECT AI slop. Return JSON {"score": <integer 1-10; 10=ship-ready hand-designed, 7=good with only minor nits, 6 or below=a designer would redo it>, "issues":[specific, ACTIONABLE fixes with sizes/percentages]}. IMPORTANT: the product shown IS the client's real, chosen product, so NEVER flag it as the wrong product, wrong category, or "not what this brand sells" even if the brand also sells other formats; judge craft only, not product choice. ${req.length ? 'REQUIRED: ' + req.join('; ') + '. ' : ''}Score 6 or below for ANY of: TIMID or too-small type (headline not clearly dominant, or body copy under ~26px that reads small/weak); text that OVERLAPS, is SCATTERED, or has weak hierarchy; a cluttered "every zone filled" look instead of ONE clear concept that reads in 2 seconds; a product that is a small thumbnail or pasted in a clashing white box; a large dead area; generic filler copy ("get expert guidance", "find solutions") instead of specifics; an off-brand colour or a wrong / novelty font; a meaningless decorative object; a fabricated SPECIFIC claim (invented $ figure, statistic, award, press / "as featured in" logo, review count, or a real-looking full name with age/city). ALLOWED (do NOT penalise): soft illustrative ★★★★★ quotes with a first name + initial only; clean inline-SVG line icons; the brand colour as a bold fill. A BOLD, art-directed, on-brand ad with a large integrated product and confident type scores 8-9. Make issues concrete, e.g. "headline ~40px, take it to ~90px"; "product ~15% of frame, make it the hero at ~45%".` },
   ];
   if (visionSafe(templateUrl)) content.push({ type: 'text', text: 'REFERENCE TEMPLATE:' }, { type: 'image_url', image_url: { url: templateUrl } });
   content.push({ type: 'text', text: 'RENDERED AD:' }, { type: 'image_url', image_url: { url: renderedUrl } });
@@ -325,14 +332,15 @@ async function produceOne(templateUrl, brain, tok, assets, meta) {
   const flags = { hasProduct: !!(assets.productImages && assets.productImages.length), hasLogo: !!assets.logoDark };
   for (let t = 1; t <= MAX_TRIES; t++) {
     try {
-      const stage = await reconstruct(templateUrl, brain, assets, lastIssues);
-      if (!/class=["']stage/.test(stage) || stage.length < 500) { lastIssues = 'Output was empty or a skeleton — build the COMPLETE ad with real content in every zone.'; log(`  [${meta.i}] try ${t}: empty/skeleton, retrying`); continue; }
+      let stage = await reconstruct(templateUrl, brain, assets, lastIssues);
+      if (!/class=["']stage/.test(stage) || stage.length < 500) { lastIssues = 'Output was empty or a skeleton. Build the COMPLETE ad with real content in every zone.'; log(`  [${meta.i}] try ${t}: empty/skeleton, retrying`); continue; }
+      stage = stage.replace(/\s*[—–]\s*/g, ', ').replace(/([A-Za-z0-9]) - ([A-Za-z0-9])/g, '$1, $2'); // strip em/en dashes and dash-hyphens from the copy (never ship them)
       const { buf, issues: layoutIssues } = await render(`<!doctype html><html><head><meta charset="utf8"><style>${base}</style></head><body>${stage}</body></html>`);
-      // deterministic layout gate — never ship overlapping / clipped / off-frame text (vision QA misses these)
-      if (layoutIssues.length) { lastIssues = 'LAYOUT ERRORS — rebuild with normal flow/flex/grid in separate containers, keep everything inside the frame:\n' + layoutIssues.map(x => '- ' + x).join('\n'); log(`  [${meta.i}] try ${t}: ${layoutIssues.length} layout issue(s) — ${layoutIssues[0].slice(0, 70)}`); continue; }
+      // deterministic layout gate — never ship overlapping / clipped / off-frame / tiny text (vision QA misses these)
+      if (layoutIssues.length) { lastIssues = 'LAYOUT ERRORS to fix (use normal flow/flex/grid in separate containers, keep everything inside the frame, make text big):\n' + layoutIssues.map(x => '- ' + x).join('\n'); log(`  [${meta.i}] try ${t}: ${layoutIssues.length} layout issue(s): ${layoutIssues[0].slice(0, 70)}`); continue; }
       // Upload each attempt so QA scores a real https image (the API rejects data: URLs).
       const url = await store(buf, `produced/${norm(meta.brand)}/${meta.runId}-${meta.i}-t${t}.png`);
-      const v = await qa(templateUrl, url, brain, flags);
+      const v = await qa(templateUrl, url, brain, flags, assets.productNames);
       log(`  [${meta.i}] try ${t}: score ${v.score}${v.issues && v.issues.length ? ' — ' + v.issues.join('; ').slice(0, 110) : ''}`);
       if (v.score > best.score) best = { score: v.score, url };
       if (v.score >= SHIP_SCORE) break;
