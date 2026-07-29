@@ -465,9 +465,9 @@ function composeKiePrompt(brief, brain, assets, platform, lastIssues) {
   const sub = String(brief && brief.subhead || '').trim();
   const cta = String(brief && brief.cta || 'Learn more').trim();
   const proof = brief && brief.proof ? String(brief.proof).trim() : '';
-  const refNote = assets.logoDark
+  const refNote = visionSafe(assets.logoDark)
     ? 'Reference image 1 is the REAL PRODUCT (the hero). The final reference image is the BRAND LOGO, place it small and clean in a top corner.'
-    : 'Reference image 1 is the REAL PRODUCT (the hero).';
+    : `Reference image 1 is the REAL PRODUCT (the hero). Render the brand name "${name}" as a clean small wordmark in a top corner (no logo image is provided).`;
   return [
     `A premium, scroll-stopping ${platform || 'Meta / Instagram'} PRODUCT ADVERTISEMENT for the brand "${name}", 1:1 square, high-end commercial quality (think a top DTC brand's paid social ad).`,
     `${refNote} Reproduce the product from the reference EXACTLY, its real packaging, label text, shape and colours, do NOT redesign or relabel it. Make the product the clear HERO: large, sharp, beautifully lit product photography with a soft realistic shadow, integrated into the scene (never a floating cut-out sticker).`,
@@ -498,7 +498,9 @@ async function produceOneKie(brief, brain, tok, assets, meta) {
   let lastIssues = '';
   let best = { score: 0, url: null };
   // KIE wants the ORIGINAL product photo (full packshot), not the transparent HTML cutout.
-  const refs = [...(assets.productImagesRaw || assets.productImages || []), assets.logoDark].filter(Boolean).slice(0, 6);
+  // KIE (like the vision model) rejects SVG — pass only RASTER references (the product photo; the logo
+  // only if it is a raster file). SVG logos are dropped; the prompt renders the wordmark from text instead.
+  const refs = [...(assets.productImagesRaw || assets.productImages || []), assets.logoDark].filter(u => u && visionSafe(u)).slice(0, 6);
   const aspect = /9:16|story|reel/i.test(meta.platform || '') ? '9:16' : '1:1';
   for (let t = 1; t <= MAX_TRIES; t++) {
     try {
