@@ -448,7 +448,7 @@ async function produceBatch(body) {
 
   // AUTO-SELECT industry-matched templates when the client didn't hand-pick any (they just request N ads)
   if (!templates.length) {
-    const n = Math.max(1, Math.min(30, +(body.static_ads_count || body.count) || 5));
+    const n = Math.max(1, Math.min(50, +(body.static_ads_count || body.count) || 5));
     try { templates = await selectTemplates(brain, n); log(`  auto-picked ${templates.length} templates for industry "${pick(brain, ['industry'], '?')}"`); }
     catch (e) { log('  auto-pick failed: ' + String(e.message || e).slice(0, 80)); }
   }
