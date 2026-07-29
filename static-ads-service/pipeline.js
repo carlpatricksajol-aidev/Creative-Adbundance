@@ -187,7 +187,7 @@ img{display:block;max-width:100%}
 const STANDARDS = `DESIGN STANDARDS — the authentic, hand-designed bar. This is what separates a real ad from AI slop:
 CONCEPT: ONE concept, ONE hook, ONE hero visual, ONE CTA — it must read in under 2 seconds. Decide the single hook FIRST, then compose around it. Do not cram.
 HIERARCHY: one dominant focal element (the headline OR the product); everything else clearly subordinate. Big beats small. Use strong scale contrast and confident, intentional whitespace — NEVER evenly-sized, evenly-spaced "form-filling".
-TYPE SCALE (in the 1080x1080 frame): headline 72-108px, weight 800-900, tight leading (~1.0), the clear focal point, in the "serif" display face; subhead 30-42px; body / benefit lines 26-34px (NEVER below 24px), weight 500-700; eyebrow/label 18-22px uppercase letter-spaced; CTA 22-28px bold in a pill. When unsure, go LARGER — timid type is the #1 slop tell.
+TYPE SCALE (in the 1080x1080 frame; this is a phone-feed ad, so EVERY text element must read at a glance — timid small type is the #1 slop tell, always err LARGER): headline 84-120px, weight 800-900, tight leading (~1.0), the clear focal point, in the "serif" display face; subhead 38-48px, weight 600-700; body / benefit lines 30-38px, weight 500-700; the brand name / eyebrow / small labels 26-32px, bold, uppercase letter-spaced; CTA 30-36px bold in a generous pill. NOTHING below 24px except genuine fine-print legal disclaimers. If bold sizes force shorter copy, cut the copy, never shrink the type.
 PRODUCT = THE SUBJECT: the real product photo is the HERO — large, roughly 40-55% of the frame in a product-led layout, NEVER a small thumbnail. Handle its background: packshots usually sit on white/light, so NEVER show a hard white rectangle floating on a coloured background. Do ONE of: (a) place it on a panel of the SAME colour as its own background so it blends seamlessly, (b) feature it large / full-bleed so its background becomes part of the composition, or (c) set the whole product zone to that light colour. It must look placed by a designer, not pasted. Use ONE clean product shot as the focal image; don't scatter small product boxes.
 LOGO: real logo, correct contrast variant, undistorted, small and tasteful in a corner — it is a mark, not the hero.
 COLOUR: a deliberate palette — one dominant brand colour + one accent — with strong contrast; brand fonts only.
@@ -255,7 +255,7 @@ async function reconstruct(templateUrl, brain, assets, lastIssues, brief) {
         `HARD, non-negotiable: nothing overlaps; no element leaves the 1080x1080 frame; NO text is wider than its container (size big display words and numbers to FIT within the margins, shrink or wrap before they spill); every phrase appears ONCE (never repeat the headline or a word in two places); the device is visibly built and clean. If something would not fit, make it smaller, do not let it clip.\n\n`
       : `First decide the SINGLE hook (the one idea this ad lands), then compose around it. Write the headline, subhead, CTA and any support copy yourself from the offer and pains: specific, bold, on-brand.\n\n`) +
     `DESIGN SYSTEM: stage is <div class="stage" style="...">, 1080x1080. CSS vars: --brand --brand2 --onbrand --accent --ink --sub --line --light --paper --green --red --yellow. Body font is the brand sans; class "serif" for the display headline; class "product" for the product <img> (object-fit:contain, size it large); class "logo" for the logo <img>; .cta pill. Inline <svg> for the visual device inherits these vars.\n\n` +
-    `HARD REQUIREMENTS: headline at least 76px, subhead at least 30px, body at least 26px (an automated check REJECTS text under 20px, any overlap, and anything off the frame). Keep copy SHORT so it fits big. PUNCTUATION: NEVER use em-dashes, en-dashes or hyphens in the copy; use commas and periods only (write "grass fed colostrum, now a soda", not "grass-fed soda").\n\n` +
+    `HARD SIZE FLOORS (this is a phone-feed ad; err LARGER): headline 84px+; subhead 38px+; body and support lines 30px+; brand name, eyebrow and labels 26px+ and bold; CTA 30px+. NOTHING under 24px except fine legal print. An automated check REJECTS timid text (subheads/body under 24px, labels under 20px), any overlap, and anything off the frame. Keep copy SHORT so it fits big. PUNCTUATION: NEVER use em-dashes, en-dashes or hyphens in the copy; use commas and periods only (write "grass fed colostrum, now a soda", not "grass-fed soda").\n\n` +
     `${STANDARDS}\n\n${RULES}\n` +
     (lastIssues ? `\nThe previous attempt FAILED the art-director QA — fix EXACTLY this, keep everything else:\n${lastIssues}\n` : '');
 
@@ -307,9 +307,10 @@ function detectLayout() {
       issues.push('OUT-OF-FRAME: "' + o.t + '" extends past the canvas edge');
     else if (o.el.scrollWidth > o.el.clientWidth + 6) issues.push('TEXT-OVERFLOW: "' + o.t + '" is wider than its box (spills / clips)');
     const full = (o.el.textContent || '').trim();
-    if (full.length >= 24 && full.length <= 140 && !/evaluated|\bFDA\b|diagnose|disease|statement/i.test(full)) {
+    if (full.length >= 14 && full.length <= 160 && !/evaluated|\bFDA\b|diagnose|disease|statement|terms|conditions|disclaimer/i.test(full)) {
       const fs = parseFloat(getComputedStyle(o.el).fontSize) || 99;
-      if (fs < 15) issues.push('TEXT-TOO-SMALL: "' + o.t + '" is ' + Math.round(fs) + 'px — unreadable, enlarge it');
+      const minPx = full.length >= 28 ? 24 : 20; // sentences (subhead/body) 24px+, shorter labels/brand name 20px+
+      if (fs < minPx) issues.push('TEXT-TOO-SMALL: "' + o.t + '" is ' + Math.round(fs) + 'px, too timid for a feed ad; make subheads/body 34px+, labels and brand name 26px+');
     }
   }
   for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
