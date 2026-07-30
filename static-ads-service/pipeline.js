@@ -507,6 +507,7 @@ function composeKiePrompt(brief, brain, assets, platform, lastIssues, aspect) {
     assets.productBrief ? `PRODUCT FACTS (render it true to this, correct packaging and REAL scale, staged in a fitting scene, do NOT oversize, shrink, or float it): ${assets.productBrief}` : '',
     `CONCEPT (the single idea this ad lands): ${brief ? brief.big_idea : prod}. Angle: ${brief ? brief.angle : 'benefit-led'}.`,
     deviceHint,
+    `CREATIVE OPTIONS (use when they fit the concept): MAKE THE INVISIBLE VISIBLE — if the idea is a feeling or a hidden problem/benefit (a stain, trapped gunk in seams, heat damage, mess, freshness, low energy), SHOW that feeling or problem as a real photoreal visual instead of only stating it. ATYPICAL TEXT — you may place the headline in an unexpected but relevant real-world spot (written on a surface, in steam or condensation, on a tag) when it suits the product. The ad must be a scroll-stopping visual idea, never a plain product-on-a-counter shot. Design the VISUAL HIERARCHY so the eye lands on the hook first (biggest, highest-contrast element).`,
     `ON-IMAGE TEXT, rendered crisply and spelled EXACTLY, with clear hierarchy and generous spacing (no other text anywhere):`,
     `  - HEADLINE (large, dominant, top or side): "${hl}". Use THIS exact wording as the headline; do NOT copy the product's own package label or tagline (e.g. "Liver Support Protocol", "Beyond Collagen") as the headline.`,
     sub ? `  - SUBHEAD (smaller, supporting): "${sub}".` : '',
