@@ -496,14 +496,19 @@ function composeKiePrompt(brief, brain, assets, platform, lastIssues, aspect) {
   const cta = String(brief && brief.cta || 'Learn more').trim();
   const proof = brief && brief.proof ? String(brief.proof).trim() : '';
   const refNote = 'Reference image 1 is the REAL PRODUCT (the hero). Do NOT draw the brand name, a wordmark, or ANY logo anywhere. RESERVE THE TOP 14% OF THE IMAGE as a clean, empty header band: plain uncluttered background, absolutely NO text, NO headline, NO product inside that band. The real brand logo is composited into that band afterward. START the headline and ALL other content BELOW that top band so nothing collides with the logo.';
+  const dev = (brief && brief.device && brief.device !== 'type-only' && DEVICES[brief.device]) ? DEVICES[brief.device] : null;
+  const deviceHint = dev
+    ? `VISUAL CONCEPT — build THIS metaphor into the scene PHOTOREALLY. This is the creative idea, so DRAMATIZE it; do NOT just place the product on a plain counter with a headline. The idea: ${dev.when} For THIS ad specifically: ${brief.device_note || ''}. Realise it with REAL objects and photography — an actual balance scale, a genuine before/after split composition, real coins or cash, a real funnel of many-into-one, a declining chart drawn on a surface, a checklist on paper, a "crossed out vs" comparison, etc. — integrated naturally with the product. EVERY ad must have a clear visual idea, never a plain product-on-a-shelf shot.`
+    : `VISUAL: make the composition itself striking (bold type scale, dramatic lighting, strong colour blocking) so it is never a plain product-on-a-shelf shot.`;
   return [
     `A premium, scroll-stopping ${platform || 'Meta / Instagram'} PRODUCT ADVERTISEMENT for the brand "${name}", ${tall ? '9:16 VERTICAL / PORTRAIT (tall)' : '1:1 square'}, high-end commercial quality (think a top DTC brand's paid social ad).`,
     tall ? 'COMPOSE FOR THE TALL VERTICAL FRAME: use the full height with clear vertical rhythm — the headline in the upper third (below the top logo band), the product hero large in the middle, the CTA in the lower third. Keep ALL text well inside the frame with generous side margins; nothing may touch or be cut off by any edge. Do NOT stretch or crop the composition into a square.' : '',
     `${refNote} Reproduce the product from the reference EXACTLY, its real packaging, label text, shape and colours, do NOT redesign or relabel it. Make the product the clear HERO: large, sharp, beautifully lit product photography with a soft realistic shadow, integrated into the scene (never a floating cut-out sticker).`,
     assets.productBrief ? `PRODUCT FACTS (render it true to this, correct packaging and REAL scale, staged in a fitting scene, do NOT oversize, shrink, or float it): ${assets.productBrief}` : '',
     `CONCEPT (the single idea this ad lands): ${brief ? brief.big_idea : prod}. Angle: ${brief ? brief.angle : 'benefit-led'}.`,
+    deviceHint,
     `ON-IMAGE TEXT, rendered crisply and spelled EXACTLY, with clear hierarchy and generous spacing (no other text anywhere):`,
-    `  - HEADLINE (large, dominant, top or side): "${hl}".`,
+    `  - HEADLINE (large, dominant, top or side): "${hl}". Use THIS exact wording as the headline; do NOT copy the product's own package label or tagline (e.g. "Liver Support Protocol", "Beyond Collagen") as the headline.`,
     sub ? `  - SUBHEAD (smaller, supporting): "${sub}".` : '',
     `  - CTA BUTTON (a rounded pill): "${cta}".`,
     proof ? `  - One small proof line, verbatim, do not alter the number: "${proof}".` : '',
@@ -774,6 +779,7 @@ async function produceBatch(body) {
   // FILL-TO-EXACT-COUNT pool: this is a SaaS — deliver the NUMBER requested. Keep producing (regenerating
   // dropped ones with cycled concepts) until N ship, or an attempt cap is hit, or KIE runs out of credits.
   const N = templates.length;
+  const realBriefs = briefs ? briefs.filter(Boolean) : null;   // never hand a null concept to an ad → cycle real ones
   const results = [];
   let jobs = 0, outOfCredits = false;
   const cap = Math.min(N * 3 + 3, 90);   // total-attempt cap so a genuinely-failing brand can't loop forever
@@ -781,7 +787,7 @@ async function produceBatch(body) {
     while (results.length < N && jobs < cap && !outOfCredits) {
       const i = jobs++;
       const meta = { brand: name, i: i + 1, runId, platform };
-      const brief = briefs ? briefs[i % briefs.length] : null;
+      const brief = (realBriefs && realBriefs.length) ? realBriefs[i % realBriefs.length] : null;
       try {
         const r = useKie
           ? await produceOneKie(brief, brain, tok, assets, meta)
