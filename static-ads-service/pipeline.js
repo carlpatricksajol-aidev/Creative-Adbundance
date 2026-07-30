@@ -327,10 +327,10 @@ function detectLayout() {
   }
   return [...new Set(issues)].slice(0, 6);
 }
-async function render(fullHtml) {
+async function render(fullHtml, w = 1080, h = 1080) {
   const page = await (await getBrowser()).newPage();
   try {
-    await page.setViewport({ width: 1080, height: 1080, deviceScaleFactor: 2 }); // 2x → crisp 2160² output
+    await page.setViewport({ width: w, height: h, deviceScaleFactor: 2 }); // 2x → crisp output (matches the stage aspect)
     await page.setContent(fullHtml, { waitUntil: 'networkidle0', timeout: 45000 });
     // make sure the external images (product photo, logo) are fully decoded before the screenshot
     await page.evaluate(() => Promise.all(Array.from(document.images).map(i => (i.complete ? Promise.resolve() : i.decode().catch(() => {}))))).catch(() => {});
@@ -377,13 +377,14 @@ async function store(buf, path) {
   if (!up.ok) throw new Error('upload ' + up.status + ' ' + (await up.text()).slice(0, 160));
   return SB_URL + '/storage/v1/object/public/' + BUCKET + '/' + path;
 }
-async function insertRow(imageUrl, brain, meta) {
+async function insertRow(imageUrl, brain, meta, aspect = '1:1') {
+  const platform = meta.platform || (aspect === '9:16' ? 'Meta / TikTok - Vertical (9:16)' : 'Meta / TikTok - Square (1:1)');
   const ins = await fetch(SB_URL + '/rest/v1/static_ads', {
     method: 'POST',
     headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
     body: JSON.stringify({
       brand_name: meta.brand, image_url: imageUrl, variant_index: 1, template_index: meta.i,
-      platform: meta.platform || 'Meta / TikTok - Square (1:1)', aspect_ratio: '1:1',
+      platform, aspect_ratio: aspect,
       run_id: meta.runId, qa_score: 9, qa_notes: 'agent-generated, QA-passed',
     }),
   });
@@ -457,7 +458,8 @@ async function produceOne(templateUrl, brief, brain, tok, assets, meta) {
 // KIE (nano-banana-pro) generates the actual picture image-to-image from the REAL product photo,
 // so the ad FEATURES the real product photoreal (what the HTML/vector lane structurally can't do).
 // ============================================================================================
-function composeKiePrompt(brief, brain, assets, platform, lastIssues) {
+function composeKiePrompt(brief, brain, assets, platform, lastIssues, aspect) {
+  const tall = aspect === '9:16';
   const name = assets.name || pick(brain, ['brand_name', 'client_name'], 'the brand');
   const t = tokens(brain);
   const prod = (assets.productNames && assets.productNames.filter(Boolean).join(', ')) || pick(brain, ['key_offer'], 'the product');
@@ -467,7 +469,8 @@ function composeKiePrompt(brief, brain, assets, platform, lastIssues) {
   const proof = brief && brief.proof ? String(brief.proof).trim() : '';
   const refNote = 'Reference image 1 is the REAL PRODUCT (the hero). Do NOT draw the brand name, a wordmark, or ANY logo anywhere. RESERVE THE TOP 14% OF THE IMAGE as a clean, empty header band: plain uncluttered background, absolutely NO text, NO headline, NO product inside that band. The real brand logo is composited into that band afterward. START the headline and ALL other content BELOW that top band so nothing collides with the logo.';
   return [
-    `A premium, scroll-stopping ${platform || 'Meta / Instagram'} PRODUCT ADVERTISEMENT for the brand "${name}", 1:1 square, high-end commercial quality (think a top DTC brand's paid social ad).`,
+    `A premium, scroll-stopping ${platform || 'Meta / Instagram'} PRODUCT ADVERTISEMENT for the brand "${name}", ${tall ? '9:16 VERTICAL / PORTRAIT (tall)' : '1:1 square'}, high-end commercial quality (think a top DTC brand's paid social ad).`,
+    tall ? 'COMPOSE FOR THE TALL VERTICAL FRAME: use the full height with clear vertical rhythm — the headline in the upper third (below the top logo band), the product hero large in the middle, the CTA in the lower third. Keep ALL text well inside the frame with generous side margins; nothing may touch or be cut off by any edge. Do NOT stretch or crop the composition into a square.' : '',
     `${refNote} Reproduce the product from the reference EXACTLY, its real packaging, label text, shape and colours, do NOT redesign or relabel it. Make the product the clear HERO: large, sharp, beautifully lit product photography with a soft realistic shadow, integrated into the scene (never a floating cut-out sticker).`,
     `CONCEPT (the single idea this ad lands): ${brief ? brief.big_idea : prod}. Angle: ${brief ? brief.angle : 'benefit-led'}.`,
     `ON-IMAGE TEXT, rendered crisply and spelled EXACTLY, with clear hierarchy and generous spacing (no other text anywhere):`,
@@ -501,17 +504,18 @@ async function produceOneKie(brief, brain, tok, assets, meta) {
   const refs = (assets.productImagesRaw || assets.productImages || []).filter(u => u && visionSafe(u)).slice(0, 6);
   // pick the logo variant by palette (white mark on a dark ad, dark mark otherwise) for contrast.
   const logo = (brief && brief.palette === 'dark') ? (assets.logoLight || assets.logoDark) : (assets.logoDark || assets.logoLight);
-  const aspect = /9:16|story|reel/i.test(meta.platform || '') ? '9:16' : '1:1';
+  const aspect = /9:16|story|reel|vertical/i.test(meta.platform || '') ? '9:16' : '1:1';
+  const [aw, ah] = aspect === '9:16' ? [1080, 1920] : [1080, 1080];   // overlay dims must match the aspect or it crops
   for (let t = 1; t <= MAX_TRIES; t++) {
     try {
-      const prompt = composeKiePrompt(brief, brain, assets, meta.platform, lastIssues);
+      const prompt = composeKiePrompt(brief, brain, assets, meta.platform, lastIssues, aspect);
       const kieUrl = await kieGenerate({ prompt, imageUrls: refs, aspect }, log);
       // Composite the REAL brand logo onto the KIE image via Chrome (KIE left the top-left clean). This
       // places the EXACT brand mark (SVG or raster) instead of KIE's text rendering of the brand name.
       let buf;
       if (logo) {
-        const overlay = `<!doctype html><html><head><meta charset="utf8"><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#000}.stage{width:1080px;height:1080px;position:relative;overflow:hidden}.kbg{width:1080px;height:1080px;object-fit:cover;display:block}.blogo{position:absolute;top:44px;left:56px;height:58px;width:auto;max-width:360px;object-fit:contain}</style></head><body><div class="stage"><img class="kbg" src="${kieUrl}"><img class="blogo" src="${logo}"></div></body></html>`;
-        try { const rr = await render(overlay); buf = rr && rr.buf; } catch (e) { log(`  [${meta.i}] logo overlay failed: ${String(e.message || e).slice(0, 80)}`); }
+        const overlay = `<!doctype html><html><head><meta charset="utf8"><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#000}.stage{width:${aw}px;height:${ah}px;position:relative;overflow:hidden}.kbg{width:${aw}px;height:${ah}px;object-fit:cover;display:block}.blogo{position:absolute;top:44px;left:56px;height:58px;width:auto;max-width:360px;object-fit:contain}</style></head><body><div class="stage"><img class="kbg" src="${kieUrl}"><img class="blogo" src="${logo}"></div></body></html>`;
+        try { const rr = await render(overlay, aw, ah); buf = rr && rr.buf; } catch (e) { log(`  [${meta.i}] logo overlay failed: ${String(e.message || e).slice(0, 80)}`); }
       }
       if (!buf) {                                                  // no logo, or overlay failed → raw KIE image
         const r = await fetch(kieUrl);
@@ -527,7 +531,7 @@ async function produceOneKie(brief, brain, tok, assets, meta) {
     } catch (e) { lastIssues = String(e.message || e); log(`  [${meta.i}] KIE error try ${t}: ${lastIssues.slice(0, 140)}`); }
   }
   if (best.url && best.score >= SHIP_SCORE) {
-    await insertRow(best.url, brain, meta);
+    await insertRow(best.url, brain, meta, aspect);
     log(`  [${meta.i}] SHIP (score ${best.score}) → ${best.url}`);
     return { image_url: best.url, score: best.score };
   }
