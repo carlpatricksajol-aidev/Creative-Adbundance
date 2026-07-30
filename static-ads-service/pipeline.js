@@ -465,9 +465,7 @@ function composeKiePrompt(brief, brain, assets, platform, lastIssues) {
   const sub = String(brief && brief.subhead || '').trim();
   const cta = String(brief && brief.cta || 'Learn more').trim();
   const proof = brief && brief.proof ? String(brief.proof).trim() : '';
-  const refNote = visionSafe(assets.logoDark)
-    ? 'Reference image 1 is the REAL PRODUCT (the hero). The final reference image is the BRAND LOGO, place it small and clean in a top corner.'
-    : `Reference image 1 is the REAL PRODUCT (the hero). Render the brand name "${name}" as a clean small wordmark in a top corner (no logo image is provided).`;
+  const refNote = 'Reference image 1 is the REAL PRODUCT (the hero). Do NOT draw the brand name, a wordmark, or ANY logo anywhere in the image; leave the TOP-LEFT corner clean and uncluttered (a small clear margin) so the real brand logo can be composited in afterward.';
   return [
     `A premium, scroll-stopping ${platform || 'Meta / Instagram'} PRODUCT ADVERTISEMENT for the brand "${name}", 1:1 square, high-end commercial quality (think a top DTC brand's paid social ad).`,
     `${refNote} Reproduce the product from the reference EXACTLY, its real packaging, label text, shape and colours, do NOT redesign or relabel it. Make the product the clear HERO: large, sharp, beautifully lit product photography with a soft realistic shadow, integrated into the scene (never a floating cut-out sticker).`,
@@ -488,7 +486,7 @@ async function qaKie(renderedUrl, brain, brief, productNames) {
   const subject = (Array.isArray(productNames) && productNames.length) ? productNames.filter(Boolean).join(', ') : 'the product';
   const wantHeadline = brief ? String(brief.headline || '').replace(/\s*\/\s*/g, ' ') : '';
   const content = [
-    { type: 'text', text: `You are a TOUGH art director doing QA on this AI-GENERATED 1:1 product ad for "${name}" (product: ${subject}). Return JSON {"score": <1-10 integer; 10=ship-ready paid-social ad, 7=good with minor nits, 6 or below=a designer would reject>, "issues":[specific fixes]}. This ad was image-generated, so CHECK HARD FOR: (1) GARBLED / MISSPELLED / gibberish text anywhere, warped letters, nonsense words, or a wrong/misspelled brand name — score 4 or below if present; (2) the product must be the real ${subject}, the HERO, clean and undistorted (not warped, duplicated, or a floating sticker); (3) the headline${wantHeadline ? ` should read "${wantHeadline}"` : ''} must be legible and correctly spelled; (4) on-brand, professional, uncluttered, nothing cut off by the frame; (5) NO fabricated stats / prices / star ratings / press logos that were not intended. A clean, photoreal, correctly-spelled, on-brand product ad scores 8-9. Be strict — garbled text is an automatic fail.` },
+    { type: 'text', text: `You are a TOUGH art director doing QA on this AI-GENERATED 1:1 product ad for "${name}" (product: ${subject}). Return JSON {"score": <1-10 integer; 10=ship-ready paid-social ad, 7=good with minor nits, 6 or below=a designer would reject>, "issues":[specific fixes]}. This ad was image-generated, so CHECK HARD FOR: (1) GARBLED / MISSPELLED / gibberish in the GENERATED copy (headline, subhead, CTA, product label) — warped letters, nonsense words — score 4 or below if present. The BRAND LOGO in a corner is the REAL brand logo composited in, so NEVER treat its lettering, stylization, or an intentionally reversed / unusual letter as a misspelling (it is correct by definition); judge only the generated copy. (2) the product must be the real ${subject}, the HERO, clean and undistorted (not warped, duplicated, or a floating sticker); (3) the headline${wantHeadline ? ` should read "${wantHeadline}"` : ''} must be legible and correctly spelled; (4) on-brand, professional, uncluttered, nothing cut off by the frame; (5) NO fabricated stats / prices / star ratings / press logos that were not intended. A clean, photoreal, correctly-spelled, on-brand product ad scores 8-9. Be strict — garbled generated text is an automatic fail.` },
     { type: 'text', text: 'THE AD:' }, { type: 'image_url', image_url: { url: renderedUrl } },
   ];
   const v = jsonOf(await chat(MODEL_VISION, [{ role: 'user', content }], 800)) || {};
@@ -497,19 +495,30 @@ async function qaKie(renderedUrl, brain, brief, productNames) {
 async function produceOneKie(brief, brain, tok, assets, meta) {
   let lastIssues = '';
   let best = { score: 0, url: null };
-  // KIE wants the ORIGINAL product photo (full packshot), not the transparent HTML cutout.
-  // KIE (like the vision model) rejects SVG — pass only RASTER references (the product photo; the logo
-  // only if it is a raster file). SVG logos are dropped; the prompt renders the wordmark from text instead.
-  const refs = [...(assets.productImagesRaw || assets.productImages || []), assets.logoDark].filter(u => u && visionSafe(u)).slice(0, 6);
+  // KIE references = the REAL PRODUCT photo(s) only, raster-only (KIE rejects SVG). The logo is NOT sent to
+  // KIE; we composite the real brand mark on top afterward (Chrome renders SVG + raster crisply, and KIE
+  // would only redraw a logo as garbled text anyway).
+  const refs = (assets.productImagesRaw || assets.productImages || []).filter(u => u && visionSafe(u)).slice(0, 6);
+  // pick the logo variant by palette (white mark on a dark ad, dark mark otherwise) for contrast.
+  const logo = (brief && brief.palette === 'dark') ? (assets.logoLight || assets.logoDark) : (assets.logoDark || assets.logoLight);
   const aspect = /9:16|story|reel/i.test(meta.platform || '') ? '9:16' : '1:1';
   for (let t = 1; t <= MAX_TRIES; t++) {
     try {
       const prompt = composeKiePrompt(brief, brain, assets, meta.platform, lastIssues);
       const kieUrl = await kieGenerate({ prompt, imageUrls: refs, aspect }, log);
-      const r = await fetch(kieUrl);
-      if (!r.ok) { lastIssues = 'generated image fetch failed'; log(`  [${meta.i}] KIE try ${t}: image fetch ${r.status}`); continue; }
-      const buf = Buffer.from(await r.arrayBuffer());              // rehost immediately (KIE URLs die in ~24h)
-      const url = await store(buf, `produced/${norm(meta.brand)}/${meta.runId}-${meta.i}-t${t}.png`);
+      // Composite the REAL brand logo onto the KIE image via Chrome (KIE left the top-left clean). This
+      // places the EXACT brand mark (SVG or raster) instead of KIE's text rendering of the brand name.
+      let buf;
+      if (logo) {
+        const overlay = `<!doctype html><html><head><meta charset="utf8"><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#000}.stage{width:1080px;height:1080px;position:relative;overflow:hidden}.kbg{width:1080px;height:1080px;object-fit:cover;display:block}.blogo{position:absolute;top:46px;left:52px;height:56px;width:auto;max-width:360px;object-fit:contain}</style></head><body><div class="stage"><img class="kbg" src="${kieUrl}"><img class="blogo" src="${logo}"></div></body></html>`;
+        try { const rr = await render(overlay); buf = rr && rr.buf; } catch (e) { log(`  [${meta.i}] logo overlay failed: ${String(e.message || e).slice(0, 80)}`); }
+      }
+      if (!buf) {                                                  // no logo, or overlay failed → raw KIE image
+        const r = await fetch(kieUrl);
+        if (!r.ok) { lastIssues = 'generated image fetch failed'; log(`  [${meta.i}] KIE try ${t}: image fetch ${r.status}`); continue; }
+        buf = Buffer.from(await r.arrayBuffer());
+      }
+      const url = await store(buf, `produced/${norm(meta.brand)}/${meta.runId}-${meta.i}-t${t}.png`);  // rehost (KIE URLs die in ~24h)
       const v = await qaKie(url, brain, brief, assets.productNames);
       log(`  [${meta.i}] KIE try ${t}: score ${v.score}${v.issues && v.issues.length ? ' — ' + v.issues.join('; ').slice(0, 110) : ''}`);
       if (v.score > best.score) best = { score: v.score, url };
