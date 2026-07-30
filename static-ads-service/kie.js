@@ -29,11 +29,20 @@ async function kieGenerate({ prompt, imageUrls, aspect }, log = () => {}) {
       output_format: 'png',
     },
   };
-  const cr = await fetch('https://api.kie.ai/api/v1/jobs/createTask', { method: 'POST', headers, body: JSON.stringify(body) });
-  if (!cr.ok) throw new Error('KIE createTask ' + cr.status + ' ' + (await cr.text()).slice(0, 200));
-  const cj = await cr.json();
-  const taskId = cj && cj.data && cj.data.taskId;
-  if (!taskId) throw new Error('KIE createTask: no taskId (' + JSON.stringify(cj).slice(0, 200) + ')');
+  // createTask with rate-limit backoff. KIE returns errors as {code, msg} in the body (HTTP 200):
+  //   402 = out of credits (terminal — flag it so the batch stops instead of spamming); 429 = too many
+  //   calls (transient — back off and retry). Success is code 200 with data.taskId.
+  let taskId = null;
+  for (let attempt = 1; attempt <= 5 && !taskId; attempt++) {
+    const cr = await fetch('https://api.kie.ai/api/v1/jobs/createTask', { method: 'POST', headers, body: JSON.stringify(body) });
+    let cj = {}; try { cj = await cr.json(); } catch (e) {}
+    const code = (cj && cj.code != null) ? cj.code : cr.status;
+    if (code === 200 && cj.data && cj.data.taskId) { taskId = cj.data.taskId; break; }
+    if (code === 402) { const e = new Error('KIE out of credits — top up at kie.ai'); e.outOfCredits = true; throw e; }
+    if (code === 429 || code === 503) { await sleep(2000 * attempt); continue; }   // rate-limited → back off and retry
+    throw new Error('KIE createTask code ' + code + ' ' + String((cj && cj.msg) || '').slice(0, 140));
+  }
+  if (!taskId) throw new Error('KIE createTask rate-limited (429) after retries');
 
   // poll recordInfo until state = success | fail (states: waiting -> queuing -> generating -> success|fail)
   const deadline = Date.now() + 5 * 60 * 1000;   // 5 min hard cap per image

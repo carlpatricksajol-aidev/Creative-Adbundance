@@ -528,7 +528,7 @@ async function produceOneKie(brief, brain, tok, assets, meta) {
       if (v.score > best.score) best = { score: v.score, url };
       if (v.score >= SHIP_SCORE) break;
       lastIssues = (v.issues || []).map(x => '- ' + x).join('\n');
-    } catch (e) { lastIssues = String(e.message || e); log(`  [${meta.i}] KIE error try ${t}: ${lastIssues.slice(0, 140)}`); }
+    } catch (e) { if (e && e.outOfCredits) throw e; lastIssues = String(e.message || e); log(`  [${meta.i}] KIE error try ${t}: ${lastIssues.slice(0, 140)}`); }
   }
   if (best.url && best.score >= SHIP_SCORE) {
     await insertRow(best.url, brain, meta, aspect);
@@ -726,22 +726,33 @@ async function produceBatch(body) {
     } catch (e) { log('  creative director failed: ' + String(e.message || e).slice(0, 120) + ' — proceeding template-faithful'); briefs = null; }
   }
 
-  // concurrency-limited pool
+  // FILL-TO-EXACT-COUNT pool: this is a SaaS — deliver the NUMBER requested. Keep producing (regenerating
+  // dropped ones with cycled concepts) until N ship, or an attempt cap is hit, or KIE runs out of credits.
+  const N = templates.length;
   const results = [];
-  let idx = 0;
+  let jobs = 0, outOfCredits = false;
+  const cap = Math.min(N * 3 + 3, 90);   // total-attempt cap so a genuinely-failing brand can't loop forever
   async function worker() {
-    while (idx < templates.length) {
-      const i = idx++;
+    while (results.length < N && jobs < cap && !outOfCredits) {
+      const i = jobs++;
       const meta = { brand: name, i: i + 1, runId, platform };
-      const r = useKie
-        ? await produceOneKie(briefs ? briefs[i] : null, brain, tok, assets, meta)
-        : await produceOne(templates[i].image_url, briefs ? briefs[i] : null, brain, tok, assets, meta);
-      if (r) results.push(r);
+      const brief = briefs ? briefs[i % briefs.length] : null;
+      try {
+        const r = useKie
+          ? await produceOneKie(brief, brain, tok, assets, meta)
+          : await produceOne(templates[i % templates.length].image_url, brief, brain, tok, assets, meta);
+        if (r && results.length < N) results.push(r);
+      } catch (e) {
+        if (e && e.outOfCredits) { outOfCredits = true; log('  KIE OUT OF CREDITS — stopping this run; top up at kie.ai and re-run.'); }
+        else log(`  [${meta.i}] job error: ${String(e.message || e).slice(0, 100)}`);
+      }
     }
   }
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, templates.length || 1) }, worker));
-  log(`RUN ${runId} DONE — ${results.length}/${templates.length} shipped`);
-  return { runId, brand: name, requested: templates.length, shipped: results.length, ads: results };
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, N || 1) }, worker));
+  const ads = results.slice(0, N);
+  if (ads.length < N) log(`  WARNING: only ${ads.length}/${N} shipped${outOfCredits ? ' — KIE out of credits' : ` after ${jobs} attempts (slots could not clear QA)`}`);
+  log(`RUN ${runId} DONE — ${ads.length}/${N} shipped`);
+  return { runId, brand: name, requested: N, shipped: ads.length, ads };
 }
 
 module.exports = { produceBatch, produceOne, fetchBrand, tokens, baseCss, resolveFonts };
