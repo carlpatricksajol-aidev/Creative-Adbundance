@@ -458,6 +458,34 @@ async function produceOne(templateUrl, brief, brain, tok, assets, meta) {
 // KIE (nano-banana-pro) generates the actual picture image-to-image from the REAL product photo,
 // so the ad FEATURES the real product photoreal (what the HTML/vector lane structurally can't do).
 // ============================================================================================
+// Rough luminance of a logo's ink so it can sit on a CONTRASTING band (SVG: parse its fill/stroke
+// colours; non-SVG: assume a dark logo). Returns true when the logo art is LIGHT-coloured.
+async function logoLuma(url) {
+  try {
+    if (!url || !/\.svg(\?|$)/i.test(url)) return false;
+    const r = await fetch(url); if (!r.ok) return false;
+    const svg = await r.text();
+    const named = { white: '#ffffff', black: '#000000' };
+    const cols = (svg.match(/(?:fill|stroke)\s*[:=]\s*["']?\s*(#[0-9a-fA-F]{3,6}|white|black)/gi) || [])
+      .map(m => (m.match(/#[0-9a-fA-F]{3,6}|white|black/i) || [])[0])
+      .map(c => named[String(c).toLowerCase()] || c)
+      .filter(c => /^#/.test(c));
+    if (!cols.length) return false;
+    return (cols.reduce((s, c) => s + lum(c), 0) / cols.length) > 0.6;
+  } catch (e) { return false; }
+}
+// PRODUCT ANALYZER — a vision pass that tells the generator WHAT the product is, its real SIZE, and how
+// to stage it, so KIE renders it at the correct scale in a fitting scene (not oversized or floating).
+async function analyzeProduct(url, productName, brain) {
+  if (!visionSafe(url)) return '';
+  try {
+    const txt = await chat(MODEL_VISION, [{ role: 'user', content: [
+      { type: 'text', text: `Look at this product photo${productName ? ` (${productName})` : ''} for the brand ${pick(brain, ['brand_name'], '')}. In 2 to 3 tight factual sentences state: exactly WHAT it is (packaging type — box, jar, pouch, can, tub, or individually wrapped — and its real-world SIZE, e.g. a small single-serve wrapped snack, a retail carton, a supplement tub), its key label/visual features, and the most natural APPETIZING way to stage it in an ad (surface, props, setting) at true scale. This guides an image generator to render the product correctly, not oversized or floating.` },
+      { type: 'image_url', image_url: { url } },
+    ] }], 300);
+    return String(txt || '').replace(/\s+/g, ' ').trim().slice(0, 500);
+  } catch (e) { return ''; }
+}
 function composeKiePrompt(brief, brain, assets, platform, lastIssues, aspect) {
   const tall = aspect === '9:16';
   const name = assets.name || pick(brain, ['brand_name', 'client_name'], 'the brand');
@@ -472,6 +500,7 @@ function composeKiePrompt(brief, brain, assets, platform, lastIssues, aspect) {
     `A premium, scroll-stopping ${platform || 'Meta / Instagram'} PRODUCT ADVERTISEMENT for the brand "${name}", ${tall ? '9:16 VERTICAL / PORTRAIT (tall)' : '1:1 square'}, high-end commercial quality (think a top DTC brand's paid social ad).`,
     tall ? 'COMPOSE FOR THE TALL VERTICAL FRAME: use the full height with clear vertical rhythm — the headline in the upper third (below the top logo band), the product hero large in the middle, the CTA in the lower third. Keep ALL text well inside the frame with generous side margins; nothing may touch or be cut off by any edge. Do NOT stretch or crop the composition into a square.' : '',
     `${refNote} Reproduce the product from the reference EXACTLY, its real packaging, label text, shape and colours, do NOT redesign or relabel it. Make the product the clear HERO: large, sharp, beautifully lit product photography with a soft realistic shadow, integrated into the scene (never a floating cut-out sticker).`,
+    assets.productBrief ? `PRODUCT FACTS (render it true to this, correct packaging and REAL scale, staged in a fitting scene, do NOT oversize, shrink, or float it): ${assets.productBrief}` : '',
     `CONCEPT (the single idea this ad lands): ${brief ? brief.big_idea : prod}. Angle: ${brief ? brief.angle : 'benefit-led'}.`,
     `ON-IMAGE TEXT, rendered crisply and spelled EXACTLY, with clear hierarchy and generous spacing (no other text anywhere):`,
     `  - HEADLINE (large, dominant, top or side): "${hl}".`,
@@ -502,8 +531,9 @@ async function produceOneKie(brief, brain, tok, assets, meta) {
   // KIE; we composite the real brand mark on top afterward (Chrome renders SVG + raster crisply, and KIE
   // would only redraw a logo as garbled text anyway).
   const refs = (assets.productImagesRaw || assets.productImages || []).filter(u => u && visionSafe(u)).slice(0, 6);
-  // pick the logo variant by palette (white mark on a dark ad, dark mark otherwise) for contrast.
-  const logo = (brief && brief.palette === 'dark') ? (assets.logoLight || assets.logoDark) : (assets.logoDark || assets.logoLight);
+  // logo + its contrast band were resolved once in produceBatch (assets.logoForBand / assets.logoBand).
+  const logoUrl = assets.logoForBand || assets.logoDark || assets.logoLight;
+  const band = assets.logoBand || '#FFFFFF';
   const aspect = /9:16|story|reel|vertical/i.test(meta.platform || '') ? '9:16' : '1:1';
   const [aw, ah] = aspect === '9:16' ? [1080, 1920] : [1080, 1080];   // overlay dims must match the aspect or it crops
   for (let t = 1; t <= MAX_TRIES; t++) {
@@ -513,8 +543,9 @@ async function produceOneKie(brief, brain, tok, assets, meta) {
       // Composite the REAL brand logo onto the KIE image via Chrome (KIE left the top-left clean). This
       // places the EXACT brand mark (SVG or raster) instead of KIE's text rendering of the brand name.
       let buf;
-      if (logo) {
-        const overlay = `<!doctype html><html><head><meta charset="utf8"><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#000}.stage{width:${aw}px;height:${ah}px;position:relative;overflow:hidden}.kbg{width:${aw}px;height:${ah}px;object-fit:cover;display:block}.blogo{position:absolute;top:44px;left:56px;height:58px;width:auto;max-width:360px;object-fit:contain}</style></head><body><div class="stage"><img class="kbg" src="${kieUrl}"><img class="blogo" src="${logo}"></div></body></html>`;
+      if (logoUrl) {
+        const bandH = Math.round(ah * 0.11), lt = Math.max(16, Math.round((bandH - 58) / 2));
+        const overlay = `<!doctype html><html><head><meta charset="utf8"><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#000}.stage{width:${aw}px;height:${ah}px;position:relative;overflow:hidden}.kbg{width:${aw}px;height:${ah}px;object-fit:cover;display:block}.band{position:absolute;top:0;left:0;width:${aw}px;height:${bandH}px;background:${band}}.blogo{position:absolute;top:${lt}px;left:60px;height:58px;width:auto;max-width:400px;object-fit:contain}</style></head><body><div class="stage"><img class="kbg" src="${kieUrl}"><div class="band"></div><img class="blogo" src="${logoUrl}"></div></body></html>`;
         try { const rr = await render(overlay, aw, ah); buf = rr && rr.buf; } catch (e) { log(`  [${meta.i}] logo overlay failed: ${String(e.message || e).slice(0, 80)}`); }
       }
       if (!buf) {                                                  // no logo, or overlay failed → raw KIE image
@@ -709,7 +740,21 @@ async function produceBatch(body) {
   // RENDER LANE: photoreal KIE (nano-banana-pro) for PRODUCT brands when a KIE key is set — Claude's
   // concept + the real product photo → a real product ad. Else the HTML/vector lane. Force with FORCE_KIE=1.
   const useKie = kieEnabled() && (productImagesRaw.length > 0 || String(E.FORCE_KIE || '') === '1');
-  if (useKie) log(`  render lane: KIE (nano-banana-pro) — photoreal product ads`);
+  if (useKie) {
+    log(`  render lane: KIE (nano-banana-pro) — photoreal product ads`);
+    assets.productBrief = await analyzeProduct(productImagesRaw[0], productNames[0], brain);   // understand the product once
+    if (assets.productBrief) log('  product analyzer: ' + assets.productBrief.slice(0, 100));
+    const lg = assets.logoDark || assets.logoLight;   // pick a logo band that CONTRASTS with the logo's ink
+    if (lg) {
+      assets.logoForBand = lg;
+      const lightLogo = await logoLuma(lg);
+      const cols = [pick(brain, ['primary_color_hex']), pick(brain, ['secondary_color_hex']), pick(brain, ['accent_color_hex'])].filter(Boolean);
+      assets.logoBand = lightLogo
+        ? (cols.filter(c => lum(c) < 0.35).sort((a, b) => lum(a) - lum(b))[0] || '#141414')   // light logo → darkest brand colour
+        : (cols.filter(c => lum(c) > 0.72).sort((a, b) => lum(b) - lum(a))[0] || '#FFFFFF');   // dark logo → lightest brand colour
+      log(`  logo band: ${assets.logoBand} (${lightLogo ? 'light' : 'dark'} logo)`);
+    }
+  }
 
   // CREATIVE DIRECTOR: decide the concept (a sharp angle + a visual device) for every ad ONCE, up front.
   // This is the heavy thinking, done a single time; each reconstruct below just EXECUTES its brief (fast +
