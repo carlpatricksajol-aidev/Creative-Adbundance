@@ -465,7 +465,7 @@ function composeKiePrompt(brief, brain, assets, platform, lastIssues) {
   const sub = String(brief && brief.subhead || '').trim();
   const cta = String(brief && brief.cta || 'Learn more').trim();
   const proof = brief && brief.proof ? String(brief.proof).trim() : '';
-  const refNote = 'Reference image 1 is the REAL PRODUCT (the hero). Do NOT draw the brand name, a wordmark, or ANY logo anywhere in the image; leave the TOP-LEFT corner clean and uncluttered (a small clear margin) so the real brand logo can be composited in afterward.';
+  const refNote = 'Reference image 1 is the REAL PRODUCT (the hero). Do NOT draw the brand name, a wordmark, or ANY logo anywhere. RESERVE THE TOP 14% OF THE IMAGE as a clean, empty header band: plain uncluttered background, absolutely NO text, NO headline, NO product inside that band. The real brand logo is composited into that band afterward. START the headline and ALL other content BELOW that top band so nothing collides with the logo.';
   return [
     `A premium, scroll-stopping ${platform || 'Meta / Instagram'} PRODUCT ADVERTISEMENT for the brand "${name}", 1:1 square, high-end commercial quality (think a top DTC brand's paid social ad).`,
     `${refNote} Reproduce the product from the reference EXACTLY, its real packaging, label text, shape and colours, do NOT redesign or relabel it. Make the product the clear HERO: large, sharp, beautifully lit product photography with a soft realistic shadow, integrated into the scene (never a floating cut-out sticker).`,
@@ -510,7 +510,7 @@ async function produceOneKie(brief, brain, tok, assets, meta) {
       // places the EXACT brand mark (SVG or raster) instead of KIE's text rendering of the brand name.
       let buf;
       if (logo) {
-        const overlay = `<!doctype html><html><head><meta charset="utf8"><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#000}.stage{width:1080px;height:1080px;position:relative;overflow:hidden}.kbg{width:1080px;height:1080px;object-fit:cover;display:block}.blogo{position:absolute;top:46px;left:52px;height:56px;width:auto;max-width:360px;object-fit:contain}</style></head><body><div class="stage"><img class="kbg" src="${kieUrl}"><img class="blogo" src="${logo}"></div></body></html>`;
+        const overlay = `<!doctype html><html><head><meta charset="utf8"><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#000}.stage{width:1080px;height:1080px;position:relative;overflow:hidden}.kbg{width:1080px;height:1080px;object-fit:cover;display:block}.blogo{position:absolute;top:44px;left:56px;height:58px;width:auto;max-width:360px;object-fit:contain}</style></head><body><div class="stage"><img class="kbg" src="${kieUrl}"><img class="blogo" src="${logo}"></div></body></html>`;
         try { const rr = await render(overlay); buf = rr && rr.buf; } catch (e) { log(`  [${meta.i}] logo overlay failed: ${String(e.message || e).slice(0, 80)}`); }
       }
       if (!buf) {                                                  // no logo, or overlay failed → raw KIE image
