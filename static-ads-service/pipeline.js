@@ -782,10 +782,11 @@ async function produceBatch(body) {
   const N = templates.length;
   const realBriefs = briefs ? briefs.filter(Boolean) : null;   // never hand a null concept to an ad → cycle real ones
   const results = [];
-  let jobs = 0, outOfCredits = false;
-  const cap = Math.min(N * 3 + 3, 90);   // total-attempt cap so a genuinely-failing brand can't loop forever
+  let jobs = 0, outOfCredits = false, doomed = false;
+  const cap = Math.min(N * 3 + 3, 90);       // total-attempt cap so a genuinely-failing brand can't loop forever
+  const earlyCap = N + Math.ceil(N / 2);     // if NOTHING has shipped after ~1.5x attempts, the batch is doomed → fail fast
   async function worker() {
-    while (results.length < N && jobs < cap && !outOfCredits) {
+    while (results.length < N && jobs < cap && !outOfCredits && !doomed) {
       const i = jobs++;
       const meta = { brand: name, i: i + 1, runId, platform };
       const brief = (realBriefs && realBriefs.length) ? realBriefs[i % realBriefs.length] : null;
@@ -798,11 +799,12 @@ async function produceBatch(body) {
         if (e && e.outOfCredits) { outOfCredits = true; log('  KIE OUT OF CREDITS — stopping this run; top up at kie.ai and re-run.'); }
         else log(`  [${meta.i}] job error: ${String(e.message || e).slice(0, 100)}`);
       }
+      if (!results.length && jobs >= earlyCap && !doomed) { doomed = true; log(`  FAIL-FAST: 0 shipped after ${jobs} attempts — stopping (likely no product sent for a product brand, or a data issue). Not grinding to the cap.`); }
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, N || 1) }, worker));
   const ads = results.slice(0, N);
-  if (ads.length < N) log(`  WARNING: only ${ads.length}/${N} shipped${outOfCredits ? ' — KIE out of credits' : ` after ${jobs} attempts (slots could not clear QA)`}`);
+  if (ads.length < N) log(`  WARNING: only ${ads.length}/${N} shipped${outOfCredits ? ' — KIE out of credits' : doomed ? ` — batch stopped early after ${jobs} attempts (0 shipping)` : ` after ${jobs} attempts (slots could not clear QA)`}`);
   log(`RUN ${runId} DONE — ${ads.length}/${N} shipped`);
   return { runId, brand: name, requested: N, shipped: ads.length, ads };
 }
