@@ -41,41 +41,41 @@ const fmtC = c => c == null ? "n/a" : Number(c).toFixed(2);
 function planJob(scenesRaw, matches, opts = {}) {
   const thr = opts.confidenceThreshold == null ? 0.6 : opts.confidenceThreshold;
   const scenes = normalizeScenes(scenesRaw), byId = {}; scenes.forEach(s => byId[s.scene] = s);
-  const renames = [], flagged = [], usedSlug = {}, takenA = {};
-  // filename convention: <Talent>_<Concept>_<Hook/Script label>  (Talent = creator, Concept = the
-  // Notion "Concept" field, e.g. "004_Rapid Fire Questions"); 2nd+ take of a label gets " V2"/" V3".
+  const renames = [], flagged = [], takenA = {}, takenB = {};
+  // Talking-head (aroll) = <Talent>_<Concept>_<Hook/Script label>. B-ROLL (broll) = the storyboard shot
+  // title verbatim (or the creator's own filename) with NO concept prefix - b-roll is reused across
+  // concepts, so the editor wants just the shot title, not the concept or an AI description.
   const safe = s => String(s == null ? "" : s).replace(/[\/\\:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim(); // filesystem-safe
   const lbl = s => safe(String(s == null ? "" : s).replace(/^\s*scene\b/i, "Script")); // "Scene N" -> "Script N"; "Hook N" unchanged
   const pre = [opts.creator, opts.concept].map(safe).filter(Boolean).join("_").replace(/_+$/, "");
   const px = pre ? pre + "_" : "";
-  const ver = n => n === 1 ? "" : ` V${n}`;
-  const uniqA = base => { let n = 1, nm = base; while (takenA[nm]) { n++; nm = `${base} V${n}`; } takenA[nm] = 1; return nm; }; // unique aroll name
+  const uniq = (set, base) => { let n = 1, nm = base || "clip"; while (set[nm]) { n++; nm = `${base} V${n}`; } set[nm] = 1; return nm; }; // unique name within a folder
   const ok = m => m.filenameLabel || ((m.reconciled || (m.confidence == null ? 1 : m.confidence) >= thr) && m.scene);
   for (const m of matches.filter(ok)) {
     const ext = extOf(m.file);
-    if (m.filenameLabel) { renames.push({ from: m.file, to: `${px}${uniqA(lbl(m.filenameLabel))}${ext}`, folder: "aroll", scene: m.filenameLabel, confidence: m.confidence }); continue; }
+    if (m.filenameLabel) { renames.push({ from: m.file, to: `${px}${uniq(takenA, lbl(m.filenameLabel))}${ext}`, folder: "aroll", scene: m.filenameLabel, confidence: m.confidence }); continue; }
     const sc = byId[m.scene];
     if (!sc) { flagged.push({ file: m.file, reason: `matched unknown scene "${m.scene}"`, confidence: m.confidence }); continue; }
     if (sc.type === "talkinghead" || m.type === "talkinghead") {
-      renames.push({ from: m.file, to: `${px}${uniqA(lbl(sc.scene))}${ext}`, folder: "aroll", scene: m.scene, confidence: m.confidence });
+      renames.push({ from: m.file, to: `${px}${uniq(takenA, lbl(sc.scene))}${ext}`, folder: "aroll", scene: m.scene, confidence: m.confidence });
     } else {
       const base = m.shot_slug || (sc.shots[0] && sc.shots[0].slug);
       if (!base) { flagged.push({ file: m.file, reason: `b-roll match to "${m.scene}" with no shot slug`, confidence: m.confidence }); continue; }
-      const slug = safe(applyPov(base, m.person_in_frame)), n = usedSlug[slug] = (usedSlug[slug] || 0) + 1;
-      renames.push({ from: m.file, to: `${px}${slug}${ver(n)}${ext}`, folder: "broll", scene: m.scene, shot_slug: base, confidence: m.confidence });
+      const shot = sc.shots.find(sh => sh.slug === base) || sc.shots[0];
+      const title = safe((shot && shot.footage_name) || base); // storyboard shot title verbatim - no concept prefix, no POV rewrite
+      renames.push({ from: m.file, to: `${uniq(takenB, title)}${ext}`, folder: "broll", scene: m.scene, shot_slug: base, confidence: m.confidence });
     }
   }
-  // clips that matched no storyboard shot: if usable, organize as EXTRA footage (descriptive name
-  // into broll/aroll) rather than leaving them behind; flag only when there is nothing to name by.
+  // clips that matched no storyboard shot: organize as EXTRA footage. Talking-head -> a topic slug in
+  // aroll; b-roll -> keep the creator's own filename (no concept prefix, no AI description).
   for (const m of matches.filter(x => !ok(x))) {
     const ext = extOf(m.file), desc = String(m.describe || "").trim(), tr = String(m.transcript || "").trim();
-    const thBase = lineSlug(desc, 6) || lineSlug(tr, 6), brBody = lineSlug(desc, 6); // empty if no usable words -> flag
+    const thBase = lineSlug(desc, 6) || lineSlug(tr, 6);
     if (m.type === "talkinghead" && thBase) {
-      renames.push({ from: m.file, to: `${px}${uniqA(lbl(thBase))}${ext}`, folder: "aroll", scene: "(extra)", confidence: m.confidence, extra: true });
-    } else if (m.type === "broll" && brBody) {
-      const pov = m.person_in_frame === true ? "3rdpov_" : m.person_in_frame === false ? "1stpov_" : "", slug = pov + brBody;
-      const n = usedSlug[slug] = (usedSlug[slug] || 0) + 1;
-      renames.push({ from: m.file, to: `${px}${slug}${ver(n)}${ext}`, folder: "broll", scene: "(extra)", shot_slug: null, confidence: m.confidence, extra: true });
+      renames.push({ from: m.file, to: `${px}${uniq(takenA, lbl(thBase))}${ext}`, folder: "aroll", scene: "(extra)", confidence: m.confidence, extra: true });
+    } else if (m.type === "broll") {
+      const orig = safe(String(m.file).replace(/\.[a-z0-9]+$/i, "")); // keep the creator's own b-roll filename
+      renames.push({ from: m.file, to: `${uniq(takenB, orig)}${ext}`, folder: "broll", scene: "(extra)", shot_slug: null, confidence: m.confidence, extra: true });
     } else {
       flagged.push({ file: m.file, reason: m.scene ? `low confidence (${fmtC(m.confidence)}) for "${m.scene}"` : "no usable description to organize", confidence: m.confidence });
     }

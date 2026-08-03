@@ -35,12 +35,13 @@ eq(applyPov("1stpov_smelling_towel_and_smiling", true), "3rdpov_smelling_towel_a
 eq(applyPov("3rdpov_bathroom_with_waffle_towels_hanging_styled", false), "1stpov_bathroom_with_waffle_towels_hanging_styled", "pov: object -> 1stpov");
 eq(applyPov("ai_waffle_weave_towels", true), "ai_waffle_weave_towels", "pov: ai_ untouched");
 eq(applyPov("1stpov_x", null), "1stpov_x", "pov: unknown -> unchanged");
-// in planJob: storyboard says 1stpov, but the clip has a person -> filename becomes 3rdpov
+// b-roll is named by the storyboard shot title VERBATIM: no concept prefix, no POV rewrite (the video
+// editor wants the storyboard title, and b-roll is reused across concepts)
 const pj = planJob(
   [{ scene: "Scene 6", footage_name: "1stPOV_smelling towel and smiling", shot_list_explanation: "talent smelling towel" }],
   [{ file: "vid.mov", scene: "Scene 6", shot_slug: "1stpov_smelling_towel_and_smiling", person_in_frame: true, confidence: 0.9 }],
-  {});
-eq(pj.renames[0].to, "3rdpov_smelling_towel_and_smiling.mov", "planJob applies POV from footage");
+  { creator: "Ashley", concept: "001" });
+eq(pj.renames[0].to, "1stPOV_smelling towel and smiling.mov", "b-roll: storyboard title verbatim, no prefix, no POV rewrite");
 
 // --- Onsen storyboard (subset that covers the edge cases) -------------------
 const onsen = [
@@ -64,9 +65,9 @@ const matches = [
 const r = planJob(onsen, matches, { client: "Onsen", creator: "Ashley" });
 const to = (f) => (r.renames.find((x) => x.from === f) || {});
 
-eq(to("DJI_0001.MOV").to, "Ashley_ai_waffle_weave_towels_hanging_in_japanese_hotel_bathroom.mov", "broll rename (Talent prefix)");
-eq(to("clip_take_a.mov").to, "Ashley_3rdpov_close_up_premium_waffle_weave_texture.mov", "version 1");
-eq(to("clip_take_b.mov").to, "Ashley_3rdpov_close_up_premium_waffle_weave_texture V2.mov", "version 2 suffix ( V2)");
+eq(to("DJI_0001.MOV").to, "AI_waffle weave towels hanging in japanese hotel bathroom.mov", "broll: storyboard title verbatim, NO concept prefix");
+eq(to("clip_take_a.mov").to, "3rdPOV_close up premium waffle weave texture.mov", "broll: shot title");
+eq(to("clip_take_b.mov").to, "3rdPOV_close up premium waffle weave texture V2.mov", "broll: 2nd of same shot -> V2");
 eq(r.flagged.some((f) => f.file === "random_blurry.mov"), true, "low-confidence flagged");
 // Scene 2's second shot got no clip -> missing.
 eq(r.missing.some((m) => m.slug === "1stpov_wrapping_towel_around_body_drying_quickly"), true, "missing 2nd shot of multi-shot scene");
@@ -137,29 +138,25 @@ const modestPlan = planJob(rcScenes, modest, {});
 eq((modestPlan.renames[0] || {}).scene, "Hook 1", "reconcile: modest-confidence reassignment still renames");
 eq(modestPlan.flagged.length, 0, "reconcile: modest-confidence reassignment not flagged");
 
-// --- auto-organize extras (footage the creator shot beyond the storyboard) -------------------
-// Models the Vivienne Goins case: clips that match no storyboard shot but are clearly usable get a
-// descriptive name into broll/aroll instead of being flagged; only unreadable clips flag.
+// --- auto-organize extras (footage that matched no storyboard shot) ---------------------------
+// b-roll extras keep the creator's OWN filename (no concept prefix, no AI description); talking-head
+// extras get a prefixed topic slug in aroll/.
 const exScenes = [{ scene: "Scene 1", type: "broll", footage_name: "1stPOV_planned shot", script_line: "" }];
 const exMatches = [
-  { file: "coffee.mov",  type: "broll",      scene: null, confidence: 0,   describe: "making coffee at home", person_in_frame: true },
-  { file: "calc.mov",    type: "broll",      scene: null, confidence: 0,   describe: "handwritten calculations", person_in_frame: false },
-  { file: "coffee2.mov", type: "broll",      scene: null, confidence: 0,   describe: "making coffee at home", person_in_frame: true },
-  { file: "rapid1.mov",  type: "talkinghead",scene: null, confidence: 0.5, transcript: "answers common debt questions", describe: "rapid fire debt questions" },
-  { file: "junk.mov",    type: "broll",      scene: null, confidence: 0,   describe: "" },
-  { file: "symbol.mov",  type: "broll",      scene: null, confidence: 0,   describe: "☕☕☕", person_in_frame: true }, // slug collapses to "" -> must flag, not ".mov"
+  { file: "1stPOV_scraping pan clean.mov", type: "broll", scene: null, confidence: 0, describe: "person scraping a pan clean" },
+  { file: "1stPOV_scraping pan clean 2.mov", type: "broll", scene: null, confidence: 0, describe: "person scraping a pan again" },
+  { file: "IMG_4992.MOV", type: "broll", scene: null, confidence: 0, describe: "some b-roll" },
+  { file: "rapid1.mov", type: "talkinghead", scene: null, confidence: 0.5, transcript: "answers common debt questions", describe: "rapid fire debt questions" },
 ];
 const exPlan = planJob(exScenes, exMatches, { creator: "Grace", concept: "004_Rapid Fire Questions" });
 const exTo = (f) => (exPlan.renames.find((x) => x.from === f) || {});
-eq(exTo("coffee.mov").to, "Grace_004_Rapid Fire Questions_3rdpov_making_coffee_at_home.mov", "extra: b-roll gets Talent_Concept + pov+describe");
-eq(exTo("coffee.mov").folder, "broll", "extra: b-roll lands in broll/");
-eq(exTo("coffee.mov").extra, true, "extra: marked as extra");
-eq(exTo("calc.mov").to, "Grace_004_Rapid Fire Questions_1stpov_handwritten_calculations.mov", "extra: object b-roll -> 1stpov");
-eq(exTo("coffee2.mov").to, "Grace_004_Rapid Fire Questions_3rdpov_making_coffee_at_home V2.mov", "extra: duplicate describe -> V2");
-eq(exTo("rapid1.mov").folder, "aroll", "extra: unplaced talking-head lands in aroll/");
-eq(exTo("rapid1.mov").to, "Grace_004_Rapid Fire Questions_rapid_fire_debt_questions.mov", "extra: talking-head named by describe (prefixed)");
-eq(exPlan.flagged.map((f) => f.file).sort(), ["junk.mov", "symbol.mov"], "extra: no-describe and symbol-only clips flag (no nameless rename)");
-eq(exPlan.renames.every((r) => /[a-z0-9]/.test(r.to.replace(/\.\w+$/, ""))), true, "extra: no rename has an empty name body");
+eq(exTo("1stPOV_scraping pan clean.mov").to, "1stPOV_scraping pan clean.mov", "extra b-roll: keep creator's own filename (no describe, no prefix)");
+eq(exTo("1stPOV_scraping pan clean.mov").folder, "broll", "extra b-roll -> broll/");
+eq(exTo("1stPOV_scraping pan clean 2.mov").to, "1stPOV_scraping pan clean 2.mov", "extra b-roll: creator's own take numbering kept");
+eq(exTo("IMG_4992.MOV").to, "IMG_4992.mov", "extra b-roll: even a plain name is kept, not AI-described");
+eq(exTo("rapid1.mov").folder, "aroll", "extra talking-head -> aroll/");
+eq(exTo("rapid1.mov").to, "Grace_004_Rapid Fire Questions_rapid_fire_debt_questions.mov", "extra talking-head: prefixed topic slug");
+eq(exPlan.flagged.length, 0, "extra b-roll is always organized (never flagged)");
 eq(/## Extra footage organized/.test(exPlan.report), true, "extra: report has an Extra footage section");
 
 // --- Scene N -> Script N in the filename (Hooks unchanged) -----------------------------------
