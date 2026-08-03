@@ -724,15 +724,23 @@ function deviceGuide(brief) {
 function _hex2rgb(h) { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); const n = parseInt(h, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
 function _lum(h) { const [r, g, b] = _hex2rgb(h).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; }
 function _sat(h) { const [r, g, b] = _hex2rgb(h); const mx = Math.max(r, g, b), mn = Math.min(r, g, b); return mx === 0 ? 0 : (mx - mn) / mx; }
+// A real BRAND colour = a saturated colour OR a dark near-neutral ink (navy, charcoal). Reject white,
+// near-white, pure black, and mid/light greys (UI chrome). Dark brand inks (e.g. #131D28) must survive.
+function _brandColor(h) { const [r, g, b] = _hex2rgb(h); const l = _lum(h), s = _sat(h); if (l > 0.9) return false; if (r < 12 && g < 12 && b < 12) return false; if (s < 0.12 && l > 0.14) return false; return true; }
+async function _fetchText(url, ms) {
+  try { const c = new AbortController(); const t = setTimeout(() => c.abort(), ms || 8000);
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CA-adbot/1.0)' }, redirect: 'follow', signal: c.signal });
+    clearTimeout(t); if (!r.ok) return ''; return (await r.text()).slice(0, 1200000);
+  } catch (e) { return ''; }
+}
 async function scanSite(url) {
   const out = { productImages: [], colors: [], fonts: [] };
   try {
     if (!url) return out;
     url = String(url).trim(); if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CA-adbot/1.0)', Accept: 'text/html' }, redirect: 'follow' });
-    if (!r.ok) return out;
-    const html = (await r.text()).slice(0, 900000);
-    const base = new URL(r.url || url);
+    const html = await _fetchText(url, 9000);
+    if (!html) return out;
+    const base = new URL(url);
     // --- PRODUCT IMAGES: og/twitter hero + product-ish <img> ---
     const cands = [];
     const bad = /logo|icon|favicon|sprite|placeholder|badge|payment|trustpilot|klarna|afterpay|avatar|flag/i;
@@ -741,18 +749,28 @@ async function scanSite(url) {
     for (const m of html.matchAll(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:image|twitter:image)["']/gi)) push(m[1]);
     for (const m of html.matchAll(/<img[^>]+src=["']([^"']+\.(?:jpg|jpeg|png|webp)[^"']*)["']/gi)) { if (/product|hero|cdn|shopify|main|feature|packshot/i.test(m[1])) push(m[1]); }
     out.productImages = [...new Set(cands.map(u => { try { return new URL(u, base).href; } catch (e) { return null; } }).filter(Boolean))].slice(0, 3);
-    // --- COLOURS: theme-color meta wins; then the most-frequent saturated, mid-luminance hex on the page ---
+    // --- pull the brand's OWN stylesheet(s): on Webflow/Shopify/React the palette + fonts live in CSS, not inline ---
+    const vendor = /swiper|splide|slick|bootstrap|fontawesome|jsdelivr|unpkg|cdnjs|gstatic|recaptcha|cookie|klaviyo|hotjar|shopify\/assets\/theme-defaults/i;
+    const sheets = [];
+    for (const m of html.matchAll(/<link[^>]+stylesheet[^>]*>/gi)) { const h = (m[0].match(/href=["']([^"']+)["']/i) || [])[1]; if (h && !vendor.test(h)) { try { sheets.push(new URL(h, base).href); } catch (e) {} } }
+    let css = '';
+    for (const h of sheets.slice(0, 2)) css += '\n' + await _fetchText(h, 8000);
+    const blob = html + '\n' + css;
+    // --- COLOURS: theme-color meta wins; then most-frequent brand colour across html + brand css ---
     const tc = html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["'](#[0-9a-fA-F]{3,6})["']/i);
     const freq = {};
-    for (const m of html.matchAll(/#[0-9a-fA-F]{6}\b/g)) { const c = m[0].toLowerCase(); try { if (_lum(c) > 0.05 && _lum(c) < 0.93 && _sat(c) > 0.22) freq[c] = (freq[c] || 0) + 1; } catch (e) {} }
+    for (const m of blob.matchAll(/#[0-9a-fA-F]{6}\b/g)) { const c = m[0].toLowerCase(); try { if (_brandColor(c)) freq[c] = (freq[c] || 0) + 1; } catch (e) {} }
     let palette = Object.entries(freq).sort((a, b) => b[1] - a[1]).map(x => x[0]);
-    if (tc) { const t = tc[1].toLowerCase(); palette = [t, ...palette.filter(c => c !== t)]; }
+    if (tc && _brandColor(tc[1].toLowerCase())) { const t = tc[1].toLowerCase(); palette = [t, ...palette.filter(c => c !== t)]; }   // ignore a white/neutral theme-color
     out.colors = palette.slice(0, 4);
-    // --- FONTS: Google Fonts families + font-family declarations (skip generic/system stacks) ---
+    // --- FONTS: Google Fonts families, @font-face names, then font-family declarations (skip system stacks) ---
     const fonts = [];
-    for (const m of html.matchAll(/fonts\.googleapis\.com\/css2?\?([^"'>]+)/gi)) { for (const f of m[1].matchAll(/family=([^:&]+)/gi)) fonts.push(decodeURIComponent(f[1].replace(/\+/g, ' ')).split(':')[0].trim()); }
-    for (const m of html.matchAll(/font-family\s*:\s*["']?([A-Za-z][A-Za-z0-9 _-]+?)["']?\s*[;,}]/gi)) { const f = m[1].trim(); if (!/^(inherit|initial|unset|sans-serif|serif|monospace|system-ui|-apple-system|blinkmacsystemfont|arial|helvetica|helvetica neue|segoe ui|roboto|ui-sans-serif|ui-serif)$/i.test(f)) fonts.push(f); }
-    out.fonts = [...new Set(fonts)].filter(f => f.length > 2 && f.length < 28).slice(0, 3);
+    for (const m of blob.matchAll(/fonts\.googleapis\.com\/css2?\?([^"'>\s)]+)/gi)) { for (const f of m[1].matchAll(/family=([^:&]+)/gi)) fonts.push(decodeURIComponent(f[1].replace(/\+/g, ' ')).split(':')[0].trim()); }
+    for (const m of blob.matchAll(/@font-face\s*\{[^}]*?font-family\s*:\s*["']?([A-Za-z][A-Za-z0-9 _-]+?)["']?\s*[;}]/gi)) fonts.push(m[1].trim());
+    const sys = /^(inherit|initial|unset|sans-serif|serif|monospace|system-ui|-apple-system|blinkmacsystemfont|arial|helvetica|helvetica neue|segoe ui|roboto|ui-sans-serif|ui-serif|tahoma|verdana|georgia|times|times new roman|courier)$/i;
+    const junkFont = /icon|glyph|webflow|fontawesome|^(heading|subheading|body|text|display|button|link|caption|label|nav|paragraph)$/i;
+    for (const m of blob.matchAll(/font-family\s*:\s*["']?([A-Za-z][A-Za-z0-9 _-]+?)["']?\s*[;,}]/gi)) { const f = m[1].trim(); if (!sys.test(f)) fonts.push(f); }
+    out.fonts = [...new Set(fonts)].filter(f => f.length > 2 && f.length < 28 && !junkFont.test(f)).slice(0, 3);
     return out;
   } catch (e) { return out; }
 }
@@ -909,4 +927,4 @@ async function produceBatch(body) {
   return { runId, brand: name, requested: N, shipped: ads.length, ads };
 }
 
-module.exports = { produceBatch, produceOne, fetchBrand, tokens, baseCss, resolveFonts };
+module.exports = { produceBatch, produceOne, fetchBrand, tokens, baseCss, resolveFonts, scanSite };
