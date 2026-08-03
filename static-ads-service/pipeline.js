@@ -206,8 +206,78 @@ const RULES = `HARD RULES:
 7. NO FABRICATED SPECIFICS: no invented $ amounts, stats, awards, review counts, or press logos. Soft illustrative ★★★★★ quotes may use a first name + initial only.
 8. Crisp HTML only. Output ONLY the <div class="stage" ...>...</div>.`;
 
+// ---- AD ANALYZER: forensic deconstruction of a chosen template so we rebuild it faithfully -----
+// Adapted from the MaxFusion Content Analyzer. The template DRIVES the format: whatever it is (UGC photo,
+// screenshot, editorial comparison, product-hero, flat-lay), we transcribe its STRUCTURE exactly, then a
+// rebuild step swaps in THIS brand's product, logo, colours and copy. Output leads with a machine-read
+// ROUTING block so we can send photoreal templates to KIE and vector/typographic ones to the HTML lane.
+const TEMPLATE_ANALYZER_PROMPT = `You are a forensic advertising transcriber. You are given ONE static ad that will be used as a TEMPLATE. Produce an exact, replicable record of its STRUCTURE and every visible element, so a designer can rebuild the SAME ad for a DIFFERENT brand — same layout, same concept device, same composition and reading order — swapping in the new brand's product, logo, colours and copy. You are a transcriber, not a critic: describe only what is observable, never praise, never judge whether it "works", never invent an element that is not there.
+
+Output EXACTLY these three parts, nothing before PART 1 and nothing after PART 3.
+
+PART 1 — ROUTING (one field per line, exact labels, machine-read):
+FORMAT: <ugc-photo | studio-photo | lifestyle-photo | screenshot-ui | 3d-render | illustration | vector-flat | infographic | collage | meme | mixed>
+RENDER: <photoreal | vector>   (photoreal = a photograph / CGI / UGC / phone-screenshot that must be image-generated; vector = flat / illustration / typographic / infographic that can be built in HTML+CSS)
+ASPECT: <1:1 | 4:5 | 9:16 | 16:9>
+HAS_PRODUCT: <yes | no>
+HAS_HUMAN: <yes | no>
+
+PART 2 — ELEMENT LOG:
+One entry per distinct element (each copy block, product, human subject, badge / logo, CTA, UI chrome, background layer), moving top-to-bottom then left-to-right. For each element, in this field order on one line:
+REGION: <position + approximate footprint, rule-of-thirds language> | TYPE: <headline | subhead | body | legal | CTA | price | product | human | icon | badge | logo | graphic shape | background | photo-cutout | illustration | chart | UI-element> | CONTENT: <if text: the words VERBATIM in quotes, exact casing, line breaks, emoji; if visual: what it is, colour, material, angle, lighting direction, what sits behind it> | STYLE: <if text: font category (serif|sans|slab|display|script|mono), weight, case, size relative to the canvas, colour, alignment, any treatment (outline, shadow, highlight box, gradient); if visual: rendering style> | HIERARCHY: <1 = grabs the eye first | 2 | 3> | ROLE: <headline | claim | CTA | price | brand mark | proof | decorative | context | background>
+Quote every piece of text verbatim, including small print. Do not skip or merge elements.
+
+PART 3 — REBUILD SPEC:
+LAYOUT: the skeleton in 2-4 sentences — the zones in order and where each sits, so the rebuilt ad is instantly recognisable as this template.
+CONCEPT DEVICE: the single mechanism (e.g. before/after split, red-X vs green-check comparison, checklist, product-hero on a colour field, UGC person holding the product, native iMessage thread, big-number stat card, flat-lay arrangement, handwritten note).
+SWAP MAP: PRODUCT ZONE -> <where/how the new brand's product goes, or NONE>; LOGO ZONE -> <where the brand mark sits>; HEADLINE ZONE -> <where, and what kind of line belongs here>; SUBHEAD ZONE -> <where, or NONE>; CTA ZONE -> <where, button shape>; PROOF ZONE -> <where, or NONE>.
+PALETTE ROLES: which colours are structural (backgrounds, panels, bars) vs accent, so they map onto the new brand's palette.
+KEEP: the structural elements that MUST be preserved to keep this template's identity.
+DROP: the old brand's specific product, logo, wordmark, names, numbers and claims (they belong to a different brand and must never leak into the rebuild).
+
+Plain text only, no markdown, no bold. Forbidden vibe words: clean, modern, premium, sleek, elegant, stunning, bold, vibrant, eye-catching, minimal — state the choice, not the impression.`;
+
+async function analyzeTemplate(url) {
+  if (!visionSafe(url)) return null;
+  try {
+    const content = [
+      { type: 'text', text: TEMPLATE_ANALYZER_PROMPT },
+      { type: 'text', text: 'THE TEMPLATE AD TO TRANSCRIBE:' },
+      { type: 'image_url', image_url: { url } },
+    ];
+    const spec = String(await chat(MODEL_VISION, [{ role: 'user', content }], 2800) || '').trim();
+    if (!spec || spec.length < 80) return null;
+    const render = (spec.match(/RENDER:\s*(photoreal|vector)/i) || [])[1] || '';
+    const format = (spec.match(/FORMAT:\s*([^\n|]+)/i) || [])[1] || '';
+    const aspect = (spec.match(/ASPECT:\s*([0-9]+:[0-9]+)/i) || [])[1] || '';
+    const hasHuman = /HAS_HUMAN:\s*yes/i.test(spec);
+    const hasProduct = /HAS_PRODUCT:\s*yes/i.test(spec);
+    // photoreal if the model said so, or the format is clearly a photo/render/screenshot
+    const photoreal = /photoreal/i.test(render) || /photo|ugc|render|cgi|screenshot|lifestyle/i.test(format);
+    return { spec, format: format.trim(), aspect, hasHuman, hasProduct, photoreal };
+  } catch (e) { return null; }
+}
+
+// TEMPLATE-FITTED COPY: the hand-picked template has no Director concept, and its own words belong to
+// another brand. Write THIS brand's headline/subhead/CTA/proof to sit in the template's zones (the copy
+// the photoreal KIE rebuild renders). One tight call; grounded only in the brand brain (no fabrication).
+async function templateBrief(spec, brain, assets) {
+  const name = assets.name || pick(brain, ['brand_name', 'client_name'], 'the brand');
+  const view = {
+    brand: name, offer: pick(brain, ['key_offer']), tone: pick(brain, ['brand_tone']),
+    benefits: String(pick(brain, ['product_benefits']) || '').slice(0, 500),
+    pains: String(pick(brain, ['core_pain_points']) || '').slice(0, 300),
+    audience: String(pick(brain, ['target_personas']) || '').slice(0, 300),
+    product: (assets.productNames || []).filter(Boolean).join(', ') || pick(brain, ['key_offer']),
+  };
+  const sys = `You are a senior direct-response copywriter. Given a TEMPLATE deconstruction and a brand, write the copy that fills the template's zones for THIS brand — matching the template's concept device and tone, in the brand's real voice. Rules: headline max ~10 words, one idea, thumb-legible; use the brand's real benefits/pains/offer; NEVER invent a statistic, price, rating, review count, award or press badge (leave proof "" unless a real one is in the brand data); no em-dashes or hyphens in copy. Output ONLY compact JSON: {"headline":"","subhead":"","cta":"","proof":"","angle":""}.`;
+  const user = `TEMPLATE DECONSTRUCTION:\n${String(spec).slice(0, 4000)}\n\nBRAND:\n${JSON.stringify(view)}\n\nWrite the copy for this template, for this brand. JSON only.`;
+  const b = jsonOf(await chat(MODEL_BUILD, [{ role: 'system', content: sys }, { role: 'user', content: user }], 700)) || {};
+  return { headline: b.headline || '', subhead: b.subhead || '', cta: b.cta || 'Learn more', proof: b.proof || '', angle: b.angle || 'template-faithful', big_idea: b.angle || '' };
+}
+
 // ---- reconstruct: LOOK at the template + the real assets, write grounded HTML --------------
-async function reconstruct(templateUrl, brain, assets, lastIssues, brief) {
+async function reconstruct(templateUrl, brain, assets, lastIssues, brief, spec) {
   const { logoDark, logoLight, name, productImages, productNames, references } = assets;
   const hasProd = !!(productImages && productImages.length);
   const material = [
@@ -233,9 +303,12 @@ async function reconstruct(templateUrl, brain, assets, lastIssues, brief) {
       `  Palette: ${brief.palette || 'brand'} (light = bright --light/--paper ground, --ink text; dark = --ink or dark --accent ground, --light text; brand = --brand ground). Give the .cta the brand's OWN colour, not a default green unless green is the brand.\n\n` +
       deviceGuide(brief);
   } else {
-    // TEMPLATE-FAITHFUL: client hand-picked this template — rebuild it exactly.
+    // TEMPLATE-FAITHFUL: client hand-picked this template — rebuild it exactly. When the ad ANALYZER has
+    // deconstructed it, its forensic spec is the authority on the layout/zones/device (more precise than
+    // eyeballing the attached image).
     txt =
-      `Recreate the ATTACHED TEMPLATE as a polished 1080x1080 ad for "${name}". FOLLOW THE TEMPLATE'S LAYOUT FAITHFULLY: the same concept device (e.g. checklist, VS/comparison, product-hero, before/after, handwritten note), the same zones in the same arrangement, the same reading order and visual rhythm. The finished ad must be immediately recognizable as THIS template, rebuilt for ${name}. Then swap ALL of the template's content for this brand: write this brand's real copy in every zone, use this brand's colours and fonts, and (when a real product photo is provided below) drop it in where the template places its product; if NO product is provided, replace any product zone with bold type instead of a hole. Depart from the template ONLY where needed to stay on-brand and to meet the quality standards below (readable type, nothing overlapping, product clear and recognizable).\n\n` +
+      `Recreate the TEMPLATE as a polished 1080x1080 ad for "${name}". FOLLOW THE TEMPLATE'S LAYOUT FAITHFULLY: the same concept device (e.g. checklist, VS/comparison, product-hero, before/after, handwritten note), the same zones in the same arrangement, the same reading order and visual rhythm. The finished ad must be immediately recognizable as THIS template, rebuilt for ${name}. Then swap ALL of the template's content for this brand: write this brand's real copy in every zone, use this brand's colours and fonts, and (when a real product photo is provided below) drop it in where the template places its product; if NO product is provided, replace any product zone with bold type instead of a hole. Depart from the template ONLY where needed to stay on-brand and to meet the quality standards below (readable type, nothing overlapping, product clear and recognizable).\n\n` +
+      (spec ? `TEMPLATE DECONSTRUCTION (the forensic transcript of the template — rebuild to THIS structure, and DROP everything under its DROP list):\n${String(spec).slice(0, 4500)}\n\n` : '') +
       `BRAND: ${name}.\n${material}\n\n`;
   }
 
@@ -429,7 +502,7 @@ async function produceOne(templateUrl, brief, brain, tok, assets, meta) {
   const flags = { hasProduct: !!(assets.productImages && assets.productImages.length), hasLogo: !!assets.logoDark };
   for (let t = 1; t <= MAX_TRIES; t++) {
     try {
-      let stage = await reconstruct(templateUrl, brain, assets, lastIssues, brief);
+      let stage = await reconstruct(templateUrl, brain, assets, lastIssues, brief, meta.faithful && meta.faithful.spec);
       if (!/class=["']stage/.test(stage) || stage.length < 500) { lastIssues = 'Output was empty or a skeleton. Build the COMPLETE ad with real content in every zone.'; log(`  [${meta.i}] try ${t}: empty/skeleton, retrying`); continue; }
       stage = stage.replace(/\s*[—–]\s*/g, ', ').replace(/([A-Za-z0-9]) - ([A-Za-z0-9])/g, '$1, $2'); // strip em/en dashes and dash-hyphens from the copy (never ship them)
       const { buf, issues: layoutIssues } = await render(`<!doctype html><html><head><meta charset="utf8"><style>${base}</style></head><body>${stage}</body></html>`);
@@ -534,13 +607,52 @@ function composeKiePrompt(brief, brain, assets, platform, lastIssues, aspect, st
     lastIssues ? `FIX these problems from the last attempt: ${lastIssues}` : '',
   ].filter(Boolean).join('\n');
 }
+// KIE prompt for a FAITHFUL template rebuild (photoreal templates): recreate the analyzed template's
+// layout + concept + composition, but rebuilt for THIS brand — swap in the real product, this brand's
+// copy (from templateBrief) and palette; the real logo is composited afterward onto the reserved band.
+function composeKieFaithful(spec, brief, brain, assets, platform, lastIssues, aspect) {
+  const tall = aspect === '9:16';
+  const name = assets.name || pick(brain, ['brand_name', 'client_name'], 'the brand');
+  const t = tokens(brain);
+  const hl = String(brief && brief.headline || '').replace(/\s*\/\s*/g, ' ');
+  const sub = String(brief && brief.subhead || '').trim();
+  const cta = String(brief && brief.cta || 'Learn more').trim();
+  const proof = brief && brief.proof ? String(brief.proof).trim() : '';
+  const hasProd = !!(assets.productImagesRaw && assets.productImagesRaw.length) || !!(assets.productImages && assets.productImages.length);
+  const refNote = hasProd
+    ? 'Reference image 1 is THIS brand\'s REAL PRODUCT (the hero). Reproduce it EXACTLY — real packaging, label text, shape and colours; do NOT redesign or relabel it. Do NOT draw the brand name, a wordmark, or ANY logo anywhere.'
+    : 'Do NOT draw the brand name, a wordmark, or ANY logo anywhere.';
+  const band = 'RESERVE THE TOP 14% OF THE IMAGE as a clean, empty header band: plain uncluttered background, NO text, NO product inside that band. The real brand logo is composited into that band afterward. Start the headline and all content BELOW that band.';
+  return [
+    `Recreate the AD described below (a proven TEMPLATE) as a ${tall ? '9:16 vertical / portrait' : '1:1 square'} ${platform || 'Meta / Instagram'} advertisement for the brand "${name}", high-end commercial quality. Rebuild the SAME layout, the SAME concept device, the SAME composition and reading order as the template — but entirely for THIS brand.`,
+    `TEMPLATE TO REBUILD (follow this structure faithfully; this is the ad's skeleton and concept):\n${String(spec).slice(0, 5000)}`,
+    refNote,
+    band,
+    assets.productBrief ? `PRODUCT FACTS (render the product true to this, correct packaging + real scale): ${assets.productBrief}` : '',
+    `SWAP EVERYTHING TO THIS BRAND: place ${hasProd ? "the real product (reference image 1)" : 'no product (this brand has none, keep the template\'s product zone as bold type or scene, do NOT invent a product)'} exactly where the template stages its product; write THIS brand's copy into each text zone; use this brand's palette (${t.brand}${pick(brain, ['secondary_color_hex']) ? ' + ' + pick(brain, ['secondary_color_hex']) : ''} + accent ${t.accent}). DROP the template's original product, logo, wordmark, names, numbers and claims completely — none may leak in.`,
+    `ON-IMAGE TEXT, rendered crisply and spelled EXACTLY, in the template's text zones (no other text anywhere):`,
+    `  - HEADLINE (where the template's headline sits): "${hl}".`,
+    sub ? `  - SUBHEAD (where the template's subhead sits): "${sub}".` : '',
+    `  - CTA BUTTON (a rounded pill, where the template's CTA sits): "${cta}".`,
+    proof ? `  - One small proof line, verbatim, do not alter: "${proof}".` : '',
+    `HARD NEGATIVES: no misspelled / garbled / gibberish text; no lorem; no extra or invented logos; no watermark; do NOT invent any statistic, price, star rating, review count or press badge not given above; no duplicate products; keep everything inside the frame with clean margins.`,
+    lastIssues ? `FIX these problems from the last attempt: ${lastIssues}` : '',
+  ].filter(Boolean).join('\n');
+}
+
 // QA a KIE-generated image: product fidelity + legible correct text + on-brand + no garble/fabrication.
-async function qaKie(renderedUrl, brain, brief, productNames) {
+// `faithful` = this is a template REBUILD (not a Director concept), so DON'T pin an exact headline string:
+// the copy is adapted into the template's zones (a comparison splits it across columns, etc.) and demanding
+// one literal headline false-fails good rebuilds. Judge garble / product fidelity / legibility / on-brand.
+async function qaKie(renderedUrl, brain, brief, productNames, faithful) {
   const name = pick(brain, ['brand_name', 'client_name'], 'the brand');
   const subject = (Array.isArray(productNames) && productNames.length) ? productNames.filter(Boolean).join(', ') : 'the product';
-  const wantHeadline = brief ? String(brief.headline || '').replace(/\s*\/\s*/g, ' ') : '';
+  const wantHeadline = (!faithful && brief) ? String(brief.headline || '').replace(/\s*\/\s*/g, ' ') : '';
+  const headlineRule = faithful
+    ? `(3) all on-image text must be LEGIBLE and correctly spelled. Do NOT require any specific headline wording — the copy is adapted from a template, so whatever on-brand copy the ad shows is fine as long as it is spelled correctly and reads clearly.`
+    : `(3) the headline${wantHeadline ? ` should read "${wantHeadline}"` : ''} must be legible and correctly spelled.`;
   const content = [
-    { type: 'text', text: `You are a TOUGH art director doing QA on this AI-GENERATED 1:1 product ad for "${name}" (product: ${subject}). Return JSON {"score": <1-10 integer; 10=ship-ready paid-social ad, 7=good with minor nits, 6 or below=a designer would reject>, "issues":[specific fixes]}. This ad was image-generated, so CHECK HARD FOR: (1) GARBLED / MISSPELLED / gibberish in the GENERATED copy (headline, subhead, CTA, product label) — warped letters, nonsense words — score 4 or below if present. The BRAND LOGO in a corner is the REAL brand logo composited in, so NEVER treat its lettering, stylization, or an intentionally reversed / unusual letter as a misspelling (it is correct by definition); judge only the generated copy. (2) the product must be the real ${subject}, the HERO, clean and undistorted (not warped, duplicated, or a floating sticker); (3) the headline${wantHeadline ? ` should read "${wantHeadline}"` : ''} must be legible and correctly spelled; (4) on-brand, professional, uncluttered, nothing cut off by the frame; (5) NO fabricated stats / prices / star ratings / press logos that were not intended. A clean, photoreal, correctly-spelled, on-brand product ad scores 8-9. Be strict — garbled generated text is an automatic fail.` },
+    { type: 'text', text: `You are a TOUGH art director doing QA on this AI-GENERATED 1:1 ${faithful ? 'ad (a proven template rebuilt for this brand)' : 'product ad'} for "${name}" (product: ${subject}). Return JSON {"score": <1-10 integer; 10=ship-ready paid-social ad, 7=good with minor nits, 6 or below=a designer would reject>, "issues":[specific fixes]}. This ad was image-generated, so CHECK HARD FOR: (1) GARBLED / MISSPELLED / gibberish in the GENERATED copy (headline, subhead, CTA, product label) — warped letters, nonsense words — score 4 or below if present. The BRAND LOGO in a corner is the REAL brand logo composited in, so NEVER treat its lettering, stylization, or an intentionally reversed / unusual letter as a misspelling (it is correct by definition); judge only the generated copy. (2) the product shown must be the real ${subject}, clean and undistorted (not warped, duplicated, or a floating sticker)${faithful ? ' — unless the template genuinely has no product zone' : ', and the HERO'}; ${headlineRule} (4) on-brand, professional, uncluttered, nothing cut off by the frame; (5) NO fabricated stats / prices / star ratings / press logos that were not intended. A clean, photoreal, correctly-spelled, on-brand ad scores 8-9. Be strict about garbled generated text (automatic fail), but do NOT invent a headline-mismatch complaint when the text is spelled correctly.` },
     { type: 'text', text: 'THE AD:' }, { type: 'image_url', image_url: { url: renderedUrl } },
   ];
   const v = jsonOf(await chat(MODEL_VISION, [{ role: 'user', content }], 800)) || {};
@@ -558,10 +670,14 @@ async function produceOneKie(brief, brain, tok, assets, meta) {
   const band = assets.logoBand || '#FFFFFF';
   const aspect = /9:16|story|reel|vertical/i.test(meta.platform || '') ? '9:16' : '1:1';
   const [aw, ah] = aspect === '9:16' ? [1080, 1920] : [1080, 1080];   // overlay dims must match the aspect or it crops
-  const style = AD_STYLES[((meta.i || 1) - 1 + AD_STYLES.length) % AD_STYLES.length];   // rotate a distinct art-direction per ad
+  const faithful = meta.faithful || null;                                                // {spec, brief} → rebuild THIS template
+  const fbrief = faithful ? faithful.brief : brief;
+  const style = AD_STYLES[((meta.i || 1) - 1 + AD_STYLES.length) % AD_STYLES.length];   // rotate a distinct art-direction per ad (concept mode only)
   for (let t = 1; t <= MAX_TRIES; t++) {
     try {
-      const prompt = composeKiePrompt(brief, brain, assets, meta.platform, lastIssues, aspect, style);
+      const prompt = faithful
+        ? composeKieFaithful(faithful.spec, fbrief, brain, assets, meta.platform, lastIssues, aspect)
+        : composeKiePrompt(brief, brain, assets, meta.platform, lastIssues, aspect, style);
       const kieUrl = await kieGenerate({ prompt, imageUrls: refs, aspect }, log);
       // Composite the REAL brand logo onto the KIE image via Chrome (KIE left the top-left clean). This
       // places the EXACT brand mark (SVG or raster) instead of KIE's text rendering of the brand name.
@@ -577,7 +693,7 @@ async function produceOneKie(brief, brain, tok, assets, meta) {
         buf = Buffer.from(await r.arrayBuffer());
       }
       const url = await store(buf, `produced/${norm(meta.brand)}/${meta.runId}-${meta.i}-t${t}.png`);  // rehost (KIE URLs die in ~24h)
-      const v = await qaKie(url, brain, brief, assets.productNames);
+      const v = await qaKie(url, brain, fbrief, assets.productNames, !!faithful);
       log(`  [${meta.i}] KIE try ${t}: score ${v.score}${v.issues && v.issues.length ? ' — ' + v.issues.join('; ').slice(0, 110) : ''}`);
       if (v.score > best.score) best = { score: v.score, url };
       if (v.score >= SHIP_SCORE) break;
@@ -861,13 +977,29 @@ async function produceBatch(body) {
   if (!logoDark) log(`  NOTE: no logo in brand_brain.logo_urls for "${name}" — using a text wordmark. Add the real logo with set-logo.js to get the brand mark.`);
   if (!productImages.length) log(`  NOTE: no product image (form or brand_brain) — ads will be typographic with no product shown.`);
 
+  // AD ANALYZER — for HAND-PICKED templates, forensically deconstruct each so the rebuild is faithful AND
+  // the template DRIVES the lane+format: photoreal / UGC templates → KIE photoreal rebuild, vector / editorial
+  // → HTML rebuild. (Auto-picked batches use the Creative Director concept path instead — see below.)
+  const handPicked = !autoPicked && templates.length > 0;
+  const tplAnalysis = {};
+  if (handPicked) {
+    const uniq = [...new Set(templates.map(t => t.image_url))].filter(visionSafe);
+    const got = await Promise.all(uniq.map(u => analyzeTemplate(u)));
+    uniq.forEach((u, k) => { if (got[k]) tplAnalysis[u] = got[k]; });
+    const nPhoto = Object.values(tplAnalysis).filter(a => a.photoreal).length;
+    log(`  ad analyzer: ${Object.keys(tplAnalysis).length}/${uniq.length} template(s) deconstructed — ${nPhoto} photoreal → KIE, ${Object.keys(tplAnalysis).length - nPhoto} vector → HTML`);
+  }
+  const anyPhotoTemplate = kieEnabled() && Object.values(tplAnalysis).some(a => a.photoreal);
+
   // RENDER LANE: photoreal KIE (nano-banana-pro) for PRODUCT brands when a KIE key is set — Claude's
   // concept + the real product photo → a real product ad. Else the HTML/vector lane. Force with FORCE_KIE=1.
   const useKie = kieEnabled() && (productImagesRaw.length > 0 || String(E.FORCE_KIE || '') === '1');
-  if (useKie) {
-    log(`  render lane: KIE (nano-banana-pro) — photoreal product ads`);
-    assets.productBrief = await analyzeProduct(productImagesRaw[0], productNames[0], brain);   // understand the product once
-    if (assets.productBrief) log('  product analyzer: ' + assets.productBrief.slice(0, 100));
+  if (useKie || anyPhotoTemplate) {   // prep KIE assets for the concept lane OR faithful photoreal templates
+    if (useKie) log(`  render lane: KIE (nano-banana-pro) — photoreal product ads`);
+    if (productImagesRaw[0]) {
+      assets.productBrief = await analyzeProduct(productImagesRaw[0], productNames[0], brain);   // understand the product once
+      if (assets.productBrief) log('  product analyzer: ' + assets.productBrief.slice(0, 100));
+    }
     const lg = assets.logoDark || assets.logoLight;   // pick a logo band that CONTRASTS with the logo's ink
     if (lg) {
       assets.logoForBand = lg;
@@ -878,6 +1010,15 @@ async function produceBatch(body) {
         : (cols.filter(c => lum(c) > 0.72).sort((a, b) => lum(b) - lum(a))[0] || '#FFFFFF');   // dark logo → lightest brand colour
       log(`  logo band: ${assets.logoBand} (${lightLogo ? 'light' : 'dark'} logo)`);
     }
+  }
+
+  // TEMPLATE-FITTED COPY for the photoreal templates: the hand-picked template has no Director concept and
+  // its own words belong to another brand, so write THIS brand's copy to fill its zones (KIE renders it).
+  if (anyPhotoTemplate) {
+    await Promise.all(Object.keys(tplAnalysis).filter(u => tplAnalysis[u].photoreal).map(async (u) => {
+      try { tplAnalysis[u].brief = await templateBrief(tplAnalysis[u].spec, brain, assets); }
+      catch (e) { log('  templateBrief failed: ' + String(e.message || e).slice(0, 80)); }
+    }));
   }
 
   // CREATIVE DIRECTOR: decide the concept (a sharp angle + a visual device) for every ad ONCE, up front.
@@ -908,10 +1049,21 @@ async function produceBatch(body) {
       const i = jobs++;
       const meta = { brand: name, i: i + 1, runId, platform };
       const brief = (realBriefs && realBriefs.length) ? realBriefs[i % realBriefs.length] : null;
+      const tpl = templates[i % templates.length];
       try {
-        const r = useKie
-          ? await produceOneKie(brief, brain, tok, assets, meta)
-          : await produceOne(templates[i % templates.length].image_url, brief, brain, tok, assets, meta);
+        let r;
+        if (brief) {
+          // AUTO-PICKED concept path (Creative Director decides the angle + device).
+          r = useKie
+            ? await produceOneKie(brief, brain, tok, assets, meta)
+            : await produceOne(tpl.image_url, brief, brain, tok, assets, meta);
+        } else {
+          // HAND-PICKED faithful path — the analyzed template drives the lane + format.
+          const a = tplAnalysis[tpl.image_url] || null;
+          r = (a && a.photoreal && kieEnabled())
+            ? await produceOneKie(null, brain, tok, assets, { ...meta, faithful: { spec: a.spec, brief: a.brief } })
+            : await produceOne(tpl.image_url, null, brain, tok, assets, { ...meta, faithful: { spec: a && a.spec } });
+        }
         if (r && results.length < N) results.push(r);
       } catch (e) {
         if (e && e.outOfCredits) { outOfCredits = true; log('  KIE OUT OF CREDITS — stopping this run; top up at kie.ai and re-run.'); }
