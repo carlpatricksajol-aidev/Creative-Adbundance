@@ -42,3 +42,6 @@ Docs/Static Ads Generator/workflow-updates/brand_brain_sql/
 .env.*
 *.secret
 *.secrets*
+
+# Internal system map: infra detail + client status, never publish to the public repo
+Docs/Ecosystem/
