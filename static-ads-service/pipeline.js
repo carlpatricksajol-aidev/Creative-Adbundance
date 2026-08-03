@@ -414,6 +414,67 @@ async function render(fullHtml, w = 1080, h = 1080) {
   } finally { await page.close().catch(() => {}); }
 }
 
+// Place the REAL brand logo as a SMALL, contextual mark on a generated ad — NOT a full-width header band
+// (the band made every ad read as a variant of one template). We sample the generated image's corners for
+// how clean (low-variance) and light/dark each is, then drop a small logo into the cleanest corner that
+// suits an available logo variant, choosing the contrasting variant. Placement varies naturally per ad.
+async function placeLogoOnAd(kieBuf, { logoDark, logoLight, aw, ah }) {
+  const bgData = 'data:image/png;base64,' + kieBuf.toString('base64');
+  const page = await (await getBrowser()).newPage();
+  try {
+    await page.setViewport({ width: aw, height: ah, deviceScaleFactor: 2 });
+    const markCss = `position:absolute;height:${Math.round(ah * 0.05)}px;width:auto;max-width:${Math.round(aw * 0.32)}px;object-fit:contain;display:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.32))`;
+    const html = `<!doctype html><html><head><meta charset="utf8"><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#000}.stage{width:${aw}px;height:${ah}px;position:relative;overflow:hidden}#bg{width:${aw}px;height:${ah}px;object-fit:cover;display:block}.mark{${markCss}}</style></head><body><div class="stage"><img id="bg" src="${bgData}">${logoDark ? `<img id="ld" class="mark" src="${logoDark}">` : ''}${logoLight ? `<img id="ll" class="mark" src="${logoLight}">` : ''}</div></body></html>`;
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 45000 });
+    await page.evaluate(() => Promise.all(Array.from(document.images).map(i => (i.complete ? Promise.resolve() : i.decode().catch(() => {}))))).catch(() => {});
+    await page.evaluate((haveDark, haveLight) => {
+      const bg = document.getElementById('bg');
+      const W = bg.naturalWidth || bg.width, H = bg.naturalHeight || bg.height;
+      const cw = 220, ch = Math.max(1, Math.round(H * (220 / W)));
+      const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+      const ctx = c.getContext('2d'); ctx.drawImage(bg, 0, 0, cw, ch);
+      const d = ctx.getImageData(0, 0, cw, ch).data;
+      const lumAt = (x, y) => { const i = (y * cw + x) * 4; return (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; };
+      const bw = 0.40, bh = 0.11, m = 0.045;   // logo sample box (fraction of the frame) and edge margin
+      const zones = [
+        { id: 'TL', x: m, y: m, top: true }, { id: 'TR', x: 1 - m - bw, y: m, top: true },
+        { id: 'BL', x: m, y: 1 - m - bh, top: false }, { id: 'BR', x: 1 - m - bw, y: 1 - m - bh, top: false },
+        { id: 'BC', x: 0.5 - bw / 2, y: 1 - m - bh, top: false },
+      ];
+      const both = haveDark && haveLight;
+      let best = null, bestScore = 1e9;
+      for (const z of zones) {
+        const x0 = Math.floor(z.x * cw), y0 = Math.floor(z.y * ch), x1 = Math.min(cw, Math.ceil((z.x + bw) * cw)), y1 = Math.min(ch, Math.ceil((z.y + bh) * ch));
+        let sum = 0, n = 0; const vals = [];
+        for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const l = lumAt(x, y); sum += l; vals.push(l); n++; }
+        const mean = sum / Math.max(1, n); let v = 0; for (const l of vals) v += (l - mean) * (l - mean); const std = Math.sqrt(v / Math.max(1, n));
+        // prefer clean (low std); if only one variant, prefer a zone whose tone suits it; mild bias away from top
+        const lumCost = both ? 0 : (haveDark ? (1 - mean) : mean);
+        const score = std * 2 + lumCost * 0.6 + (z.top ? 0.15 : 0);
+        if (score < bestScore) { bestScore = score; best = { z, mean }; }
+      }
+      const z = best.z, mean = best.mean;
+      const useDark = both ? (mean >= 0.5) : haveDark;
+      const el = document.getElementById(useDark ? 'ld' : 'll') || document.getElementById(haveDark ? 'ld' : 'll');
+      if (!el) return;
+      const mp = Math.round(W * 0.045);
+      el.style.display = 'block';
+      if (z.top) el.style.top = mp + 'px'; else el.style.bottom = mp + 'px';
+      if (z.id === 'BC') { el.style.left = '50%'; el.style.transform = 'translateX(-50%)'; }
+      else if (z.id === 'TR' || z.id === 'BR') el.style.right = mp + 'px';
+      else el.style.left = mp + 'px';
+      // contrast safety: if the placed variant doesn't naturally contrast with the zone, add a soft halo
+      const contrasts = both || (haveDark && mean >= 0.45) || (haveLight && mean <= 0.55);
+      if (!contrasts) el.style.filter = useDark
+        ? 'drop-shadow(0 0 7px rgba(255,255,255,.9)) drop-shadow(0 0 2px rgba(255,255,255,.95))'
+        : 'drop-shadow(0 0 7px rgba(0,0,0,.9)) drop-shadow(0 0 2px rgba(0,0,0,.95))';
+    }, !!logoDark, !!logoLight).catch(() => {});
+    await page.evaluate(() => Promise.all(Array.from(document.images).map(i => (i.complete ? Promise.resolve() : i.decode().catch(() => {}))))).catch(() => {});
+    const el = await page.$('.stage');
+    return await (el || page).screenshot({ type: 'png' });
+  } finally { await page.close().catch(() => {}); }
+}
+
 // ---- QA the render against the template (strict, hand-designed bar) ------------------------
 async function qa(templateUrl, renderedUrl, brain, flags, productNames, brief) {
   const name = pick(brain, ['brand_name', 'client_name'], 'the brand');
@@ -583,7 +644,7 @@ function composeKiePrompt(brief, brain, assets, platform, lastIssues, aspect, st
   const sub = String(brief && brief.subhead || '').trim();
   const cta = String(brief && brief.cta || 'Learn more').trim();
   const proof = brief && brief.proof ? String(brief.proof).trim() : '';
-  const refNote = 'Reference image 1 is the REAL PRODUCT (the hero). Do NOT draw the brand name, a wordmark, or ANY logo anywhere. RESERVE THE TOP 14% OF THE IMAGE as a clean, empty header band: plain uncluttered background, absolutely NO text, NO headline, NO product inside that band. The real brand logo is composited into that band afterward. START the headline and ALL other content BELOW that top band so nothing collides with the logo.';
+  const refNote = 'Reference image 1 is the REAL PRODUCT (the hero). Do NOT draw the brand name, a wordmark, or ANY logo anywhere (the real logo is composited afterward). Do NOT add a solid header/footer bar or band. Compose the ad edge to edge, but keep the four CORNERS relatively clean and uncluttered (no headline, key subject, or busy detail jammed into the extreme corners) so a small brand logo can be placed into one corner afterward.';
   const dev = (brief && brief.device && brief.device !== 'type-only' && DEVICES[brief.device]) ? DEVICES[brief.device] : null;
   const deviceHint = dev
     ? `VISUAL CONCEPT — build THIS metaphor into the scene PHOTOREALLY. This is the creative idea, so DRAMATIZE it; do NOT just place the product on a plain counter with a headline. The idea: ${dev.when} For THIS ad specifically: ${brief.device_note || ''}. Realise it with REAL objects and photography — an actual balance scale, a genuine before/after split composition, real coins or cash, a real funnel of many-into-one, a declining chart drawn on a surface, a checklist on paper, a "crossed out vs" comparison, etc. — integrated naturally with the product. EVERY ad must have a clear visual idea, never a plain product-on-a-shelf shot.`
@@ -622,7 +683,7 @@ function composeKieFaithful(spec, brief, brain, assets, platform, lastIssues, as
   const refNote = hasProd
     ? 'Reference image 1 is THIS brand\'s REAL PRODUCT (the hero). Reproduce it EXACTLY — real packaging, label text, shape and colours; do NOT redesign or relabel it. Do NOT draw the brand name, a wordmark, or ANY logo anywhere.'
     : 'Do NOT draw the brand name, a wordmark, or ANY logo anywhere.';
-  const band = 'RESERVE THE TOP 14% OF THE IMAGE as a clean, empty header band: plain uncluttered background, NO text, NO product inside that band. The real brand logo is composited into that band afterward. Start the headline and all content BELOW that band.';
+  const band = 'Do NOT add a solid header/footer bar or band. Compose the ad edge to edge per the template, but keep the four CORNERS relatively clean and uncluttered (no critical text or busy detail jammed into the extreme corners) so a small brand logo can be placed into one corner afterward.';
   return [
     `Recreate the AD described below (a proven TEMPLATE) as a ${tall ? '9:16 vertical / portrait' : '1:1 square'} ${platform || 'Meta / Instagram'} advertisement for the brand "${name}", high-end commercial quality. Rebuild the SAME layout, the SAME concept device, the SAME composition and reading order as the template — but entirely for THIS brand.`,
     `TEMPLATE TO REBUILD (follow this structure faithfully; this is the ad's skeleton and concept):\n${String(spec).slice(0, 5000)}`,
@@ -665,9 +726,6 @@ async function produceOneKie(brief, brain, tok, assets, meta) {
   // KIE; we composite the real brand mark on top afterward (Chrome renders SVG + raster crisply, and KIE
   // would only redraw a logo as garbled text anyway).
   const refs = (assets.productImagesRaw || assets.productImages || []).filter(u => u && visionSafe(u)).slice(0, 6);
-  // logo + its contrast band were resolved once in produceBatch (assets.logoForBand / assets.logoBand).
-  const logoUrl = assets.logoForBand || assets.logoDark || assets.logoLight;
-  const band = assets.logoBand || '#FFFFFF';
   const aspect = /9:16|story|reel|vertical/i.test(meta.platform || '') ? '9:16' : '1:1';
   const [aw, ah] = aspect === '9:16' ? [1080, 1920] : [1080, 1080];   // overlay dims must match the aspect or it crops
   const faithful = meta.faithful || null;                                                // {spec, brief} → rebuild THIS template
@@ -679,19 +737,17 @@ async function produceOneKie(brief, brain, tok, assets, meta) {
         ? composeKieFaithful(faithful.spec, fbrief, brain, assets, meta.platform, lastIssues, aspect)
         : composeKiePrompt(brief, brain, assets, meta.platform, lastIssues, aspect, style);
       const kieUrl = await kieGenerate({ prompt, imageUrls: refs, aspect }, log);
-      // Composite the REAL brand logo onto the KIE image via Chrome (KIE left the top-left clean). This
-      // places the EXACT brand mark (SVG or raster) instead of KIE's text rendering of the brand name.
-      let buf;
-      if (logoUrl) {
-        const bandH = Math.round(ah * 0.11), lt = Math.max(16, Math.round((bandH - 58) / 2));
-        const overlay = `<!doctype html><html><head><meta charset="utf8"><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#000}.stage{width:${aw}px;height:${ah}px;position:relative;overflow:hidden}.kbg{width:${aw}px;height:${ah}px;object-fit:cover;display:block}.band{position:absolute;top:0;left:0;width:${aw}px;height:${bandH}px;background:${band}}.blogo{position:absolute;top:${lt}px;left:60px;height:58px;width:auto;max-width:400px;object-fit:contain}</style></head><body><div class="stage"><img class="kbg" src="${kieUrl}"><div class="band"></div><img class="blogo" src="${logoUrl}"></div></body></html>`;
-        try { const rr = await render(overlay, aw, ah); buf = rr && rr.buf; } catch (e) { log(`  [${meta.i}] logo overlay failed: ${String(e.message || e).slice(0, 80)}`); }
+      // fetch the generated image once (needed both for the fallback and for logo placement analysis)
+      let buf = null, kieBuf = null;
+      try { const r = await fetch(kieUrl); if (r.ok) kieBuf = Buffer.from(await r.arrayBuffer()); } catch (e) {}
+      if (!kieBuf) { lastIssues = 'generated image fetch failed'; log(`  [${meta.i}] KIE try ${t}: image fetch failed`); continue; }
+      // Composite the REAL brand logo as a SMALL contextual mark in the cleanest corner (NOT a header band,
+      // which read as "another variant of the same template"). Placement varies per ad.
+      if (assets.logoDark || assets.logoLight) {
+        try { buf = await placeLogoOnAd(kieBuf, { logoDark: assets.logoDark, logoLight: assets.logoLight, aw, ah }); }
+        catch (e) { log(`  [${meta.i}] logo placement failed: ${String(e.message || e).slice(0, 80)}`); }
       }
-      if (!buf) {                                                  // no logo, or overlay failed → raw KIE image
-        const r = await fetch(kieUrl);
-        if (!r.ok) { lastIssues = 'generated image fetch failed'; log(`  [${meta.i}] KIE try ${t}: image fetch ${r.status}`); continue; }
-        buf = Buffer.from(await r.arrayBuffer());
-      }
+      if (!buf) buf = kieBuf;                                       // no logo, or placement failed → raw KIE image
       const url = await store(buf, `produced/${norm(meta.brand)}/${meta.runId}-${meta.i}-t${t}.png`);  // rehost (KIE URLs die in ~24h)
       const v = await qaKie(url, brain, fbrief, assets.productNames, !!faithful);
       log(`  [${meta.i}] KIE try ${t}: score ${v.score}${v.issues && v.issues.length ? ' — ' + v.issues.join('; ').slice(0, 110) : ''}`);
