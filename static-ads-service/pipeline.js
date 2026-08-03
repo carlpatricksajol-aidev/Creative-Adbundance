@@ -635,10 +635,9 @@ const isTypographic = (cat) => NOPRODUCT_CATS.has(String(cat || '').trim().toLow
 async function selectTemplates(brain, count, hasProduct) {
   let idx = (await loadTemplates()).filter(r => !SEASONAL.test(r.category || ''));
   if (!hasProduct) idx = idx.filter(r => isTypographic(r.category)); // no product → text/concept templates only (no product-hero or scene layouts)
-  const tags = templateTags(brain).map(t => t.toLowerCase());
-  const tagsOf = (r) => Array.isArray(r.industry_tags) ? r.industry_tags : String(r.industry_tags || '').split(/[,|;]/);
-  const matches = idx.filter(r => tagsOf(r).some(x => tags.includes(String(x).trim().toLowerCase())));
-  const pool = (matches.length >= count ? matches : idx).slice();
+  // RANDOMIZE a varied mix (per Carl 2026-07-31): don't try to pick the "best" per brand — shuffle the whole
+  // pool and diversify by category so each batch gets a fresh, varied spread of proven formats/concepts.
+  const pool = idx.slice();
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   const perCat = Math.max(1, Math.ceil(count / 4)), catCount = {}, picks = [];
   for (const r of pool) { if (picks.length >= count) break; const c = r.category || 'x'; if ((catCount[c] || 0) >= perCat) continue; catCount[c] = (catCount[c] || 0) + 1; picks.push(r); }
@@ -700,6 +699,43 @@ function deviceGuide(brief) {
     `Colour it strictly from the ad's brand CSS vars (--red = the pain, --green = the way out, --brand/--secondary/--accent = the subject); no invented colours. Put it in its OWN container as the amplifier beneath the headline so it never overlaps other elements or spills past the frame. Do NOT repeat the headline wording inside the device.\n\n`;
 }
 
+// Scrape the brand's WEBSITE for a real product image (per Carl 2026-07-31: the form has a website URL,
+// so when no product is picked, grab how the product actually looks from the site) to feed the KIE lane.
+async function scrapeProductImages(url) {
+  try {
+    if (!url) return [];
+    url = String(url).trim(); if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CA-adbot/1.0)', Accept: 'text/html' }, redirect: 'follow' });
+    if (!r.ok) return [];
+    const html = (await r.text()).slice(0, 600000);
+    const base = new URL(r.url || url);
+    const cands = [];
+    const bad = /logo|icon|favicon|sprite|placeholder|badge|payment|trustpilot|klarna|afterpay|avatar|flag/i;
+    const push = (u) => { if (u && visionSafe(u) && !bad.test(u)) cands.push(u); };
+    // og:image / twitter:image = the hero/product image (both meta attribute orders)
+    for (const m of html.matchAll(/<meta[^>]+(?:property|name)=["'](?:og:image(?::secure_url)?|twitter:image(?::src)?)["'][^>]+content=["']([^"']+)["']/gi)) push(m[1]);
+    for (const m of html.matchAll(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:image|twitter:image)["']/gi)) push(m[1]);
+    // product-ish <img> (shopify/cdn/product/hero raster images)
+    for (const m of html.matchAll(/<img[^>]+src=["']([^"']+\.(?:jpg|jpeg|png|webp)[^"']*)["']/gi)) { if (/product|hero|cdn|shopify|main|feature|packshot/i.test(m[1])) push(m[1]); }
+    const uniq = [...new Set(cands.map(u => { try { return new URL(u, base).href; } catch (e) { return null; } }).filter(Boolean))];
+    return uniq.slice(0, 3);
+  } catch (e) { return []; }
+}
+// heuristic: a service / review / finance brand has no physical product to scrape or feature.
+const NO_PRODUCT_INDUSTRY = /\breview\b|debt|lending|\bloan\b|insurance|mortgage|\blegal\b|attorney|lawyer|consult|\bagency\b|\bfinanc|\bbank/i;
+// the brand's real product cutouts from the products table (same data the form picker uses); prefer clean
+// packshots over lifestyle/hero/model shots for a faithful KIE reference.
+async function fetchProducts(brandName) {
+  try {
+    const r = await fetch(SB_URL + '/rest/v1/products?select=product_name,product_image_url&brand_name=eq.' + encodeURIComponent(brandName) + '&limit=15', { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } });
+    if (!r.ok) return { urls: [], names: [] };
+    let rows = (await r.json()).filter(x => x && x.product_image_url && visionSafe(x.product_image_url));
+    const lifestyle = (n) => /hero|lifestyle|campaign|model|banner/i.test(String(n || ''));
+    rows.sort((a, b) => (lifestyle(a.product_name) ? 1 : 0) - (lifestyle(b.product_name) ? 1 : 0)); // packshots first
+    return { urls: rows.map(x => x.product_image_url), names: rows.map(x => x.product_name) };
+  } catch (e) { return { urls: [], names: [] }; }
+}
+
 // ---- produce a whole batch from a form submission -----------------------------------------
 async function produceBatch(body) {
   const brand = String(body.client_name || body.clientName || body.brand_name || body.brand || '').trim();
@@ -722,7 +758,24 @@ async function produceBatch(body) {
   const tok = tokens(brain);
   const name = pick(brain, ['brand_name', 'client_name'], brand || 'The Brand');
 
-  // AUTO-SELECT industry-matched templates when the client didn't hand-pick any (they just request N ads)
+  // RESOLVE THE PRODUCT (before template selection so hasProduct is right), for a product-type brand only:
+  //   form-selected → brand-brain packshot → products table (real cutouts) → scrape the website (last resort).
+  const productBrand = !NO_PRODUCT_INDUSTRY.test(pick(brain, ['industry'], ''));
+  if (!productImages.length) productImages = asArray(brain.product_image).slice(0, 1);
+  if (!productImages.length && productBrand) {
+    const pt = await fetchProducts(name);
+    if (pt.urls.length) { productImages = pt.urls.slice(0, 1); if (!productNames.length) productNames = pt.names.slice(0, 1); log(`  loaded product "${pt.names[0]}" from the library → photoreal lane`); }
+  }
+  if (!productImages.length && productBrand) {
+    const site = String(body.website || body.url || pick(brain, ['website']) || '').trim();
+    if (site) {
+      const scraped = await scrapeProductImages(site);
+      if (scraped.length) { productImages = scraped.slice(0, 1); if (!productNames.length) productNames = [pick(brain, ['brand_name'], brand) + ' product']; log(`  scraped product image from ${site} → photoreal lane`); }
+      else log(`  no product found in library or on ${site} — proceeding without a product`);
+    }
+  }
+
+  // AUTO-SELECT a randomized varied mix of templates when the client didn't hand-pick any
   if (!templates.length) {
     const n = Math.max(1, Math.min(50, +(body.static_ads_count || body.count) || 5));
     const hasProduct = productImages.length > 0 || asArray(brain.product_image).length > 0;
@@ -731,8 +784,6 @@ async function produceBatch(body) {
   }
   log(`RUN ${runId} — "${brand}" — ${templates.length} templates, ${productImages.length} product image(s)`);
 
-  // fall back to the brand-brain packshot / logo when the form didn't carry them
-  if (!productImages.length) productImages = asArray(brain.product_image).slice(0, 1);
   const productImagesRaw = productImages.slice();   // ORIGINAL packshots (with bg) — the KIE lane wants these
   // knock the background out of each product packshot so it composites cleanly (no white box) — HTML lane
   productImages = (await Promise.all(productImages.map(cutoutProduct))).filter(Boolean);
