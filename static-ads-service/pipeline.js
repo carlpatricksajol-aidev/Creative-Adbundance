@@ -486,7 +486,22 @@ async function analyzeProduct(url, productName, brain) {
     return String(txt || '').replace(/\s+/g, ' ').trim().slice(0, 500);
   } catch (e) { return ''; }
 }
-function composeKiePrompt(brief, brain, assets, platform, lastIssues, aspect) {
+// VISUAL STYLE ROTATION — the meeting's #1 note was "the outputs feel repetitive / like generic ads".
+// Each ad in a batch is assigned a DIFFERENT art-direction from this list so a set looks varied, not
+// stamped from one mould. The concept/device still leads; the style is the treatment wrapped around it.
+const AD_STYLES = [
+  'BOLD GRAPHIC POSTER — flat brand-colour blocking, oversized confident type as a design element, minimal props, punchy and modern.',
+  'WARM NATURAL LIFESTYLE — the product in real use in a lived-in setting, soft window daylight, shallow depth of field, authentic and human.',
+  'CLEAN MINIMAL STUDIO — seamless sweep backdrop, single hero product, one crisp realistic shadow, lots of calm negative space, premium and quiet.',
+  'EDITORIAL MAGAZINE — sophisticated fashion-editorial layout, refined typography, generous white space, muted premium palette, understated luxury.',
+  'HIGH-ENERGY DYNAMIC — bold diagonal composition, strong colour contrast, a sense of motion and momentum, energetic and loud.',
+  'PREMIUM DARK MOOD — deep dark background, dramatic directional rim lighting, rich shadows, luxe and cinematic.',
+  'AUTHENTIC UGC — candid, phone-shot realism, a real everyday hand/setting, unpolished and relatable, feels like a real customer post.',
+  'PLAYFUL FLAT-LAY — crisp top-down arrangement on a colour-blocked surface, the product with tidy complementary props, cheerful and organised.',
+  'BRIGHT AIRY PASTEL — soft diffused light on a pastel ground, fresh, clean and optimistic, lots of air.',
+  'TECH-CLEAN GRADIENT — a crisp modern gradient backdrop, precise geometry and alignment, bright, sharp and contemporary.',
+];
+function composeKiePrompt(brief, brain, assets, platform, lastIssues, aspect, style) {
   const tall = aspect === '9:16';
   const name = assets.name || pick(brain, ['brand_name', 'client_name'], 'the brand');
   const t = tokens(brain);
@@ -506,6 +521,7 @@ function composeKiePrompt(brief, brain, assets, platform, lastIssues, aspect) {
     `${refNote} Reproduce the product from the reference EXACTLY, its real packaging, label text, shape and colours, do NOT redesign or relabel it. Make the product the clear HERO: large, sharp, beautifully lit product photography with a soft realistic shadow, integrated into the scene (never a floating cut-out sticker).`,
     assets.productBrief ? `PRODUCT FACTS (render it true to this, correct packaging and REAL scale, staged in a fitting scene, do NOT oversize, shrink, or float it): ${assets.productBrief}` : '',
     `CONCEPT (the single idea this ad lands): ${brief ? brief.big_idea : prod}. Angle: ${brief ? brief.angle : 'benefit-led'}.`,
+    style ? `ART DIRECTION for THIS ad (make it visually DISTINCT from other ads in the set — different background, lighting and composition): ${style}` : '',
     deviceHint,
     `CREATIVE OPTIONS (use when they fit the concept): MAKE THE INVISIBLE VISIBLE — if the idea is a feeling or a hidden problem/benefit (a stain, trapped gunk in seams, heat damage, mess, freshness, low energy), SHOW that feeling or problem as a real photoreal visual instead of only stating it. ATYPICAL TEXT — you may place the headline in an unexpected but relevant real-world spot (written on a surface, in steam or condensation, on a tag) when it suits the product. The ad must be a scroll-stopping visual idea, never a plain product-on-a-counter shot. Design the VISUAL HIERARCHY so the eye lands on the hook first (biggest, highest-contrast element).`,
     `ON-IMAGE TEXT, rendered crisply and spelled EXACTLY, with clear hierarchy and generous spacing (no other text anywhere):`,
@@ -542,9 +558,10 @@ async function produceOneKie(brief, brain, tok, assets, meta) {
   const band = assets.logoBand || '#FFFFFF';
   const aspect = /9:16|story|reel|vertical/i.test(meta.platform || '') ? '9:16' : '1:1';
   const [aw, ah] = aspect === '9:16' ? [1080, 1920] : [1080, 1080];   // overlay dims must match the aspect or it crops
+  const style = AD_STYLES[((meta.i || 1) - 1 + AD_STYLES.length) % AD_STYLES.length];   // rotate a distinct art-direction per ad
   for (let t = 1; t <= MAX_TRIES; t++) {
     try {
-      const prompt = composeKiePrompt(brief, brain, assets, meta.platform, lastIssues, aspect);
+      const prompt = composeKiePrompt(brief, brain, assets, meta.platform, lastIssues, aspect, style);
       const kieUrl = await kieGenerate({ prompt, imageUrls: refs, aspect }, log);
       // Composite the REAL brand logo onto the KIE image via Chrome (KIE left the top-left clean). This
       // places the EXACT brand mark (SVG or raster) instead of KIE's text rendering of the brand name.
@@ -701,26 +718,45 @@ function deviceGuide(brief) {
 
 // Scrape the brand's WEBSITE for a real product image (per Carl 2026-07-31: the form has a website URL,
 // so when no product is picked, grab how the product actually looks from the site) to feed the KIE lane.
-async function scrapeProductImages(url) {
+// BRAND SCAN — one fetch of the client's site returns everything we can lift off it:
+//   the real product image(s), the brand colour palette, and the brand's fonts. Ricardo's ask:
+//   ads should carry the client's actual typography + colours, not a generic default.
+function _hex2rgb(h) { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); const n = parseInt(h, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function _lum(h) { const [r, g, b] = _hex2rgb(h).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; }
+function _sat(h) { const [r, g, b] = _hex2rgb(h); const mx = Math.max(r, g, b), mn = Math.min(r, g, b); return mx === 0 ? 0 : (mx - mn) / mx; }
+async function scanSite(url) {
+  const out = { productImages: [], colors: [], fonts: [] };
   try {
-    if (!url) return [];
+    if (!url) return out;
     url = String(url).trim(); if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CA-adbot/1.0)', Accept: 'text/html' }, redirect: 'follow' });
-    if (!r.ok) return [];
-    const html = (await r.text()).slice(0, 600000);
+    if (!r.ok) return out;
+    const html = (await r.text()).slice(0, 900000);
     const base = new URL(r.url || url);
+    // --- PRODUCT IMAGES: og/twitter hero + product-ish <img> ---
     const cands = [];
     const bad = /logo|icon|favicon|sprite|placeholder|badge|payment|trustpilot|klarna|afterpay|avatar|flag/i;
     const push = (u) => { if (u && visionSafe(u) && !bad.test(u)) cands.push(u); };
-    // og:image / twitter:image = the hero/product image (both meta attribute orders)
     for (const m of html.matchAll(/<meta[^>]+(?:property|name)=["'](?:og:image(?::secure_url)?|twitter:image(?::src)?)["'][^>]+content=["']([^"']+)["']/gi)) push(m[1]);
     for (const m of html.matchAll(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:image|twitter:image)["']/gi)) push(m[1]);
-    // product-ish <img> (shopify/cdn/product/hero raster images)
     for (const m of html.matchAll(/<img[^>]+src=["']([^"']+\.(?:jpg|jpeg|png|webp)[^"']*)["']/gi)) { if (/product|hero|cdn|shopify|main|feature|packshot/i.test(m[1])) push(m[1]); }
-    const uniq = [...new Set(cands.map(u => { try { return new URL(u, base).href; } catch (e) { return null; } }).filter(Boolean))];
-    return uniq.slice(0, 3);
-  } catch (e) { return []; }
+    out.productImages = [...new Set(cands.map(u => { try { return new URL(u, base).href; } catch (e) { return null; } }).filter(Boolean))].slice(0, 3);
+    // --- COLOURS: theme-color meta wins; then the most-frequent saturated, mid-luminance hex on the page ---
+    const tc = html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["'](#[0-9a-fA-F]{3,6})["']/i);
+    const freq = {};
+    for (const m of html.matchAll(/#[0-9a-fA-F]{6}\b/g)) { const c = m[0].toLowerCase(); try { if (_lum(c) > 0.05 && _lum(c) < 0.93 && _sat(c) > 0.22) freq[c] = (freq[c] || 0) + 1; } catch (e) {} }
+    let palette = Object.entries(freq).sort((a, b) => b[1] - a[1]).map(x => x[0]);
+    if (tc) { const t = tc[1].toLowerCase(); palette = [t, ...palette.filter(c => c !== t)]; }
+    out.colors = palette.slice(0, 4);
+    // --- FONTS: Google Fonts families + font-family declarations (skip generic/system stacks) ---
+    const fonts = [];
+    for (const m of html.matchAll(/fonts\.googleapis\.com\/css2?\?([^"'>]+)/gi)) { for (const f of m[1].matchAll(/family=([^:&]+)/gi)) fonts.push(decodeURIComponent(f[1].replace(/\+/g, ' ')).split(':')[0].trim()); }
+    for (const m of html.matchAll(/font-family\s*:\s*["']?([A-Za-z][A-Za-z0-9 _-]+?)["']?\s*[;,}]/gi)) { const f = m[1].trim(); if (!/^(inherit|initial|unset|sans-serif|serif|monospace|system-ui|-apple-system|blinkmacsystemfont|arial|helvetica|helvetica neue|segoe ui|roboto|ui-sans-serif|ui-serif)$/i.test(f)) fonts.push(f); }
+    out.fonts = [...new Set(fonts)].filter(f => f.length > 2 && f.length < 28).slice(0, 3);
+    return out;
+  } catch (e) { return out; }
 }
+async function scrapeProductImages(url) { return (await scanSite(url)).productImages; }
 // heuristic: a service / review / finance brand has no physical product to scrape or feature.
 const NO_PRODUCT_INDUSTRY = /\breview\b|debt|lending|\bloan\b|insurance|mortgage|\blegal\b|attorney|lawyer|consult|\bagency\b|\bfinanc|\bbank/i;
 // the brand's real product cutouts from the products table (same data the form picker uses); prefer clean
@@ -755,25 +791,38 @@ async function produceBatch(body) {
 
   const brain = await fetchBrand(brand, body.sister_brand);
   if (!brain._found) log(`  WARNING: no Brand Brain row for "${brand}" — copy will be thin`);
-  const tok = tokens(brain);
   const name = pick(brain, ['brand_name', 'client_name'], brand || 'The Brand');
+  const productBrand = !NO_PRODUCT_INDUSTRY.test(pick(brain, ['industry'], ''));
+
+  // BRAND SCAN — one fetch of the client's site lifts the real product image(s), colour palette and
+  // fonts (Ricardo's ask). The dossier wins when it already carries them; the scan fills the gaps so a
+  // brand with a thin/empty brain still renders in its true colours + typography instead of a default.
+  const site = String(body.website || body.url || pick(brain, ['website']) || '').trim();
+  let scan = { productImages: [], colors: [], fonts: [] };
+  if (site) {
+    scan = await scanSite(site);
+    if (!pick(brain, ['primary_color_hex']) && scan.colors[0]) {
+      brain.primary_color_hex = scan.colors[0];
+      if (scan.colors[1]) brain.secondary_color_hex = scan.colors[1];
+      if (scan.colors[2]) brain.accent_color_hex = scan.colors[2];
+    }
+    if (!pick(brain, ['brand_fonts']) && scan.fonts.length) brain.brand_fonts = scan.fonts.join(', ');
+    if (scan.colors.length || scan.fonts.length) log(`  brand scan (${site}): colours ${scan.colors.join(' ') || '—'} · fonts ${scan.fonts.join(', ') || '—'}`);
+  }
+  const tok = tokens(brain);   // now reflects the scanned palette + fonts
 
   // RESOLVE THE PRODUCT (before template selection so hasProduct is right), for a product-type brand only:
-  //   form-selected → brand-brain packshot → products table (real cutouts) → scrape the website (last resort).
-  const productBrand = !NO_PRODUCT_INDUSTRY.test(pick(brain, ['industry'], ''));
+  //   form-selected → brand-brain packshot → products library (real cutouts) → website scan (last resort).
   if (!productImages.length) productImages = asArray(brain.product_image).slice(0, 1);
   if (!productImages.length && productBrand) {
     const pt = await fetchProducts(name);
     if (pt.urls.length) { productImages = pt.urls.slice(0, 1); if (!productNames.length) productNames = pt.names.slice(0, 1); log(`  loaded product "${pt.names[0]}" from the library → photoreal lane`); }
   }
-  if (!productImages.length && productBrand) {
-    const site = String(body.website || body.url || pick(brain, ['website']) || '').trim();
-    if (site) {
-      const scraped = await scrapeProductImages(site);
-      if (scraped.length) { productImages = scraped.slice(0, 1); if (!productNames.length) productNames = [pick(brain, ['brand_name'], brand) + ' product']; log(`  scraped product image from ${site} → photoreal lane`); }
-      else log(`  no product found in library or on ${site} — proceeding without a product`);
-    }
+  if (!productImages.length && productBrand && scan.productImages.length) {
+    productImages = scan.productImages.slice(0, 1); if (!productNames.length) productNames = [name + ' product'];
+    log(`  scanned product image from ${site} → photoreal lane`);
   }
+  if (!productImages.length && productBrand) log(`  no product found in library or on the site — proceeding without a product`);
 
   // AUTO-SELECT a randomized varied mix of templates when the client didn't hand-pick any
   if (!templates.length) {
