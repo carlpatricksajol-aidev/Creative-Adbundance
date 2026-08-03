@@ -414,61 +414,46 @@ async function render(fullHtml, w = 1080, h = 1080) {
   } finally { await page.close().catch(() => {}); }
 }
 
-// Place the REAL brand logo as a SMALL, contextual mark on a generated ad — NOT a full-width header band
-// (the band made every ad read as a variant of one template). We sample the generated image's corners for
-// how clean (low-variance) and light/dark each is, then drop a small logo into the cleanest corner that
-// suits an available logo variant, choosing the contrasting variant. Placement varies naturally per ad.
-async function placeLogoOnAd(kieBuf, { logoDark, logoLight, aw, ah }) {
+// Decide where (and WHETHER) to place the brand logo on a finished ad — a real art-director judgement, not
+// a mechanical corner pick. A vision pass looks at the ad and returns a spot that does NOT cover the CTA,
+// headline, product or a face; picks the contrasting variant; and can decline (place=false) when the ad
+// already carries the brand or has no clean spot. Returns {place, position, variant} or null on failure.
+async function chooseLogoPlacement(imageUrl, { haveDark, haveLight, brandName }) {
+  const both = haveDark && haveLight;
+  const variantOpts = both ? `"dark" or "light"` : (haveDark ? `"dark"` : `"light"`);
+  const only = haveDark ? 'dark' : 'light', needsBg = haveDark ? 'light' : 'dark';
+  const content = [
+    { type: 'text', text: `You are a senior art director adding ONE small brand logo onto this finished ad for "${brandName}". Decide the single best spot. Return ONLY JSON {"place": true or false, "position": "top-left"|"top-right"|"bottom-left"|"bottom-right"|"top-center"|"bottom-center", "variant": ${variantOpts}, "reason": "short"}.
+RULES:
+1. Put the mark in a CLEAN, uncluttered area where a small logo looks intentional and balanced, like a real designer would.
+2. It must NOT cover or touch the CTA button, the headline, any body text, the product, or a person's face. If a position would overlap any of those, do not choose it.
+3. variant: choose "dark" for a LIGHT area, "light" for a DARK area, so the mark stays legible.
+4. Set "place": false if the ad ALREADY shows the brand name or logo clearly as part of its design, OR if every candidate spot would cover something important. It is fine to skip.
+${both ? '' : `5. IMPORTANT: the only logo variant available is ${only}, so you MUST choose a position whose background is ${needsBg} enough for a ${only} mark to read clearly. If no ${needsBg} clean area exists, set "place": false rather than placing it where it would not contrast.`}` },
+    { type: 'text', text: 'THE AD (logo not yet added):' }, { type: 'image_url', image_url: { url: imageUrl } },
+  ];
+  const v = jsonOf(await chat(MODEL_VISION, [{ role: 'user', content }], 300));
+  if (!v || typeof v.place === 'undefined') return null;
+  const position = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center'].includes(v.position) ? v.position : 'bottom-right';
+  const variant = (v.variant === 'light' && haveLight) ? 'light' : (v.variant === 'dark' && haveDark) ? 'dark' : (haveDark ? 'dark' : 'light');
+  return { place: v.place !== false, position, variant, reason: String(v.reason || '').slice(0, 80) };
+}
+// Composite the chosen logo variant onto the ad at an explicit position (a small mark, soft shadow for edge
+// definition). Pure renderer — the WHERE/WHETHER decision is made by chooseLogoPlacement above.
+async function compositeLogo(kieBuf, { logoUrl, position, variant, aw, ah }) {
   const bgData = 'data:image/png;base64,' + kieBuf.toString('base64');
+  const mp = Math.round(aw * 0.045);
+  const vert = /^bottom/.test(position) ? `bottom:${mp}px;` : `top:${mp}px;`;
+  const horiz = /center/.test(position) ? `left:50%;transform:translateX(-50%);` : (/right/.test(position) ? `right:${mp}px;` : `left:${mp}px;`);
+  // adaptive halo: a light logo gets a soft dark glow, a dark logo a soft light glow, so it reads even if
+  // the chosen area's tone is closer than expected. Plus a base shadow for edge definition.
+  const glow = variant === 'light' ? 'rgba(0,0,0,.5)' : 'rgba(255,255,255,.55)';
+  const markCss = `position:absolute;${vert}${horiz}height:${Math.round(ah * 0.05)}px;width:auto;max-width:${Math.round(aw * 0.30)}px;object-fit:contain;filter:drop-shadow(0 0 3px ${glow}) drop-shadow(0 1px 2px rgba(0,0,0,.3))`;
+  const html = `<!doctype html><html><head><meta charset="utf8"><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#000}.stage{width:${aw}px;height:${ah}px;position:relative;overflow:hidden}#bg{width:${aw}px;height:${ah}px;object-fit:cover;display:block}.mark{${markCss}}</style></head><body><div class="stage"><img id="bg" src="${bgData}"><img class="mark" src="${logoUrl}"></div></body></html>`;
   const page = await (await getBrowser()).newPage();
   try {
     await page.setViewport({ width: aw, height: ah, deviceScaleFactor: 2 });
-    const markCss = `position:absolute;height:${Math.round(ah * 0.05)}px;width:auto;max-width:${Math.round(aw * 0.32)}px;object-fit:contain;display:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.32))`;
-    const html = `<!doctype html><html><head><meta charset="utf8"><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#000}.stage{width:${aw}px;height:${ah}px;position:relative;overflow:hidden}#bg{width:${aw}px;height:${ah}px;object-fit:cover;display:block}.mark{${markCss}}</style></head><body><div class="stage"><img id="bg" src="${bgData}">${logoDark ? `<img id="ld" class="mark" src="${logoDark}">` : ''}${logoLight ? `<img id="ll" class="mark" src="${logoLight}">` : ''}</div></body></html>`;
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 45000 });
-    await page.evaluate(() => Promise.all(Array.from(document.images).map(i => (i.complete ? Promise.resolve() : i.decode().catch(() => {}))))).catch(() => {});
-    await page.evaluate((haveDark, haveLight) => {
-      const bg = document.getElementById('bg');
-      const W = bg.naturalWidth || bg.width, H = bg.naturalHeight || bg.height;
-      const cw = 220, ch = Math.max(1, Math.round(H * (220 / W)));
-      const c = document.createElement('canvas'); c.width = cw; c.height = ch;
-      const ctx = c.getContext('2d'); ctx.drawImage(bg, 0, 0, cw, ch);
-      const d = ctx.getImageData(0, 0, cw, ch).data;
-      const lumAt = (x, y) => { const i = (y * cw + x) * 4; return (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; };
-      const bw = 0.40, bh = 0.11, m = 0.045;   // logo sample box (fraction of the frame) and edge margin
-      const zones = [
-        { id: 'TL', x: m, y: m, top: true }, { id: 'TR', x: 1 - m - bw, y: m, top: true },
-        { id: 'BL', x: m, y: 1 - m - bh, top: false }, { id: 'BR', x: 1 - m - bw, y: 1 - m - bh, top: false },
-        { id: 'BC', x: 0.5 - bw / 2, y: 1 - m - bh, top: false },
-      ];
-      const both = haveDark && haveLight;
-      let best = null, bestScore = 1e9;
-      for (const z of zones) {
-        const x0 = Math.floor(z.x * cw), y0 = Math.floor(z.y * ch), x1 = Math.min(cw, Math.ceil((z.x + bw) * cw)), y1 = Math.min(ch, Math.ceil((z.y + bh) * ch));
-        let sum = 0, n = 0; const vals = [];
-        for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const l = lumAt(x, y); sum += l; vals.push(l); n++; }
-        const mean = sum / Math.max(1, n); let v = 0; for (const l of vals) v += (l - mean) * (l - mean); const std = Math.sqrt(v / Math.max(1, n));
-        // prefer clean (low std); if only one variant, prefer a zone whose tone suits it; mild bias away from top
-        const lumCost = both ? 0 : (haveDark ? (1 - mean) : mean);
-        const score = std * 2 + lumCost * 0.6 + (z.top ? 0.15 : 0);
-        if (score < bestScore) { bestScore = score; best = { z, mean }; }
-      }
-      const z = best.z, mean = best.mean;
-      const useDark = both ? (mean >= 0.5) : haveDark;
-      const el = document.getElementById(useDark ? 'ld' : 'll') || document.getElementById(haveDark ? 'ld' : 'll');
-      if (!el) return;
-      const mp = Math.round(W * 0.045);
-      el.style.display = 'block';
-      if (z.top) el.style.top = mp + 'px'; else el.style.bottom = mp + 'px';
-      if (z.id === 'BC') { el.style.left = '50%'; el.style.transform = 'translateX(-50%)'; }
-      else if (z.id === 'TR' || z.id === 'BR') el.style.right = mp + 'px';
-      else el.style.left = mp + 'px';
-      // contrast safety: if the placed variant doesn't naturally contrast with the zone, add a soft halo
-      const contrasts = both || (haveDark && mean >= 0.45) || (haveLight && mean <= 0.55);
-      if (!contrasts) el.style.filter = useDark
-        ? 'drop-shadow(0 0 7px rgba(255,255,255,.9)) drop-shadow(0 0 2px rgba(255,255,255,.95))'
-        : 'drop-shadow(0 0 7px rgba(0,0,0,.9)) drop-shadow(0 0 2px rgba(0,0,0,.95))';
-    }, !!logoDark, !!logoLight).catch(() => {});
     await page.evaluate(() => Promise.all(Array.from(document.images).map(i => (i.complete ? Promise.resolve() : i.decode().catch(() => {}))))).catch(() => {});
     const el = await page.$('.stage');
     return await (el || page).screenshot({ type: 'png' });
@@ -741,13 +726,22 @@ async function produceOneKie(brief, brain, tok, assets, meta) {
       let buf = null, kieBuf = null;
       try { const r = await fetch(kieUrl); if (r.ok) kieBuf = Buffer.from(await r.arrayBuffer()); } catch (e) {}
       if (!kieBuf) { lastIssues = 'generated image fetch failed'; log(`  [${meta.i}] KIE try ${t}: image fetch failed`); continue; }
-      // Composite the REAL brand logo as a SMALL contextual mark in the cleanest corner (NOT a header band,
-      // which read as "another variant of the same template"). Placement varies per ad.
+      // Add the REAL brand logo as a SMALL contextual mark — a vision pass decides WHERE it looks good and
+      // WHETHER to add one at all (skip if the ad already self-brands, never cover the CTA / headline / product).
       if (assets.logoDark || assets.logoLight) {
-        try { buf = await placeLogoOnAd(kieBuf, { logoDark: assets.logoDark, logoLight: assets.logoLight, aw, ah }); }
-        catch (e) { log(`  [${meta.i}] logo placement failed: ${String(e.message || e).slice(0, 80)}`); }
+        try {
+          const d = await chooseLogoPlacement(kieUrl, { haveDark: !!assets.logoDark, haveLight: !!assets.logoLight, brandName: assets.name || pick(brain, ['brand_name'], 'the brand') });
+          if (d && !d.place) { log(`  [${meta.i}] logo: skipped (${d.reason || 'ad already carries the brand'})`); }
+          else {
+            const position = d ? d.position : 'bottom-right';
+            const variant = d ? d.variant : (assets.logoDark ? 'dark' : 'light');
+            const logoUrl = variant === 'light' ? (assets.logoLight || assets.logoDark) : (assets.logoDark || assets.logoLight);
+            buf = await compositeLogo(kieBuf, { logoUrl, position, variant, aw, ah });
+            log(`  [${meta.i}] logo: ${variant} @ ${position}${d && d.reason ? ' (' + d.reason + ')' : ''}`);
+          }
+        } catch (e) { log(`  [${meta.i}] logo placement failed: ${String(e.message || e).slice(0, 80)}`); }
       }
-      if (!buf) buf = kieBuf;                                       // no logo, or placement failed → raw KIE image
+      if (!buf) buf = kieBuf;                                       // no logo, skipped, or placement failed → raw KIE image
       const url = await store(buf, `produced/${norm(meta.brand)}/${meta.runId}-${meta.i}-t${t}.png`);  // rehost (KIE URLs die in ~24h)
       const v = await qaKie(url, brain, fbrief, assets.productNames, !!faithful);
       log(`  [${meta.i}] KIE try ${t}: score ${v.score}${v.issues && v.issues.length ? ' — ' + v.issues.join('; ').slice(0, 110) : ''}`);
