@@ -45,3 +45,7 @@ Docs/Static Ads Generator/workflow-updates/brand_brain_sql/
 
 # Internal system map: infra detail + client status, never publish to the public repo
 Docs/Ecosystem/
+# Stray exports of the ecosystem map that landed outside the folder (e.g. botched filenames)
+Docs/Ecosystem*.pdf
+Docs/Ecosystem*.html
+Docs/Ecosystem*.docx

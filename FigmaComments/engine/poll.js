@@ -49,6 +49,13 @@ async function processFile(f) {
   // cheap change check: comments only (no file tree, no LLM)
   const comments = await getComments(FIGMA_TOKEN, key);
   const cursor = computeCursor(comments);
+  if (!comments.length) {
+    // an _EXT file with no client comments yet: nothing to brief. Record the cursor so we
+    // do not reprocess it every run.
+    await sbPatch("figma_watched_files", `file_key=eq.${encodeURIComponent(key)}`, { last_cursor: cursor });
+    console.error(`[poll] ${key}: no comments yet, skipped`);
+    return;
+  }
   if (cursorsEqual(cursor, f.last_cursor)) {
     console.error(`[poll] ${key}: no change (${cursor.commentCount} comments, ${cursor.resolvedCount} resolved)`);
     return;

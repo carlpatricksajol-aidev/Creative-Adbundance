@@ -23,6 +23,8 @@
   /* priority */
   --p-high:#f87171; --p-medium:#fbbf24; --p-low:#7c8496;
   --ok:#4ade80; --danger:#f87171;
+  /* status: distinct from the purple accent. resolved = client, done = designer */
+  --st-open:#94a3b8; --st-resolved:#4ade80; --st-done:#38bdf8; --st-new:#fb923c;
 }
 @media (prefers-color-scheme:light){
   :root:not([data-theme="dark"]){
@@ -36,6 +38,7 @@
     --c-question:#7e22ce; --c-approval:#15803d; --c-other:#475569;
     --p-high:#dc2626; --p-medium:#d97706; --p-low:#64748b;
     --ok:#15803d; --danger:#dc2626;
+    --st-open:#64748b; --st-resolved:#15803d; --st-done:#0284c7; --st-new:#c2410c;
   }
 }
 :root[data-theme="light"]{
@@ -49,6 +52,7 @@
   --c-question:#7e22ce; --c-approval:#15803d; --c-other:#475569;
   --p-high:#dc2626; --p-medium:#d97706; --p-low:#64748b;
   --ok:#15803d; --danger:#dc2626;
+  --st-open:#64748b; --st-resolved:#15803d; --st-done:#0284c7; --st-new:#c2410c;
 }
 :root[data-theme="dark"]{
   --bg:#0b0b0f; --bg-2:#0d0d0d;
@@ -58,6 +62,8 @@
   --c-valueprop:#fbbf24; --c-copy:#60a5fa; --c-design:#2dd4bf; --c-compliance:#f87171;
   --c-question:#c084fc; --c-approval:#4ade80; --c-other:#cbd5e1;
   --p-high:#f87171; --p-medium:#fbbf24; --p-low:#7c8496;
+  --ok:#4ade80; --danger:#f87171;
+  --st-open:#94a3b8; --st-resolved:#4ade80; --st-done:#38bdf8; --st-new:#fb923c;
 }
 
 *,*::before,*::after{box-sizing:border-box;}
@@ -124,35 +130,6 @@ a{color:inherit;}
 .sec-head h2{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-2);}
 .sec-head .sec-hint{font-size:11px;color:var(--text-4);}
 
-/* ============ SUMMARY BAR ============ */
-.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(212px,1fr));gap:12px;}
-.card{background:var(--surface);border:1.5px solid var(--border);border-radius:13px;padding:13px 14px 12px;}
-.card-lbl{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--text-4);margin-bottom:9px;}
-.tally{display:flex;flex-wrap:wrap;gap:7px;}
-.chip{display:inline-flex;align-items:center;gap:7px;border-radius:100px;padding:4px 11px 4px 9px;font-size:12px;font-weight:500;
-  border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-2);}
-.chip .dot{width:7px;height:7px;border-radius:50%;background:var(--text-4);flex-shrink:0;}
-.chip .cnt{font-size:11px;font-weight:700;color:var(--text);opacity:.85;}
-.chip.is-client{border-color:color-mix(in srgb,var(--accent) 40%,transparent);background:var(--accent-wash-2);color:var(--text);}
-.chip.is-client .dot{background:var(--accent);}
-.chip .tag{font-size:8px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:1px 5px;border-radius:4px;}
-.chip.is-client .tag{background:var(--accent-wash);color:var(--accent-light);}
-.chip.is-internal .tag{background:var(--surface-3);color:var(--text-3);}
-
-.oc-row{display:flex;gap:10px;}
-.oc{flex:1;text-align:center;border-radius:10px;padding:10px 8px;background:var(--surface-2);border:1px solid var(--border);}
-.oc .n{font-size:24px;font-weight:700;line-height:1;}
-.oc .l{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-4);margin-top:6px;}
-.oc.open .n{color:var(--p-high);}
-.oc.resolved .n{color:var(--ok);}
-
-.meter{display:flex;width:100%;height:10px;border-radius:100px;overflow:hidden;background:var(--surface-2);border:1px solid var(--border);}
-.meter span{height:100%;display:block;}
-.legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:11px;}
-.legend .li{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-2);}
-.legend .sw{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
-.legend .lc{font-weight:700;color:var(--text);margin-left:1px;}
-
 /* type color helpers */
 .tc-valueprop{--tc:var(--c-valueprop);} .tc-copy{--tc:var(--c-copy);} .tc-design{--tc:var(--c-design);}
 .tc-compliance{--tc:var(--c-compliance);} .tc-question{--tc:var(--c-question);} .tc-approval{--tc:var(--c-approval);}
@@ -186,11 +163,7 @@ a{color:inherit;}
 .pr-medium{color:var(--p-medium);background:color-mix(in srgb,var(--p-medium) 16%,transparent);}
 .pr-low{color:var(--p-low);background:color-mix(in srgb,var(--p-low) 18%,transparent);}
 
-/* ============ FILTER BAR ============ */
-.filters{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 92%,transparent);
-  backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:14px;padding:12px 14px;
-  display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:20px;}
-.filters .fl{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-4);margin-right:-2px;}
+/* ============ SELECTS + TOGGLE (file picker, Level 1 sort, Hide-done) ============ */
 .sel{background:var(--surface-2);border:1px solid var(--border-strong);border-radius:8px;padding:7px 11px;
   font-size:12px;color:var(--text);font-family:inherit;outline:none;transition:border-color .2s;max-width:200px;}
 .sel:focus{border-color:var(--accent);}
@@ -198,10 +171,6 @@ a{color:inherit;}
   background:var(--surface-2);border:1px solid var(--border-strong);border-radius:100px;padding:6px 13px;user-select:none;}
 .toggle input{accent-color:var(--accent);width:14px;height:14px;}
 .toggle.on{border-color:var(--accent);color:var(--text);background:var(--accent-wash-2);}
-.filter-spacer{flex:1;}
-.filter-reset{background:none;border:none;color:var(--text-3);font-size:11px;text-decoration:underline;padding:4px;}
-.filter-reset:hover{color:var(--text);}
-.result-note{font-size:11px;color:var(--text-4);white-space:nowrap;}
 
 /* ============ CHECKLIST ============ */
 .chk-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px;}
@@ -349,7 +318,104 @@ a{color:inherit;}
 .fyi-who .fyi-role{font-weight:400;color:var(--text-4);}
 .fyi-words{font-size:12.5px;color:var(--text-3);line-height:1.5;font-style:italic;}
 
-#toggle-all{margin-top:6px;}
+/* ============ TIMESTAMP + STATUS + NEW ============ */
+.commented{font-size:10.5px;font-weight:500;color:var(--text-3);white-space:nowrap;cursor:help;font-variant-numeric:tabular-nums;}
+.new-badge{display:inline-flex;align-items:center;font-size:8.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  color:#fff;background:var(--st-new);border-radius:5px;padding:2px 6px;white-space:nowrap;}
+.status-pill{display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  border-radius:100px;padding:2px 9px 2px 7px;white-space:nowrap;border:1px solid transparent;}
+.status-pill .sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.st-open{color:var(--st-open);background:transparent;border-color:var(--border-strong);}
+.st-open .sdot{background:var(--p-medium);}
+.st-resolved{color:var(--st-resolved);background:color-mix(in srgb,var(--st-resolved) 15%,transparent);border-color:color-mix(in srgb,var(--st-resolved) 42%,transparent);}
+.st-resolved .sdot{background:var(--st-resolved);}
+.st-done{color:var(--st-done);background:color-mix(in srgb,var(--st-done) 15%,transparent);border-color:color-mix(in srgb,var(--st-done) 42%,transparent);}
+.st-done .sdot{background:var(--st-done);}
+
+/* ============ VIEW TABS ============ */
+.board-controls{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:26px;margin-bottom:2px;}
+.viewtabs{display:inline-flex;gap:4px;background:var(--surface-2);border:1px solid var(--border);border-radius:100px;padding:4px;}
+.viewtab{display:inline-flex;align-items:center;gap:7px;border:none;background:transparent;color:var(--text-2);
+  border-radius:100px;padding:8px 18px;font-size:12px;font-weight:600;font-family:inherit;transition:background .2s,color .2s;}
+.viewtab svg{opacity:.8;}
+.viewtab:hover{color:var(--text);}
+.viewtab.active{background:var(--accent);color:#fff;}
+.viewtab.active svg{opacity:1;}
+#view-change[hidden],#view-creative[hidden]{display:none;}
+
+/* ============ TO-DO ROW: recency line ============ */
+.todo-when{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;}
+
+/* ============ CREATIVE CARDS (By creative) ============ */
+.cr-meta{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:10px;}
+.cr-count{font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums;}
+.cr-count b{color:var(--text);font-weight:700;}
+.cr-count .op{color:var(--p-high);}
+.cr-changes{display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-bottom:1px solid var(--hair);}
+.cr-changes:last-child{border-bottom:none;}
+.cr-changes-lbl{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-4);margin-bottom:2px;}
+.chk-item.done{opacity:.58;}
+.chk-item .ci-verbatim{display:none;}
+.chk-item.open .ci-verbatim{display:block;}
+.ci-caret{margin-left:auto;color:var(--text-4);transition:transform .2s;flex-shrink:0;}
+.ci-body[aria-expanded="true"] .ci-caret{transform:rotate(90deg);}
+.cr-replies{margin-top:8px;padding-left:12px;border-left:2px solid var(--border);display:flex;flex-direction:column;gap:6px;}
+.cr-reply{font-size:11.5px;color:var(--text-2);line-height:1.45;}
+.cr-reply .ry-who{font-weight:600;color:var(--text);font-size:11px;margin-right:6px;}
+.cr-reply .ry-text{margin-top:2px;}
+.cr-secondary{padding:12px 16px 14px;display:flex;flex-direction:column;gap:9px;}
+.cr-sec-lbl{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-4);}
+.cr-sec-item{background:var(--surface-2);border:1px solid var(--hair);border-radius:10px;padding:10px 13px;}
+.cr-sec-item.resolved{opacity:.62;}
+.cr-sec-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+.cr-sec-who{font-size:11px;color:var(--text-2);}
+.cr-sec-who b{font-weight:600;color:var(--text);}
+.cr-sec-words{font-size:12.5px;color:var(--text-3);line-height:1.5;font-style:italic;}
+
+/* ============ LEVEL 1: CLIENTS OVERVIEW ============ */
+.ov-head{margin-top:22px;}
+.ov-title{font-size:22px;font-weight:700;line-height:1.2;}
+.ov-hint{font-size:12.5px;color:var(--text-3);margin:5px 0 0;}
+.ov-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0;}
+.ov-search-wrap{position:relative;flex:1;min-width:200px;max-width:360px;display:flex;align-items:center;}
+.ov-search-wrap svg{position:absolute;left:12px;color:var(--text-4);pointer-events:none;}
+.ov-search{width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:10px;
+  padding:9px 13px 9px 34px;font-size:13px;color:var(--text);font-family:inherit;outline:none;transition:border-color .2s;}
+.ov-search:focus{border-color:var(--accent);}
+.ov-search::placeholder{color:var(--text-4);}
+.ov-sort-wrap{display:inline-flex;align-items:center;gap:8px;}
+.ov-count{font-size:11px;color:var(--text-4);white-space:nowrap;margin-left:auto;font-variant-numeric:tabular-nums;}
+
+.client-list{display:flex;flex-direction:column;gap:9px;}
+.client-row{display:flex;align-items:center;gap:16px;width:100%;text-align:left;text-decoration:none;color:var(--text);
+  background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:14px 18px;
+  transition:border-color .2s,background .2s,transform .15s;}
+.client-row:hover{border-color:var(--border-strong);background:var(--surface-2);transform:translateX(2px);}
+.cr-left{flex:1;min-width:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.cr-name{font-size:15.5px;font-weight:700;line-height:1.2;color:var(--text);}
+.cr-batch{font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-light);
+  background:var(--accent-wash);border:1px solid color-mix(in srgb,var(--accent) 34%,transparent);border-radius:100px;padding:3px 10px;}
+.cr-last-wrap{display:flex;align-items:center;gap:9px;min-width:194px;justify-content:flex-end;}
+.cr-last{font-size:12.5px;font-weight:500;color:var(--text-2);white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums;}
+.cr-open{display:flex;align-items:baseline;gap:5px;min-width:104px;justify-content:flex-end;font-variant-numeric:tabular-nums;}
+.cr-open-n{font-size:22px;font-weight:700;line-height:1;color:var(--p-high);}
+.client-row.all-clear .cr-open-n{color:var(--text-3);}
+.cr-open-t{font-size:10.5px;color:var(--text-4);}
+.cr-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;background:var(--ok);}
+.client-row.has-open .cr-dot{background:var(--p-high);}
+
+/* back to all clients (Level 2) */
+.ov-back{display:inline-flex;align-items:center;gap:6px;background:transparent;border:none;
+  color:var(--text-2);font-size:12px;font-weight:600;font-family:inherit;padding:6px 4px;margin-top:16px;text-decoration:none;cursor:pointer;}
+.ov-back:hover{color:var(--text);}
+.ov-back svg{flex-shrink:0;}
+
+@media (max-width:640px){
+  .client-row{gap:10px 12px;flex-wrap:wrap;padding:13px 15px;}
+  .cr-last-wrap{min-width:0;justify-content:flex-start;}
+  .cr-last{text-align:left;}
+  .cr-open{min-width:0;justify-content:flex-start;}
+}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important;}}
 @media (max-width:900px){ .sidebar{display:none;} .main{margin-left:0;} }
@@ -414,6 +480,37 @@ a{color:inherit;}
     </div>
   </header>
 
+  <!-- ============ LEVEL 1: CLIENTS OVERVIEW ============ -->
+  <div id="level1" hidden>
+    <div class="ov-head">
+      <h2 class="ov-title">Clients</h2>
+      <p class="ov-hint">Every brand with client comments. Pick one to open its revision board.</p>
+    </div>
+    <div class="ov-controls">
+      <div class="ov-search-wrap">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="ov-search" class="ov-search" type="search" placeholder="Search clients" aria-label="Search clients by name" autocomplete="off">
+      </div>
+      <label class="ov-sort-wrap">
+        <span class="fl">Sort</span>
+        <select id="ov-sort" class="sel" aria-label="Sort clients">
+          <option value="recent">Most recent comment</option>
+          <option value="az">A to Z</option>
+          <option value="open">Most open</option>
+        </select>
+      </label>
+      <span class="ov-count" id="ov-count"></span>
+    </div>
+    <div class="client-list" id="client-list"></div>
+  </div>
+
+  <!-- ============ LEVEL 2: PER-BRAND BOARD ============ -->
+  <div id="level2" hidden>
+  <button class="ov-back" id="ov-back" type="button">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+    All clients
+  </button>
+
   <!-- FALLBACK BANNER -->
   <div class="banner" id="sample-banner" style="display:none">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
@@ -426,22 +523,23 @@ a{color:inherit;}
     <select class="sel" id="file-picker" aria-label="Choose a file to review"></select>
   </div>
 
-  <!-- SUMMARY (compact) -->
-  <section class="sec" id="sec-summary">
-    <div class="summary" id="summary"></div>
-  </section>
-
-  <!-- FILTERS -->
-  <div class="filters" role="region" aria-label="Filters">
-    <span class="fl">Filter</span>
-    <select class="sel" id="f-client" aria-label="Filter by client"></select>
-    <select class="sel" id="f-type" aria-label="Filter by type"></select>
-    <select class="sel" id="f-route" aria-label="Filter by route"></select>
-    <label class="toggle" id="f-open-wrap"><input type="checkbox" id="f-open"> Open only</label>
-    <button class="filter-reset" id="f-reset">Reset</button>
-    <span class="filter-spacer"></span>
-    <span class="result-note" id="result-note"></span>
+  <!-- VIEW TABS + HIDE DONE -->
+  <div class="board-controls">
+  <div class="viewtabs" role="tablist" aria-label="View">
+    <button class="viewtab active" id="tab-change" type="button" role="tab" aria-selected="true" aria-controls="view-change">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      By change
+    </button>
+    <button class="viewtab" id="tab-creative" type="button" role="tab" aria-selected="false" aria-controls="view-creative">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      By creative
+    </button>
   </div>
+  <label class="toggle" id="f-hidedone-wrap"><input type="checkbox" id="f-hidedone"> Hide done</label>
+  </div><!-- /board-controls -->
+
+  <!-- ============ VIEW: BY CHANGE ============ -->
+  <div id="view-change">
 
   <!-- PRIMARY: CHANGES TO MAKE -->
   <section class="sec" id="sec-changes">
@@ -498,20 +596,18 @@ a{color:inherit;}
     </div>
   </section>
 
-  <!-- SHOW ALL COMMENTS (full per-ad view) -->
-  <section class="sec" id="sec-allcomments">
-    <button class="btn btn-ghost" id="toggle-all" type="button" aria-expanded="false" aria-controls="ads-region">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-      <span id="toggle-all-label">Show all comments</span>
-    </button>
-    <div id="ads-region" hidden>
-      <div class="sec-head" style="margin-top:18px;">
-        <h2>All comments, in canvas order</h2>
-        <span class="sec-hint">Every thread on every ad, the client's exact words in bold, for raw context.</span>
+  </div><!-- /view-change -->
+
+  <!-- ============ VIEW: BY CREATIVE ============ -->
+  <div id="view-creative" hidden>
+    <section class="sec" id="sec-creatives">
+      <div class="sec-head">
+        <h2>By creative</h2>
+        <span class="sec-hint">One card per ad. What to change on each, checkboxes you can tick off, plus the notes for strategy or that need an answer.</span>
       </div>
-      <div id="ads"></div>
-    </div>
-  </section>
+      <div id="creatives"></div>
+    </section>
+  </div><!-- /view-creative -->
 
   <!-- EXPORT -->
   <div class="hdr-actions" style="margin-top:24px;gap:10px;flex-wrap:wrap;">
@@ -524,6 +620,7 @@ a{color:inherit;}
       Download CSV
     </button>
   </div>
+  </div><!-- /level2 -->
 </div>
 </div>
 
@@ -552,71 +649,61 @@ function relTime(iso){
   for(const [n,sec] of u){ if(s>=sec){ const v=Math.floor(s/sec); return `${fut?"in ":""}${v} ${n}${v>1?"s":""}${fut?"":" ago"}`; } }
   return "just now";
 }
-function fmtDate(iso){ const d=new Date(iso); if(isNaN(d)) return ""; return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+" "+d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}); }
 
 let DATA;                        // active brief
 let themeById = {};              // id -> theme, for per-thread back-links
-const state = { client:"all", type:"all", route:"all", openOnly:false };
+// Filters were removed. Sort is a FIXED default: priority high>med>low, then most-recent comment.
+const state = { sort:"priority", hideDone:false, view:"change" };
+
+/* ================= TIME + RECENCY + STATUS HELPERS ================= */
+const NEW_MS = 3*86400*1000;     // "NEW" window: within 3 days of generatedAt
+const PW = { high:0, medium:1, low:2 };
+function fmtFull(iso){ const d=new Date(iso); if(isNaN(d)) return ""; return d.toLocaleString(undefined,{year:"numeric",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}); }
+function threadLatestMs(th){
+  let t = new Date(th.createdAt).getTime(); if(isNaN(t)) t = -Infinity;
+  (th.replies||[]).forEach(r=>{ const rt=new Date(r.createdAt).getTime(); if(!isNaN(rt)&&rt>t) t=rt; });
+  return t;
+}
+function genMs(){ const g = DATA && DATA.generatedAt ? new Date(DATA.generatedAt).getTime() : NaN; return isNaN(g)?Date.now():g; }
+function isNewMs(ms){ return ms!=null && isFinite(ms) && Math.abs(genMs()-ms) <= NEW_MS; }
+function isNewThread(th){ return isNewMs(threadLatestMs(th)); }
+function commentedSpan(iso, prefix){
+  const rel = relTime(iso); if(!rel) return "";
+  return `<span class="commented" title="${esc(fmtFull(iso))}">${prefix||"commented "}${esc(rel)}</span>`;
+}
+function lastCommentSpan(ms){
+  if(ms==null || !isFinite(ms)) return "";
+  const iso = new Date(ms).toISOString();
+  return `<span class="commented" title="${esc(fmtFull(iso))}">last comment ${esc(relTime(iso))}</span>`;
+}
+function newBadge(on){ return on ? `<span class="new-badge" title="Commented within 3 days of this brief">New</span>` : ""; }
+// Per-thread status: resolved (client marked it in Figma) > done (designer checkbox) > open.
+function threadStatus(th){
+  if(th.resolved) return "resolved";
+  return isDoneId(th.commentId, false) ? "done" : "open";
+}
+function statusPill(status){
+  const lbl = status==="resolved" ? "Resolved" : status==="done" ? "Done" : "Open";
+  return `<span class="status-pill st-${status}"><span class="sdot"></span>${lbl}</span>`;
+}
+function hiddenByDone(status){ return state.hideDone && status!=="open"; }
+function repliesHTML(th){
+  if(!th.replies || !th.replies.length) return "";
+  return `<div class="cr-replies">` + th.replies.map(r=>
+    `<div class="cr-reply"><span class="ry-who">${esc(r.author)}</span>${commentedSpan(r.createdAt)}<div class="ry-text">${esc(r.text)}</div></div>`
+  ).join("") + `</div>`;
+}
 
 /* ================= HEADER ================= */
 function renderHeader(){
-  const f = DATA.file;
+  // Header reflects THIS batch (open/total from stats), not the full-file comment count.
+  const f = DATA.file, s = DATA.stats || {};
   $("#h-file").innerHTML = esc(f.name) + (f.batchLabel?` <span class="batch">${esc(f.batchLabel)}</span>`:"");
-  const gen = DATA.generatedAt ? `Generated ${relTime(DATA.generatedAt)}` : "";
-  const mod = f.lastModified ? ` &middot; File last edited ${fmtDate(f.lastModified)}` : "";
-  const cnt = DATA.cursor ? ` &middot; ${DATA.cursor.commentCount} comments` : "";
-  $("#h-meta").innerHTML = `${gen}${mod}${cnt}`;
+  const open = s.openThreads!=null ? s.openThreads : 0;
+  const total = s.totalThreads!=null ? s.totalThreads : 0;
+  const upd = DATA.generatedAt ? ` &middot; updated ${esc(relTime(DATA.generatedAt))}` : "";
+  $("#h-meta").innerHTML = `<b class="tnum">${open}</b> open / <b class="tnum">${total}</b> total${upd}`;
   const a = $("#h-figma"); a.href = f.url || "#";
-}
-
-/* ================= SUMMARY ================= */
-function renderSummary(){
-  const s = DATA.stats, host = $("#summary"); host.innerHTML="";
-
-  // client tally
-  const c1 = el("div","card");
-  c1.appendChild(el("div","card-lbl","Who commented"));
-  const tally = el("div","tally");
-  (s.byClient||[]).forEach(c=>{
-    const chip = el("div","chip "+(c.isClient?"is-client":"is-internal"));
-    chip.innerHTML = `<span class="dot"></span>${esc(c.handle)} <span class="cnt tnum">${c.count}</span>
-      <span class="tag">${c.isClient?"Client":"Team"}</span>`;
-    tally.appendChild(chip);
-  });
-  c1.appendChild(tally); host.appendChild(c1);
-
-  // open vs resolved
-  const c2 = el("div","card");
-  c2.appendChild(el("div","card-lbl","Threads"));
-  const oc = el("div","oc-row");
-  oc.innerHTML = `
-    <div class="oc open"><div class="n tnum">${s.openThreads}</div><div class="l">Open</div></div>
-    <div class="oc resolved"><div class="n tnum">${s.resolvedThreads}</div><div class="l">Resolved</div></div>
-    <div class="oc"><div class="n tnum">${s.totalThreads}</div><div class="l">Total</div></div>`;
-  c2.appendChild(oc); host.appendChild(c2);
-
-  // type meter
-  host.appendChild(meterCard("By type", s.byType, k=>({
-    color:`var(${TYPE_VAR[k]||"--c-other"})`, label:TYPE_LABEL[k]||k })));
-  // route meter
-  const routeColor = {designer:"var(--accent-light)",copywriter:"var(--c-copy)",strategist:"var(--c-valueprop)",account:"var(--c-design)",none:"var(--text-4)"};
-  host.appendChild(meterCard("By route", s.byRoute, k=>({
-    color: routeColor[k]||"var(--text-4)", label: k.charAt(0).toUpperCase()+k.slice(1) })));
-}
-function meterCard(title, obj, meta){
-  const entries = Object.entries(obj||{}).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-  const total = entries.reduce((a,[,v])=>a+v,0)||1;
-  const card = el("div","card");
-  card.appendChild(el("div","card-lbl",title));
-  const bar = el("div","meter");
-  entries.forEach(([k,v])=>{ const m=meta(k); const sp=el("span"); sp.style.width=(v/total*100)+"%"; sp.style.background=m.color; sp.title=`${m.label}: ${v}`; bar.appendChild(sp); });
-  if(!entries.length){ const sp=el("span"); sp.style.width="100%"; sp.style.background="var(--surface-3)"; bar.appendChild(sp); }
-  card.appendChild(bar);
-  const leg = el("div","legend");
-  entries.forEach(([k,v])=>{ const m=meta(k); const li=el("div","li");
-    li.innerHTML=`<span class="sw" style="background:${m.color}"></span>${esc(m.label)} <span class="lc tnum">${v}</span>`; leg.appendChild(li); });
-  card.appendChild(leg);
-  return card;
 }
 
 /* ================= DIGEST BUCKETING ================= */
@@ -696,39 +783,34 @@ function renderDigest(){
   const B = buildBuckets(true);
   renderChanges(B.changes);
 
-  const decThreads = B.decision.reduce((n,it)=> n + (it.kind==="theme" ? it.members.length : 1), 0);
+  let decision = B.decision;
+  if(state.hideDone) decision = decision.filter(it=> it.kind==="theme" ? !it.members.every(m=>m.th.resolved) : threadStatus(it.th)==="open");
+  decision = decision.slice().sort((a,b)=>{
+    const ra=(a.kind==="theme"?a.members.every(m=>m.th.resolved):a.th.resolved)?1:0;
+    const rb=(b.kind==="theme"?b.members.every(m=>m.th.resolved):b.th.resolved)?1:0; return ra-rb; });
+  const decThreads = decision.reduce((n,it)=> n + (it.kind==="theme" ? it.members.length : 1), 0);
   $("#decision-count").textContent = decThreads;
-  showSec("#sec-decision", B.decision.length>0);
-  renderDecision(B.decision);
+  showSec("#sec-decision", decision.length>0);
+  renderDecision(decision);
 
-  $("#questions-count").textContent = B.questions.length;
-  showSec("#sec-questions", B.questions.length>0);
-  renderQuestions(B.questions);
+  let questions = B.questions;
+  if(state.hideDone) questions = questions.filter(({th})=> threadStatus(th)==="open");
+  questions = questions.slice().sort((a,b)=> (a.th.resolved?1:0)-(b.th.resolved?1:0));
+  $("#questions-count").textContent = questions.length;
+  showSec("#sec-questions", questions.length>0);
+  renderQuestions(questions);
 
-  $("#fyi-count").textContent = B.fyi.length;
-  showSec("#sec-fyi", B.fyi.length>0);
-  renderFyi(B.fyi);
+  let fyi = B.fyi;
+  if(state.hideDone) fyi = fyi.filter(({th})=> threadStatus(th)==="open");
+  $("#fyi-count").textContent = fyi.length;
+  showSec("#sec-fyi", fyi.length>0);
+  renderFyi(fyi);
 }
 
-/* ================= FILTERS ================= */
-function buildFilterOptions(){
-  const fc=$("#f-client"); fc.innerHTML=`<option value="all">All commenters</option>`+
-    (DATA.stats.byClient||[]).map(c=>`<option value="${esc(c.handle)}">${esc(c.handle)}${c.isClient?" (client)":" (team)"}</option>`).join("");
-  const ft=$("#f-type"); ft.innerHTML=`<option value="all">All types</option>`+
-    Object.keys(TYPE_LABEL).map(k=>`<option value="${k}">${TYPE_LABEL[k]}</option>`).join("");
-  const fr=$("#f-route"); fr.innerHTML=`<option value="all">All routes</option>`+
-    ["designer","copywriter","strategist","account","none"].map(r=>`<option value="${r}">${r.charAt(0).toUpperCase()+r.slice(1)}</option>`).join("");
-}
-function threadPasses(th){
-  if(state.client!=="all"){
-    const inThread = th.author.handle===state.client || (th.replies||[]).some(r=>r.author===state.client);
-    if(!inThread) return false; // match threads the person authored OR replied on
-  }
-  if(state.type!=="all" && th.type!==state.type) return false;
-  if(state.route!=="all" && th.route!==state.route) return false;
-  if(state.openOnly && th.resolved) return false;
-  return true;
-}
+/* ================= NO FILTERS ================= */
+// The filter row was removed; this is a simple preview, so every thread passes.
+// (Hide-done is applied separately in each render path.)
+function threadPasses(){ return true; }
 
 /* ================= DONE-STATE (localStorage persisted) ================= */
 const lsKey = (id)=>`figma-digest:${DATA.file.key}:${id}`;
@@ -738,18 +820,40 @@ function setDoneId(id,v){ try{ localStorage.setItem(lsKey(id), v?"1":"0"); }catc
 // a grouped theme is done only when every member thread is resolved.
 function rowDefaultDone(r){ return r.kind==="theme" ? r.members.every(m=>m.th.resolved) : r.th.resolved; }
 function rowDone(r){ return isDoneId(r.id, rowDefaultDone(r)); }
+// Client-resolved (Figma) is distinct from designer "Done" (checkbox). Resolved wins the pill.
+function rowResolvedByClient(r){ return r.kind==="theme" ? r.members.every(m=>m.th.resolved) : r.th.resolved; }
+function rowStatus(r){ if(rowResolvedByClient(r)) return "resolved"; return rowDone(r) ? "done" : "open"; }
+function rowLatestMs(r){ return r.members.reduce((mx,m)=>Math.max(mx, threadLatestMs(m.th)), -Infinity); }
+function rowIsNew(r){ return isNewMs(rowLatestMs(r)); }
+
+// Shared comparator: Resolved/Done always sink to the bottom of any list; then apply the sort control.
+function sortByControl(arr, getMs, getPrio, getStatus){
+  return arr.slice().sort((a,b)=>{
+    const oa = getStatus(a)==="open"?0:1, ob = getStatus(b)==="open"?0:1;
+    if(oa!==ob) return oa-ob;
+    switch(state.sort){
+      case "oldest":   return getMs(a)-getMs(b);
+      case "priority": return (PW[getPrio(a)]-PW[getPrio(b)]) || (getMs(b)-getMs(a));
+      case "status":   return getMs(b)-getMs(a);
+      case "newest":
+      default:         return getMs(b)-getMs(a);
+    }
+  });
+}
 
 /* ================= CHANGES TO MAKE (primary) ================= */
 function renderChanges(rows){
   const host=$("#changes"); host.innerHTML="";
   const total = rows.length;
-  const done = rows.filter(rowDone).length;
+  const done = rows.filter(r=>rowStatus(r)!=="open").length;
   $("#chk-fill").style.width = total ? (done/total*100)+"%" : "0%";
   $("#chk-count").innerHTML = total
     ? `<b class="tnum">${done}</b> of <b class="tnum">${total}</b> done`
     : "Nothing routed to design or copy in this view";
-  if(!total){ host.appendChild(el("div","empty","No design or copy changes match the current filters.")); return; }
-  rows.forEach(r=> host.appendChild(todoRow(r)));
+  let display = sortByControl(rows, rowLatestMs, r=>r.priority, rowStatus);
+  if(state.hideDone) display = display.filter(r=>rowStatus(r)==="open");
+  if(!display.length){ host.appendChild(el("div","empty", total ? "Everything here is resolved or marked done." : "No design or copy changes match the current filters.")); return; }
+  display.forEach(r=> host.appendChild(todoRow(r)));
 }
 function todoRow(r){
   const tv = TYPE_VAR[r.type]||"--c-other";
@@ -757,6 +861,7 @@ function todoRow(r){
   const label = r.kind==="theme" ? r.theme.label : r.th.action;
   const ads = r.kind==="theme" ? r.adRefs : [r.ad.name];
   const done = rowDone(r);
+  const status = rowStatus(r);
 
   const wrap = el("div","todo"+(done?" done":""));
   wrap.style.setProperty("--tc",`var(${tv})`);
@@ -764,7 +869,7 @@ function todoRow(r){
 
   const cb = el("input","ci-box"); cb.type="checkbox"; cb.checked=done;
   cb.setAttribute("aria-label","Mark done: "+label);
-  cb.addEventListener("change",()=>{ setDoneId(r.id, cb.checked); renderDigest(); });
+  cb.addEventListener("change",()=>{ setDoneId(r.id, cb.checked); refreshFiltered(); });
 
   const body = el("div","todo-body");
   body.setAttribute("role","button"); body.tabIndex=0; body.setAttribute("aria-expanded","false");
@@ -773,17 +878,19 @@ function todoRow(r){
       <span class="type-chip tc-${TYPE_CLASS[r.type]||"other"}"><span class="tdot"></span>${esc(TYPE_LABEL[r.type]||r.type)}</span>
       <span class="prio-pill pr-${esc(r.priority)}">${esc(r.priority)}</span>
       <span class="route-badge rt-${esc(route)}"><span class="rdot"></span>${esc(route)}</span>
+      ${statusPill(status)}
       <svg class="todo-caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
     </div>
     <div class="todo-task">${esc(label)}</div>
-    <div class="todo-ads"><span class="ta-lbl">${esc(adLbl)}</span>${ads.map(a=>`<span class="ref-chip">${esc(a)}</span>`).join("")}</div>`;
+    <div class="todo-ads"><span class="ta-lbl">${esc(adLbl)}</span>${ads.map(a=>`<span class="ref-chip">${esc(a)}</span>`).join("")}</div>
+    <div class="todo-when">${lastCommentSpan(rowLatestMs(r))}${newBadge(rowIsNew(r))}</div>`;
 
   const detail = el("div","todo-detail");
   r.members.forEach(({ad,th})=>{
     const c = el("div","todo-cmt");
     const role = th.author.isClient?"Client":"Team";
-    c.innerHTML = `<div class="cmt-who">${esc(th.author.handle)} &middot; ${role}${th.resolved?" &middot; resolved":""} <span class="cmt-on">on ${esc(ad.name)}</span></div>
-      <div class="cmt-words">&ldquo;${esc(th.verbatim)}&rdquo;</div>`;
+    c.innerHTML = `<div class="cmt-who">${esc(th.author.handle)} &middot; ${role}${th.resolved?" &middot; resolved":""} <span class="cmt-on">on ${esc(ad.name)}</span> &middot; ${commentedSpan(th.createdAt)}</div>
+      <div class="cmt-words">&ldquo;${esc(th.verbatim)}&rdquo;</div>${repliesHTML(th)}`;
     detail.appendChild(c);
   });
   const toggle=()=>{ const open=detail.classList.toggle("open"); body.setAttribute("aria-expanded",open?"true":"false"); };
@@ -808,22 +915,29 @@ function renderDecision(items){
         <span class="type-chip tc-${TYPE_CLASS[t.type]||"other"}"><span class="tdot"></span>${esc(TYPE_LABEL[t.type]||t.type)}</span>
         <span class="prio-pill pr-${esc(t.priority)}">${esc(t.priority)}</span>`;
       card.appendChild(top);
+      const memNew = it.members.some(m=>isNewThread(m.th));
+      const memMs = it.members.reduce((mx,m)=>Math.max(mx, threadLatestMs(m.th)), -Infinity);
+      top.innerHTML += `${newBadge(memNew)}`;
       card.appendChild(el("p","dec-sum",esc(t.summary)));
       const refs = el("div","dec-refs");
-      refs.innerHTML = `<span class="rl">Affects ${it.adRefs.length}</span>` + it.adRefs.map(a=>`<span class="ref-chip">${esc(a)}</span>`).join("");
+      refs.innerHTML = `<span class="rl">Affects ${it.adRefs.length}</span>` + it.adRefs.map(a=>`<span class="ref-chip">${esc(a)}</span>`).join("")
+        + `<span class="dec-author">${lastCommentSpan(memMs)}</span>`;
       card.appendChild(refs);
     } else {
       const th = it.th, tv = TYPE_VAR[th.type]||"--c-other";
       card.style.setProperty("--tc",`var(${tv})`);
+      const st = threadStatus(th);
       const top = el("div","dec-top");
       top.innerHTML = `<span class="type-chip tc-${TYPE_CLASS[th.type]||"other"}"><span class="tdot"></span>${esc(TYPE_LABEL[th.type]||th.type)}</span>
         <span class="prio-pill pr-${esc(th.priority)}">${esc(th.priority)}</span>
         <span class="route-badge rt-${esc(th.route)}"><span class="rdot"></span>${esc(th.route)}</span>
+        ${statusPill(st)}${newBadge(isNewThread(th))}
         <span class="dec-author"><span class="who">${esc(th.author.handle)}</span></span>`;
       card.appendChild(top);
       card.appendChild(el("div","verbatim",`&ldquo;${esc(th.verbatim)}&rdquo;`));
       const refs = el("div","dec-refs");
-      refs.innerHTML = `<span class="rl">On</span><span class="ref-chip">${esc(it.ad.name)}</span>`;
+      refs.innerHTML = `<span class="rl">On</span><span class="ref-chip">${esc(it.ad.name)}</span>`
+        + `<span class="dec-author">${commentedSpan(th.createdAt)}</span>`;
       card.appendChild(refs);
     }
     host.appendChild(card);
@@ -839,11 +953,13 @@ function renderQuestions(items){
     const head = el("div","q-head");
     head.innerHTML = `<span class="type-chip tc-${TYPE_CLASS[th.type]||"other"}"><span class="tdot"></span>${esc(TYPE_LABEL[th.type]||th.type)}</span>
       <span class="route-badge rt-${esc(th.route)}"><span class="rdot"></span>${esc(th.route)}</span>
+      ${statusPill(threadStatus(th))}${newBadge(isNewThread(th))}
       <span class="ref-chip">${esc(ad.name)}</span>
-      <span class="who"><span class="th-when">${esc(relTime(th.createdAt))}</span><b>${esc(th.author.handle)}</b>
+      <span class="who">${commentedSpan(th.createdAt)}<b>${esc(th.author.handle)}</b>
         <span class="mini-tag ${th.author.isClient?"client":"internal"}">${th.author.isClient?"Client":"Team"}</span></span>`;
     card.appendChild(head);
     card.appendChild(el("div","verbatim",`&ldquo;${esc(th.verbatim)}&rdquo;`));
+    card.appendChild(el("div","",repliesHTML(th)));
     host.appendChild(card);
   });
 }
@@ -856,76 +972,96 @@ function renderFyi(items){
     const role = th.author.isClient?"Client":"Team";
     const kind = th.type==="approval" ? "approval" : (TYPE_LABEL[th.type]||th.type);
     item.innerHTML = `<svg class="fyi-ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-      <div>
-        <div class="fyi-who">${esc(th.author.handle)} <span class="fyi-role">&middot; ${role} &middot; ${esc(kind)}${th.resolved?" &middot; resolved":""} &middot; ${esc(ad.name)}</span></div>
+      <div style="flex:1;min-width:0;">
+        <div class="fyi-who">${esc(th.author.handle)} <span class="fyi-role">&middot; ${role} &middot; ${esc(kind)} &middot; ${esc(ad.name)}</span>
+          <span style="margin-left:8px;">${statusPill(threadStatus(th))}</span>
+          <span style="margin-left:8px;">${commentedSpan(th.createdAt)}</span>${newBadge(isNewThread(th))}</div>
         <div class="fyi-words">&ldquo;${esc(th.verbatim)}&rdquo;</div>
       </div>`;
     host.appendChild(item);
   });
 }
 
-/* ================= ADS ================= */
-function threadRow(th){
-  const tv = TYPE_VAR[th.type]||"--c-other";
-  const row = el("div",`thread p-${th.priority}${th.resolved?" resolved":""}`);
-  row.style.setProperty("--tc",`var(${tv})`);
-  const stripe = el("div","stripe"); row.appendChild(stripe);
-  const body = el("div","th-body");
-
-  const theme = th.themeId ? themeById[th.themeId] : null;
-  const meta = el("div","th-meta");
-  meta.innerHTML = `
-    <span class="type-chip tc-${TYPE_CLASS[th.type]}"><span class="tdot"></span>${esc(TYPE_LABEL[th.type])}</span>
-    <span class="route-badge rt-${esc(th.route)}"><span class="rdot"></span>${esc(th.route)}</span>
-    <span class="prio-pill pr-${esc(th.priority)}">${esc(th.priority)}</span>
-    ${theme?`<span class="theme-link" title="Grouped theme: ${esc(theme.summary)}">In theme: ${esc(theme.label)}</span>`:""}
-    ${th.resolved?`<span class="resolved-chk"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Resolved</span>`:""}
-    ${th.reactionCount>0?`<span class="th-react" title="${th.reactionCount} reaction${th.reactionCount>1?"s":""}"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.55-4.6-10-9.28C.5 8.4 2.02 5 5.2 5c1.86 0 3.16 1.06 3.8 2.09C9.64 6.06 10.94 5 12.8 5 15.98 5 17.5 8.4 22 11.72 19.55 16.4 12 21 12 21z"/></svg>${th.reactionCount}</span>`:""}
-    <span class="th-author"><span class="th-when">${esc(relTime(th.createdAt))}</span><span class="who">${esc(th.author.handle)}</span>
-      <span class="mini-tag ${th.author.isClient?"client":"internal"}">${th.author.isClient?"Client":"Team"}</span></span>`;
-  body.appendChild(meta);
-
-  body.appendChild(el("div","verbatim",`&ldquo;${esc(th.verbatim)}&rdquo;`));
-
-  if(th.action && th.action.trim()){
-    const a = el("div","action-line");
-    a.innerHTML = `<span class="al-tag">Do</span><span>${esc(th.action)}</span>`;
-    body.appendChild(a);
-  }
-
-  if(th.replies && th.replies.length){
-    const btn = el("button","replies-toggle"); btn.setAttribute("aria-expanded","false");
-    btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>${th.replies.length} repl${th.replies.length>1?"ies":"y"}`;
-    const box = el("div","replies");
-    th.replies.forEach(r=>{ box.appendChild(el("div","reply",`<span class="ry-who">${esc(r.author)}</span><span class="ry-when">${esc(relTime(r.createdAt))}</span><br>${esc(r.text)}`)); });
-    btn.addEventListener("click",()=>{ const open=box.classList.toggle("open"); btn.setAttribute("aria-expanded",open?"true":"false"); });
-    body.appendChild(btn); body.appendChild(box);
-  }
-  row.appendChild(body);
-  return row;
-}
-
-function adCard(ad, isUnplaced){
-  const card = el("div","ad-card"+(isUnplaced?" unplaced-card":""));
-  const top = el("div","ad-top");
-
-  // thumbnail or placeholder
+/* ================= CREATIVE CARDS (By creative) ================= */
+function crThumb(ad, isUnplaced){
   if(ad.thumbnailUrl){
     const t = el("div","ad-thumb");
     const img = el("img"); img.src=ad.thumbnailUrl; img.alt=ad.name; img.loading="lazy";
     img.addEventListener("error",()=>{ t.classList.add("placeholder"); t.innerHTML=placeholderHTML(ad); });
-    t.appendChild(img); top.appendChild(t);
-  } else if(!isUnplaced){
-    const t = el("div","ad-thumb placeholder",placeholderHTML(ad));
-    top.appendChild(t);
+    t.appendChild(img);
+    return t;
   }
+  if(isUnplaced) return null;
+  return el("div","ad-thumb placeholder",placeholderHTML(ad));
+}
+function crIsChange(th){ return ["designer","copywriter"].includes(th.route) && th.action && th.action.trim(); }
+
+// One checkbox row: a design/copy change to make on this creative.
+function crChangeRow(ad, th){
+  const status = threadStatus(th);
+  const done = status!=="open";
+  const tv = TYPE_VAR[th.type]||"--c-other";
+  const wrap = el("div","chk-item"+(done?" done":""));
+  wrap.style.setProperty("--tc",`var(${tv})`);
+
+  const cb = el("input","ci-box"); cb.type="checkbox"; cb.checked=isDoneId(th.commentId, th.resolved);
+  cb.setAttribute("aria-label","Mark done: "+(th.action||th.verbatim));
+  cb.addEventListener("change",()=>{ setDoneId(th.commentId, cb.checked); refreshFiltered(); });
+
+  const body = el("div","ci-body");
+  body.setAttribute("role","button"); body.tabIndex=0; body.setAttribute("aria-expanded","false");
+  body.innerHTML = `<div class="ci-top">
+      <span class="type-chip tc-${TYPE_CLASS[th.type]||"other"}"><span class="tdot"></span>${esc(TYPE_LABEL[th.type]||th.type)}</span>
+      <span class="prio-pill pr-${esc(th.priority)}">${esc(th.priority)}</span>
+      ${statusPill(status)}
+      ${commentedSpan(th.createdAt)}${newBadge(isNewThread(th))}
+      <svg class="ci-caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+    </div>
+    <div class="ci-action">${esc(th.action||th.verbatim)}</div>
+    <div class="ci-verbatim">&ldquo;${esc(th.verbatim)}&rdquo;${repliesHTML(th)}</div>`;
+  const toggle=()=>{ const open=wrap.classList.toggle("open"); body.setAttribute("aria-expanded",open?"true":"false"); };
+  body.addEventListener("click",toggle);
+  body.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggle(); } });
+
+  wrap.appendChild(cb); wrap.appendChild(body);
+  return wrap;
+}
+
+// One muted secondary row: strategy / question / approval note, not checkboxable.
+function crSecRow(ad, th){
+  const status = threadStatus(th);
+  const item = el("div","cr-sec-item"+(status!=="open"?" resolved":""));
+  const role = th.author.isClient?"Client":"Team";
+  item.innerHTML = `<div class="cr-sec-top">
+      <span class="type-chip tc-${TYPE_CLASS[th.type]||"other"}"><span class="tdot"></span>${esc(TYPE_LABEL[th.type]||th.type)}</span>
+      <span class="route-badge rt-${esc(th.route)}"><span class="rdot"></span>${esc(th.route)}</span>
+      ${statusPill(status)}${newBadge(isNewThread(th))}
+      <span class="cr-sec-who" style="margin-left:auto;"><b>${esc(th.author.handle)}</b> &middot; ${role} &middot; ${commentedSpan(th.createdAt)}</span>
+    </div>
+    <div class="cr-sec-words">&ldquo;${esc(th.verbatim)}&rdquo;</div>${repliesHTML(th)}`;
+  return item;
+}
+
+function creativeCard(ad, isUnplaced){
+  const card = el("div","ad-card"+(isUnplaced?" unplaced-card":""));
+  const top = el("div","ad-top");
+  const thumb = crThumb(ad, isUnplaced);
+  if(thumb) top.appendChild(thumb);
+
+  const threads = ad.threads.filter(threadPasses);
+  const openN = threads.filter(th=>threadStatus(th)==="open").length;
+  const latestMs = threads.reduce((mx,th)=>Math.max(mx, threadLatestMs(th)), -Infinity);
+  const anyNew = threads.some(isNewThread);
 
   const title = el("div","ad-title");
-  const openN = ad.threads.filter(t=>!t.resolved).length;
   title.innerHTML = `${ad.sectionLabel?`<div class="ad-section-lbl">${esc(ad.sectionLabel)}</div>`:""}
     <div class="ad-name" title="${esc(ad.name)}">${esc(ad.name)}</div>
     ${ad.page?`<div class="ad-page">${esc(ad.page)}</div>`:""}
-    <div class="ad-open-tag ${openN?"":"all-clear"}"><span class="odot"></span>${openN? openN+" open":"All resolved"}</div>`;
+    <div class="cr-meta">
+      ${lastCommentSpan(latestMs)}
+      <span class="cr-count"><b class="op">${openN}</b> open / <b>${threads.length}</b> total</span>
+      ${newBadge(anyNew)}
+    </div>`;
   top.appendChild(title);
   card.appendChild(top);
 
@@ -933,9 +1069,30 @@ function adCard(ad, isUnplaced){
     card.appendChild(el("div","unplaced-note","Pin could not be matched to a frame. Shown here so nothing is dropped."));
   }
 
-  const threads = el("div","threads");
-  ad.threads.filter(threadPasses).forEach(th=>threads.appendChild(threadRow(th)));
-  card.appendChild(threads);
+  let changes = threads.filter(crIsChange);
+  let secondary = threads.filter(th=>!crIsChange(th));
+  if(state.hideDone){
+    changes = changes.filter(th=>threadStatus(th)==="open");
+    secondary = secondary.filter(th=>threadStatus(th)==="open");
+  }
+  const byRecency = (a,b)=>{ const oa=threadStatus(a)==="open"?0:1, ob=threadStatus(b)==="open"?0:1; return (oa-ob) || (threadLatestMs(b)-threadLatestMs(a)); };
+  changes.sort(byRecency); secondary.sort(byRecency);
+
+  if(changes.length){
+    const box = el("div","cr-changes");
+    box.appendChild(el("div","cr-changes-lbl","What to change here"));
+    changes.forEach(th=> box.appendChild(crChangeRow(ad, th)));
+    card.appendChild(box);
+  }
+  if(secondary.length){
+    const box = el("div","cr-secondary");
+    box.appendChild(el("div","cr-sec-lbl","For strategy, questions and notes"));
+    secondary.forEach(th=> box.appendChild(crSecRow(ad, th)));
+    card.appendChild(box);
+  }
+  if(!changes.length && !secondary.length){
+    card.appendChild(el("div","unplaced-note","Nothing left to action on this creative."));
+  }
   return card;
 }
 function placeholderHTML(ad){
@@ -944,24 +1101,34 @@ function placeholderHTML(ad){
     <div class="micro" style="opacity:.7">No render</div>`;
 }
 
-function renderAds(){
-  const host=$("#ads"); host.innerHTML="";
-  let visibleAds=0, visibleThreads=0;
+function renderCreatives(){
+  const host=$("#creatives"); host.innerHTML="";
+  const cards = [];
   DATA.ads.forEach(ad=>{
-    const matching = ad.threads.filter(threadPasses);
-    if(!matching.length) return;
-    visibleAds++; visibleThreads+=matching.length;
-    host.appendChild(adCard(ad,false));
+    const threads = ad.threads.filter(threadPasses);
+    if(!threads.length) return;
+    let visible = threads;
+    if(state.hideDone) visible = threads.filter(th=>threadStatus(th)==="open");
+    if(!visible.length) return;
+    const latestMs = visible.reduce((mx,th)=>Math.max(mx, threadLatestMs(th)), -Infinity);
+    const prio = visible.reduce((p,th)=> Math.min(p, PW[th.priority]!=null?PW[th.priority]:2), 2);
+    const hasOpen = visible.some(th=>threadStatus(th)==="open");
+    cards.push({ad, isUnplaced:false, latestMs, prio, hasOpen});
   });
   const upl = (DATA.unplaced||[]).filter(threadPasses);
   if(upl.length){
-    visibleThreads+=upl.length;
-    host.appendChild(adCard({name:"Unplaced comments",page:null,sectionLabel:null,thumbnailUrl:null,threads:DATA.unplaced},true));
+    let vis = upl; if(state.hideDone) vis = upl.filter(th=>threadStatus(th)==="open");
+    if(vis.length){
+      const uad = {name:"Unplaced comments",page:null,sectionLabel:null,thumbnailUrl:null,threads:DATA.unplaced};
+      const latestMs = vis.reduce((mx,th)=>Math.max(mx, threadLatestMs(th)), -Infinity);
+      cards.push({ad:uad, isUnplaced:true, latestMs, prio:2, hasOpen:vis.some(th=>threadStatus(th)==="open")});
+    }
   }
-  if(!visibleAds && !upl.length){ host.appendChild(el("div","empty","No comments match the current filters. Try resetting.")); }
-  $("#result-note").innerHTML = `Showing <span class="tnum">${visibleThreads}</span> thread${visibleThreads===1?"":"s"} across <span class="tnum">${visibleAds}</span> ad${visibleAds===1?"":"s"}`;
+  const PRIOK = {0:"high",1:"medium",2:"low"};
+  const sorted = sortByControl(cards, c=>c.latestMs, c=>PRIOK[c.prio], c=>c.hasOpen?"open":"done");
+  if(!sorted.length){ host.appendChild(el("div","empty","No comments match the current filters. Try resetting.")); return; }
+  sorted.forEach(c=> host.appendChild(creativeCard(c.ad, c.isUnplaced)));
 }
-
 /* ================= EXPORTS ================= */
 function allThreadsFlat(){
   const rows=[];
@@ -1030,11 +1197,12 @@ function buildMarkdown(){
   return md;
 }
 function buildCSV(){
-  const cols=["ad","section","author","type","route","priority","resolved","verbatim","action"];
+  const cols=["ad","section","author","type","route","priority","status","commented","resolved","verbatim","action"];
   const q=s=>`"${String(s==null?"":s).replace(/"/g,'""')}"`;
   const lines=[cols.join(",")];
   allThreadsFlat().forEach(({ad,th})=>{
-    lines.push([ad.name,ad.sectionLabel||"",th.author.handle,th.type,th.route,th.priority,th.resolved?"yes":"no",th.verbatim,th.action].map(q).join(","));
+    const stat = th.resolved ? "resolved" : (isDoneId(th.commentId,false) ? "done" : "open");
+    lines.push([ad.name,ad.sectionLabel||"",th.author.handle,th.type,th.route,th.priority,stat,fmtFull(th.createdAt),th.resolved?"yes":"no",th.verbatim,th.action].map(q).join(","));
   });
   return lines.join("\r\n");
 }
@@ -1045,16 +1213,9 @@ function download(name,text,mime){
 
 /* ================= WIRE UP ================= */
 function wireControls(){
-  $("#f-client").addEventListener("change",e=>{state.client=e.target.value;refreshFiltered();});
-  $("#f-type").addEventListener("change",e=>{state.type=e.target.value;refreshFiltered();});
-  $("#f-route").addEventListener("change",e=>{state.route=e.target.value;refreshFiltered();});
-  const ot=$("#f-open"), ow=$("#f-open-wrap");
-  ot.addEventListener("change",()=>{state.openOnly=ot.checked;ow.classList.toggle("on",ot.checked);refreshFiltered();});
-  $("#f-reset").addEventListener("click",()=>{
-    state.client="all";state.type="all";state.route="all";state.openOnly=false;
-    $("#f-client").value="all";$("#f-type").value="all";$("#f-route").value="all";ot.checked=false;ow.classList.remove("on");
-    refreshFiltered();
-  });
+  // Only control left on the board: the Hide-done toggle beside the tabs.
+  const hd=$("#f-hidedone"), hw=$("#f-hidedone-wrap");
+  hd.addEventListener("change",()=>{state.hideDone=hd.checked;hw.classList.toggle("on",hd.checked);refreshFiltered();});
   $("#ex-md").addEventListener("click",async()=>{
     const md=buildMarkdown(); const lbl=$("#ex-md-label"); const orig=lbl.textContent;
     try{ await navigator.clipboard.writeText(md); lbl.textContent="Copied to clipboard"; }
@@ -1070,8 +1231,12 @@ function wireControls(){
     document.documentElement.setAttribute("data-theme", isDark?"light":"dark");
   });
 
-  // file picker
-  $("#file-picker").addEventListener("change",e=>selectFile(e.target.value, true));
+  // file picker (Level 2): switch brands via ?file= (pushState so Back works)
+  $("#file-picker").addEventListener("change",e=>{
+    const key=e.target.value;
+    try{ const u=new URL(location.href); u.searchParams.set("file",key); history.pushState({file:key},"",u); }catch(err){}
+    selectFile(key,false);
+  });
 
   // collapsible secondary sections
   document.querySelectorAll(".collapse-head").forEach(h=>{
@@ -1083,31 +1248,32 @@ function wireControls(){
     });
   });
 
-  // show all comments toggle (full per-ad view)
-  const ta=$("#toggle-all");
-  ta.addEventListener("click",()=>{
-    const region=$("#ads-region");
-    const wasOpen = ta.getAttribute("aria-expanded")==="true";
-    ta.setAttribute("aria-expanded", wasOpen?"false":"true");
-    if(region) region.hidden = wasOpen;
-    $("#toggle-all-label").textContent = wasOpen ? "Show all comments" : "Hide all comments";
-  });
+  // view tabs: By change / By creative
+  const tabs=[["#tab-change","change","#view-change"],["#tab-creative","creative","#view-creative"]];
+  tabs.forEach(([sel])=> $(sel).addEventListener("click",()=>setView($(sel).id==="tab-change"?"change":"creative")));
+}
+function setView(v){
+  state.view = v;
+  $("#tab-change").classList.toggle("active", v==="change");
+  $("#tab-creative").classList.toggle("active", v==="creative");
+  $("#tab-change").setAttribute("aria-selected", v==="change"?"true":"false");
+  $("#tab-creative").setAttribute("aria-selected", v==="creative"?"true":"false");
+  $("#view-change").hidden = v!=="change";
+  $("#view-creative").hidden = v!=="creative";
 }
 function resetCollapses(){
   document.querySelectorAll(".collapse-head").forEach(h=>{
     h.setAttribute("aria-expanded","false");
     const b=document.getElementById(h.getAttribute("aria-controls")); if(b) b.hidden=true;
   });
-  const ta=$("#toggle-all");
-  if(ta){ ta.setAttribute("aria-expanded","false");
-    const r=$("#ads-region"); if(r) r.hidden=true;
-    const l=$("#toggle-all-label"); if(l) l.textContent="Show all comments"; }
+  setView("change");
 }
-function refreshFiltered(){ renderDigest(); renderAds(); }
+function refreshFiltered(){ renderDigest(); renderCreatives(); }
 
 /* ================= DATA SOURCE: Supabase figma_briefs ================= */
 let FILES = [];          // [{file_key, brief, generated_at}] newest per file
 let USING_SAMPLE = false;
+const overviewState = { search:"", sort:"recent" };   // Level 1 controls (default: who just commented)
 
 async function loadFiles(){
   try{
@@ -1138,6 +1304,7 @@ async function loadFiles(){
 
 function buildFilePicker(){
   const bar = $("#filebar"), pick = $("#file-picker"), banner = $("#sample-banner");
+  const back = $("#ov-back"); if(back) back.style.display = USING_SAMPLE ? "none" : "";
   if(USING_SAMPLE){
     bar.style.display = "none";
     pick.disabled = true;
@@ -1146,7 +1313,11 @@ function buildFilePicker(){
   }
   banner.style.display = "none";
   bar.style.display = "";
-  pick.innerHTML = FILES.map(f=>{
+  // options sorted ALPHABETICALLY by cleaned brand name (case-insensitive); FILES order untouched
+  const sortedForPicker = FILES.slice().sort((a,b)=>
+    cleanBrandName(a.brief.file && a.brief.file.name).toLowerCase()
+      .localeCompare(cleanBrandName(b.brief.file && b.brief.file.name).toLowerCase()));
+  pick.innerHTML = sortedForPicker.map(f=>{
     const b = f.brief;
     const open = (b.stats && b.stats.openThreads!=null) ? b.stats.openThreads : 0;
     const label = (b.file.name || "Untitled")
@@ -1163,18 +1334,14 @@ function selectFile(key, updateUrl){
   DATA = entry.brief;
   themeById = Object.fromEntries((DATA.themes||[]).map(t=>[t.id,t]));
 
-  // reset filters for the newly selected file
-  state.client="all"; state.type="all"; state.route="all"; state.openOnly=false;
-  const ot=$("#f-open"), ow=$("#f-open-wrap");
-  if(ot) ot.checked=false;
-  if(ow) ow.classList.remove("on");
+  // reset the one remaining toggle (Hide done) for the newly selected file
+  state.hideDone=false;
+  const hd=$("#f-hidedone"), hw=$("#f-hidedone-wrap");
+  if(hd) hd.checked=false;
+  if(hw) hw.classList.remove("on");
 
   resetCollapses();
   renderHeader();
-  renderSummary();
-  buildFilterOptions();
-  const fc=$("#f-client"), ft=$("#f-type"), fr=$("#f-route");
-  if(fc) fc.value="all"; if(ft) ft.value="all"; if(fr) fr.value="all";
   refreshFiltered();
 
   const pick=$("#file-picker");
@@ -1185,18 +1352,151 @@ function selectFile(key, updateUrl){
   }
 }
 
+/* ================= LEVEL 1: CLIENTS OVERVIEW ================= */
+// Display name: strip a trailing "_EXT" or " EXT" (e.g. "Woxer_EXT" -> "Woxer").
+function cleanBrandName(name){
+  const raw = String(name==null?"":name).trim() || "Untitled";
+  const cleaned = raw.replace(/[ _]EXT$/i,"").trim();
+  return cleaned || raw;
+}
+// Most recent comment time across the whole brief (threads + replies), in ms.
+function briefLastCommentMs(brief){
+  let mx = -Infinity;
+  const consider = th=>{
+    const t=new Date(th.createdAt).getTime(); if(!isNaN(t)&&t>mx) mx=t;
+    (th.replies||[]).forEach(r=>{ const rt=new Date(r.createdAt).getTime(); if(!isNaN(rt)&&rt>mx) mx=rt; });
+  };
+  (brief.ads||[]).forEach(ad=>(ad.threads||[]).forEach(consider));
+  (brief.unplaced||[]).forEach(consider);
+  return mx;
+}
+function overviewRow(f){
+  const b=f.brief||{}, s=b.stats||{};
+  return {
+    file_key:f.file_key,
+    displayName:cleanBrandName(b.file && b.file.name),
+    batchLabel:(b.file && b.file.batchLabel)||"",
+    open:(s.openThreads!=null?s.openThreads:0),
+    total:(s.totalThreads!=null?s.totalThreads:0),
+    lastMs:briefLastCommentMs(b)
+  };
+}
+function overviewComparator(a,b){
+  const nameCmp = a.displayName.toLowerCase().localeCompare(b.displayName.toLowerCase());
+  switch(overviewState.sort){
+    case "open":   return (b.open-a.open) || nameCmp;
+    case "recent": {
+      const am=isFinite(a.lastMs)?a.lastMs:-8.64e15, bm=isFinite(b.lastMs)?b.lastMs:-8.64e15;
+      return (bm-am) || nameCmp;
+    }
+    case "az":
+    default:       return nameCmp;
+  }
+}
+function overviewRowEl(r){
+  const a = el("a","client-row"+(r.open>0?" has-open":" all-clear"));
+  a.href = "?file="+encodeURIComponent(r.file_key);
+  const hasLast = isFinite(r.lastMs);
+  const lastIso = hasLast ? new Date(r.lastMs).toISOString() : "";
+  const lastTxt = hasLast ? "last comment "+relTime(lastIso) : "no comments yet";
+  // "NEW" when the newest activity is within 3 days of now (the daily-check signal).
+  const isNew = hasLast && Math.abs(Date.now()-r.lastMs) <= NEW_MS;
+  a.innerHTML = `
+    <div class="cr-left">
+      <span class="cr-name">${esc(r.displayName)}</span>
+      ${r.batchLabel?`<span class="cr-batch">${esc(r.batchLabel)}</span>`:""}
+    </div>
+    <div class="cr-last-wrap">
+      ${isNew?`<span class="new-badge">New</span>`:""}
+      <span class="cr-last"${lastIso?` title="${esc(fmtFull(lastIso))}"`:""}>${esc(lastTxt)}</span>
+    </div>
+    <div class="cr-open"><span class="cr-open-n">${r.open}</span><span class="cr-open-t">/ ${r.total} total</span></div>
+    <span class="cr-dot" aria-hidden="true"></span>`;
+  a.setAttribute("aria-label",
+    `${r.displayName}: ${r.open} open comment${r.open===1?"":"s"} of ${r.total}. ${lastTxt}.${isNew?" New activity.":""} Open board.`);
+  a.addEventListener("click",e=>{
+    if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button!==0) return; // let real link open a new tab
+    e.preventDefault(); gotoBoard(r.file_key);
+  });
+  return a;
+}
+function renderOverview(){
+  const host=$("#client-list"); if(!host) return; host.innerHTML="";
+  const q=(overviewState.search||"").trim().toLowerCase();
+  let rows=FILES.map(overviewRow);
+  const totalCount=rows.length;
+  if(q) rows=rows.filter(r=>r.displayName.toLowerCase().includes(q));
+  rows.sort(overviewComparator);
+  const cnt=$("#ov-count");
+  if(cnt) cnt.textContent = q
+    ? `${rows.length} of ${totalCount} client${totalCount===1?"":"s"}`
+    : `${totalCount} client${totalCount===1?"":"s"}`;
+  if(!rows.length){ host.appendChild(el("div","empty", q?"No clients match that search.":"No clients have comments yet.")); return; }
+  rows.forEach(r=>host.appendChild(overviewRowEl(r)));
+}
+function wireOverview(){
+  const s=$("#ov-search");
+  if(s) s.addEventListener("input",e=>{ overviewState.search=e.target.value; renderOverview(); });
+  const so=$("#ov-sort");
+  if(so) so.addEventListener("change",e=>{ overviewState.sort=e.target.value; renderOverview(); });
+  const back=$("#ov-back");
+  if(back) back.addEventListener("click",e=>{ e.preventDefault(); gotoOverview(); });
+}
+
+/* ================= ROUTING: Level 1 (overview) <-> Level 2 (board) ================= */
+function showLevel(which){
+  const l1=$("#level1"), l2=$("#level2"), fig=$("#h-figma");
+  if(which==="overview"){
+    if(l1) l1.hidden=false;
+    if(l2) l2.hidden=true;
+    $("#h-file").innerHTML="";
+    $("#h-meta").innerHTML="";
+    if(fig) fig.style.display="none";
+  }else{
+    if(l1) l1.hidden=true;
+    if(l2) l2.hidden=false;
+    if(fig) fig.style.display="";
+  }
+}
+function gotoBoard(key){
+  try{ const u=new URL(location.href); u.searchParams.set("file",key); history.pushState({file:key},"",u); }catch(e){}
+  selectFile(key,false);
+  showLevel("board");
+  try{ window.scrollTo(0,0); }catch(e){}
+}
+function gotoOverview(){
+  try{ const u=new URL(location.href); u.searchParams.delete("file"); history.pushState({},"",u); }catch(e){}
+  showLevel("overview");
+  renderOverview();
+  try{ window.scrollTo(0,0); }catch(e){}
+}
+// Render the correct level from the current URL (initial load + Back/Forward).
+function renderRoute(){
+  if(USING_SAMPLE){ selectFile(FILES[0].file_key, false); showLevel("board"); return; }
+  let wanted=null;
+  try{ wanted=new URLSearchParams(location.search).get("file"); }catch(e){}
+  if(wanted && FILES.some(f=>f.file_key===wanted)){
+    selectFile(wanted,false);
+    showLevel("board");
+  }else{
+    showLevel("overview");
+    renderOverview();
+  }
+}
+
 (async function init(){
   const res = await loadFiles();
   FILES = res.files;
   USING_SAMPLE = res.sample;
   buildFilePicker();
   wireControls();
+  wireOverview();
 
-  // deep link: ?file=<file_key> preselects a file
-  let startKey = FILES[0].file_key;
-  const wanted = new URLSearchParams(location.search).get("file");
-  if(wanted && FILES.some(f=>f.file_key===wanted)) startKey = wanted;
-  selectFile(startKey, false);
+  // Back/Forward re-renders the correct level from the URL.
+  window.addEventListener("popstate", renderRoute);
+
+  // Initial render: ?file=<key> -> that brand's board; otherwise the clients overview.
+  renderRoute();
 })();
 </script>
 </body>
