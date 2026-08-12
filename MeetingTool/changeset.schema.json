@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "creative-adbundance/meeting-tool/changeset.schema.json",
+  "title": "AI Meeting Tool — Backend Changeset",
+  "description": "The single data contract the engine emits and the dashboard, apply layer and n8n consume. One changeset per meeting run. Prose fields (title/detail/summary) are LLM-generated; ids, tiers, counts and every `write` target are computed deterministically in code. Capture source, model and backend can all change without touching this file.",
+  "type": "object",
+  "required": ["schemaVersion", "meeting", "generatedAt", "transcript", "summary", "items", "stats"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+
+    "meeting": {
+      "type": "object",
+      "required": ["id", "source", "startedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "description": "uuid we mint on ingest; primary key of public.meetings" },
+        "externalId": { "type": ["string", "null"], "description": "the recorder's own id (zoom uuid, fathom id, recall bot id) — unique, so a retried webhook cannot create a second meeting" },
+        "title": { "type": ["string", "null"] },
+        "source": { "type": "string", "enum": ["meet", "extension", "zoom", "fathom", "otter", "recall", "manual", "test"], "description": "which capture adapter produced this. `meet` = poll-drive.js reading a Google Meet \"Notes by Gemini\" doc, which is the normal path; the rest are fallbacks." },
+        "platform": { "type": ["string", "null"], "description": "meet | zoom | teams | phone | in-person" },
+        "brand": { "type": ["string", "null"], "description": "resolved client/brand name — the Brand Brain row this meeting is about. null = unresolved, which forces every write item to `blocked`" },
+        "brandRecordId": { "type": ["string", "null"], "description": "public.brand_brain.id, resolved via that table's own brand_name/client_name/aliases matcher — the only thing writers key on" },
+        "meetingType": { "type": ["string", "null"], "enum": ["kickoff", "client-review", "internal-standup", "strategy", "creative-review", "sales", "other", null] },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "endedAt": { "type": ["string", "null"], "format": "date-time" },
+        "participants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "role"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "role": { "type": "string", "enum": ["client", "internal", "unknown"], "description": "resolved from INTERNAL_HANDLES, same idea as the Figma digest. A client directive outranks an internal musing." }
+            }
+          }
+        }
+      }
+    },
+
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "model": { "type": ["string", "null"], "description": "OpenRouter model that did the extraction" },
+
+    "transcript": {
+      "type": "object",
+      "required": ["wordCount", "sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "wordCount": { "type": "integer" },
+        "durationSec": { "type": ["number", "null"] },
+        "language": { "type": ["string", "null"] },
+        "sha256": { "type": "string", "description": "hash of the normalized transcript text; re-ingesting identical content is a no-op" },
+        "provider": { "type": ["string", "null"], "description": "faster-whisper:small.en | zoom | fathom | ..." }
+      }
+    },
+
+    "summary": {
+      "type": "object",
+      "required": ["headline", "narrative"],
+      "additionalProperties": false,
+      "properties": {
+        "headline": { "type": "string", "description": "one line, Slack-ready" },
+        "narrative": { "type": "string", "description": "3-6 sentences: what the meeting was for and what changed as a result" },
+        "topics": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "items": {
+      "type": "array",
+      "description": "Everything worth carrying out of the meeting. An item either proposes a backend write or is informational (write: null).",
+      "items": { "$ref": "#/$defs/item" }
+    },
+
+    "dropped": {
+      "type": "array",
+      "description": "Items the model produced that code rejected, kept for tuning. The most important field is `reason` — a rising `no-evidence` count means the prompt or the model is drifting.",
+      "items": {
+        "type": "object",
+        "required": ["title", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "title": { "type": "string" },
+          "type": { "type": ["string", "null"] },
+          "reason": { "type": "string", "enum": ["no-evidence", "quote-not-in-transcript", "duplicate", "unknown-field", "empty-value"], "description": "`unresolved-brand` was removed: not knowing which client a fact belongs to stops it being WRITTEN to a client record, but it is still recorded in the meeting log. Nothing is discarded for lack of a brand match." }
+        }
+      }
+    },
+
+    "stats": {
+      "type": "object",
+      "required": ["total", "byType", "byTier"],
+      "additionalProperties": false,
+      "properties": {
+        "total": { "type": "integer" },
+        "byType": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "byTier": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "droppedCount": { "type": "integer" }
+      }
+    }
+  },
+
+  "$defs": {
+    "item": {
+      "type": "object",
+      "required": ["id", "type", "title", "evidence", "confidence", "tier", "write"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "sha1(meetingId + type + writeTarget + normalizedValue), 16 hex chars. The idempotency key: meeting_applied.item_id is unique on it, so re-running a meeting or double-clicking Apply writes once."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["brand_fact", "creative_direction", "decision", "action_item", "asset_request", "blocker", "open_question"]
+        },
+        "title": { "type": "string", "description": "one line a human can accept or reject at a glance" },
+        "detail": { "type": ["string", "null"], "description": "the fuller version, including any within-meeting reversal" },
+
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "description": "MANDATORY. No quote, no item — reconcile.js drops anything whose quote is not present in the transcript. This is the single rule that keeps invented facts out of Brand Brain.",
+          "items": {
+            "type": "object",
+            "required": ["quote"],
+            "additionalProperties": false,
+            "properties": {
+              "speaker": { "type": ["string", "null"] },
+              "role": { "type": ["string", "null"], "enum": ["client", "internal", "unknown", null] },
+              "atSec": { "type": ["number", "null"], "description": "offset into the recording, so a reviewer can jump to it" },
+              "quote": { "type": "string", "description": "verbatim from the transcript" }
+            }
+          }
+        },
+
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "the model's own estimate — an INPUT to tiering, never the decision" },
+
+        "tier": {
+          "type": "string",
+          "enum": ["auto", "review", "blocked"],
+          "description": "computed by tierOf() in code. auto = applied without a human. review = shown as a diff, needs a click. blocked = a human must do it by hand (money/legal/compliance, unresolved brand, or no confident target)."
+        },
+        "blockedReason": { "type": ["string", "null"] },
+
+        "supersedes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "ids of earlier items in this same meeting that this statement appears to reverse"
+        },
+        "supersededBy": {
+          "type": ["string", "null"],
+          "description": "id of a later item that appears to reverse this one. Both items are kept deliberately — subject matching is fuzzy, so a false match must never delete a real decision. A flagged item is forced to tier=review and a human picks the winner."
+        },
+
+        "assignee": { "type": ["string", "null"] },
+        "dueDate": { "type": ["string", "null"], "format": "date", "description": "absolute date; 'next Tuesday' is resolved against meeting.startedAt at extraction time" },
+
+        "write": {
+          "description": "null = informational only, nothing is written anywhere.",
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["target", "op", "value"],
+              "additionalProperties": false,
+              "properties": {
+                "target": {
+                  "type": "string",
+                  "enum": ["supabase.brand_brain", "notion.tasks", "supabase.meeting_notes", "supabase.decisions"],
+                  "description": "which writer in engine/targets/ handles it"
+                },
+                "op": {
+                  "type": "string",
+                  "enum": ["set", "append", "create"],
+                  "description": "set = replace a field (never auto if the field is populated). append = add to a text field / log. create = new row."
+                },
+                "field": { "type": ["string", "null"], "description": "Brand Brain column name; must be in the allow-list in targets/brand-brain.js or the item is dropped as unknown-field" },
+                "recordKey": { "type": ["object", "null"], "additionalProperties": true, "description": "how the writer finds the row, e.g. { recordId } = public.brand_brain.id" },
+                "value": { "type": ["string", "object", "array"], "description": "the proposed new content" },
+                "previousValue": { "type": ["string", "null"], "description": "filled in at diff time by changeset.js from the live backend, so the dashboard can show old -> new. null = the field was empty." }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

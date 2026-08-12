@@ -1,0 +1,17 @@
+node_modules/
+.env
+.env.*
+!.env.example
+
+# Google credentials. A refresh token reads one person's whole Drive; a service-account key
+# reads the entire domain's. Neither goes near a public repo.
+google-tokens.json
+sa-key.json
+*-key.json
+
+# Local scratch: audio chunks and joined recordings. Durable copies live in the private
+# Supabase bucket.
+work/
+*.log
+*.changeset.json
+.oauth-pending.json

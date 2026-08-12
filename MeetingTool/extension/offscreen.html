@@ -1,0 +1,6 @@
+<!-- Invisible host document for the AudioContext + MediaRecorder. Never shown to anyone;
+     Chrome keeps it alive because it is holding media, which is exactly why the capture
+     lives here instead of in the service worker (which gets torn down when idle). -->
+<meta charset="utf-8">
+<title>meeting capture</title>
+<script src="offscreen.js" type="module"></script>

@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Adbundance Meeting Notetaker",
+  "version": "1.0.0",
+  "description": "Captures the meeting in this tab and files the outcomes into Brand Brain, Notion and the decision log.",
+  "permissions": ["tabCapture", "offscreen", "storage"],
+  "host_permissions": [
+    "https://meetings.srv1486031.hstgr.cloud/*",
+    "http://localhost:8790/*"
+  ],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_popup": "popup.html", "default_title": "Adbundance Meeting Notetaker" },
+  "icons": {}
+}

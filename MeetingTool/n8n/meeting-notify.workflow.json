@@ -1,0 +1,55 @@
+{
+  "name": "Meeting Tool — notify",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meeting-done",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-meeting-done",
+      "name": "Meeting done (webhook)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-260, 300],
+      "webhookId": "meeting-done"
+    },
+    {
+      "parameters": {
+        "jsCode": "// The engine POSTs here after every meeting. Unlike the Figma digest, nothing polls:\n// the engine already knows when it finished, so it pushes. n8n is notification only.\n//\n// Silence is a feature. An internal standup that changed nothing should not ping a channel,\n// or people stop reading the channel — and the one meeting that DID change the offer gets\n// scrolled past with everything else.\nconst b = $input.first().json.body || $input.first().json;\nconst s = b.stats || { byTier: {} };\nconst t = s.byTier || {};\n\nconst worthSaying = (t.review || 0) + (t.blocked || 0) + (t.auto || 0) > 0;\nif (!worthSaying) return [];\n\nconst bits = [\n  t.auto    ? `${t.auto} applied automatically` : null,\n  t.review  ? `*${t.review} need review*`       : null,\n  t.blocked ? `${t.blocked} for a human`        : null,\n].filter(Boolean).join(' · ');\n\nreturn [{\n  json: {\n    text: b.text || `*${b.title || 'Meeting'}*${b.brand ? ` — ${b.brand}` : ''}\\n${bits}\\n${b.dashboardUrl || ''}`,\n    // Only @-here when something is actually waiting on a person.\n    needsAttention: (t.review || 0) > 0,\n    meetingId: b.meetingId,\n    brand: b.brand || null,\n    dashboardUrl: b.dashboardUrl || null,\n  },\n}];"
+      },
+      "id": "build-message",
+      "name": "Build message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-40, 300]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "#creative-ops", "mode": "name" },
+        "text": "={{ $json.text }}",
+        "otherOptions": { "mrkdwn": true }
+      },
+      "id": "slack-post",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [190, 300],
+      "credentials": {
+        "slackApi": { "id": "REPLACE_WITH_YOUR_SLACK_CREDENTIAL_ID", "name": "Slack account" }
+      }
+    }
+  ],
+  "connections": {
+    "Meeting done (webhook)": { "main": [[{ "node": "Build message", "type": "main", "index": 0 }]] },
+    "Build message": { "main": [[{ "node": "Post to Slack", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false,
+  "pinData": {},
+  "meta": {
+    "notes": "Import, pick the real Slack credential (the id above is a placeholder), set the channel, Activate. Then set N8N_NOTIFY_URL on the meeting-tool service to this webhook's production URL. Swap the Slack node for a Notion node if the team would rather have a page than a ping — the Build message node's output is already shaped for either."
+  }
+}

@@ -43,6 +43,18 @@ Docs/Static Ads Generator/workflow-updates/brand_brain_sql/
 *.secret
 *.secrets*
 
+# MEETING TOOL — this repo is PUBLIC and meeting audio/transcripts are the most sensitive
+# data the agency holds (client pricing, complaints, staffing, legal). The durable copies live
+# in the private Supabase bucket; `work/` is local scratch that must never be committed.
+MeetingTool/work/
+MeetingTool/node_modules/
+MeetingTool/*.changeset.json
+# Google credentials: refresh tokens read a person's whole Drive, and a service-account key
+# reads the entire domain's. Neither ever goes near a public repo.
+MeetingTool/google-tokens.json
+MeetingTool/sa-key.json
+MeetingTool/*-key.json
+
 # Internal system map: infra detail + client status, never publish to the public repo
 Docs/Ecosystem/
 # Stray exports of the ecosystem map that landed outside the folder (e.g. botched filenames)

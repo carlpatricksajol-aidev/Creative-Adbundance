@@ -1,0 +1,99 @@
+{
+  "_about": "A canned extract() result for the ARMRA fixture meeting — what the model proposes BEFORE any code has judged it. Shared by engine/test-offline.js and demo.js so the tests and the demo cannot drift. Every item carries _trap describing what it is there to exercise; reconcile.js ignores unknown fields, so it flows through untouched.",
+  "model": "fixture (no model call)",
+  "summary": {
+    "headline": "ARMRA batch 3: buyer redefined, athlete angle cut then partly restored, offer changed",
+    "narrative": "Dana rejected the athlete recovery angle and described the real buyer as an exhausted woman in her forties who has tried other supplements without result. She set tone (warm, plain spoken, never clinical) and a hard legal boundary against treat/cure claims, and confirmed every ad must carry the FDA disclaimer. The active offer changed on Monday from 20% off to buy two get one free, which kills existing creative. Late in the call she partly reversed the athlete decision, keeping one concept as a test. Retainer pricing was explicitly deferred to a contract conversation.",
+    "topics": ["buyer definition", "tone", "compliance", "offer change", "athlete angle", "assets"]
+  },
+  "items": [
+    {
+      "_trap": "clean brand_fact — should survive and route to brand_brain.target_personas",
+      "type": "brand_fact", "subject": "buyer definition", "field": "target_personas",
+      "value": "Women in their forties who are exhausted and have tried other supplements that did nothing. Not training for anything; want to get through the afternoon without crashing.",
+      "confidence": 0.95,
+      "title": "Buyer is an exhausted woman in her forties, not an athlete",
+      "evidence": [{ "speaker": "Dana", "atSec": 48, "quote": "Our buyer is a woman in her forties who is exhausted and has tried four other supplements that did nothing." }]
+    },
+    {
+      "_trap": "clean brand_fact against a POPULATED field — must land in review, never auto",
+      "type": "brand_fact", "subject": "tone", "field": "brand_tone",
+      "value": "Warm and plain spoken. Never clinical, never hypey.",
+      "confidence": 0.93,
+      "title": "Tone: warm and plain spoken, never clinical",
+      "evidence": [{ "speaker": "Dana", "atSec": 101, "quote": "We want it warm and plain spoken. Never clinical, never hypey." }]
+    },
+    {
+      "_trap": "clean brand_fact into an EMPTY field at high confidence — the one case that may auto-apply",
+      "type": "brand_fact", "subject": "q4 offer", "field": "key_offer",
+      "value": "Buy two get one free (changed Monday; replaces the 20% off).",
+      "confidence": 0.9,
+      "title": "Offer is now buy two get one free",
+      "evidence": [{ "speaker": "Dana", "atSec": 174, "quote": "the offer changed on Monday. It's now buy two get one free, not the twenty percent off." }]
+    },
+    {
+      "_trap": "HALLUCINATION — plausible, specific, never said. Must be dropped as quote-not-in-transcript.",
+      "type": "brand_fact", "subject": "shipping", "field": "key_offer",
+      "value": "Free shipping over $75", "confidence": 0.88, "title": "Free shipping threshold",
+      "evidence": [{ "speaker": "Dana", "atSec": 180, "quote": "and we do free shipping over seventy five dollars" }]
+    },
+    {
+      "_trap": "PARAPHRASE dressed as a verbatim quote. Must be dropped.",
+      "type": "creative_direction", "subject": "athlete angle", "title": "Avoid sporty visuals", "confidence": 0.8,
+      "evidence": [{ "speaker": "Dana", "atSec": 48, "quote": "the client dislikes the sporty creative direction" }]
+    },
+    {
+      "_trap": "NO EVIDENCE at all. Must be dropped.",
+      "type": "decision", "subject": "cadence", "title": "Team agreed to move to weekly reviews", "confidence": 0.7, "evidence": []
+    },
+    {
+      "_trap": "REVERSAL, earlier half — kept, but flagged supersededBy and forced to review",
+      "type": "decision", "subject": "athlete angle", "title": "Drop the athlete angle entirely from batch 3", "confidence": 0.9,
+      "evidence": [{ "speaker": "Dana", "atSec": 85, "quote": "Drop it, yeah." }]
+    },
+    {
+      "_trap": "REVERSAL, later half — claims supersedes and carries both sides' quotes",
+      "type": "decision", "subject": "athlete angle", "title": "Keep one athlete concept in batch 3 as a test", "confidence": 0.9,
+      "evidence": [{ "speaker": "Dana", "atSec": 283, "quote": "keep one athlete concept. Just one, as a test. I was too absolute earlier." }]
+    },
+    {
+      "_trap": "clean action item with an owner and a resolved date",
+      "type": "action_item", "subject": "revised concepts", "title": "Send revised five concepts", "assignee": "Kyle Fenerty", "dueDate": "2026-08-06", "confidence": 0.9,
+      "evidence": [{ "speaker": "Kyle", "atSec": 166, "quote": "Thursday's tight but yes, Thursday." }]
+    },
+    {
+      "_trap": "asset request from the client side",
+      "type": "asset_request", "subject": "packshots", "title": "New packshot files (old label is out of date)", "assignee": "Dana", "confidence": 0.85,
+      "evidence": [{ "speaker": "Dana", "atSec": 214, "quote": "I'll send the new packshot files over today." }]
+    },
+    {
+      "_trap": "SENSITIVE — retainer pricing. Must be blocked regardless of confidence.",
+      "type": "decision", "subject": "retainer", "title": "Retainer price increase for Q4 to be handled with the contract", "confidence": 0.85,
+      "evidence": [{ "speaker": "Dana", "atSec": 262, "quote": "Let's take that offline with the contract, not on this call." }]
+    },
+    {
+      "_trap": "compliance wording — sensitive, must be blocked even though it is a real brand fact",
+      "type": "brand_fact", "subject": "disclaimer", "field": "compliance_notes",
+      "value": "Every ad must carry: These statements have not been evaluated by the FDA.",
+      "confidence": 0.95, "title": "FDA disclaimer required on every ad",
+      "evidence": [{ "speaker": "Dana", "atSec": 141, "quote": "every ad has to carry the disclaimer, these statements have not been evaluated by the FDA." }]
+    },
+    {
+      "_trap": "a real creative boundary — appendable field",
+      "type": "brand_fact", "subject": "claims", "field": "creative_boundaries",
+      "value": "Never claim the product treats or cures anything — a hard legal line for the client.",
+      "confidence": 0.92, "title": "Never claim it treats or cures anything",
+      "evidence": [{ "speaker": "Dana", "atSec": 118, "quote": "we can never say it treats or cures anything, that's a hard line for us legally." }]
+    },
+    {
+      "_trap": "informational blocker, nothing owed by us",
+      "type": "blocker", "subject": "figma access", "title": "Figma access for the new template library, blocked on client IT", "confidence": 0.9,
+      "evidence": [{ "speaker": "Dana", "atSec": 318, "quote": "That's on our IT, I'll chase it but I can't promise a date." }]
+    },
+    {
+      "_trap": "UNKNOWN COLUMN — brand_brain has no such field. Must be dropped as unknown-field.",
+      "type": "brand_fact", "subject": "colour", "field": "favourite_colour", "value": "teal", "confidence": 0.9, "title": "Likes teal",
+      "evidence": [{ "speaker": "Dana", "atSec": 101, "quote": "We want it warm and plain spoken." }]
+    }
+  ]
+}

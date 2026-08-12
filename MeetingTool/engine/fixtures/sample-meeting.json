@@ -1,0 +1,58 @@
+{
+  "meeting": {
+    "id": "11111111-2222-3333-4444-555555555555",
+    "externalId": "test-fixture-1",
+    "title": "ARMRA — creative review, batch 3",
+    "source": "test",
+    "platform": "meet",
+    "brand": "ARMRA",
+    "brandRecordId": null,
+    "meetingType": "client-review",
+    "startedAt": "2026-08-06T14:00:00.000Z",
+    "endedAt": "2026-08-06T14:26:00.000Z",
+    "participants": [
+      { "name": "Dana", "role": "client" },
+      { "name": "Eric", "role": "internal" },
+      { "name": "Kyle", "role": "internal" },
+      { "name": "Carl", "role": "internal" }
+    ]
+  },
+  "transcript": {
+    "provider": "fixture",
+    "language": "en",
+    "durationSec": 1560,
+    "segments": [
+      { "start": 4, "speaker": "Eric", "text": "Alright, we're recording with the notetaker on, everyone good with that?" },
+      { "start": 9, "speaker": "Dana", "text": "Yeah that's fine." },
+      { "start": 14, "speaker": "Eric", "text": "Great. So we've got batch three up, fifteen statics. Kyle's going to walk the concepts." },
+      { "start": 31, "speaker": "Kyle", "text": "The first five lean on the gut health angle, the next five are the athlete recovery angle." },
+      { "start": 48, "speaker": "Dana", "text": "Okay so honestly the athlete stuff doesn't land for us. Our buyer is a woman in her forties who is exhausted and has tried four other supplements that did nothing." },
+      { "start": 66, "speaker": "Dana", "text": "She is not training for anything. She wants to get through the afternoon without crashing." },
+      { "start": 79, "speaker": "Eric", "text": "That's really useful. So drop the athlete angle entirely?" },
+      { "start": 85, "speaker": "Dana", "text": "Drop it, yeah." },
+      { "start": 92, "speaker": "Kyle", "text": "What about the tone on the copy, some of these read pretty clinical." },
+      { "start": 101, "speaker": "Dana", "text": "We want it warm and plain spoken. Never clinical, never hypey. If it sounds like a supplement ad we've lost her." },
+      { "start": 118, "speaker": "Dana", "text": "And we can never say it treats or cures anything, that's a hard line for us legally." },
+      { "start": 129, "speaker": "Carl", "text": "Got it, I'll put that in the boundaries so every generated ad respects it." },
+      { "start": 141, "speaker": "Dana", "text": "Also every ad has to carry the disclaimer, these statements have not been evaluated by the FDA." },
+      { "start": 158, "speaker": "Eric", "text": "Understood. Kyle, can you get the revised five over by Thursday?" },
+      { "start": 166, "speaker": "Kyle", "text": "Thursday's tight but yes, Thursday." },
+      { "start": 174, "speaker": "Dana", "text": "One more thing, the offer changed on Monday. It's now buy two get one free, not the twenty percent off." },
+      { "start": 190, "speaker": "Eric", "text": "Okay so all the creative that says twenty percent is dead." },
+      { "start": 197, "speaker": "Dana", "text": "Correct." },
+      { "start": 205, "speaker": "Carl", "text": "Do you have the new packshots? The ones we have are the old label." },
+      { "start": 214, "speaker": "Dana", "text": "I'll send the new packshot files over today." },
+      { "start": 222, "speaker": "Kyle", "text": "I was thinking we could test a founder-led talking head too, might be strong." },
+      { "start": 236, "speaker": "Dana", "text": "Hmm. Maybe later, let's not do that this batch." },
+      { "start": 248, "speaker": "Eric", "text": "Fine, parked. Last thing, on the retainer, we should talk about the price increase for Q4." },
+      { "start": 262, "speaker": "Dana", "text": "Let's take that offline with the contract, not on this call." },
+      { "start": 274, "speaker": "Eric", "text": "Sure. Oh, and actually, back on the athlete thing." },
+      { "start": 283, "speaker": "Dana", "text": "Actually you know what, keep one athlete concept. Just one, as a test. I was too absolute earlier." },
+      { "start": 298, "speaker": "Eric", "text": "One athlete concept in the batch. Noted." },
+      { "start": 306, "speaker": "Kyle", "text": "Cool. And we're still blocked on the Figma access for the new template library." },
+      { "start": 318, "speaker": "Dana", "text": "That's on our IT, I'll chase it but I can't promise a date." },
+      { "start": 331, "speaker": "Eric", "text": "Alright, that's us. Thanks Dana." }
+    ],
+    "text": "Alright, we're recording with the notetaker on, everyone good with that? Yeah that's fine. Great. So we've got batch three up, fifteen statics. Kyle's going to walk the concepts. The first five lean on the gut health angle, the next five are the athlete recovery angle. Okay so honestly the athlete stuff doesn't land for us. Our buyer is a woman in her forties who is exhausted and has tried four other supplements that did nothing. She is not training for anything. She wants to get through the afternoon without crashing. That's really useful. So drop the athlete angle entirely? Drop it, yeah. What about the tone on the copy, some of these read pretty clinical. We want it warm and plain spoken. Never clinical, never hypey. If it sounds like a supplement ad we've lost her. And we can never say it treats or cures anything, that's a hard line for us legally. Got it, I'll put that in the boundaries so every generated ad respects it. Also every ad has to carry the disclaimer, these statements have not been evaluated by the FDA. Understood. Kyle, can you get the revised five over by Thursday? Thursday's tight but yes, Thursday. One more thing, the offer changed on Monday. It's now buy two get one free, not the twenty percent off. Okay so all the creative that says twenty percent is dead. Correct. Do you have the new packshots? The ones we have are the old label. I'll send the new packshot files over today. I was thinking we could test a founder-led talking head too, might be strong. Hmm. Maybe later, let's not do that this batch. Fine, parked. Last thing, on the retainer, we should talk about the price increase for Q4. Let's take that offline with the contract, not on this call. Sure. Oh, and actually, back on the athlete thing. Actually you know what, keep one athlete concept. Just one, as a test. I was too absolute earlier. One athlete concept in the batch. Noted. Cool. And we're still blocked on the Figma access for the new template library. That's on our IT, I'll chase it but I can't promise a date. Alright, that's us. Thanks Dana."
+  }
+}
