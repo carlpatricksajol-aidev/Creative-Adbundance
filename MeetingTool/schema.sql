@@ -241,3 +241,52 @@ on conflict (id) do update set public = false;
 -- Object key convention (set by server.js):
 --   <meetingId>/audio.webm
 -- Never served publicly — use createSignedUrl(60) from the VPS.
+
+-- ===========================================================================
+-- 9. Doc comments + sync cursors  (added 2026-08-13, per the 2026-08-12
+--    "AI: Workflows" decision: capture client comments and script feedback)
+-- ===========================================================================
+-- Comments on "Brand: Ad Concepts" decks and "Brand: Scripts" docs. No LLM is
+-- involved: the Drive API supplies author, time, verbatim text and the anchored
+-- phrase, so a row here is its own evidence. UNIQUE(comment_id) makes the poll
+-- idempotent; an edited comment upserts to its latest content.
+create table if not exists public.doc_comments (
+  id            uuid primary key default gen_random_uuid(),
+  comment_id    text not null unique,               -- Drive's id; the idempotency key
+  file_id       text not null,
+  file_name     text,
+  doc_kind      text,                               -- slides (concepts/onboarding) | docs (scripts)
+  web_link      text,                               -- click-through to the deck/doc
+  brand         text,                               -- via brand_brain matcher on the file title; null = unattributed
+  author        text,
+  author_role   text,                               -- internal | client (INTERNAL_HANDLES display-name list)
+  content       text not null,
+  anchored_to   text,                               -- the exact phrase the comment anchors to
+  resolved      boolean not null default false,
+  replies       jsonb not null default '[]'::jsonb,
+  created_time  timestamptz,
+  modified_time timestamptz,
+  synced_at     timestamptz not null default now()
+);
+
+comment on table  public.doc_comments             is 'Client + team comments harvested from Ad Concept decks and Script docs. Verbatim from the Drive API — no model, no paraphrase.';
+comment on column public.doc_comments.anchored_to is 'quotedFileContent — the exact text the comment was left on. The built-in evidence.';
+
+create index if not exists idx_doc_comments_brand on public.doc_comments (brand, created_time desc);
+create index if not exists idx_doc_comments_file  on public.doc_comments (file_id, created_time desc);
+
+-- Generic named watermarks (doc-comments:<subject>, and whatever comes next).
+create table if not exists public.sync_cursors (
+  name       text primary key,
+  value      text,
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists trg_sync_cursors_updated_at on public.sync_cursors;
+create trigger trg_sync_cursors_updated_at
+  before update on public.sync_cursors
+  for each row execute function public.set_updated_at();
+
+-- Same deny-all stance as everything else here: service_role only, no anon policy, ever.
+alter table public.doc_comments enable row level security;
+alter table public.sync_cursors enable row level security;

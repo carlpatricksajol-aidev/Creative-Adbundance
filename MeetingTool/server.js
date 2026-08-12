@@ -27,6 +27,7 @@ import { transcribeAudio, withRoster } from "./engine/transcribe.js";
 import { applyChangeset, rejectItems } from "./engine/apply.js";
 import { insert, update, select, uploadAudio, signedAudioUrl } from "./engine/targets/supabase.js";
 import { readTokens, saveRefreshToken, webAuthUrl, parseIdTokenEmail } from "./engine/sources/google-auth.js";
+import { toCsv } from "./engine/csv.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WORK = process.env.WORK_DIR || join(__dirname, "work");
@@ -422,6 +423,55 @@ app.get("/api/meetings/:id/audio", authed, async (req, res) => {
   const [m] = await select("meetings", `id=eq.${req.params.id}&limit=1`).catch(() => []);
   if (!m?.audio_path) return res.status(404).json({ error: "no audio kept for this meeting" });
   res.json({ url: await signedAudioUrl(m.audio_path, 300) }); // private bucket, 5-minute link
+});
+
+/* ------------------------------------------------------------------ master sheet exports
+ * The centralized "master sheet" from the 2026-08-12 meeting. A Google Sheet pulls these with
+ * =IMPORTDATA("<PUBLIC_URL>/export/notes.csv?t=<token>") — IMPORTDATA cannot send headers,
+ * which is exactly why authed() also accepts ?t. Google re-fetches on its own (~hourly). */
+
+app.get("/export/notes.csv", authed, async (_req, res) => {
+  try {
+    const [notes, meetings] = await Promise.all([
+      select("meeting_notes", "select=meeting_id,brand,kind,title,detail,evidence,said_at,created_at&order=created_at.desc&limit=5000"),
+      select("meetings", "select=id,title,started_at&limit=1000"),
+    ]);
+    const mTitle = new Map(meetings.map((m) => [m.id, m]));
+    const rows = notes.map((n) => ({
+      date: String(n.said_at || n.created_at || "").slice(0, 10),
+      brand: n.brand || "",
+      kind: n.kind,
+      title: n.title,
+      detail: n.detail || "",
+      quote: n.evidence?.[0]?.quote || "",
+      speaker: n.evidence?.[0]?.speaker || "",
+      meeting: mTitle.get(n.meeting_id)?.title || "",
+      verified: n.kind === "gemini_notes" ? "NO — paraphrase" : "yes — quoted",
+    }));
+    res.type("text/csv").send(toCsv(["date", "brand", "kind", "title", "detail", "quote", "speaker", "meeting", "verified"], rows));
+  } catch (e) { res.status(500).type("text/plain").send(String(e.message)); }
+});
+
+app.get("/export/comments.csv", authed, async (_req, res) => {
+  try {
+    const rows = (await select("doc_comments", "select=*&order=created_time.desc&limit=5000")).map((c) => ({
+      date: String(c.created_time || "").slice(0, 10),
+      brand: c.brand || "",
+      file: c.file_name,
+      kind: c.doc_kind,
+      author: c.author,
+      role: c.author_role,
+      comment: c.content,
+      anchored_to: c.anchored_to || "",
+      resolved: c.resolved ? "yes" : "open",
+      replies: (c.replies || []).map((r) => `${r.author}: ${r.content}`).join(" | "),
+      link: c.web_link || "",
+    }));
+    res.type("text/csv").send(toCsv(["date", "brand", "file", "kind", "author", "role", "comment", "anchored_to", "resolved", "replies", "link"], rows));
+  } catch (e) {
+    // Most likely: schema section 9 not applied yet. Say so in the sheet itself.
+    res.status(500).type("text/plain").send("doc_comments not available — run schema.sql section 9 in Supabase. " + String(e.message).slice(0, 120));
+  }
 });
 
 /* ------------------------------------------------------------------ dashboard */

@@ -29,8 +29,10 @@ import "./env.js";
 import { accessToken, subjects } from "./engine/sources/google-auth.js";
 import { fetchRetry } from "./engine/http.js";
 import { parseMeetDoc } from "./engine/sources/meet-notes.js";
+import { listCommentableFiles, listComments, normalizeComment } from "./engine/sources/doc-comments.js";
 import { processMeeting } from "./engine/index.js";
-import { insert, insertOnce, select, update } from "./engine/targets/supabase.js";
+import { insert, insertOnce, select, update, upsert } from "./engine/targets/supabase.js";
+import { brandIndex, matchBrandFromTitle } from "./engine/targets/brand-brain.js";
 
 const DRY = process.argv.includes("--dry");
 // NOT process.argv[indexOf("--file") + 1] — with no --file, indexOf returns -1 and that reads
@@ -235,6 +237,74 @@ async function ingestDoc(file, subject) {
   return changeset;
 }
 
+/* ------------------------------------------------------------------ comments lane
+ * Client feedback living as comments on "Brand: Ad Concepts" decks and "Brand: Scripts" docs.
+ * No model call anywhere in this lane: the API supplies author, time, verbatim text and the
+ * anchored phrase, so rows go straight to doc_comments, idempotent on comment_id. Runs after
+ * the meetings lane and never fails the tick — a missing table logs its own fix. */
+
+const COMMENT_LOOKBACK_DAYS = Number(process.env.COMMENTS_LOOKBACK_DAYS || 14);
+const INTERNAL_HANDLES = (process.env.INTERNAL_HANDLES || "").split(",").map((s) => s.trim()).filter(Boolean);
+
+async function getSyncCursor(name) {
+  const [row] = await select("sync_cursors", `name=eq.${encodeURIComponent(name)}&limit=1`).catch(() => []);
+  return row?.value || null;
+}
+
+async function pollComments(subject) {
+  const cursorName = `doc-comments:${subject}`;
+  let since;
+  try {
+    since = await getSyncCursor(cursorName);
+  } catch (e) {
+    console.log(`  comments lane off — run the schema update (section 9 in schema.sql): ${e.message.slice(0, 80)}`);
+    return;
+  }
+  // First run looks back a fixed window rather than crawling all history; overlap of 60s on
+  // later runs is free because rows upsert on comment_id.
+  const sinceISO = since
+    ? new Date(Date.parse(since) - 60_000).toISOString()
+    : new Date(Date.now() - COMMENT_LOOKBACK_DAYS * 864e5).toISOString();
+
+  const files = await listCommentableFiles(subject, sinceISO);
+  if (!files.length) { console.log(`  comments: nothing touched since ${sinceISO.slice(0, 16)}`); return; }
+
+  const index = await brandIndex().catch(() => []);
+  let stored = 0, seen = 0, newest = since;
+
+  for (const file of files) {
+    let comments;
+    try {
+      comments = await listComments(subject, file.id, sinceISO);
+    } catch (e) {
+      console.error(`  comments FAIL ${file.name}: ${e.message}`);
+      continue;           // one unreadable file must not stall the rest — cursor just won't pass it
+    }
+    seen += comments.length;
+
+    const brand = matchBrandFromTitle(file.name, index);
+    for (const c of comments) {
+      const row = normalizeComment(file, c, { internalHandles: INTERNAL_HANDLES });
+      row.brand = brand?.brand || null;
+      if (DRY) { console.log(`  [dry] ${row.file_name} · ${row.author}/${row.author_role}: "${row.content.slice(0, 60)}"`); continue; }
+      try {
+        await upsert("doc_comments", row, undefined, "comment_id");
+        stored++;
+      } catch (e) {
+        console.error(`  comments store FAIL (${row.comment_id}): ${e.message.slice(0, 120)}`);
+        return;           // storage is broken — stop without advancing the cursor, retry next tick
+      }
+      if (!newest || String(row.modified_time) > String(newest)) newest = row.modified_time;
+    }
+    if (!newest || String(file.modifiedTime) > String(newest)) newest = file.modifiedTime;
+  }
+
+  console.log(`  comments: ${files.length} file(s) touched, ${seen} comment(s), ${DRY ? "0 stored (dry)" : stored + " upserted"}`);
+  if (!DRY && newest && newest !== since) {
+    await upsert("sync_cursors", { name: cursorName, value: newest }).catch((e) => console.error(`  cursor save failed: ${e.message.slice(0, 80)}`));
+  }
+}
+
 /* ------------------------------------------------------------------ one pass */
 
 async function main() {
@@ -330,6 +400,11 @@ async function main() {
     } catch (e) {
       console.error(`[poll] ${subject} failed: ${e.message}`);
     }
+
+    // Comments ride the same tick but their failures stay their own — a broken comments pass
+    // must never cost a meeting, and vice versa.
+    try { await pollComments(subject); }
+    catch (e) { console.error(`[poll] comments for ${subject} failed: ${e.message}`); }
   }
 }
 

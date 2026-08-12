@@ -81,6 +81,42 @@ export async function resolveBrand(term, env = process.env) {
   return { id: hit.id, brand: hit.brand_name || hit.client_name, matchedOn: norm(hit.brand_name) === t ? "brand_name" : norm(hit.client_name) === t ? "client_name" : "alias" };
 }
 
+/**
+ * Match a FILE TITLE to a brand, given the already-fetched brand index. Pure, so it is testable
+ * offline and one index fetch serves a whole poll run.
+ *
+ * The team's real naming carries the brand before a separator — "Huckleberry: Ad Concepts",
+ * "ARMRA: Scripts Batch 4, UGC", "Pattern Brands (GIR & Onsen): Scripts Batch 6 - Ashley" — so
+ * the leading segment is tried first, then each 4+ char token as an alias fallback. Same
+ * normalisation as everything else; a title that matches nothing returns null and the caller
+ * records unattributed rather than guessing.
+ */
+export function matchBrandFromTitle(title, index) {
+  if (!title || !Array.isArray(index) || !index.length) return null;
+  const hit = (t) => {
+    if (!t) return null;
+    return (
+      index.find((r) => norm(r.brand_name) === t) ||
+      index.find((r) => norm(r.client_name) === t) ||
+      index.find((r) => String(r.aliases || "").split("|").some((a) => a.trim() && norm(a) === t)) ||
+      null
+    );
+  };
+  const lead = hit(norm(String(title).split(/[—\-–|:]/)[0]));
+  if (lead) return { id: lead.id, brand: lead.brand_name || lead.client_name };
+  for (const tok of String(title).split(/[^A-Za-z0-9&]+/)) {
+    if (tok.length < 4) continue;                 // "Ad", "GIR"-length tokens are too ambiguous
+    const h = hit(norm(tok));
+    if (h) return { id: h.id, brand: h.brand_name || h.client_name };
+  }
+  return null;
+}
+
+/** The small index the matchers run against — one fetch per poll run. */
+export const brandIndex = (env = process.env) =>
+  select("brand_brain", "select=id,brand_name,client_name,aliases&limit=800", env)
+    .catch(() => select("brand_brain", "select=id,brand_name,client_name&limit=800", env));
+
 /** Current values for the brand row — the "old" side of every diff the dashboard shows. */
 export async function getBrandRecord(id, env = process.env) {
   const [row] = await select("brand_brain", `select=*&id=eq.${encodeURIComponent(id)}&limit=1`, env);

@@ -51,9 +51,10 @@ export const insert = (table, row, env) =>
 
 /** Insert-or-replace. Needed wherever a retry can revisit the same primary key — meeting_transcripts
  *  is keyed on meeting_id, so re-processing a meeting that failed after transcription would
- *  otherwise collide and lose the transcript. */
-export const upsert = (table, row, env) =>
-  rest(`/${table}`, {
+ *  otherwise collide and lose the transcript. `onConflict` targets a UNIQUE column that is not
+ *  the PK (PostgREST merges on the PK unless told otherwise) — doc_comments merges on comment_id. */
+export const upsert = (table, row, env, onConflict) =>
+  rest(`/${table}${onConflict ? `?on_conflict=${onConflict}` : ""}`, {
     method: "POST",
     headers: { prefer: "return=representation,resolution=merge-duplicates" },
     body: JSON.stringify(row),

