@@ -43,16 +43,22 @@ export async function listCommentableFiles(subject, sinceISO, { pageSize = 40 } 
   return (await res.json()).files || [];
 }
 
-/** Every comment on one file changed since the cursor, replies included. Deleted ones are
- *  skipped — a retracted comment should not keep feeding the knowledge base. */
-export async function listComments(subject, fileId, sinceISO) {
+/** ALL comments on one file, replies included. Deleted ones are skipped — a retracted comment
+ *  should not keep feeding the knowledge base.
+ *
+ *  Deliberately NO startModifiedTime filter. The first version passed the lane's walking
+ *  cursor here, and that lost history: by the time the backfill reached a late file, the
+ *  cursor had advanced past that file's older comments, so "Huckleberry: Ad Concepts" arrived
+ *  without its 'Sleep Coach' boundary and Pattern Brands lost all 50. The file-level
+ *  modifiedTime cursor already decides WHICH files get scanned; once a file is touched, its
+ *  full comment history is cheap (≤ a few pages) and upsert-on-comment_id makes re-reads free. */
+export async function listComments(subject, fileId) {
   const out = [];
   let pageToken;
   do {
     const u = new URL(`${FILES_URL}/${fileId}/comments`);
     u.searchParams.set("fields", "nextPageToken,comments(id,author(displayName),content,quotedFileContent(value),resolved,deleted,createdTime,modifiedTime,replies(author(displayName),content,createdTime,deleted))");
     u.searchParams.set("pageSize", "100");
-    if (sinceISO) u.searchParams.set("startModifiedTime", sinceISO);
     if (pageToken) u.searchParams.set("pageToken", pageToken);
 
     const res = await fetchRetry(u, { headers: { authorization: `Bearer ${await accessToken(subject)}` } }, { label: "drive comments" });

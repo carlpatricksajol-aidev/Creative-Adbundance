@@ -372,6 +372,14 @@ ok("plain text passes through untouched", csvCell("Huckleberry") === "Huckleberr
 const sheet = toCsv(["a", "b"], [{ a: "x,y", b: "=SUM(1)" }]);
 ok("toCsv emits CRLF rows with escaped cells", sheet === 'a,b\r\n"x,y",\'=SUM(1)\r\n');
 
+// Structural tripwire for a bug that shipped: the meetings lane exits its no-work paths with
+// `continue`, so any lane appended AFTER it in the subject loop silently never runs once the
+// backlog is drained. Comments must be called before the first `continue` can fire.
+const pollerSrc = readFileSync(join(__dirname, "..", "poll-drive.js"), "utf8");
+ok("comments lane sits above the meetings lane's early exits",
+  pollerSrc.indexOf("await pollComments") < pollerSrc.indexOf('"  nothing new"') ||
+  pollerSrc.indexOf("await pollComments") < pollerSrc.indexOf("nothing new"));
+
 /* --------------------------------------------------------------- dashboard is not broken
  * The dashboard is one HTML file with an inline <script>. Nothing type-checks it, no build step
  * touches it, and a single stray character takes the WHOLE page down silently — the browser

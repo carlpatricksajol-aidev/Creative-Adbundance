@@ -275,7 +275,7 @@ async function pollComments(subject) {
   for (const file of files) {
     let comments;
     try {
-      comments = await listComments(subject, file.id, sinceISO);
+      comments = await listComments(subject, file.id);
     } catch (e) {
       console.error(`  comments FAIL ${file.name}: ${e.message}`);
       continue;           // one unreadable file must not stall the rest — cursor just won't pass it
@@ -323,6 +323,15 @@ async function main() {
 
   for (const subject of people) {
     console.log(`[poll] ${subject}`);
+
+    // Comments run FIRST, not appended after the meetings lane: that lane exits its no-work
+    // paths with `continue` ("no folder", "nothing new"), and an appended comments call sat
+    // unreachable behind them — on the steady-state VPS, where every meeting is already
+    // recorded, the comments lane never ran once. Dry runs masked it because dry mode always
+    // has "new" meetings. Lanes stay independent: a comments failure costs no meetings.
+    try { await pollComments(subject); }
+    catch (e) { console.error(`[poll] comments for ${subject} failed: ${e.message}`); }
+
     try {
       const cursor = await getCursor(subject);
 
@@ -400,11 +409,6 @@ async function main() {
     } catch (e) {
       console.error(`[poll] ${subject} failed: ${e.message}`);
     }
-
-    // Comments ride the same tick but their failures stay their own — a broken comments pass
-    // must never cost a meeting, and vice versa.
-    try { await pollComments(subject); }
-    catch (e) { console.error(`[poll] comments for ${subject} failed: ${e.message}`); }
   }
 }
 

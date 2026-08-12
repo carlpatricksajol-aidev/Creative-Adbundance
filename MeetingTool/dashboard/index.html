@@ -117,7 +117,12 @@ const when = (d) => (d ? new Date(d).toLocaleString([], { month: "short", day: "
 async function loadList() {
   try {
     const rows = await api("/api/meetings");
-    $("#list").innerHTML = rows.map((m) => {
+    // Pinned view above the meetings: client feedback harvested from "Brand: Ad Concepts"
+    // decks and "Brand: Scripts" docs — the other capture source, per the 2026-08-12 meeting.
+    const commentsNav = `<div class="m" id="commentsNav" onclick="openComments()" style="border:1px dashed var(--border-strong)">
+      <b>Concept &amp; Script comments</b>
+      <div class="muted">client feedback from Drive decks &amp; docs</div></div>`;
+    $("#list").innerHTML = commentsNav + rows.map((m) => {
       const c = m.changeset;
       // A meeting that is `ready` with no changeset is not "done" in any useful sense — it had no
       // transcript. Saying "ready" made a third of the list look processed when nothing was.
@@ -135,6 +140,49 @@ async function loadList() {
     }).join("") || '<p class="muted">no meetings yet</p>';
     if (!current && rows[0]) open_(rows[0].id);
   } catch (e) { $("#list").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+}
+
+async function openComments() {
+  document.querySelectorAll(".m").forEach((el) => el.classList.toggle("on", el.id === "commentsNav"));
+  current = null;
+  $("#detail").innerHTML = '<p class="muted">loading comments…</p>';
+  try {
+    const rows = await api("/api/comments");
+    if (!rows.length) {
+      $("#detail").innerHTML = '<div class="note">No comments captured yet. The poller sweeps Drive every 10 minutes; run the schema update if this persists.</div>';
+      return;
+    }
+    // Group by file, newest file first — a reviewer thinks in decks and docs, not in a flat feed.
+    const byFile = new Map();
+    for (const c of rows) {
+      if (!byFile.has(c.file_id)) byFile.set(c.file_id, { name: c.file_name, brand: c.brand, kind: c.doc_kind, link: c.web_link, items: [] });
+      byFile.get(c.file_id).items.push(c);
+    }
+    const one = (c) => `
+      <div style="padding:10px 0;border-top:1px solid var(--border)">
+        <div class="meta" style="margin-bottom:4px">
+          <span class="pill ${c.author_role === "client" ? "review" : "auto"}">${esc(c.author_role)}</span>
+          <b style="font-size:13.5px">${esc(c.author || "unknown")}</b>
+          <span class="muted">${when(c.created_time)}</span>
+          ${c.resolved ? '<span class="pill">resolved</span>' : ""}
+        </div>
+        <div style="font-size:14px;white-space:pre-wrap">${esc(c.content)}</div>
+        ${c.anchored_to ? `<blockquote>on: “${esc(c.anchored_to.slice(0, 160))}”</blockquote>` : ""}
+        ${(c.replies || []).map((r) => `<div class="muted" style="margin:6px 0 0 14px;font-size:13px">↳ <b>${esc(r.author || "")}</b> ${esc(r.content)}</div>`).join("")}
+      </div>`;
+    $("#detail").innerHTML = `
+      <h2 style="margin:0 0 4px;font-size:20px;letter-spacing:-.02em">Concept &amp; Script comments</h2>
+      <p class="muted" style="margin:0 0 14px">${rows.length} most recent · full history in the master sheet export</p>
+      ${[...byFile.values()].map((f) => `
+        <div class="card">
+          <div class="meta">
+            ${f.brand ? `<span class="pill auto">${esc(f.brand)}</span>` : '<span class="pill">no brand</span>'}
+            <span class="type">${esc(f.kind === "slides" ? "ad concepts" : "scripts")}</span>
+          </div>
+          <h3>${f.link ? `<a href="${esc(f.link)}" target="_blank" rel="noopener">${esc(f.name)}</a>` : esc(f.name)}</h3>
+          ${f.items.map(one).join("")}
+        </div>`).join("")}`;
+  } catch (e) { $("#detail").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
 }
 
 async function open_(id) {

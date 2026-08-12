@@ -425,6 +425,20 @@ app.get("/api/meetings/:id/audio", authed, async (req, res) => {
   res.json({ url: await signedAudioUrl(m.audio_path, 300) }); // private bucket, 5-minute link
 });
 
+/* ------------------------------------------------------------------ doc comments (dashboard) */
+
+// Recent comments for the dashboard's Concept & Script view. Kept under PostgREST's 1000-row
+// cap; the CSV export is the full-history surface, this is the "what's new" one.
+app.get("/api/comments", authed, async (req, res) => {
+  try {
+    const brand = req.query.brand ? `&brand=eq.${encodeURIComponent(req.query.brand)}` : "";
+    const rows = await select("doc_comments", `select=*&order=created_time.desc&limit=800${brand}`);
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: "doc_comments not available — run schema.sql section 9. " + String(e.message).slice(0, 120) });
+  }
+});
+
 /* ------------------------------------------------------------------ master sheet exports
  * The centralized "master sheet" from the 2026-08-12 meeting. A Google Sheet pulls these with
  * =IMPORTDATA("<PUBLIC_URL>/export/notes.csv?t=<token>") — IMPORTDATA cannot send headers,
