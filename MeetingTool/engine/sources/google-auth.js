@@ -28,6 +28,20 @@ import { fileURLToPath } from "node:url";
 
 export const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 export const AUTH_SCOPES = `${DRIVE_SCOPE} openid email`;
+
+/* The master sheet needs WRITE access, which the capture tokens deliberately do not have.
+ * Rather than widen everyone's consent, one account (whoever should own the sheet) grants a
+ * separate, narrower one.
+ *
+ * drive.file is the whole point: it grants access ONLY to files this app creates. The tool can
+ * make the master sheet, write to it and share it — and is structurally incapable of reading or
+ * touching any other file in that person's Drive. A blanket `spreadsheets` scope would have
+ * reached every spreadsheet they own; this reaches exactly one.
+ *
+ * Stored under the key `writer:<email>` so it sits alongside the read tokens without being
+ * mistaken for one — subjects() filters these out, so the poller never tries to capture with it. */
+export const WRITER_SCOPES = "https://www.googleapis.com/auth/drive.file openid email";
+export const WRITER_PREFIX = "writer:";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 
 const cache = new Map(); // subject -> { token, exp }
@@ -153,5 +167,11 @@ export async function accessToken(subject, env = process.env) {
 export function subjects(env = process.env) {
   const listed = (env.GOOGLE_IMPERSONATE || "").split(",").map((s) => s.trim()).filter(Boolean);
   if (listed.length) return listed;
-  return Object.keys(readTokens(env));
+  // Writer tokens are excluded: they hold drive.file only and would see nothing to capture.
+  return Object.keys(readTokens(env)).filter((k) => !k.startsWith(WRITER_PREFIX));
+}
+
+/** The account that owns and writes the master sheet, or null if nobody has granted it yet. */
+export function writerSubject(env = process.env) {
+  return Object.keys(readTokens(env)).find((k) => k.startsWith(WRITER_PREFIX)) || null;
 }

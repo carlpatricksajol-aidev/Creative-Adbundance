@@ -30,7 +30,11 @@ import { createHash, randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { AUTH_SCOPES, tokensFile } from "./engine/sources/google-auth.js";
+import { AUTH_SCOPES, WRITER_SCOPES, WRITER_PREFIX, tokensFile } from "./engine/sources/google-auth.js";
+
+// --writer asks for drive.file instead of drive.readonly: write access limited to files this
+// app creates, used solely for the master sheet. Only ONE person needs to run this.
+const WRITER = process.argv.includes("--writer");
 
 const PORT = Number(process.env.GOOGLE_OAUTH_PORT || 53682);
 const REDIRECT = `http://127.0.0.1:${PORT}`;
@@ -75,7 +79,7 @@ Object.entries({
   client_id: CLIENT_ID,
   redirect_uri: REDIRECT,
   response_type: "code",
-  scope: AUTH_SCOPES,
+  scope: WRITER ? WRITER_SCOPES : AUTH_SCOPES,
   access_type: "offline",     // without this there is no refresh token at all
   prompt: "consent",          // force a refresh token even if they have authorised before
   code_challenge: challenge,
@@ -154,7 +158,8 @@ async function exchange(code, verifier, redirect) {
 
   const path = tokensFile();
   const store = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : {};
-  store[email] = { refresh_token: tok.refresh_token, authorised_at: new Date().toISOString() };
+  const key = WRITER ? WRITER_PREFIX + email : email;
+  store[key] = { refresh_token: tok.refresh_token, authorised_at: new Date().toISOString(), scopes: WRITER ? "drive.file (master sheet only)" : "drive.readonly" };
   writeFileSync(path, JSON.stringify(store, null, 2));
   try { rmSync(PENDING, { force: true }); } catch {}
 
