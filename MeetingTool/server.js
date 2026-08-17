@@ -439,6 +439,102 @@ app.get("/api/comments", authed, async (req, res) => {
   }
 });
 
+/* ------------------------------------------------------------------ client review (the master view)
+ * What a creative strategist opens before writing anything for a client: every durable thing
+ * that client has said, in one place, newest first, each with the quote behind it.
+ *
+ * This is the "centralized place to store and populate client meeting notes" from the
+ * 2026-08-12 action item. It lives HERE, in the tool, rather than in a spreadsheet — a
+ * strategist reviewing a client should not have to leave the thing that captured the material. */
+
+app.get("/api/clients", authed, async (_req, res) => {
+  try {
+    const rows = await select("client_activity", "select=*&order=last_at.desc");
+    res.json(rows);
+  } catch (e) {
+    // View not created yet (schema section 10). Fall back to the client list with no counts so
+    // the page still works, and say what to run.
+    const brands = await select("brand_brain", "select=brand_name&order=brand_name.asc&limit=500").catch(() => []);
+    res.json(brands.map((b) => ({ brand: b.brand_name, notes: null, comments: null, last_at: null,
+      _hint: "run schema.sql section 10 for counts" })));
+  }
+});
+
+/* The master list: meeting notes and client comments flattened into ONE table of comparable
+ * rows — the Notion-database shape a strategist scans, rather than cards they have to read.
+ * Filtering happens in Postgres so the browser never holds 13k rows. */
+app.get("/api/master", authed, async (req, res) => {
+  const { brand, type, who, q } = req.query;
+  const cap = Math.min(Number(req.query.limit) || 400, 1000);
+  const like = (s) => `*${String(s).replace(/[*,()]/g, "")}*`;
+
+  try {
+    const wantNotes = !type || type === "notes";
+    const wantComments = !type || type === "comments";
+
+    const notesQ = ["select=*", "order=created_at.desc", `limit=${cap}`,
+      brand ? `brand=eq.${encodeURIComponent(brand)}` : null,
+      q ? `or=(title.ilike.${like(q)},detail.ilike.${like(q)})` : null,
+    ].filter(Boolean).join("&");
+
+    const commentsQ = ["select=*", "order=created_time.desc", `limit=${cap}`,
+      brand ? `brand=eq.${encodeURIComponent(brand)}` : null,
+      who ? `author_role=eq.${encodeURIComponent(who)}` : null,
+      q ? `or=(content.ilike.${like(q)},file_name.ilike.${like(q)})` : null,
+    ].filter(Boolean).join("&");
+
+    const [notes, comments] = await Promise.all([
+      wantNotes ? select("meeting_notes", notesQ) : [],
+      wantComments ? select("doc_comments", commentsQ).catch(() => []) : [],
+    ]);
+
+    const rows = [
+      ...notes.map((n) => ({
+        date: n.said_at || n.created_at,
+        brand: n.brand,
+        kind: String(n.kind).replace(/_/g, " "),
+        source: n.kind === "gemini_notes" ? "meeting (AI summary)" : "meeting",
+        what: n.title,
+        detail: n.detail || "",
+        quote: n.evidence?.[0]?.quote || "",
+        who: n.evidence?.[0]?.speaker || "",
+        role: n.evidence?.[0]?.role || "",
+        link: null,
+        verified: n.kind !== "gemini_notes",
+      })),
+      ...comments.map((c) => ({
+        date: c.created_time,
+        brand: c.brand,
+        kind: c.doc_kind === "slides" ? "ad concept" : "script",
+        source: "comment",
+        what: c.content,
+        detail: c.file_name || "",
+        quote: c.anchored_to || "",
+        who: c.author || "",
+        role: c.author_role || "",
+        link: c.web_link || null,
+        verified: true,      // a comment is verbatim from the API; nothing was inferred
+        resolved: c.resolved,
+      })),
+    ].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+
+    res.json({ rows: rows.slice(0, cap), truncated: rows.length > cap });
+  } catch (e) { res.status(500).json({ error: String(e.message) }); }
+});
+
+app.get("/api/client/:brand", authed, async (req, res) => {
+  const brand = req.params.brand;
+  const eq = `brand=eq.${encodeURIComponent(brand)}`;
+  try {
+    const [notes, comments, meetings] = await Promise.all([
+      select("meeting_notes", `${eq}&select=*&order=created_at.desc&limit=400`),
+      select("doc_comments", `${eq}&select=*&order=created_time.desc&limit=400`).catch(() => []),
+      select("meetings", `${eq}&select=id,title,started_at,status&order=started_at.desc&limit=60`).catch(() => []),
+    ]);
+    res.json({ brand, notes, comments, meetings });
+  } catch (e) { res.status(500).json({ error: String(e.message) }); }
+});
+
 /* ------------------------------------------------------------------ master sheet exports
  * The centralized "master sheet" from the 2026-08-12 meeting. A Google Sheet pulls these with
  * =IMPORTDATA("<PUBLIC_URL>/export/notes.csv?t=<token>") — IMPORTDATA cannot send headers,

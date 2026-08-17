@@ -94,6 +94,12 @@ async function setCursor(subject, folderId, iso) {
  * then this is a record of the meeting rather than nothing at all. */
 async function recordNotesOnly(file, subject, parsed, seen) {
   const n = parsed.notes || {};
+
+  // Notes-only meetings used to hardcode brand: null and never ask the matcher at all, so an
+  // obvious client meeting like "CA x ThreadBeast: Ad concept alignment" stayed unattributed
+  // purely because transcription happened to be off. No transcript is a reason not to EXTRACT
+  // from it; it is not a reason to forget whose meeting it was.
+  const brandHit = DRY ? null : matchBrandFromTitle(parsed.title || file.name, await brandIndex().catch(() => []));
   const body = [
     n.summary ? n.summary : null,
     n.decisions?.length ? "Decisions Gemini recorded:\n" + n.decisions.map((d) => `• ${d}`).join("\n") : null,
@@ -108,11 +114,13 @@ async function recordNotesOnly(file, subject, parsed, seen) {
 
   const meetingId = seen?.id || crypto.randomUUID();
   if (seen) {
-    await update("meetings", `id=eq.${meetingId}`, { status: "ready", error: null });
+    await update("meetings", `id=eq.${meetingId}`, { status: "ready", error: null,
+      brand: brandHit?.brand || null, brand_record_id: brandHit?.id || null });
   } else {
     await insert("meetings", {
       id: meetingId, external_id: file.id, source: "meet", platform: "meet",
-      title: parsed.title, brand: null, started_at: file.createdTime,
+      title: parsed.title, brand: brandHit?.brand || null, brand_record_id: brandHit?.id || null,
+      started_at: file.createdTime,
       participants: parsed.participants, status: "ready", created_by: subject,
     });
   }
@@ -120,7 +128,7 @@ async function recordNotesOnly(file, subject, parsed, seen) {
   await insertOnce("meeting_notes", {
     meeting_id: meetingId,
     item_id: "notesonly-" + file.id,          // stable, so re-polling is a no-op
-    brand: null,
+    brand: brandHit?.brand || null,
     kind: "gemini_notes",
     title: parsed.title || file.name,
     detail: (parsed.emptyTranscript
@@ -160,11 +168,9 @@ async function ingestDoc(file, subject) {
 
   console.log(`  read  ${parsed.title} · ${parsed.transcript.segments.length} segments · ${parsed.participants.map((p) => `${p.name}/${p.role[0]}`).join(" ")}`);
 
-  // A CANDIDATE brand, not a brand. Titles like "ARMRA — creative review" put the client first,
-  // so the leading segment is worth trying against brand_brain. But "Carl x Dimple" would also
-  // produce a candidate, which is why the engine nulls it when it does not resolve rather than
-  // storing it — an unresolved meeting is recorded with no brand, not with a fake one.
-  const brandGuess = (parsed.title || "").split(/[—\-–|:]/)[0].trim() || null;
+  // No pre-chopping: the engine matches the FULL title against brand_brain (same matcher the
+  // comments lane uses). Chopping at the first separator is what made "CA x ARMRA ..." resolve
+  // to nothing.
   const meetingId = seen?.id || crypto.randomUUID();
 
   if (!DRY) {

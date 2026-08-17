@@ -104,10 +104,20 @@ export function matchBrandFromTitle(title, index) {
   };
   const lead = hit(norm(String(title).split(/[—\-–|:]/)[0]));
   if (lead) return { id: lead.id, brand: lead.brand_name || lead.client_name };
-  for (const tok of String(title).split(/[^A-Za-z0-9&]+/)) {
-    if (tok.length < 4) continue;                 // "Ad", "GIR"-length tokens are too ambiguous
-    const h = hit(norm(tok));
-    if (h) return { id: h.id, brand: h.brand_name || h.client_name };
+
+  // Then every run of consecutive words, LONGEST FIRST. Single tokens alone are not enough:
+  // most clients here are multi-word ("Symple Lending", "Accredited Debt Relief", "Pattern
+  // Brands"), and a one-word scan silently missed all of them — "CA x Symple Lending: Biweekly"
+  // resolved to nothing while "CA x ThreadBeast: ..." worked, purely because one name happens to
+  // be a single word. Longest-first so a two-word client wins over a one-word near-match.
+  const tokens = String(title).split(/[^A-Za-z0-9&]+/).filter(Boolean);
+  for (let n = Math.min(5, tokens.length); n >= 1; n--) {
+    for (let i = 0; i + n <= tokens.length; i++) {
+      const phrase = tokens.slice(i, i + n).join(" ");
+      if (n === 1 && phrase.length < 4) continue;   // "Ad", "CA", "TB" are too ambiguous alone
+      const h = hit(norm(phrase));
+      if (h) return { id: h.id, brand: h.brand_name || h.client_name };
+    }
   }
   return null;
 }

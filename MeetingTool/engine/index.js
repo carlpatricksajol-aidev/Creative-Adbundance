@@ -19,7 +19,7 @@ import { reconcile } from "./reconcile.js";
 import { buildChangeset, notifyText, sha256 } from "./changeset.js";
 import { applyChangeset } from "./apply.js";
 import { insert, update, upsert } from "./targets/supabase.js";
-import { resolveBrand } from "./targets/brand-brain.js";
+import { brandIndex, matchBrandFromTitle } from "./targets/brand-brain.js";
 
 /** roleOf from the participant roster: client instruction outranks internal speculation. */
 function rosterRoleOf(participants = []) {
@@ -47,17 +47,26 @@ export async function processMeeting(input, opts = {}) {
   // the two tools can never disagree about which client a name means). Unresolved is not fatal —
   // notes and tasks still land — but every brand_fact is dropped rather than written to a guess.
   const meeting = { ...input.meeting };
-  if (!meeting.brandRecordId && meeting.brand && !dry) {
-    const hit = await resolveBrand(meeting.brand, env).catch(() => null);
+  if (!meeting.brandRecordId && !dry) {
+    // Match the WHOLE title, with the same matcher the comments lane uses.
+    //
+    // This used to take only the text before the first dash/colon and require an exact match,
+    // which meant real meeting titles never resolved: "CA x ARMRA Ad Concept Alignment (B1)",
+    // "ARMRA Biweekly" and "ARMRA <> Creative Adbundance" all produced NULL, while a comment on
+    // "ARMRA: Scripts Batch 4" resolved fine. Result: 0 of 124 meetings had a client attached,
+    // so every client page showed comments but no meetings. One matcher for both lanes now.
+    const idx = await brandIndex(env).catch(() => []);
+    const hit = (meeting.brand ? matchBrandFromTitle(meeting.brand, idx) : null)
+             || matchBrandFromTitle(meeting.title, idx);
     if (hit) {
       meeting.brand = hit.brand;
       meeting.brandRecordId = hit.id;
-      console.error(`[engine] brand "${hit.brand}" resolved on ${hit.matchedOn}`);
+      console.error(`[engine] brand resolved: ${hit.brand}`);
     } else {
       // Null it out rather than keeping the guess. `brand` means "a real brand_brain client",
       // and storing "Carl x Dimple" there would make every per-brand query on meetings and
       // meeting_notes useless. The original text is still in meetings.title.
-      console.error(`[engine] "${meeting.brand}" matches no brand_brain row — recording without a brand. Add it to that client's aliases column to attribute it.`);
+      console.error(`[engine] "${meeting.title || meeting.brand}" matches no brand_brain row — recording without a brand. Add it to that client's aliases column to attribute it.`);
       meeting.brand = null;
     }
   }

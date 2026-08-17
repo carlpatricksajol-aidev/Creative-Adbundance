@@ -336,6 +336,22 @@ ok("'Pattern Brands (GIR & Onsen): Scripts Batch 6 - Ashley' -> Pattern Brands",
 ok("alias inside a title resolves ('Onsen hooks doc')", mb("Onsen hooks doc") === "Pattern Brands");
 ok("'Brick Scripts Batch 8' -> Brick via token fallback", mb("Brick Scripts Batch 8") === "Brick");
 ok("'AI: Workflows' matches no client", mb("AI: Workflows") === null);
+// Real MEETING titles, which used to resolve to nothing: the meetings lane took only the text
+// before the first dash/colon and demanded an exact match, so 0 of 124 stored meetings had a
+// client. Both lanes share this matcher now — these are the exact titles that were broken.
+ok("'CA x ARMRA Ad Concept Alignment (B1)' -> ARMRA", mb("CA x ARMRA Ad Concept Alignment (B1)") === "ARMRA");
+ok("'ARMRA Biweekly' -> ARMRA", mb("ARMRA Biweekly") === "ARMRA");
+ok("'ARMRA <> Creative Adbundance' -> ARMRA", mb("ARMRA <> Creative Adbundance") === "ARMRA");
+ok("'Huckleberry AI batch 4' -> Huckleberry", mb("Huckleberry AI batch 4") === "Huckleberry");
+// MULTI-WORD clients: a single-token scan matched "ThreadBeast" but silently missed every
+// two-word client, so "CA x Symple Lending: Biweekly TB" resolved to nothing. Consecutive-word
+// runs, longest first, fix it — and internal meetings must still resolve to nothing.
+ok("'CA x Symple Lending: Biweekly TB' -> Symple Lending",
+  matchBrandFromTitle("CA x Symple Lending: Biweekly TB", [...IDX, { id: "b5", brand_name: "Symple Lending", client_name: "Symple Lending", aliases: "" }])?.brand === "Symple Lending");
+ok("'Creative AdBundance x Accredited Debt Relief Kickoff' -> the client",
+  matchBrandFromTitle("Creative AdBundance x Accredited Debt Relief Kickoff", [...IDX, { id: "b6", brand_name: "Accredited Debt Relief", client_name: "Accredited Debt Relief", aliases: "" }])?.brand === "Accredited Debt Relief");
+ok("an internal 1:1 still matches nothing", mb("Carl x Eric") === null);
+ok("a two-letter token cannot match a client", mb("CA x TB sync") === null);
 
 const FILE = { id: "f1", name: "Huckleberry: Ad Concepts", mimeType: "application/vnd.google-apps.presentation", webViewLink: "https://docs.google.com/x" };
 const RAW_COMMENT = {

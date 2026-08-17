@@ -55,6 +55,30 @@ input{font:inherit;padding:7px 11px;border-radius:8px;border:1px solid var(--bor
 .note{background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:11px 13px;font-size:13.5px;color:var(--text-2);margin-bottom:14px}
 .done{color:var(--ok);font-size:12.5px;font-weight:600}
 .err{color:var(--danger);font-size:12.5px}
+
+/* ── master table: the database view a strategist scans ───────────────────── */
+main.wide{max-width:none}
+.tbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.tbar select,.tbar input{font:inherit;font-size:13px;padding:6px 10px;border-radius:8px;
+  border:1px solid var(--border-strong);background:var(--surface);color:var(--text);min-width:0}
+.tbar input[type=search]{min-width:220px;flex:1;max-width:340px}
+.tbar .count{font-size:12.5px;color:var(--text-3);margin-left:auto}
+.tblwrap{overflow-x:auto;border:1px solid var(--border);border-radius:11px;background:var(--surface)}
+table.master{border-collapse:collapse;width:100%;font-size:13.5px}
+table.master th{position:sticky;top:0;z-index:1;background:var(--surface-2);text-align:left;
+  font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);font-weight:700;
+  padding:9px 11px;border-bottom:1px solid var(--border-strong);white-space:nowrap}
+table.master td{padding:9px 11px;border-bottom:1px solid var(--border);vertical-align:top}
+table.master tr:last-child td{border-bottom:0}
+table.master tr:hover td{background:var(--surface-2)}
+td.date{white-space:nowrap;color:var(--text-3);font-size:12.5px;font-variant-numeric:tabular-nums}
+td.what{min-width:340px;max-width:620px}
+td.what .q{display:block;margin-top:4px;color:var(--text-3);font-size:12.5px;border-left:2px solid var(--accent);padding-left:8px}
+td.who{white-space:nowrap;font-size:12.5px}
+.tag{display:inline-block;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:650;white-space:nowrap;
+  background:var(--surface-3);color:var(--text-2)}
+.tag.client{background:rgba(251,191,36,.16);color:var(--warn)}
+.tag.unver{background:rgba(248,113,113,.15);color:var(--danger)}
 </style>
 
 <header>
@@ -122,7 +146,13 @@ async function loadList() {
     const commentsNav = `<div class="m" id="commentsNav" onclick="openComments()" style="border:1px dashed var(--border-strong)">
       <b>Concept &amp; Script comments</b>
       <div class="muted">client feedback from Drive decks &amp; docs</div></div>`;
-    $("#list").innerHTML = commentsNav + rows.map((m) => {
+    // The client review list goes FIRST: a strategist starts from "which client am I working
+    // on", not from "which meeting happened". Meetings are the raw material below it.
+    loadClients();
+    const masterNav = `<div class="m" id="masterNav" onclick="openMaster('')" style="border:1px dashed var(--border-strong)">
+      <b>Master list</b>
+      <div class="muted">every client, every note and comment — one table</div></div>`;
+    $("#list").innerHTML = masterNav + '<div id="clientNav"></div>' + commentsNav + rows.map((m) => {
       const c = m.changeset;
       // A meeting that is `ready` with no changeset is not "done" in any useful sense — it had no
       // transcript. Saying "ready" made a third of the list look processed when nothing was.
@@ -142,7 +172,137 @@ async function loadList() {
   } catch (e) { $("#list").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
 }
 
+/* ── the master list ──────────────────────────────────────────────────────
+ * One row per thing anyone said, across every client and both sources. Filters live in the
+ * URL of the API call, not in the browser, so this stays fast at 13k+ rows. */
+let masterFilters = { brand: "", type: "", who: "", q: "" };
+
+async function openMaster(brand) {
+  if (brand !== undefined) masterFilters.brand = brand || "";
+  document.querySelectorAll(".m").forEach((el) =>
+    el.classList.toggle("on", el.id === "masterNav" || (masterFilters.brand && el.dataset.client === masterFilters.brand)));
+  current = null;
+  $("#detail").classList.add("wide");
+
+  const clients = (await api("/api/clients").catch(() => [])).filter((c) => c.brand);
+  const opts = (sel, list) => list.map(([v, label]) =>
+    `<option value="${esc(v)}"${sel === v ? " selected" : ""}>${esc(label)}</option>`).join("");
+
+  $("#detail").innerHTML = `
+    <h2 style="margin:0 0 4px;font-size:20px;letter-spacing:-.02em">Master list</h2>
+    <p class="muted" style="margin:0 0 14px">Everything every client has told us — meetings and comments in one table.</p>
+    <div class="tbar">
+      <select id="fBrand">${opts(masterFilters.brand, [["", "All clients"], ...clients.map((c) => [c.brand, c.brand])])}</select>
+      <select id="fType">${opts(masterFilters.type, [["", "Everything"], ["comments", "Concept & script comments"], ["notes", "Meeting notes"]])}</select>
+      <select id="fWho">${opts(masterFilters.who, [["", "Anyone"], ["client", "Client only"], ["internal", "Internal only"]])}</select>
+      <input type="search" id="fQ" placeholder="search words…" value="${esc(masterFilters.q)}">
+      <span class="count" id="mCount">loading…</span>
+    </div>
+    <div class="tblwrap"><table class="master">
+      <thead><tr><th>Date</th><th>Client</th><th>Type</th><th>What was said</th><th>Who</th><th>Source</th></tr></thead>
+      <tbody id="mBody"><tr><td colspan="6" class="muted" style="padding:16px">loading…</td></tr></tbody>
+    </table></div>`;
+
+  const rerun = () => {
+    masterFilters = { brand: $("#fBrand").value, type: $("#fType").value, who: $("#fWho").value, q: $("#fQ").value.trim() };
+    fillMaster();
+  };
+  $("#fBrand").onchange = rerun; $("#fType").onchange = rerun; $("#fWho").onchange = rerun;
+  let t; $("#fQ").oninput = () => { clearTimeout(t); t = setTimeout(rerun, 350); };  // debounce typing
+  fillMaster();
+}
+
+async function fillMaster() {
+  const qs = new URLSearchParams(Object.entries(masterFilters).filter(([, v]) => v)).toString();
+  try {
+    const { rows, truncated } = await api("/api/master" + (qs ? "?" + qs : ""));
+    $("#mCount").textContent = `${rows.length}${truncated ? "+" : ""} row${rows.length === 1 ? "" : "s"}`;
+    $("#mBody").innerHTML = rows.length ? rows.map((r) => `
+      <tr>
+        <td class="date">${when(r.date)}</td>
+        <td>${r.brand ? esc(r.brand) : '<span class="muted">—</span>'}</td>
+        <td><span class="tag">${esc(r.kind)}</span></td>
+        <td class="what">${esc(r.what || "")}
+          ${r.quote ? `<span class="q">${r.source === "comment" ? "on: " : ""}“${esc(String(r.quote).slice(0, 200))}”</span>` : ""}
+          ${!r.verified ? '<span class="tag unver" style="margin-top:5px">AI summary — not quoted</span>' : ""}</td>
+        <td class="who">${esc(r.who || "")}${r.role === "client" ? ' <span class="tag client">client</span>' : ""}</td>
+        <td>${r.link ? `<a href="${esc(r.link)}" target="_blank" rel="noopener">${esc(r.detail || "open")}</a>`
+                     : `<span class="muted">${esc(r.detail || r.source)}</span>`}</td>
+      </tr>`).join("")
+      : '<tr><td colspan="6" class="muted" style="padding:16px">Nothing matches those filters.</td></tr>';
+  } catch (e) { $("#mBody").innerHTML = `<tr><td colspan="6" class="err" style="padding:16px">${esc(e.message)}</td></tr>`; }
+}
+
+async function loadClients() {
+  try {
+    const rows = (await api("/api/clients")).filter((c) => c.brand);
+    const active = rows.filter((c) => (c.notes || 0) + (c.comments || 0) > 0);
+    const show = active.length ? active : rows;
+    const el = document.getElementById("clientNav");
+    if (!el) return;
+    el.innerHTML = `<div class="sec" style="margin:2px 0 8px">Clients · ${show.length}</div>` +
+      show.map((c) => `<div class="m" data-client="${esc(c.brand)}" onclick="openMaster(${JSON.stringify(c.brand).replace(/"/g, "&quot;")})">
+        <b>${esc(c.brand)}</b>
+        <div class="muted">${c.notes == null ? "open to review" :
+          `${c.notes} note${c.notes === 1 ? "" : "s"} · ${c.comments} comment${c.comments === 1 ? "" : "s"}`}</div>
+      </div>`).join("") + `<div class="sec" style="margin:16px 0 8px">Everything else</div>`;
+  } catch { /* the meetings list still works without it */ }
+}
+
+/** One client, everything they have ever told us, grouped by what a strategist does with it. */
+async function openClient(brand) {
+  $("#detail").classList.remove("wide");
+  document.querySelectorAll(".m").forEach((el) => el.classList.toggle("on", el.dataset.client === brand));
+  current = null;
+  $("#detail").innerHTML = '<p class="muted">loading…</p>';
+  try {
+    const d = await api("/api/client/" + encodeURIComponent(brand));
+    const of = (...kinds) => d.notes.filter((n) => kinds.includes(n.kind));
+
+    const noteCard = (n) => `
+      <div class="card">
+        <div class="meta"><span class="type">${esc(String(n.kind).replace(/_/g, " "))}</span>
+          <span class="muted">${when(n.said_at || n.created_at)}</span></div>
+        <h3>${esc(n.title)}</h3>
+        ${n.detail ? `<div class="muted" style="white-space:pre-wrap">${esc(n.detail)}</div>` : ""}
+        ${(n.evidence || []).slice(0, 1).map((e) => `<blockquote>“${esc(e.quote)}”<cite>${esc(e.speaker || "unknown")}${e.role ? ` · ${esc(e.role)}` : ""}</cite></blockquote>`).join("")}
+      </div>`;
+
+    const commentCard = (c) => `
+      <div class="card">
+        <div class="meta">
+          <span class="pill ${c.author_role === "client" ? "review" : "auto"}">${esc(c.author_role)}</span>
+          <span class="type">${esc(c.doc_kind === "slides" ? "ad concept" : "script")}</span>
+          <span class="muted">${when(c.created_time)}</span>
+          ${c.resolved ? '<span class="pill">resolved</span>' : ""}
+        </div>
+        <h3>${c.web_link ? `<a href="${esc(c.web_link)}" target="_blank" rel="noopener">${esc(c.file_name)}</a>` : esc(c.file_name)}</h3>
+        <div style="white-space:pre-wrap;font-size:14px">${esc(c.content)}</div>
+        ${c.anchored_to ? `<blockquote>on: “${esc(c.anchored_to.slice(0, 160))}”</blockquote>` : ""}
+      </div>`;
+
+    const section = (title, html, n) => (n ? `<div class="sec">${title} · ${n}</div>${html}` : "");
+    // Client feedback first, then the rules, then what's owed — the order a strategist reads in.
+    const clientComments = d.comments.filter((c) => c.author_role === "client");
+
+    $("#detail").innerHTML = `
+      <h2 style="margin:0 0 4px;font-size:22px;letter-spacing:-.02em">${esc(brand)}</h2>
+      <p class="muted" style="margin:0 0 14px">${d.notes.length} note${d.notes.length === 1 ? "" : "s"} ·
+        ${d.comments.length} comment${d.comments.length === 1 ? "" : "s"} ·
+        ${d.meetings.length} meeting${d.meetings.length === 1 ? "" : "s"} — everything this client has told us</p>
+
+      ${section("What the client said on concepts &amp; scripts", clientComments.slice(0, 40).map(commentCard).join(""), clientComments.length)}
+      ${section("Creative direction", of("creative_direction").map(noteCard).join(""), of("creative_direction").length)}
+      ${section("Brand facts", of("brand_fact").map(noteCard).join(""), of("brand_fact").length)}
+      ${section("Decisions", of("decision").map(noteCard).join(""), of("decision").length)}
+      ${section("Still open", of("open_question", "blocker").map(noteCard).join(""), of("open_question", "blocker").length)}
+      ${section("Owed", of("action_item", "asset_request").map(noteCard).join(""), of("action_item", "asset_request").length)}
+      ${d.notes.length + d.comments.length === 0 ? '<div class="note">Nothing recorded for this client yet. Meetings and comments attach here once a title or alias matches.</div>' : ""}`;
+  } catch (e) { $("#detail").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+}
+
 async function openComments() {
+  $("#detail").classList.remove("wide");
   document.querySelectorAll(".m").forEach((el) => el.classList.toggle("on", el.id === "commentsNav"));
   current = null;
   $("#detail").innerHTML = '<p class="muted">loading comments…</p>';
@@ -186,6 +346,7 @@ async function openComments() {
 }
 
 async function open_(id) {
+  $("#detail").classList.remove("wide");
   document.querySelectorAll(".m").forEach((el) => el.classList.toggle("on", el.dataset.id === id));
   $("#detail").innerHTML = '<p class="muted">loading…</p>';
   try {

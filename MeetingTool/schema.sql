@@ -290,3 +290,33 @@ create trigger trg_sync_cursors_updated_at
 -- Same deny-all stance as everything else here: service_role only, no anon policy, ever.
 alter table public.doc_comments enable row level security;
 alter table public.sync_cursors enable row level security;
+
+-- ===========================================================================
+-- 10. client_activity  (added 2026-08-13)
+-- ===========================================================================
+-- Powers the Meeting Tool's per-client review page: which clients have activity,
+-- how much, and when they were last heard from. A view rather than repeated
+-- COUNT queries because this PostgREST has aggregate functions disabled
+-- (PGRST123), so the alternative was ~150 HEAD requests per page load.
+--
+-- security_invoker = true is NOT optional. A Postgres view runs as its OWNER by
+-- default, which would let it read straight past the deny-all RLS on the base
+-- tables and hand anon a summary of every client's activity. With it, the view
+-- is subject to the caller's policies exactly like the tables underneath.
+create or replace view public.client_activity
+with (security_invoker = true) as
+select
+  brand,
+  sum(notes)::int    as notes,
+  sum(comments)::int as comments,
+  max(last_at)       as last_at
+from (
+  select brand, count(*) as notes, 0 as comments, max(coalesce(said_at, created_at)) as last_at
+    from public.meeting_notes where brand is not null group by brand
+  union all
+  select brand, 0 as notes, count(*) as comments, max(created_time) as last_at
+    from public.doc_comments where brand is not null group by brand
+) x
+group by brand;
+
+comment on view public.client_activity is 'Per-client rollup of meeting notes + concept/script comments. Feeds the review page''s client list. security_invoker so deny-all RLS still applies.';
