@@ -43,6 +43,31 @@ def vids(d):
     return sorted(set(out))
 
 
+def write_notes(pkg, name, sb, status):
+    """A plain-language note in the handoff. The important half is what we could NOT do: a shot the
+    storyboard asked for that nobody filmed is covered by other footage, and the editor has to be
+    told that in words, not left to spot it."""
+    L = [f"# {name}: handoff notes", ""]
+    miss = sb.get("missing_footage") or []
+    if miss:
+        L += ["## Shots the storyboard asked for that are not in the footage", ""]
+        for m in miss:
+            for sh in m["shots"]:
+                L.append(f"- **{m['scene']}**: `{sh['wanted']}` is missing ({sh['why']}).")
+            L.append(f"  This scene is covered by {m['covered_by']} instead. Nothing was generated to fill it.")
+            if m.get("note"):
+                L.append(f"  Storyboard intent: {m['note'][:220]}")
+        L += ["", "Either shoot these, or accept the cover shot.", ""]
+    else:
+        L += ["Every shot the storyboard named was found in the footage.", ""]
+    warn = [w for w in status.get("warnings", []) if "alternate hook" not in w]
+    if warn:
+        L += ["## Other notes", ""] + [f"- {w.strip()}" for w in warn] + [""]
+    L += ["## What is deliberately left to the editor", "",
+          "- Colour grade", "- Final caption styling", "- Pacing nudges", "- Graphics and the end card", ""]
+    open(os.path.join(pkg, "HANDOFF-NOTES.md"), "w", encoding="utf-8").write("\n".join(L))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--in", dest="inp", required=True)
@@ -50,6 +75,8 @@ def main():
     ap.add_argument("--footage-dir", default=None)
     ap.add_argument("--takes", default=None, help="reuse an existing takes.json (skip transcription)")
     ap.add_argument("--name", default=None)
+    ap.add_argument("--no-hook-variants", action="store_true",
+                    help="build only the first hook (set automatically while building a variant)")
     a = ap.parse_args()
 
     t0 = time.time()
@@ -82,12 +109,23 @@ def main():
         if audio != "creator":
             raise RuntimeError("AUDIO=generated path is not wired into run_ad yet")
 
-        # 2) transcribe the talking-head takes (aroll/ if present, else footage minus the b-roll files)
-        takes_json = a.takes or os.path.join(work, "takes.json")
-        if not a.takes:
+        status["missing_footage"] = sb.get("missing_footage") or []      # shots nobody filmed, never hidden
+
+        # 2) transcribe the talking-head takes (aroll/ if present, else footage minus the b-roll files).
+        #    Cached beside the storyboard: hook variants and any re-run of this job reuse it, which
+        #    is the difference between a 3 minute variant and a 6 minute one.
+        cached = os.path.join(folder, "takes.json")
+        takes_json = a.takes or (cached if os.path.exists(cached) else os.path.join(work, "takes.json"))
+        if not os.path.exists(takes_json):
             aroll_dir = os.path.join(footage, "aroll")
             tdir = aroll_dir if os.path.isdir(aroll_dir) else footage
             run([VPY, s("transcribe_takes.py"), "--dir", tdir, "--patterns", "*.MOV,*.mp4,*.mov,*.m4v", "--out", takes_json])
+            if takes_json != cached:
+                try:
+                    shutil.copy(takes_json, cached)
+                    takes_json = cached          # _work is deleted before the hook variants build
+                except OSError:
+                    pass
 
         # 3) auto-pick the best take per scene  4) assemble (extract VO + set video)
         picked = os.path.join(work, "picked_takes.json")
@@ -126,13 +164,11 @@ def main():
              "--vo-track", os.path.join(pkg, "vo_track.json"), "--out", os.path.join(pkg, name),
              "--name", name, "--preview", os.path.join(pkg, name + "_PREVIEW.mp4"), "--captions-ass", ass])
 
-        # 8) cleanup + zip + status
+        # 8) handoff notes (what a human needs told, in words), cleanup, zip, status
+        write_notes(pkg, name, sb, status)
         for junk in glob.glob(os.path.join(pkg, "*_nocap.mp4")) + glob.glob(os.path.join(pkg, "*_filter.txt")):
             os.remove(junk)
         shutil.rmtree(work, ignore_errors=True)
-        if os.path.exists(pkg + ".zip"):
-            os.remove(pkg + ".zip")
-        shutil.make_archive(pkg, "zip", pkg)
 
         status["ok"] = True
         status["state"] = "done"
@@ -140,6 +176,28 @@ def main():
         status["scenes"] = len(sb["scenes"])
         status["outputs"] = {"xml": name + ".xml", "srt": name + ".srt",
                              "preview": name + "_PREVIEW.mp4", "zip": os.path.basename(pkg) + ".zip"}
+        save()
+
+        # 9) one ad per hook the storyboard offers (each a full, correct handoff of its own)
+        if not a.no_hook_variants and len(sb.get("hooks") or []) >= 1:
+            status["state"] = "variants"
+            save()
+            vr = subprocess.run([PY, s("build_hook_variants.py"), "--in", folder, "--footage-dir", footage,
+                                 "--out", pkg, "--name", name, "--takes", takes_json],
+                                capture_output=True, text=True)
+            print(vr.stdout[-1500:])
+            hv = os.path.join(pkg, "hook_variants.json")
+            if os.path.exists(hv):
+                try:
+                    status["hook_variants"] = json.load(open(hv, encoding="utf-8"))
+                except Exception:
+                    pass
+            status["state"] = "done"
+            save()
+
+        if os.path.exists(pkg + ".zip"):        # zip last so the variants ride along
+            os.remove(pkg + ".zip")
+        shutil.make_archive(pkg, "zip", pkg)
         save()
     except Exception as e:
         status["state"] = "failed"

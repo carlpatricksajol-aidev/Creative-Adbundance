@@ -195,9 +195,9 @@ def main():
     if report_clips:
         print(f"using renamer _report.md: scene->clip map for {len(report_clips)} scene(s)")
 
-    out_scenes, problems = [], []
+    out_scenes, problems, missing = [], [], []
     for sc in scenes:
-        broll = []
+        broll, gone = [], []
         if sc["type"] == "broll" and sc["footage"] not in ("-", ""):
             sid = norm(sc["id"])
             pool = [f for f in files if os.path.basename(f) in report_clips.get(sid, [])]   # renamer's clips for THIS scene
@@ -212,20 +212,26 @@ def main():
                     if norm(os.path.splitext(bn)[0]) != norm(fn):
                         src = "renamer report" if hit in pool else "name match"
                         problems.append(f"  scene {sc['id']}: '{fn}' -> '{bn}' (via {src})")
-                elif sid in report_missing:
-                    problems.append(f"  scene {sc['id']}: '{fn}' -> renamer says not filmed (falls back to talking-head)")
                 else:
-                    problems.append(f"  scene {sc['id']}: FOOTAGE '{fn}' -> NO MATCHING FILE")
-                    broll.append(fn)
+                    # NOT FILMED. Never silently substitute: record it so the handoff can say so.
+                    why = "the renamer reported it as not filmed" if sid in report_missing \
+                        else "no clip in the folder matches this name"
+                    gone.append({"wanted": fn, "why": why})
+                    problems.append(f"  scene {sc['id']}: MISSING '{fn}' ({why})")
+        if gone:
+            missing.append({"scene": sc["id"], "shots": gone,
+                            "covered_by": "talking head" if not broll else "the other clips in this scene",
+                            "note": sc["note"] or None})
         out_scenes.append({"id": sc["id"], "type": sc["type"], "line": sc["line"],
-                           "broll": broll or None, "note": sc["note"] or None})
+                           "broll": broll or None, "note": sc["note"] or None,
+                           "missing": gone or None})
 
     dur = re.findall(r"\d+", head.get("duration", ""))
     spec = {
         "concept": head.get("concept"), "brand": head.get("brand"),
         "format": head.get("format"), "duration_target_s": [int(x) for x in dur][:2],
         "audio": head.get("audio", "creator"), "end_card": head.get("end card"),
-        "hooks": hooks, "scenes": out_scenes,
+        "hooks": hooks, "scenes": out_scenes, "missing_footage": missing,
     }
     json.dump(spec, open(a.out, "w", encoding="utf-8"), indent=2)
     print(f"parsed {len(out_scenes)} scenes ({sum(1 for s in out_scenes if s['type']=='broll')} b-roll) -> {a.out}")

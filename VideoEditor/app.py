@@ -323,7 +323,8 @@ def sweep():
 def badge(state):
     m = {"done": ("ok", "b-ok", "", "Done"), "failed": ("bad", "b-bad", "", "Failed"),
          "queued": ("clock", "b-wait", "", "Queued"), "fetching": ("download", "b-run", "", "Fetching"),
-         "running": ("loader", "b-run", "spin", "Rendering")}
+         "running": ("loader", "b-run", "spin", "Rendering"),
+         "variants": ("loader", "b-run", "spin", "Building hooks")}
     name, cls, extra, label = m.get(state, ("loader", "b-run", "spin", state))
     return f'<span class="badge {cls}">{ic(name, extra)}{label}</span>'
 
@@ -468,10 +469,11 @@ def job(jid):
         if os.path.exists(os.path.join(jdir, "run.log")) else ""
     concept = esc(meta["concept"])
 
-    if state in ("queued", "fetching", "running"):
+    if state in ("queued", "fetching", "running", "variants"):
         note = {"queued": "Waiting for the worker (one ad renders at a time).",
                 "fetching": "Pulling the footage from Dropbox.",
-                "running": "Assembling: transcription, cuts, captions, normalize, XML."}[state]
+                "running": "Assembling: transcription, cuts, captions, normalize, XML.",
+                "variants": "The main ad is done. Building one more ad per alternate hook."}[state]
         body = (f'<div class="big">{badge(state)}&nbsp;{concept}</div>'
                 f'<p class="sub">{note} This page auto-refreshes.</p>'
                 f'<pre>{esc(tail) or "starting..."}</pre>'
@@ -485,17 +487,59 @@ def job(jid):
         return page(body)
 
     o = st["outputs"]
-    warn = "".join(f"<li>{esc(w)}</li>" for w in st.get("warnings", []))
-    wb = (f'<div class="note note-w">{ic("warn")}<div><b>Footage / delivery notes</b><ul>{warn}</ul></div></div>'
-          if warn else f'<div class="note note-ok">{ic("check")}All footage matched cleanly.</div>')
+
+    # shots the storyboard asked for that nobody filmed: say so plainly, never bury it
+    miss = st.get("missing_footage") or []
+    if miss:
+        rows = []
+        for m in miss:
+            shots = ", ".join(f"<code>{esc(s['wanted'])}</code>" for s in m["shots"])
+            rows.append(f"<li><b>{esc(str(m['scene']))}</b>: {shots} not in the footage. "
+                        f"Covered by {esc(m.get('covered_by', 'other footage'))} instead.</li>")
+        mb = (f'<div class="note note-w">{ic("warn")}<div><b>Not filmed</b>'
+              f'<ul>{"".join(rows)}</ul>Nothing was generated to fill these. Shoot them, or accept the cover shot.'
+              f'</div></div>')
+    else:
+        mb = f'<div class="note note-ok">{ic("check")}Every shot the storyboard named was in the footage.</div>'
+
+    warn = "".join(f"<li>{esc(w)}</li>" for w in st.get("warnings", [])
+                   if "MISSING" not in w and "alternate hook" not in w)
+    wb = (f'<div class="note note-w">{ic("warn")}<div><b>Other notes</b><ul>{warn}</ul></div></div>') if warn else ""
+
+    # one ad per hook: the thing a strategist actually wants to compare
+    hv = [v for v in (st.get("hook_variants") or []) if v.get("ok")]
+    hooks_html = ""
+    if hv:
+        cards = [f'<tr><td><b>Hook 1</b><br><span style="color:var(--tx3);font-size:11.5px">primary</span></td>'
+                 f'<td><span class="out"><a class="pvlink" href="/file/{jid}/{o["preview"]}" '
+                 f'data-src="/file/{jid}/{o["preview"]}" data-job="/job/{jid}" '
+                 f'data-title="Hook 1 &middot; {esc(meta.get("concept", ""))}">{ic("play")}Preview</a>'
+                 f'<a href="/file/{jid}/{o["xml"]}">{ic("code")}XML</a></span></td></tr>']
+        for v in hv:
+            d, vo = v["dir"], v.get("outputs", {})
+            if not vo:
+                continue
+            cards.append(
+                f'<tr><td><b>{esc(v["label"])}</b><br><span style="color:var(--tx3);font-size:11.5px">'
+                f'{esc((v.get("hook_line") or "")[:70])}</span></td>'
+                f'<td><span class="out"><a class="pvlink" href="/file/{jid}/{d}/{vo["preview"]}" '
+                f'data-src="/file/{jid}/{d}/{vo["preview"]}" data-job="/job/{jid}" '
+                f'data-title="{esc(v["label"])} &middot; {esc(meta.get("concept", ""))}">{ic("play")}Preview</a>'
+                f'<a href="/file/{jid}/{d}/{vo["xml"]}">{ic("code")}XML</a></span></td></tr>')
+        hooks_html = (f'<div class="lbl" style="margin-top:22px">Hook variants '
+                      f'<span class="hint">same body, different opener, each its own timeline</span></div>'
+                      f'<div class="card" style="padding:6px 14px"><table>{"".join(cards)}</table></div>')
+
     body = (f'<div class="big" style="color:var(--okt)">{ic("ok")}{concept}</div>'
-            f'<p class="sub">Assembled in {st["seconds"]}s &middot; {st["scenes"]} scenes</p>'
+            f'<p class="sub">Assembled in {st["seconds"]}s &middot; {st["scenes"]} scenes'
+            + (f' &middot; {len(hv) + 1} hooks' if hv else '') + '</p>'
             f'<video src="/file/{jid}/{o["preview"]}" controls></video>'
             f'<div class="lbl" style="margin-top:14px">Download for Premiere</div>'
             f'<a class="lnk" href="/file/{jid}/{o["xml"]}">{ic("code")}XML timeline</a>'
             f'<a class="lnk" href="/file/{jid}/{o["srt"]}">{ic("captions")}SRT captions</a>'
+            f'<a class="lnk" href="/file/{jid}/HANDOFF-NOTES.md">{ic("doc")}Handoff notes</a>'
             f'<a class="lnk" href="/zip/{jid}">{ic("archive")}Full handoff (.zip)</a>'
-            f'{wb}<p class="foot"><a href="/">{ic("plus")}Assemble another</a>'
+            f'{hooks_html}{mb}{wb}<p class="foot"><a href="/">{ic("plus")}Assemble another</a>'
             f'<a href="/jobs">{ic("list")}All jobs</a></p>')
     return page(body)
 
