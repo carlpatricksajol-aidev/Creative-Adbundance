@@ -74,23 +74,32 @@ def parse_report(footage_dir):
     return scene_clips, missing
 
 
+def table_rows(text):
+    """Cell rows from a pasted storyboard table, whichever way it was copied out of Notion:
+    a PIPE table (| Scene | Script Line | ... |) or a TAB-separated one (selecting the rows
+    instead of the table block pastes TSV). Returns a list of cell lists, header first."""
+    lines = [ln.rstrip("\r") for ln in text.splitlines()]
+    pipe = [ln.strip() for ln in lines if ln.strip().startswith("|")]
+    if len(pipe) >= 2:
+        return [[c.strip() for c in ln.strip("|").split("|")] for ln in pipe]
+    tab = [ln for ln in lines if ln.count("\t") >= 2]
+    if len(tab) >= 2:
+        return [[c.strip() for c in ln.split("\t")] for ln in tab]
+    return []
+
+
 def parse_table(text):
-    """The team's REAL storyboard: a Notion database table. Copying it out of Notion pastes a
-    pipe table — | Scene | Script Line | Overlay | Footage Name | Shot List Explanation | —
-    so the strategist can paste straight from Notion with zero reformatting.
+    """The team's REAL storyboard: a Notion database table, pasted as pipes or tabs.
 
     Mapping: Scene -> id; Script Line -> line; Footage Name -> talkinghead if it mentions
     'talking head' else the b-roll name(s) ('+'-separated allowed); Overlay + Shot List -> note.
     Multiple Hook rows are ALTERNATIVES: Hook 1 opens the ad, the rest are stored as variants.
     """
-    rows = [ln.strip() for ln in text.splitlines() if ln.strip().startswith("|")]
+    rows = table_rows(text)
     if len(rows) < 2:
         return None
 
-    def cells(ln):
-        return [c.strip() for c in ln.strip().strip("|").split("|")]
-
-    hdr = [h.lower() for h in cells(rows[0])]
+    hdr = [h.lower() for h in rows[0]]
     if not any("scene" in h for h in hdr):
         return None
 
@@ -106,8 +115,7 @@ def parse_table(text):
         return None
 
     scenes, extra_hooks, seen_hook = [], [], False
-    for ln in rows[1:]:
-        cs = cells(ln)
+    for cs in rows[1:]:
         if set("".join(cs)) <= set("-: "):                    # the | --- | --- | separator row
             continue
 
@@ -133,7 +141,7 @@ def parse_table(text):
         if note:
             notes.append(note)
         scenes.append({"id": sid, "type": "talkinghead" if th else "broll",
-                       "footage": "-" if th else footage.replace("+", ","),
+                       "footage": "-" if th else footage.replace("+", ",").replace(" / ", ","),
                        "line": line, "note": " | ".join(notes)})
     return ({}, extra_hooks, scenes) if scenes else None
 

@@ -12,7 +12,7 @@ and on SUCCESS (state=done, ok=true) — so the intake UI can always tell what h
 Usage:
   python run_ad.py --in <assembly folder> --out <handoff folder> [--footage-dir <dir>] [--takes <takes.json>]
 """
-import argparse, glob, json, os, shutil, subprocess, sys, time
+import argparse, glob, json, os, re, shutil, subprocess, sys, time
 
 SCRIPTS = os.path.dirname(os.path.abspath(__file__))
 PY = sys.executable
@@ -41,6 +41,45 @@ def vids(d):
     for ext in ("mov", "mp4", "m4v"):
         out += glob.glob(os.path.join(d, "**", f"*.{ext}"), recursive=True)
     return sorted(set(out))
+
+
+def find_takes_dir(footage, name):
+    """Where do the talking-head TAKES live?
+
+    Editors often paste the client's whole footage LIBRARY (Broll/<creator>/, In House/,
+    Concepts/<every concept>/) rather than one concept's folder. In that shape the takes for
+    THIS ad sit in the Concepts subfolder whose name matches the concept, e.g.
+    'Concepts/021_Drawer Reveal/' for a job named 021_drawer_reveal.
+
+    Order: an aroll/ dir wins; then top-level video files (the single-concept shape); then the
+    best name-matched subfolder. Returns (dir, recursive) or (None, False) if nothing usable."""
+    aroll = os.path.join(footage, "aroll")
+    if os.path.isdir(aroll):
+        return aroll, False
+    top = [f for f in os.listdir(footage)
+           if os.path.isfile(os.path.join(footage, f)) and f.lower().endswith((".mov", ".mp4", ".m4v"))]
+    if top:
+        return footage, False
+
+    def toks(s):
+        return {t for t in re.split(r"[^a-z0-9]+", (s or "").lower()) if len(t) > 2 or t.isdigit()}
+    want = toks(name)
+    best, bs = None, 0.0
+    for root, dirs, _ in os.walk(footage):
+        for d in dirs:
+            if d.lower() in ("broll", "b-roll", "stock footage", "in house"):
+                continue
+            got = toks(d)
+            if not got:
+                continue
+            score = len(want & got) / max(1, len(want))
+            if any(t.isdigit() and t in got for t in want):    # a shared concept number is a strong signal
+                score += 0.5
+            if score > bs:
+                best, bs = os.path.join(root, d), score
+    if best and bs >= 0.5 and vids(best):
+        return best, True
+    return None, False
 
 
 def write_notes(pkg, name, sb, status):
@@ -103,6 +142,15 @@ def main():
                    "--out", sb_json, "--footage-dir", footage])
         status["warnings"] += [ln.strip() for ln in out.splitlines() if "~" in ln or "NO MATCHING FILE" in ln]
         sb = json.load(open(sb_json, encoding="utf-8-sig"))
+        if not sb.get("scenes"):
+            raise RuntimeError("The storyboard could not be read (0 scenes found). Copy the storyboard "
+                               "TABLE out of Notion with its header row and paste it whole - the columns "
+                               "should be Scene / Script Line / Overlay / Footage Name.")
+        silent = [str(s["id"]) for s in sb["scenes"] if not (s.get("line") or "").strip()]
+        if silent:
+            status["warnings"].append(
+                "no spoken line for " + ", ".join(silent) + " - silent visual scenes are left "
+                "to the editor (the overlay text and shot notes are in the storyboard)")
         audio = (sb.get("audio") or "creator").lower()
         print(f"  audio mode: {audio}\n")
 
@@ -114,12 +162,38 @@ def main():
         # 2) transcribe the talking-head takes (aroll/ if present, else footage minus the b-roll files).
         #    Cached beside the storyboard: hook variants and any re-run of this job reuse it, which
         #    is the difference between a 3 minute variant and a 6 minute one.
+        def usable(p):                                   # a transcription counts only if it exists AND has takes
+            try:
+                return bool(json.load(open(p, encoding="utf-8-sig")))
+            except Exception:
+                return False
         cached = os.path.join(folder, "takes.json")
-        takes_json = a.takes or (cached if os.path.exists(cached) else os.path.join(work, "takes.json"))
-        if not os.path.exists(takes_json):
-            aroll_dir = os.path.join(footage, "aroll")
-            tdir = aroll_dir if os.path.isdir(aroll_dir) else footage
-            run([VPY, s("transcribe_takes.py"), "--dir", tdir, "--patterns", "*.MOV,*.mp4,*.mov,*.m4v", "--out", takes_json])
+        takes_json = a.takes or (cached if usable(cached) else os.path.join(work, "takes.json"))
+        if not usable(takes_json):
+            tdir, rec = find_takes_dir(footage, name)
+            if not tdir:
+                raise RuntimeError("Could not find the talking-head takes in that footage. Either share a "
+                                   "folder with the takes at its top level (or in aroll/), or make sure the "
+                                   f"library has a Concepts subfolder whose name matches '{name}'.")
+            if tdir != footage:
+                status["warnings"].append(f"takes found in: {os.path.relpath(tdir, footage)}")
+                print(f"  takes dir: {tdir}")
+            cmd = [VPY, s("transcribe_takes.py"), "--dir", tdir, "--patterns", "*.MOV,*.mp4,*.mov,*.m4v", "--out", takes_json]
+            if rec:
+                cmd.append("--recursive")
+            run(cmd)
+
+        spoken = 0
+        try:
+            spoken = sum(len(t.get("words") or []) for t in json.load(open(takes_json, encoding="utf-8-sig")))
+        except Exception:
+            pass
+        if spoken < 20 and any((sc.get("line") or "").strip() for sc in sb["scenes"]):
+            raise RuntimeError("The storyboard has spoken lines, but the takes contain almost no speech - "
+                               "this looks like a VOICEOVER concept (silent visuals + a narrated script). "
+                               "This tool currently assembles creator-voice ads where someone speaks the "
+                               "lines on camera; the generated-voiceover lane is not built yet. If the "
+                               "creator takes exist, share the folder that contains them.")
             if takes_json != cached:
                 try:
                     shutil.copy(takes_json, cached)

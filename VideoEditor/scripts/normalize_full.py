@@ -90,9 +90,13 @@ def main():
                                 f"afade=t=in:st=0:d={d:.3f},afade=t=out:st={max(0.0, dur - d):.3f}:d={d:.3f}",
                                 "-c:a", "pcm_s16le", "-ar", "44100", seg], capture_output=True, text=True)
             f.write("file '" + (seg if r.returncode == 0 else src).replace("\\", "/") + "'\n")
+    if not track:
+        raise SystemExit("no VO segments to assemble - the storyboard produced no spoken scenes")
     raw = os.path.join(media, "_vo_raw.wav")
-    subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-f", "concat", "-safe", "0",
-                    "-i", lst, "-c:a", "pcm_s16le", raw], capture_output=True, text=True)
+    rc = subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-f", "concat", "-safe", "0",
+                         "-i", lst, "-c:a", "pcm_s16le", raw], capture_output=True, text=True)
+    if rc.returncode != 0 or not os.path.exists(raw):
+        raise SystemExit("VO concat failed: " + (rc.stderr or "")[-400:])
 
     vo_full = os.path.join(media, "VO_full.mp3")
     af = None
@@ -112,8 +116,9 @@ def main():
     cmd += ["-c:a", "libmp3lame", "-q:a", "2", vo_full]
     subprocess.run(cmd, capture_output=True, text=True)
 
-    os.remove(lst)
-    os.remove(raw)
+    for p in (lst, raw):
+        if os.path.exists(p):
+            os.remove(p)
     shutil.rmtree(fdir, ignore_errors=True)
     total = sum(float(e["dur"]) for e in track)
     new_track = [{"scene": "VO", "file": vo_full.replace("\\", "/"), "start": 0.0, "dur": round(total, 3)}]

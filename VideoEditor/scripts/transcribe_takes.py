@@ -10,10 +10,14 @@ import argparse, fnmatch, json, os, subprocess, tempfile
 from faster_whisper import WhisperModel
 
 
-def match_files(d, patterns):
-    """Case-INSENSITIVE glob, non-recursive like the original (so broll/ subfolders stay out).
+def match_files(d, patterns, recursive=False):
+    """Case-INSENSITIVE glob. Non-recursive by default (so broll/ subfolders stay out);
+    recursive when the caller points at a concept folder that nests its takes.
     Linux globs are case-sensitive and creators name files .MOV/.mov/.Mp4 interchangeably."""
     pats = [p.strip().lower() for p in patterns.split(",")]
+    if recursive:
+        return sorted(os.path.join(r, f) for r, _, fs in os.walk(d) for f in fs
+                      if any(fnmatch.fnmatch(f.lower(), p) for p in pats))
     return sorted(os.path.join(d, f) for f in os.listdir(d)
                   if os.path.isfile(os.path.join(d, f)) and any(fnmatch.fnmatch(f.lower(), p) for p in pats))
 
@@ -24,9 +28,10 @@ def main():
     ap.add_argument("--patterns", required=True)          # comma-separated globs
     ap.add_argument("--out", required=True)
     ap.add_argument("--model", default="small.en")
+    ap.add_argument("--recursive", action="store_true")
     a = ap.parse_args()
 
-    files = match_files(a.dir, a.patterns)
+    files = match_files(a.dir, a.patterns, recursive=a.recursive)
     print(f"{len(files)} takes to transcribe\n")
     model = WhisperModel(a.model, device="cpu", compute_type="int8")
 

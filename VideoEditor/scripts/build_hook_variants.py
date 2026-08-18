@@ -18,22 +18,29 @@ import argparse, json, os, re, shutil, subprocess, sys
 SCRIPTS = os.path.dirname(os.path.abspath(__file__))
 
 
+def row_cells(ln):
+    """Cells of one pasted-table line: pipe or tab format, None if it is neither."""
+    s = ln.strip("\r")
+    if s.strip().startswith("|"):
+        return [c.strip() for c in s.strip().strip("|").split("|")]
+    if s.count("\t") >= 2:
+        return [c.strip() for c in s.split("\t")]
+    return None
+
+
 def hook_rows(text):
-    """Row index -> label for every Hook row in the pasted storyboard table."""
+    """(row index, label, spoken line) for every Hook row in the pasted storyboard table."""
     out = []
     for i, ln in enumerate(text.splitlines()):
-        s = ln.strip()
-        if not s.startswith("|"):
-            continue
-        first = [c.strip() for c in s.strip("|").split("|")][:1]
-        if first and re.match(r"^hook\s*\d*$", first[0], re.I):
-            out.append((i, first[0]))
+        cs = row_cells(ln)
+        if cs and re.match(r"^hook\s*\d*$", cs[0], re.I):
+            out.append((i, cs[0], cs[1] if len(cs) > 1 else ""))
     return out
 
 
 def storyboard_with_hook(text, keep_line):
     """The same storyboard, with every Hook row except `keep_line` removed."""
-    hooks = [i for i, _ in hook_rows(text)]
+    hooks = [i for i, _, _ in hook_rows(text)]
     drop = {i for i in hooks if i != keep_line}
     return "\n".join(ln for i, ln in enumerate(text.splitlines()) if i not in drop) + "\n"
 
@@ -55,10 +62,17 @@ def main():
         print("only one hook in the storyboard, no variants to build")
         return
 
-    alts = rows[1:a.max]                                  # rows[0] is the primary, already built
+    # a hook with no SPOKEN line is a silent visual hook: nothing for the take-matcher to build,
+    # so it stays with the editor (and run_ad already warns about it)
+    speakable = [(i, lbl, line) for i, lbl, line in rows if line.strip()]
+    if len(speakable) < 2 or not rows[0][2].strip():
+        print("hooks have no alternate spoken lines, no variants to build")
+        return
+
+    alts = speakable[1:a.max]                             # first speakable hook is the primary
     print(f"{len(rows)} hooks in the storyboard, building {len(alts)} alternate(s)")
     built = []
-    for n, (line_i, label) in enumerate(alts, start=2):
+    for n, (line_i, label, _line) in enumerate(alts, start=2):
         tag = f"H{n}"
         vdir = os.path.join(os.path.abspath(a.out), "hooks", tag)
         os.makedirs(vdir, exist_ok=True)
