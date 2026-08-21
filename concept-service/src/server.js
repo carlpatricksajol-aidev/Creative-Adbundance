@@ -157,7 +157,10 @@ const server = http.createServer(async (req, res) => {
       const r = await agentFetch('/runs', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ agent: b.agent, args: b.args || {} }),
+        // findings persist to the shared knowledge library; without this sink the
+        // agent returns them and writes nothing, and the next concept run would
+        // never see what this one found
+        body: JSON.stringify({ agent: b.agent, args: b.args || {}, sinks: ['knowledge-db'] }),
       });
       return json(res, r.status, r.body);
     }
