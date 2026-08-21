@@ -1,0 +1,54 @@
+{
+  "brand": {
+    "name": "Brand Name",
+    "agency": "Creative AdBundance",
+    "accent": "7A3FF2",
+    "font": "Poppins",
+    "coverTitle": "Ad Concepts \u2014 Batch 1",
+    "coverSubtitle": "10 concepts \u00b7 UGC-first, native to Meta \u00b7 one specific moment each"
+  },
+  "sections": [
+    {
+      "title": "Theme A \u00b7 USP",
+      "sub": "Concepts 001\u2013002",
+      "concepts": [
+        {
+          "num": "001",
+          "title": "Example Concept Title",
+          "desc": "Two to three sentences: the creative vehicle, the scene, the emotional arc, and how the product fits. Concrete enough that a producer knows what to shoot.",
+          "narrative": [
+            "Open on the customer in a recognizable moment, stating the specific problem.",
+            "Cut through quick b-roll of the pain/build.",
+            "Cut to a screen recording of the product in use as the turn.",
+            "Voiceover names the USP/benefit plainly.",
+            "Cut to the improved outcome playing out.",
+            "Close on the payoff line and a soft CTA."
+          ],
+          "design": [
+            "The one signature device unique to this concept.",
+            "The editing rhythm or overlay treatment that matters here.",
+            "Duration: 20\u201330 seconds."
+          ],
+          "awareness": "Problem Aware",
+          "lane": "Creator UGC"
+        },
+        {
+          "num": "002",
+          "title": "A Different-Vehicle Concept",
+          "desc": "Use a different creative vehicle so it doesn't read like the previous slide.",
+          "narrative": [
+            "Open in a distinctly different structure (e.g. listicle, parody, before/after).",
+            "Build the bit.",
+            "Introduce the product beat.",
+            "Land the single USP.",
+            "Close with payoff + soft CTA."
+          ],
+          "design": [
+            "Only what's unique to this concept.",
+            "Duration: 15\u201325 seconds."
+          ]
+        }
+      ]
+    }
+  ]
+}
