@@ -34,7 +34,7 @@ up. No rebuild.
 ```bash
 cd /root/Creative-Adbundance && git pull
 cd concept-service
-cp .env.example .env && nano .env      # ANTHROPIC_API_KEY and RUN_TOKEN are required
+cp .env.example .env && nano .env      # OPENROUTER_API_KEY and RUN_TOKEN are required
 mkdir -p data
 docker compose up -d --build
 curl -s https://concepts.srv1486031.hstgr.cloud/health
@@ -48,7 +48,9 @@ needs querying across clients, move it then.
 
 ## Known limits
 
-- `ANTHROPIC_API_KEY` must be set or `/run` returns 503. Nothing else degrades.
+- `OPENROUTER_API_KEY` must be set or `/run` returns 503. It is the same OpenRouter
+  account that powers static-ads, model `anthropic/claude-opus-5` by default, and every
+  finished batch records what it cost in `cost_usd`.
 - The brand snapshot comes from `brand_brain`, which is anon-readable today. If
   that table is locked down, this service keeps working (give it a key that can
   read) but the skill's standalone `brand-snapshot.js` will not.

@@ -11,7 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { ask } = require('./anthropic');
+const { ask } = require('./llm');
 const brand = require('./brand');
 
 const SKILL_DIR = process.env.SKILL_DIR ||
@@ -125,7 +125,7 @@ Hard rules that apply to every stage:
 - Plain speech. No "unlock", no "elevate", no "game-changer", no agency register.
 `;
 
-async function stageHarvest({ snapshot, prior, log }) {
+async function stageHarvest({ snapshot, prior, log, ask }) {
   log('Human observation harvest', 'running');
   const out = await ask({
     system: `You are the Creative Director on this account. Your craft rules are below.\n\n${ref('craft-rules.md')}\n\nYour libraries, including the observation harvest bank:\n\n${ref('libraries.md')}\n${HOUSE_RULES}`,
@@ -144,7 +144,7 @@ which angles you weighted toward.`,
   return out;
 }
 
-async function stageWrite({ snapshot, prior, observations, count, startNum, log }) {
+async function stageWrite({ snapshot, prior, observations, count, startNum, log, ask }) {
   log('Creative Director pass', 'running');
   const obsList = observations.map((o, i) => `${i + 1}. [${o.insight_family}] ${o.text}`).join('\n');
   const out = await ask({
@@ -169,7 +169,7 @@ Most Aware). Vary how the product enters and how each concept ends.`,
   return out;
 }
 
-async function stageGate({ snapshot, concepts, log }) {
+async function stageGate({ snapshot, concepts, log, ask }) {
   log('Creative Strategist gate', 'running');
   const groups = [];
   for (let i = 0; i < concepts.length; i += 4) groups.push(concepts.slice(i, i + 4));
@@ -200,7 +200,7 @@ CONCEPTS:\n${JSON.stringify(g, null, 1)}`,
   return reviews;
 }
 
-async function stageComposition({ snapshot, concepts, log }) {
+async function stageComposition({ snapshot, concepts, log, ask }) {
   log('Batch composition check', 'running');
   const brief = concepts.map((c) => ({
     num: c.num, title: c.title, insight_family: c.insight_family,
@@ -224,6 +224,14 @@ the concept number and a one-line brief for its replacement.`,
 /* ------------------------------------------------------------------- run ---- */
 
 async function run({ client, count = 14, prior = '', startNum = 1, log }) {
+  const spend = [];
+  const baseAsk = ask;
+  // every stage call records what it cost, so the batch can say what it spent
+  const trackedAsk = async (args) => {
+    const out = await baseAsk(args);
+    if (out.__usage) { spend.push(out.__usage); delete out.__usage; }
+    return out;
+  };
   const { row, matched } = await brand.resolve(client);
   log('Intake and brand analysis', 'running');
   const snapshot = brand.toMarkdown(row);
@@ -236,13 +244,13 @@ async function run({ client, count = 14, prior = '', startNum = 1, log }) {
     (row.winning_concepts ? 'winner set from winning_concepts' : 'no winner set on file, defaulting') +
     (row.losing_patterns ? ', losers excluded' : ''));
 
-  const harvest = await stageHarvest({ snapshot, prior, log });
+  const harvest = await stageHarvest({ snapshot, prior, log, ask: trackedAsk });
   const drafted = await stageWrite({
-    snapshot, prior, observations: harvest.observations, count, startNum, log,
+    snapshot, prior, observations: harvest.observations, count, startNum, log, ask: trackedAsk,
   });
-  const reviews = await stageGate({ snapshot, concepts: drafted.concepts, log });
+  const reviews = await stageGate({ snapshot, concepts: drafted.concepts, log, ask: trackedAsk });
   const concepts = reviews.map((r) => r.concept).filter(Boolean);
-  const composition = await stageComposition({ snapshot, concepts, log });
+  const composition = await stageComposition({ snapshot, concepts, log, ask: trackedAsk });
 
   log('Deck ready', 'done', `${concepts.length} concepts, 9:16 space reserved`);
 
@@ -255,6 +263,7 @@ async function run({ client, count = 14, prior = '', startNum = 1, log }) {
     change_log: reviews.map((r) => ({ num: r.num, verdict: r.verdict, note: r.change_log })),
     composition,
     brand_confidence: row.confidence || null,
+    cost_usd: Math.round(spend.reduce((a, u) => a + (u && u.cost || 0), 0) * 100) / 100,
     has_brand_visuals: Boolean((row.accent_color_hex || '').trim() && (row.brand_fonts || '').trim()),
   };
 }

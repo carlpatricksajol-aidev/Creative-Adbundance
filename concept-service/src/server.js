@@ -98,8 +98,8 @@ const server = http.createServer(async (req, res) => {
     if (p === '/health') {
       return json(res, 200, {
         ok: true, active,
-        model: require('./anthropic').MODEL,
-        hasKey: Boolean(process.env.ANTHROPIC_API_KEY),
+        model: require('./llm').MODEL,
+        hasKey: Boolean(process.env.OPENROUTER_API_KEY),
       });
     }
 
@@ -121,8 +121,8 @@ const server = http.createServer(async (req, res) => {
 
     if (p === '/run' && req.method === 'POST') {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
-      if (!process.env.ANTHROPIC_API_KEY) {
-        return json(res, 503, { error: 'ANTHROPIC_API_KEY is not set on the server, so runs cannot start' });
+      if (!process.env.OPENROUTER_API_KEY) {
+        return json(res, 503, { error: 'OPENROUTER_API_KEY is not set on the server, so runs cannot start' });
       }
       if (active >= MAX_CONCURRENT) {
         return json(res, 429, { error: `already running ${active} batches, try again when one finishes` });
@@ -155,7 +155,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log('concept-service on :%d  model=%s  key=%s  data=%s',
-    PORT, require('./anthropic').MODEL,
-    process.env.ANTHROPIC_API_KEY ? 'set' : 'MISSING', store.DATA);
+    PORT, require('./llm').MODEL,
+    process.env.OPENROUTER_API_KEY ? 'set' : 'MISSING', store.DATA);
   if (!TOKEN) console.warn('RUN_TOKEN is not set: every authenticated route will refuse.');
 });
