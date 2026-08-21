@@ -88,8 +88,8 @@ async function startRun({ client, count, requestedBy }) {
   (async () => {
     active++;
     try {
-      const prior = store.priorTitles(client);
-      const result = await pipeline.run({ client, count, prior, log });
+      const priorCtx = store.priorContext(client);
+      const result = await pipeline.run({ client, count, prior: priorCtx.text, priorMeta: priorCtx, log });
       const batch = store.saveBatch(result);
       store.finishRun(id, { status: 'done', batchId: batch.id });
     } catch (err) {
@@ -189,7 +189,7 @@ const server = http.createServer(async (req, res) => {
       }
       const b = await body(req);
       if (!b.client) return json(res, 400, { error: 'client is required' });
-      const count = Math.min(Math.max(Number(b.count) || 14, 1), 16);
+      const count = Math.min(Math.max(Number(b.count) || 5, 1), 16);
       // Fail fast on a bad name rather than after a minute of work.
       try { await brand.resolve(b.client); }
       catch (e) { return json(res, 400, { error: e.message }); }

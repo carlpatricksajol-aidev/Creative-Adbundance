@@ -158,11 +158,15 @@ directly; the vehicle IS the ad.
 sentences. It is not the hook and not a summary of the ad.
 'desc' is what we are making, not why it works: the creator format, the scene, the one core
 message, how the brand fits. Plain fifth-grade language, no strategist register.
-Batch rules: at most two concepts per insight family; the sound-off test between every pair;
-and hit the v4 composition targets (2 to 3 stat-led using only the snapshot's own numbers,
-2 to 3 with a second character, 1 to 3 in a graphic or animated lane, 1 to 2 where a trend
-format is the delivery system, a tonal spread, and a spread across Problem, Solution and
-Most Aware). Vary how the product enters and how each concept ends.`,
+Batch rules: at most two concepts per insight family, and every prior concept fed in above
+counts toward its family's cap, so a family a past batch already used twice is CLOSED;
+the sound-off test between every pair.
+Composition targets: the v4 quotas in craft-rules assume a 16-concept batch. This batch is
+${count}, so scale them proportionally. At 5 that means: at least 1 stat-led using only the
+snapshot's own numbers, at least 1 with a second character, at least 1 in a graphic or
+animated lane, at most 1 where a trend format is the delivery system, no two concepts in
+the same register, and at least two awareness stages represented.
+Vary how the product enters and how each concept ends.`,
     schema: BATCH_SCHEMA,
     maxTokens: 64000,
   });
@@ -210,11 +214,14 @@ async function stageComposition({ snapshot, concepts, log, ask }) {
   }));
   const out = await ask({
     system: `You are the Creative Strategist running the batch-level checks. Your role:\n\n${ref('creative-strategist.md')}\n\nThe composition targets:\n\n${ref('craft-rules.md')}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n\nThe batch after per-concept review:\n${JSON.stringify(brief, null, 1)}\n\nCheck the v4 composition targets: insight-family cap of about two each, the stat-led quota,
-the second-character quota, production-lane spread, trend-as-delivery-system quota, tonal
-spread and awareness-stage spread. Name which concepts satisfy each target. Where the batch
-is short, name the WEAKEST offenders to replace, never the strongest. In replace_these, give
-the concept number and a one-line brief for its replacement.`,
+    prompt: `${snapshot}\n\nThe batch after per-concept review:\n${JSON.stringify(brief, null, 1)}\n\nCheck the v4 composition targets, SCALED to this batch's size: the printed quotas in
+craft-rules assume 16 concepts, and this batch is ${concepts.length}. At 5 that means at
+least 1 stat-led, at least 1 second-character, at least 1 graphic or animated, at most 1
+trend-as-delivery-system, no register repeated, at least two awareness stages. The
+insight-family cap of two holds at every size. Do not fail a batch of 5 for missing a quota
+that only a batch of 16 can hold. Name which concepts satisfy each target. Where the batch
+is genuinely short, name the WEAKEST offenders to replace, never the strongest. In
+replace_these, give the concept number and a one-line brief for its replacement.`,
     schema: COMP_SCHEMA,
     maxTokens: 16000,
   });
@@ -224,7 +231,7 @@ the concept number and a one-line brief for its replacement.`,
 
 /* ------------------------------------------------------------------- run ---- */
 
-async function run({ client, count = 14, prior = '', startNum = 1, log }) {
+async function run({ client, count = 5, prior = '', priorMeta = null, startNum = 1, log }) {
   const spend = [];
   const baseAsk = ask;
   // every stage call records what it cost, so the batch can say what it spent
@@ -239,8 +246,10 @@ async function run({ client, count = 14, prior = '', startNum = 1, log }) {
   log('Intake and brand analysis', 'done',
     `snapshot for ${row.brand_name} (matched on ${matched}), confidence ${row.confidence || 'unknown'}`);
 
-  log('Library check', prior ? 'done' : 'done',
-    prior ? 'prior concepts read, deduping at observation level' : 'no prior batch on file, nothing to dedup against');
+  log('Library check', 'done',
+    prior
+      ? `${priorMeta ? priorMeta.concepts : '?'} prior concepts across ${priorMeta ? priorMeta.batches : '?'} batches fed in, deduping at observation level`
+      : 'no prior batch on file, nothing to dedup against');
   log('Performance filter', 'done',
     (row.winning_concepts ? 'winner set from winning_concepts' : 'no winner set on file, defaulting') +
     (row.losing_patterns ? ', losers excluded' : ''));

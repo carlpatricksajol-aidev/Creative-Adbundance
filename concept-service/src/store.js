@@ -92,11 +92,35 @@ function listBatches(client) {
     .sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
 }
 
-/* What the harvest is told not to repeat. */
-function priorTitles(client) {
+/* What the harvest is told not to repeat. The skill dedups at OBSERVATION
+   level, so each prior concept travels with its observation and insight family
+   when it has them, and a title alone only when it does not. Newest batches
+   first, capped so a long history cannot crowd the prompt. */
+function priorContext(client, capChars = 9000) {
   const prev = listBatches(client);
-  if (!prev.length) return '';
-  return prev.map((b) => `${b.client} batch of ${b.savedAt.slice(0, 10)}: ${b.titles.join('; ')}`).join('\n');
+  if (!prev.length) return { text: '', batches: 0, concepts: 0 };
+  let out = [];
+  let used = 0;
+  let batches = 0;
+  let concepts = 0;
+  for (const meta of prev) {
+    const b = getBatch(meta.id);
+    if (!b) continue;
+    const lines = (b.concepts || []).map((c) => {
+      let l = `- "${c.title}"`;
+      if (c.insight_family) l += ` [family: ${c.insight_family}]`;
+      if (c.observation) l += ` observation: ${String(c.observation).slice(0, 160)}`;
+      else if (c.logline || c.hook) l += ` logline: ${String(c.logline || c.hook).slice(0, 120)}`;
+      return l;
+    });
+    const block = `${b.client}, batch of ${String(b.savedAt).slice(0, 10)} (${lines.length} concepts):\n` + lines.join('\n');
+    if (used + block.length > capChars && batches > 0) break;
+    out.push(block);
+    used += block.length;
+    batches++;
+    concepts += lines.length;
+  }
+  return { text: out.join('\n\n'), batches, concepts };
 }
 
-module.exports = { newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorTitles, DATA };
+module.exports = { newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext, DATA };
