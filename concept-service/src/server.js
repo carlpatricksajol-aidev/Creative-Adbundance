@@ -13,6 +13,7 @@ const http = require('http');
 const store = require('./store');
 const brand = require('./brand');
 const pipeline = require('./pipeline');
+const research = require('./research');
 
 const PORT = Number(process.env.PORT || 8900);
 const TOKEN = process.env.RUN_TOKEN || '';
@@ -106,6 +107,17 @@ const server = http.createServer(async (req, res) => {
     if (p === '/clients' && req.method === 'GET') {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
       return json(res, 200, { clients: await brand.listBrands() });
+    }
+
+    if (p === '/research' && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const brief = await research.fetchBrief();
+      return json(res, 200, {
+        markdown: research.toMarkdown(brief),
+        vehicles: brief ? brief.vehicles : [],
+        edition: brief ? brief.edition : null,
+        probes: brief ? brief.probes : [],
+      });
     }
 
     if (p === '/batches' && req.method === 'GET') {

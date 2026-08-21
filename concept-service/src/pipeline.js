@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const { ask } = require('./llm');
 const brand = require('./brand');
+const research = require('./research');
 
 const SKILL_DIR = process.env.SKILL_DIR ||
   '/srv/repo/.claude/skills/ad-concept-generator';
@@ -125,10 +126,10 @@ Hard rules that apply to every stage:
 - Plain speech. No "unlock", no "elevate", no "game-changer", no agency register.
 `;
 
-async function stageHarvest({ snapshot, prior, log, ask }) {
+async function stageHarvest({ snapshot, prior, log, ask, researchMd }) {
   log('Human observation harvest', 'running');
   const out = await ask({
-    system: `You are the Creative Director on this account. Your craft rules are below.\n\n${ref('craft-rules.md')}\n\nYour libraries, including the observation harvest bank:\n\n${ref('libraries.md')}\n${HOUSE_RULES}`,
+    system: `You are the Creative Director on this account. Your craft rules are below.\n\n${ref('craft-rules.md')}\n\nYour libraries, including the observation harvest bank:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent. The confidence labels are honest, respect them:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n\nALREADY DONE FOR THIS CLIENT, do not reuse these observations:\n${prior || '(nothing on file)'}\n\nRun step 4 of the skill: the human observation harvest, before any concept is written.
 Mine 18 to 22 specific human observations for this ICP. Each must be a specific behaviour,
 thought, situation, conversation or internet habit someone in this audience would recognise
@@ -144,11 +145,11 @@ which angles you weighted toward.`,
   return out;
 }
 
-async function stageWrite({ snapshot, prior, observations, count, startNum, log, ask }) {
+async function stageWrite({ snapshot, prior, observations, count, startNum, log, ask, researchMd }) {
   log('Creative Director pass', 'running');
   const obsList = observations.map((o, i) => `${i + 1}. [${o.insight_family}] ${o.text}`).join('\n');
   const out = await ask({
-    system: `You are the Creative Director on this account. Your craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n${HOUSE_RULES}`,
+    system: `You are the Creative Director on this account. Your craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent. Researched vehicles are fair game for the creative leap, and a trend-verified or corroborated one beats a stale guess. Thin entries are leads, not facts:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n\nALREADY DONE, do not repeat these:\n${prior || '(nothing on file)'}\n\nObservations harvested for this client:\n${obsList}\n\nRun step 5. Write ${count} concepts, numbered from ${startNum} upward.
 Per concept, in this order: pick an observation, make ONE creative leap into a specific
 vehicle, assign ONE persuasion job, then write it up. Do not dramatise an observation
@@ -244,9 +245,27 @@ async function run({ client, count = 14, prior = '', startNum = 1, log }) {
     (row.winning_concepts ? 'winner set from winning_concepts' : 'no winner set on file, defaulting') +
     (row.losing_patterns ? ', losers excluded' : ''));
 
-  const harvest = await stageHarvest({ snapshot, prior, log, ask: trackedAsk });
+  /* The Marketing report, per Workflow V1: read the Research Agent's library
+     before anything creative happens. Absence degrades honestly, never
+     silently: the step says exactly what was and was not on file. */
+  log('Marketing report', 'running');
+  let researchMd = null;
+  try {
+    const brief = await research.fetchBrief();
+    researchMd = research.toMarkdown(brief);
+    log('Marketing report', 'done', brief
+      ? `${brief.vehicles.length} researched vehicles read` +
+        (brief.edition ? `, catalog edition of ${String(brief.edition.ran_at).slice(0, 10)}` : '') +
+        `, ${(brief.probes || []).length} recent probes`
+      : 'the research library is empty, generating from the brand snapshot alone');
+  } catch (err) {
+    log('Marketing report', 'done',
+      'could not reach the research library (' + err.message.slice(0, 80) + '), generating from the brand snapshot alone');
+  }
+
+  const harvest = await stageHarvest({ snapshot, prior, log, ask: trackedAsk, researchMd });
   const drafted = await stageWrite({
-    snapshot, prior, observations: harvest.observations, count, startNum, log, ask: trackedAsk,
+    snapshot, prior, observations: harvest.observations, count, startNum, log, ask: trackedAsk, researchMd,
   });
   const reviews = await stageGate({ snapshot, concepts: drafted.concepts, log, ask: trackedAsk });
   const concepts = reviews.map((r) => r.concept).filter(Boolean);
@@ -264,6 +283,7 @@ async function run({ client, count = 14, prior = '', startNum = 1, log }) {
     composition,
     brand_confidence: row.confidence || null,
     cost_usd: Math.round(spend.reduce((a, u) => a + (u && u.cost || 0), 0) * 100) / 100,
+    used_research: Boolean(researchMd),
     has_brand_visuals: Boolean((row.accent_color_hex || '').trim() && (row.brand_fonts || '').trim()),
   };
 }
