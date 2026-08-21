@@ -21,6 +21,23 @@ const ORIGINS = (process.env.ALLOWED_ORIGINS ||
   'https://adbundance-os-client-view.vercel.app').split(',').map((s) => s.trim());
 const MAX_CONCURRENT = Number(process.env.MAX_CONCURRENT || 2);
 
+/* Volvo's research agent, reachable only from this box. The page never talks
+   to it directly: this service forwards with the agent's own token, and
+   refuses the metered lanes outright so a page bug cannot spend vendor
+   credits. Running those stays a deliberate, human act on the server. */
+const AGENT_URL = process.env.RESEARCH_AGENT_URL || '';
+const AGENT_TOKEN = process.env.RESEARCH_AGENT_TOKEN || '';
+
+async function agentFetch(path, init) {
+  if (!AGENT_URL) { const e = new Error('the research agent is not configured on this server'); e.status = 503; throw e; }
+  const res = await fetch(AGENT_URL + path, {
+    ...init,
+    headers: { ...(init && init.headers), authorization: 'Bearer ' + AGENT_TOKEN },
+  });
+  const body = await res.json().catch(() => ({}));
+  return { status: res.status, body };
+}
+
 let active = 0;
 
 const json = (res, code, body) => {
@@ -118,6 +135,37 @@ const server = http.createServer(async (req, res) => {
         edition: brief ? brief.edition : null,
         probes: brief ? brief.probes : [],
       });
+    }
+
+    if (p === '/research/agents' && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const r = await agentFetch('/agents');
+      return json(res, r.status, r.body);
+    }
+
+    if (p === '/research/run' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      const agents = await agentFetch('/agents');
+      const found = ((agents.body || {}).agents || []).find((a) => a.name === b.agent);
+      if (!found) return json(res, 400, { error: 'unknown research agent: ' + (b.agent || '(none)') });
+      if (found.metered) {
+        return json(res, 403, {
+          error: found.label + ' spends metered vendor credits, so it does not run from the page. Run it with Volvo, deliberately, from the server.',
+        });
+      }
+      const r = await agentFetch('/runs', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ agent: b.agent, args: b.args || {} }),
+      });
+      return json(res, r.status, r.body);
+    }
+
+    if (p.startsWith('/research/run/') && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const r = await agentFetch('/runs/' + encodeURIComponent(p.slice('/research/run/'.length)));
+      return json(res, r.status, r.body);
     }
 
     if (p === '/batches' && req.method === 'GET') {

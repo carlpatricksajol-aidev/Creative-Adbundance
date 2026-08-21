@@ -10,6 +10,9 @@ services:
       PORT: "8900"
       DATA_DIR: /data
       SKILL_DIR: /srv/repo/.claude/skills/ad-concept-generator
+      RESEARCH_AGENT_URL: http://host.docker.internal:3210
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./data:/data
       # the skill is read from the repo checkout, so `git pull` updates the craft
