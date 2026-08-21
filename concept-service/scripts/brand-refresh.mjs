@@ -77,7 +77,10 @@ Field guidance, follow it exactly:
 Hard rules: only what you can verify from the web NOW. An empty string is the correct
 answer when you cannot verify; never guess, never fill from general knowledge of the
 category. No em dashes anywhere.`;
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  // gateways occasionally answer with an HTML error page, and some provider
+  // paths mishandle response_format combined with the web plugin, so: retry
+  // transient failures, then fall back to plain content with JSON extraction.
+  const call = async (useSchema) => fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + OR, 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -88,15 +91,38 @@ category. No em dashes anywhere.`;
         `Research the brand "${brand}" for an ad agency's brand knowledge base.` +
         (hints ? `\nKnown so far: ${hints}` : '') +
         `\nFill ONLY these fields: ${fields.join(', ')}.\n${guide}` +
-        `\nReturn ONLY a JSON object matching the required fields.` }],
-      response_format: { type: 'json_schema', json_schema: { name: 'brand_fields', strict: true, schema } },
+        `\nReturn ONLY a JSON object with the fields ${fields.join(', ')} and sources. No prose around it.` }],
+      ...(useSchema ? { response_format: { type: 'json_schema', json_schema: { name: 'brand_fields', strict: true, schema } } } : {}),
     }),
   });
-  const d = await res.json();
-  if (d.error) throw new Error(JSON.stringify(d.error).slice(0, 200));
-  const out = JSON.parse(d.choices[0].message.content);
-  out.__cost = (d.usage || {}).cost || 0;
-  return out;
+  const extract = (t) => {
+    t = String(t).replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+    const i = t.indexOf('{');
+    let depth = 0;
+    for (let k = i; k >= 0 && k < t.length; k++) {
+      if (t[k] === '{') depth++;
+      else if (t[k] === '}' && --depth === 0) return JSON.parse(t.slice(i, k + 1));
+    }
+    throw new Error('no JSON object in response: ' + String(t).slice(0, 120));
+  };
+  let lastErr = null;
+  for (const attempt of [{ schema: true }, { schema: true }, { schema: false }]) {
+    try {
+      const res = await call(attempt.schema);
+      const txt = await res.text();
+      let d;
+      try { d = JSON.parse(txt); }
+      catch { throw new Error('non-JSON from gateway (' + res.status + '): ' + txt.slice(0, 80)); }
+      if (d.error) throw new Error(JSON.stringify(d.error).slice(0, 200));
+      const out = extract(d.choices[0].message.content);
+      out.__cost = (d.usage || {}).cost || 0;
+      return out;
+    } catch (e) {
+      lastErr = e;
+      await new Promise((ok) => setTimeout(ok, 4000));
+    }
+  }
+  throw lastErr;
 }
 
 async function loadRows() {
