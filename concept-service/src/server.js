@@ -91,7 +91,7 @@ async function startRun({ client, count, requestedBy }) {
       const priorCtx = store.priorContext(client);
       const result = await pipeline.run({ client, count, prior: priorCtx.text, priorMeta: priorCtx, log });
       const batch = store.saveBatch(result);
-      store.finishRun(id, { status: 'done', batchId: batch.id });
+      store.finishRun(id, { status: 'done', batchId: batch.id, cost_usd: result.cost_usd, used_research: result.used_research });
     } catch (err) {
       const msg = err && err.message ? err.message : String(err);
       log('Failed', 'error', msg.slice(0, 400));
