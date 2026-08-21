@@ -1,0 +1,22 @@
+# Mirrors the videoeditor service's routing, which already works on this box:
+# traefik discovers the container by label and terminates TLS with letsencrypt.
+services:
+  concept-service:
+    build: .
+    container_name: concept-service
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "8900"
+      DATA_DIR: /data
+      SKILL_DIR: /srv/repo/.claude/skills/ad-concept-generator
+    volumes:
+      - ./data:/data
+      # the skill is read from the repo checkout, so `git pull` updates the craft
+      - /root/Creative-Adbundance:/srv/repo:ro
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.concepts.rule: "Host(`concepts.srv1486031.hstgr.cloud`)"
+      traefik.http.routers.concepts.entrypoints: "websecure"
+      traefik.http.routers.concepts.tls.certresolver: "letsencrypt"
+      traefik.http.services.concepts.loadbalancer.server.port: "8900"

@@ -1,0 +1,9 @@
+{
+  "name": "concept-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Runs the ad-concept-generator pipeline behind an HTTP API so the OS button can trigger it.",
+  "main": "src/server.js",
+  "scripts": { "start": "node src/server.js" },
+  "engines": { "node": ">=20" }
+}

@@ -71,3 +71,6 @@ Docs/AdBundance OS client view/
 .claude/skills/ad-concept-generator/scripts/node_modules/
 .claude/skills/ad-concept-generator/scripts/package-lock.json
 .claude/skills/ad-concept-generator/**/*.pptx
+concept-service/.env
+concept-service/data/
+concept-service/.testdata/
