@@ -21,7 +21,7 @@ the names moved. The examples still teach the same thing, because the lesson was
 name; it was the shape of the creative leap.
 
 **The unredacted original lives outside this repo** at
-`_vault-local/skills/ad-concept-generator/`. Use that one when running the skill for real, so the
+`../_vault-local/skills/ad-concept-generator/` (one level ABOVE the repo, i.e. `C:\Clients\Creative Adbundance\_vault-local\...`). Use that one when running the skill for real, so the
 worked examples keep their full context. If we ever make this repo private, replace this copy with
 the vault copy and delete this file.
 

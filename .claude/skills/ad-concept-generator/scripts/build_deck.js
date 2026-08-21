@@ -42,7 +42,11 @@ const pptxgen = require("pptxgenjs");
 const fs = require("fs");
 
 const cfgPath = process.argv[2];
-const outPath = process.argv[3] || "/home/claude/ad-concepts.pptx";
+const path = require("path");
+// argv[3] wins; otherwise write beside the config, not into a Linux
+// sandbox path that does not exist off the Claude.ai container.
+const outPath = process.argv[3] ||
+  path.join(path.dirname(path.resolve(cfgPath)), "ad-concepts.pptx");
 if (!cfgPath) { console.error("Usage: node build_deck.js <config.json> [out.pptx]"); process.exit(1); }
 const cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
 

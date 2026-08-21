@@ -66,3 +66,8 @@ Docs/Ecosystem*.docx
 # ARMRA outright and embed 78 of ARMRA's delivered ad images plus ThreadBeast brand
 # guidelines. Kept on disk to work from, never published from here.
 Docs/AdBundance OS client view/
+
+# Deck builder deps, installed per machine (see the skill's RUNBOOK.md)
+.claude/skills/ad-concept-generator/scripts/node_modules/
+.claude/skills/ad-concept-generator/scripts/package-lock.json
+.claude/skills/ad-concept-generator/**/*.pptx
