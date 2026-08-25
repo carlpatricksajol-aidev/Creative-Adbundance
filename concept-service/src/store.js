@@ -12,11 +12,14 @@ const path = require('path');
 const DATA = process.env.DATA_DIR || '/data';
 const RUNS = path.join(DATA, 'runs');
 const BATCHES = path.join(DATA, 'batches');
+const STORIES = path.join(DATA, 'storyboards');
 
-for (const d of [DATA, RUNS, BATCHES]) fs.mkdirSync(d, { recursive: true });
+for (const d of [DATA, RUNS, BATCHES, STORIES]) fs.mkdirSync(d, { recursive: true });
 
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-const runFile = (id) => path.join(RUNS, `${id}.json`);
+/* Ids arrive from the page, so they never reach a path unfiltered. */
+const safeId = (s) => String(s || '').replace(/[^A-Za-z0-9._-]/g, '').replace(/^\.+/, '').slice(0, 120);
+const runFile = (id) => path.join(RUNS, `${safeId(id)}.json`);
 
 function writeJSON(p, obj) {
   const tmp = p + '.tmp';
@@ -70,8 +73,54 @@ function saveBatch(result) {
 }
 
 function getBatch(id) {
-  try { return JSON.parse(fs.readFileSync(path.join(BATCHES, `${id}.json`), 'utf8')); }
+  try { return JSON.parse(fs.readFileSync(path.join(BATCHES, `${safeId(id)}.json`), 'utf8')); }
   catch { return null; }
+}
+
+/* ---------- storyboards ----------
+ * Authored by hand in the OS rather than produced by a run, so a save is an
+ * upsert on an id the page already holds. Shape mirrors the team's Notion job
+ * page: the row properties, then the concept and script bodies, then the
+ * scene table (Scene / Script Line / Overlay / Footage Name / Shot List
+ * Explanation), so what is authored here parses with the same rules the
+ * footage renamer already uses.
+ */
+const storyFile = (id) => path.join(STORIES, `${safeId(id)}.json`);
+
+function saveStory(rec) {
+  const id = safeId(rec.id) || `${slug(rec.client || 'untitled')}-${Date.now()}`;
+  const prev = getStory(id) || {};
+  const out = { ...prev, ...rec, id, savedAt: new Date().toISOString() };
+  out.createdAt = prev.createdAt || out.savedAt;
+  writeJSON(storyFile(id), out);
+  return out;
+}
+
+function getStory(id) {
+  try { return JSON.parse(fs.readFileSync(storyFile(id), 'utf8')); }
+  catch { return null; }
+}
+
+/* Newest first. The list carries only what the index table shows, so opening
+   the page is one more request and the list stays small. */
+function listStories(client) {
+  const want = client ? slug(client) : null;
+  return fs.readdirSync(STORIES)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => {
+      try {
+        const s = JSON.parse(fs.readFileSync(path.join(STORIES, f), 'utf8'));
+        return { id: s.id, client: s.client, title: s.title || 'Untitled',
+                 creator: s.creator || '', status: s.status || 'Draft',
+                 dropbox: s.dropbox || '', outputFolder: s.outputFolder || '',
+                 scenes: (s.scenes || []).length, savedAt: s.savedAt,
+                 savedBy: s.savedBy || '', archived: Boolean(s.archived) };
+      } catch { return null; }
+    })
+    .filter(Boolean)
+    .filter((s) => !s.archived)
+    .filter((s) => !want || slug(s.client) === want)
+    .sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
 }
 
 /* Newest first. Used both by the frontend's batch picker and by the library
@@ -123,4 +172,5 @@ function priorContext(client, capChars = 9000) {
   return { text: out.join('\n\n'), batches, concepts };
 }
 
-module.exports = { newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext, DATA };
+module.exports = { newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext,
+                   saveStory, getStory, listStories, DATA };

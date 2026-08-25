@@ -182,6 +182,48 @@ const server = http.createServer(async (req, res) => {
       return b ? json(res, 200, b) : json(res, 404, { error: 'no such batch' });
     }
 
+    /* Storyboards are authored in the page, so these three are a plain shared
+       document store: list per client, read one, upsert one. No model, no
+       spend, so they are safe to call on every keystroke's debounce. */
+    if (p === '/storyboards' && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      return json(res, 200, { storyboards: store.listStories(url.searchParams.get('client')) });
+    }
+
+    if (p.startsWith('/storyboard/') && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const s = store.getStory(decodeURIComponent(p.slice('/storyboard/'.length)));
+      return s ? json(res, 200, s) : json(res, 404, { error: 'no such storyboard' });
+    }
+
+    if (p === '/storyboard' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      if (!b.client) return json(res, 400, { error: 'client is required' });
+      const str = (v, cap) => String(v == null ? '' : v).slice(0, cap);
+      const saved = store.saveStory({
+        id: b.id,
+        client: str(b.client, 120),
+        title: str(b.title, 200) || 'Untitled',
+        creator: str(b.creator, 120),
+        dropbox: str(b.dropbox, 800),
+        outputFolder: str(b.outputFolder, 800),
+        status: str(b.status, 40) || 'Draft',
+        concept: str(b.concept, 20000),
+        script: str(b.script, 20000),
+        savedBy: str(b.savedBy, 120),
+        archived: Boolean(b.archived),
+        scenes: (Array.isArray(b.scenes) ? b.scenes : []).slice(0, 200).map((s) => ({
+          scene: str(s && s.scene, 120),
+          line: str(s && s.line, 2000),
+          overlay: str(s && s.overlay, 500),
+          footage: str(s && s.footage, 1000),
+          shot: str(s && s.shot, 2000),
+        })),
+      });
+      return json(res, 200, saved);
+    }
+
     if (p === '/run' && req.method === 'POST') {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
       if (!process.env.OPENROUTER_API_KEY) {
