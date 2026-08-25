@@ -92,6 +92,9 @@ function saveStory(rec) {
   const prev = getStory(id) || {};
   const out = { ...prev, ...rec, id, savedAt: new Date().toISOString() };
   out.createdAt = prev.createdAt || out.savedAt;
+  out.title = out.title || 'Untitled';
+  out.status = out.status || 'Draft';
+  out.scenes = out.scenes || [];
   writeJSON(storyFile(id), out);
   return out;
 }

@@ -201,27 +201,37 @@ const server = http.createServer(async (req, res) => {
       const b = await body(req);
       if (!b.client) return json(res, 400, { error: 'client is required' });
       const str = (v, cap) => String(v == null ? '' : v).slice(0, cap);
-      const saved = store.saveStory({
-        id: b.id,
-        client: str(b.client, 120),
-        title: str(b.title, 200) || 'Untitled',
-        creator: str(b.creator, 120),
-        dropbox: str(b.dropbox, 800),
-        outputFolder: str(b.outputFolder, 800),
-        status: str(b.status, 40) || 'Draft',
-        concept: str(b.concept, 20000),
-        script: str(b.script, 20000),
-        savedBy: str(b.savedBy, 120),
-        archived: Boolean(b.archived),
-        scenes: (Array.isArray(b.scenes) ? b.scenes : []).slice(0, 200).map((s) => ({
+      /* Only what the caller actually sent gets written. The page always sends
+         the whole record, but a partial call (say, archiving one) must not wipe
+         the fields it left out. */
+      const has = (k) => Object.prototype.hasOwnProperty.call(b, k);
+      /* Last write wins is wrong for a document two strategists can open at
+         once. A caller that tells us which version it edited gets a 409 with
+         the current record instead of quietly overwriting someone. */
+      if (b.id && b.baseSavedAt) {
+        const prev = store.getStory(b.id);
+        if (prev && prev.savedAt && prev.savedAt > b.baseSavedAt) {
+          return json(res, 409, {
+            error: 'someone else saved this storyboard after you opened it',
+            current: prev,
+          });
+        }
+      }
+      const CAPS = { title: 200, creator: 120, dropbox: 800, outputFolder: 800,
+                     status: 40, concept: 20000, script: 20000, savedBy: 120 };
+      const patch = { id: b.id, client: str(b.client, 120) };
+      for (const k of Object.keys(CAPS)) if (has(k)) patch[k] = str(b[k], CAPS[k]);
+      if (has('archived')) patch.archived = Boolean(b.archived);
+      if (has('scenes')) {
+        patch.scenes = (Array.isArray(b.scenes) ? b.scenes : []).slice(0, 200).map((s) => ({
           scene: str(s && s.scene, 120),
           line: str(s && s.line, 2000),
           overlay: str(s && s.overlay, 500),
           footage: str(s && s.footage, 1000),
           shot: str(s && s.shot, 2000),
-        })),
-      });
-      return json(res, 200, saved);
+        }));
+      }
+      return json(res, 200, store.saveStory(patch));
     }
 
     if (p === '/run' && req.method === 'POST') {
