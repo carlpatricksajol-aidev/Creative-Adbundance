@@ -113,11 +113,21 @@ function listStories(client) {
     .map((f) => {
       try {
         const s = JSON.parse(fs.readFileSync(path.join(STORIES, f), 'utf8'));
+        /* A record written before storyboards were grouped by batch holds a
+           single flat scene list; read it as one unnamed concept. */
+        const cps = Array.isArray(s.concepts) ? s.concepts
+                  : (s.scenes || []).length ? [{ heading: '', scenes: s.scenes }] : [];
+        /* The concept numbers on this page, so the concept board and the script
+           can link straight back to the storyboard that covers them. */
+        const nums = cps
+          .map((cp) => (String(cp.heading || '').match(/^\s*(\d{1,3})(?=[^\d]|$)/) || [])[1])
+          .filter(Boolean);
         return { id: s.id, client: s.client, title: s.title || 'Untitled',
-                 creator: s.creator || '', status: s.status || 'Draft',
+                 batch: s.batch || '', creator: s.creator || '', status: s.status || 'Draft',
                  dropbox: s.dropbox || '', outputFolder: s.outputFolder || '',
-                 scenes: (s.scenes || []).length, savedAt: s.savedAt,
-                 savedBy: s.savedBy || '', archived: Boolean(s.archived) };
+                 concepts: cps.length, nums,
+                 scenes: cps.reduce((a, cp) => a + (cp.scenes || []).length, 0),
+                 savedAt: s.savedAt, savedBy: s.savedBy || '', archived: Boolean(s.archived) };
       } catch { return null; }
     })
     .filter(Boolean)

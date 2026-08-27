@@ -217,19 +217,38 @@ const server = http.createServer(async (req, res) => {
           });
         }
       }
-      const CAPS = { title: 200, creator: 120, dropbox: 800, outputFolder: 800,
+      const CAPS = { title: 200, batch: 120, creator: 120, dropbox: 800, outputFolder: 800,
                      status: 40, concept: 20000, script: 20000, savedBy: 120 };
       const patch = { id: b.id, client: str(b.client, 120) };
       for (const k of Object.keys(CAPS)) if (has(k)) patch[k] = str(b[k], CAPS[k]);
       if (has('archived')) patch.archived = Boolean(b.archived);
-      if (has('scenes')) {
-        patch.scenes = (Array.isArray(b.scenes) ? b.scenes : []).slice(0, 200).map((s) => ({
-          scene: str(s && s.scene, 120),
-          line: str(s && s.line, 2000),
-          overlay: str(s && s.overlay, 500),
-          footage: str(s && s.footage, 1000),
-          shot: str(s && s.shot, 2000),
-        }));
+      const scenesOf = (arr) => (Array.isArray(arr) ? arr : []).slice(0, 200).map((s) => ({
+        scene: str(s && s.scene, 120),
+        line: str(s && s.line, 2000),
+        overlay: str(s && s.overlay, 2000),
+        footage: str(s && s.footage, 1000),
+        shot: str(s && s.shot, 2000),
+      }));
+      if (has('scenes')) patch.scenes = scenesOf(b.scenes);
+      /* One page per batch, many concepts on it, the way the team's Notion
+         storyboard page is laid out: a numbered heading, the format line, the
+         scene table, and the ticks against the extracted shot list. */
+      if (has('concepts')) {
+        patch.concepts = (Array.isArray(b.concepts) ? b.concepts : []).slice(0, 60).map((cp) => {
+          const done = {};
+          if (cp && cp.done && typeof cp.done === 'object') {
+            for (const [k, v] of Object.entries(cp.done).slice(0, 400)) {
+              if (v) done[String(k).slice(0, 300)] = true;
+            }
+          }
+          return {
+            heading: str(cp && cp.heading, 300),
+            product: str(cp && cp.product, 200),
+            format: str(cp && cp.format, 1000),
+            done,
+            scenes: scenesOf(cp && cp.scenes),
+          };
+        });
       }
       return json(res, 200, store.saveStory(patch));
     }
