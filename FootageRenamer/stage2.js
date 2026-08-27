@@ -47,16 +47,39 @@ function planJob(scenesRaw, matches, opts = {}) {
   // concepts, so the editor wants just the shot title, not the concept or an AI description.
   const safe = s => String(s == null ? "" : s).replace(/[\/\\:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim(); // filesystem-safe
   const lbl = s => safe(String(s == null ? "" : s).replace(/^\s*scene\b/i, "Script")); // "Scene N" -> "Script N"; "Hook N" unchanged
-  const pre = [opts.creator, opts.concept].map(safe).filter(Boolean).join("_").replace(/_+$/, "");
+    // The concept is scraped from the job page heading, which can be a whole sentence. The requested
+  // shape is <Talent>_<Concept>_<Label> with a SHORT concept ("Grace_004_Rapid Fire Questions_Hook 1");
+  // a 54-char heading pushes the only part that differs off the right edge of the name in Dropbox,
+  // which is why a folder of distinct takes reads as "all named the same". Long headings only.
+  const shortConcept = (c) => {
+    const s = safe(c);
+    if (s.length <= 32) return s;                        // already short: leave exactly as-is
+    const head = s.split(/\s[-–—]\s/)[0].trim();     // "206_X - Y" -> "206_X"
+    if (head.length >= 8 && head.length <= 32) return head;
+    const w = head.split(/\s+/);
+    let out = w[0] || s.slice(0, 30);
+    for (const x of w.slice(1)) { if ((out + " " + x).length > 30) break; out += " " + x; }
+    return out;
+  };
+  const pre = [safe(opts.creator), shortConcept(opts.concept)].filter(Boolean).join("_").replace(/_+$/, "");
   const px = pre ? pre + "_" : "";
-  const uniq = (set, base) => { let n = 1, nm = base || "clip"; while (set[nm]) { n++; nm = `${base} V${n}`; } set[nm] = 1; return nm; }; // unique name within a folder
+    // A camera-pattern filename (IMG_2580, "Melanie - IMG_2580", DJI_0031, C0001, a bare date) carries
+  // no human meaning: keeping it tells the editor nothing and reads as "the tool stopped halfway".
+  // A name the creator actually typed IS meaning and is kept verbatim, per the editor's own request.
+  const cameraName = (b) => /(?:^|[-_ ])(?:img|dji|mvi|dsc|gopr|vid|movie|clip)[\s_-]*\d{2,}$/i.test(b)
+    || /^c\d{4,}$/i.test(b) || /^[\d\s._-]{8,}$/.test(b);
+  const key = s => String(s).normalize("NFC").toLowerCase(); // Dropbox paths are case-insensitive: keying raw lets two "unique" names collide on one path (409 or silent clobber)
+  const uniq = (set, base) => { let n = 1, nm = base || "clip"; while (set[key(nm)]) { n++; nm = `${base} V${n}`; } set[key(nm)] = 1; return nm; }; // unique name within a folder
   const ok = m => m.filenameLabel || ((m.reconciled || (m.confidence == null ? 1 : m.confidence) >= thr) && m.scene);
   for (const m of matches.filter(ok)) {
     const ext = extOf(m.file);
     if (m.filenameLabel) { renames.push({ from: m.file, to: `${px}${uniq(takenA, lbl(m.filenameLabel))}${ext}`, folder: "aroll", scene: m.filenameLabel, confidence: m.confidence }); continue; }
     const sc = byId[m.scene];
     if (!sc) { flagged.push({ file: m.file, reason: `matched unknown scene "${m.scene}"`, confidence: m.confidence }); continue; }
-    if (sc.type === "talkinghead" || m.type === "talkinghead") {
+    // The STORYBOARD decides the folder: a clip that matched a b-roll shot stays b-roll even if the
+    // model heard talking in it (creators narrate while they demo).
+    const shotBase0 = m.shot_slug || (sc.shots[0] && sc.shots[0].slug);
+    if (sc.type === "talkinghead" || (m.type === "talkinghead" && !shotBase0)) {
       renames.push({ from: m.file, to: `${px}${uniq(takenA, lbl(sc.scene))}${ext}`, folder: "aroll", scene: m.scene, confidence: m.confidence });
     } else {
       const base = m.shot_slug || (sc.shots[0] && sc.shots[0].slug);
@@ -74,8 +97,9 @@ function planJob(scenesRaw, matches, opts = {}) {
     if (m.type === "talkinghead" && thBase) {
       renames.push({ from: m.file, to: `${px}${uniq(takenA, lbl(thBase))}${ext}`, folder: "aroll", scene: "(extra)", confidence: m.confidence, extra: true });
     } else if (m.type === "broll") {
-      const orig = safe(String(m.file).replace(/\.[a-z0-9]+$/i, "")); // keep the creator's own b-roll filename
-      renames.push({ from: m.file, to: `${uniq(takenB, orig)}${ext}`, folder: "broll", scene: "(extra)", shot_slug: null, confidence: m.confidence, extra: true });
+      const orig = safe(String(m.file).replace(/\.[a-z0-9]+$/i, ""));
+      const label = cameraName(orig) ? lineSlug(desc, 6) : ""; // camera name -> say what is in the shot
+      renames.push({ from: m.file, to: `${uniq(takenB, label || orig)}${ext}`, folder: "broll", scene: "(extra)", shot_slug: null, confidence: m.confidence, extra: true, described: !!label });
     } else {
       flagged.push({ file: m.file, reason: m.scene ? `low confidence (${fmtC(m.confidence)}) for "${m.scene}"` : "no usable description to organize", confidence: m.confidence });
     }
@@ -313,7 +337,9 @@ async function processPage(PAGE) {
     const lp = path.join(work, v.name.replace(/[^a-z0-9.]/gi, "_"));
     await dbxDownload(sharedUrl, v.name, lp);
     const fid = v.id.replace(/[^a-z0-9]/gi, "");
-    const au = hasTalkingHead ? audioPart(lp, work, fid) : null;
+    // ALWAYS send audio: the type decision hinges on whether the clip carries a spoken LINE, and a
+    // model given frames only cannot hear speech, so anyone facing the camera reads as talking-head.
+    const au = audioPart(lp, work, fid);
     const m = await matchClip(frames(lp, work, fid), candidates, v.name, au);
     const kind = m.kind === "talkinghead" ? "talkinghead" : "broll";
     matches.push({ file: v.name, scene: m.scene, shot_slug: m.shot_slug, person_in_frame: m.person_in_frame, confidence: m.confidence, type: kind, transcript: m.transcript || "", describe: m.describe || "" });
@@ -335,14 +361,36 @@ async function processPage(PAGE) {
   // 3) plan + write the renamed set into OUT (fresh) - copy (originals stay untouched)
   const plan = planJob(sceneRows, matches, { client, creator, concept, confidenceThreshold: CFG.confidence });
   const heard = matches.filter(m => m.transcript);
-  const report = plan.report + (heard.length ? "\n## Talking-head transcripts\n" + heard.map(m => `- ${m.file} (${m.scene || "?"}): "${String(m.transcript).slice(0, 400)}"`).join("\n") + "\n" : "");
+  let report = plan.report + (heard.length ? "\n## Talking-head transcripts\n" + heard.map(m => `- ${m.file} (${m.scene || "?"}): "${String(m.transcript).slice(0, 400)}"`).join("\n") + "\n" : "");
   try { await dbxRpc("/2/files/delete_v2", { path: OUT }); } catch {}
   for (const sub of ["", "/broll", "/aroll"]) { try { await dbxRpc("/2/files/create_folder_v2", { path: OUT + sub }); } catch {} }
+  // A single failed copy used to throw and abandon every remaining clip, with no report and the
+  // Notion row stuck on "Processing" - indistinguishable, in the folder, from "the tool stopped".
+  // Dropbox rate-limits a burst of writes (429 too_many_write_operations), so retry that, then
+  // record the failure and keep going: a partial folder WITH a report beats a silent partial folder.
+  const copyFails = [];
   for (const r of plan.renames) {
-    if (coLocated) {
-      const cp = await dbxRpc("/2/files/copy_v2", { from_path: src[r.from], to_path: `${OUT}/${r.folder}/${r.to}`, autorename: false });
-      if (cp.code >= 300) throw new Error("copy " + cp.code + " " + JSON.stringify(cp.json).slice(0, 150));
-    } else await dbxUpload(`${OUT}/${r.folder}/${r.to}`, local[r.from]);
+    try {
+      if (coLocated) {
+        let cp, wait = 1000;
+        for (let attempt = 1; attempt <= 4; attempt++) {
+          cp = await dbxRpc("/2/files/copy_v2", { from_path: src[r.from], to_path: `${OUT}/${r.folder}/${r.to}`, autorename: false });
+          if (cp.code !== 429) break;
+          const ra = Number((cp.json && cp.json.error && cp.json.error.retry_after) || 0);
+          await new Promise((z) => setTimeout(z, Math.max(ra * 1000, wait)));
+          wait *= 2;
+        }
+        if (cp.code >= 300) throw new Error("copy " + cp.code + " " + JSON.stringify(cp.json).slice(0, 150));
+      } else await dbxUpload(`${OUT}/${r.folder}/${r.to}`, local[r.from]);
+    } catch (e) {
+      copyFails.push({ file: r.from, to: `${r.folder}/${r.to}`, why: String(e.message || e).slice(0, 160) });
+      console.log(`  !! copy failed: ${r.from} -> ${r.folder}/${r.to} :: ${String(e.message || e).slice(0, 120)}`);
+    }
+  }
+  if (copyFails.length) {
+    const nl = String.fromCharCode(10);
+    report += nl + `## Did NOT reach the folder (${copyFails.length}) - copy failed, originals untouched` + nl
+      + copyFails.map((f) => `- ${f.file}  ->  ${f.to}  :: ${f.why}`).join(nl) + nl;
   }
   await dbxContent("/2/files/upload", { path: `${OUT}/_report.md`, mode: "overwrite", mute: true }, Buffer.from(report));
 

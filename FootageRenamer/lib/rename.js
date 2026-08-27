@@ -121,9 +121,29 @@ function planJob(scenesRaw, matches, opts = {}) {
   // concepts, so the editor wants just the shot title, not the concept or an AI description.
   const safe = (s) => String(s == null ? "" : s).replace(/[\/\\:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim(); // filesystem-safe (no path/Windows-illegal chars)
   const lbl = (s) => safe(String(s == null ? "" : s).replace(/^\s*scene\b/i, "Script")); // storyboard "Scene N" -> reviewer's "Script N"; "Hook N" unchanged
-  const pre = [opts.creator, opts.concept].map(safe).filter(Boolean).join("_").replace(/_+$/, "");
+    // The concept is scraped from the job page heading, which can be a whole sentence. The requested
+  // shape is <Talent>_<Concept>_<Label> with a SHORT concept ("Grace_004_Rapid Fire Questions_Hook 1");
+  // a 54-char heading pushes the only part that differs off the right edge of the name in Dropbox,
+  // which is why a folder of distinct takes reads as "all named the same". Long headings only.
+  const shortConcept = (c) => {
+    const s = safe(c);
+    if (s.length <= 32) return s;                        // already short: leave exactly as-is
+    const head = s.split(/\s[-–—]\s/)[0].trim();     // "206_X - Y" -> "206_X"
+    if (head.length >= 8 && head.length <= 32) return head;
+    const w = head.split(/\s+/);
+    let out = w[0] || s.slice(0, 30);
+    for (const x of w.slice(1)) { if ((out + " " + x).length > 30) break; out += " " + x; }
+    return out;
+  };
+  const pre = [safe(opts.creator), shortConcept(opts.concept)].filter(Boolean).join("_").replace(/_+$/, "");
   const px = pre ? pre + "_" : "";
-  const uniq = (set, base) => { let n = 1, nm = base || "clip"; while (set[nm]) { n++; nm = `${base} V${n}`; } set[nm] = 1; return nm; }; // unique name within a folder
+    // A camera-pattern filename (IMG_2580, "Melanie - IMG_2580", DJI_0031, C0001, a bare date) carries
+  // no human meaning: keeping it tells the editor nothing and reads as "the tool stopped halfway".
+  // A name the creator actually typed IS meaning and is kept verbatim, per the editor's own request.
+  const cameraName = (b) => /(?:^|[-_ ])(?:img|dji|mvi|dsc|gopr|vid|movie|clip)[\s_-]*\d{2,}$/i.test(b)
+    || /^c\d{4,}$/i.test(b) || /^[\d\s._-]{8,}$/.test(b);
+  const key = s => String(s).normalize("NFC").toLowerCase(); // Dropbox paths are case-insensitive: keying raw lets two "unique" names collide on one path (409 or silent clobber)
+  const uniq = (set, base) => { let n = 1, nm = base || "clip"; while (set[key(nm)]) { n++; nm = `${base} V${n}`; } set[key(nm)] = 1; return nm; }; // unique name within a folder
 
   // a creator-labeled read (filenameLabel) is authoritative; otherwise gate on the confidence/threshold
   const ok = (m) => m.filenameLabel || ((m.reconciled || (m.confidence == null ? 1 : m.confidence) >= threshold) && m.scene);
@@ -141,7 +161,11 @@ function planJob(scenesRaw, matches, opts = {}) {
       flagged.push({ file: m.file, reason: `matched unknown scene "${m.scene}"`, confidence: m.confidence });
       continue;
     }
-    const isTalk = scene.type === "talkinghead" || m.type === "talkinghead";
+    // The STORYBOARD decides the folder. A clip that matched a b-roll shot is b-roll even if the
+    // model heard talking in it (creators narrate while they demo), otherwise the shot lands in
+    // aroll named "Script 1" AND gets reported missing from the b-roll it actually is.
+    const shotBase = m.shot_slug || (scene.shots[0] && scene.shots[0].slug);
+    const isTalk = scene.type === "talkinghead" || (m.type === "talkinghead" && !shotBase);
     if (isTalk) {
       renames.push({
         from: m.file,
@@ -179,8 +203,9 @@ function planJob(scenesRaw, matches, opts = {}) {
     if (m.type === "talkinghead" && thBase) {
       renames.push({ from: m.file, to: `${px}${uniq(takenA, lbl(thBase))}${ext}`, folder: "aroll", scene: "(extra)", confidence: m.confidence, extra: true });
     } else if (m.type === "broll") {
-      const orig = safe(String(m.file).replace(/\.[a-z0-9]+$/i, "")); // keep the creator's own b-roll filename (no describe, no prefix)
-      renames.push({ from: m.file, to: `${uniq(takenB, orig)}${ext}`, folder: "broll", scene: "(extra)", shot_slug: null, confidence: m.confidence, extra: true });
+      const orig = safe(String(m.file).replace(/\.[a-z0-9]+$/i, ""));
+      const label = cameraName(orig) ? lineSlug(desc, 6) : ""; // camera name -> say what is in the shot
+      renames.push({ from: m.file, to: `${uniq(takenB, label || orig)}${ext}`, folder: "broll", scene: "(extra)", shot_slug: null, confidence: m.confidence, extra: true, described: !!label });
     } else {
       flagged.push({
         file: m.file,

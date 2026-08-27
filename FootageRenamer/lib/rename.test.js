@@ -153,7 +153,9 @@ const exTo = (f) => (exPlan.renames.find((x) => x.from === f) || {});
 eq(exTo("1stPOV_scraping pan clean.mov").to, "1stPOV_scraping pan clean.mov", "extra b-roll: keep creator's own filename (no describe, no prefix)");
 eq(exTo("1stPOV_scraping pan clean.mov").folder, "broll", "extra b-roll -> broll/");
 eq(exTo("1stPOV_scraping pan clean 2.mov").to, "1stPOV_scraping pan clean 2.mov", "extra b-roll: creator's own take numbering kept");
-eq(exTo("IMG_4992.MOV").to, "IMG_4992.mov", "extra b-roll: even a plain name is kept, not AI-described");
+eq(exTo("IMG_4992.MOV").to, "some_broll.mov", "extra b-roll: a CAMERA name is replaced by what is in the shot");
+eq(exTo("IMG_4992.MOV").described, true, "extra b-roll: described flag set when we renamed it");
+eq(exTo("1stPOV_scraping pan clean.mov").described, false, "extra b-roll: a creator-written name is NOT overwritten");
 eq(exTo("rapid1.mov").folder, "aroll", "extra talking-head -> aroll/");
 eq(exTo("rapid1.mov").to, "Grace_004_Rapid Fire Questions_rapid_fire_debt_questions.mov", "extra talking-head: prefixed topic slug");
 eq(exPlan.flagged.length, 0, "extra b-roll is always organized (never flagged)");
@@ -215,6 +217,39 @@ eq(flPlan.renames.every((r) => r.folder === "aroll"), true, "trust: labeled read
 // two bare same labels de-dup safely
 const dupPlan = planJob([], [{ file: "a_Hook 1.mov", type: "talkinghead", filenameLabel: "Hook 1" }, { file: "b_Hook 1.mov", type: "talkinghead", filenameLabel: "Hook 1" }], { creator: "X" });
 eq(dupPlan.renames.map((r) => r.to).sort(), ["X_Hook 1 V2.mov", "X_Hook 1.mov"], "trust: duplicate label -> V2");
+
+
+// --- the storyboard decides the folder, not the model's guess --------------------------------
+// A creator narrating while she demos gets kind=talkinghead; if the clip matched a b-roll SHOT it is
+// still b-roll. Before this, such a clip landed in aroll named "Script 1" and the shot it actually
+// was got reported missing.
+const twScenes = [{ scene: "Scene 1", type: "broll", script_line: "typing it in", footage_name: "1stPOV_typing my symple loan in browser" }];
+const twPlan = planJob(twScenes, [
+  { file: "a.mov", type: "talkinghead", scene: "Scene 1", shot_slug: "1stpov_typing_my_symple_loan_in_browser", confidence: 0.95, describe: "woman typing on laptop" },
+], { creator: "Melanie", concept: "206_Top performer iteration" });
+eq(twPlan.renames[0].folder, "broll", "type: storyboard b-roll scene wins over the model's talkinghead guess");
+eq(twPlan.renames[0].to, "1stPOV_typing my symple loan in browser.mov", "type: and it gets the storyboard shot title");
+eq(twPlan.missing.length, 0, "type: the shot is no longer reported missing");
+
+// --- long scraped concept headings get shortened ---------------------------------------------
+// Dropbox truncates, so a 54-char prefix hides the only part that differs between takes.
+const lcPlan = planJob([{ scene: "Hook 1", type: "talkinghead", script_line: "l", footage_name: "-" }],
+  [{ file: "x.mov", type: "talkinghead", scene: "Hook 1", filenameLabel: "Hook 1", confidence: 1 }],
+  { creator: "Melanie", concept: "206_Top performer iteration - Debt Payoff Job Interview" });
+eq(lcPlan.renames[0].to, "Melanie_206_Top performer iteration_Hook 1.mov", "concept: a long scraped heading is trimmed at the dash");
+
+// --- Dropbox is case-insensitive: two "unique" names must not become one path ----------------
+const ciScenes = [
+  { scene: "Scene 1", type: "broll", script_line: "a", footage_name: "1stPOV_Typing my Symple loan in browser" },
+];
+const ciPlan = planJob(ciScenes, [
+  { file: "one.mov", type: "broll", scene: "Scene 1", shot_slug: "1stpov_typing_my_symple_loan_in_browser", confidence: 0.9 },
+  { file: "two.mov", type: "broll", scene: null, confidence: 0, describe: "d" },
+  { file: "1stPOV_typing my symple loan in browser.mov", type: "broll", scene: null, confidence: 0, describe: "d2" },
+], { creator: "Melanie", concept: "206_x" });
+const ciNames = ciPlan.renames.map((r) => r.folder + "/" + r.to.toLowerCase());
+eq(new Set(ciNames).size, ciNames.length, "collision: names stay unique when compared case-insensitively");
+
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 console.log("--- sample report (Onsen) ---\n");
