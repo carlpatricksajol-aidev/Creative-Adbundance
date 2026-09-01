@@ -1,0 +1,1404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Creative Ad&bull;Bundance &middot; Client Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500&display=swap">
+<style>
+/* ===========================================================================
+   The CLIENT side of the OS. One client, signed in, seeing only their own
+   work. Same Material tokens and shell as 20-internal.html on purpose: the
+   two products are the same system seen from opposite ends of the handoff.
+
+   THE MODEL (Carl, 2026-08-31): a batch is not a flow to read, it is a set of
+   WINDOWS - Concepts, Scripts, Talent, Videos, Statics - one per deliverable
+   the client requested for that batch. A window is LOCKED while the studio
+   holds that step, becomes NEEDS-YOU when the internal side pushes it to the
+   client, and turns DONE once the client signs it off. The internal board
+   already knows when each step is ready; this page just mirrors the push.
+   Only the client's acceptance advances the batch - same rule as internal.
+   =========================================================================== */
+:root{
+  --bg:#F0F4F9; --surface:#fff; --rail:#E9EEF6;
+  --line:#DADCE0; --line-strong:#C4C7C5; --hair:#E8EAED; --fill:#F1F3F4;
+  --ink:#202124; --ink-2:#444746; --ink-3:#5F6368; --ink-4:#80868B; --ink-5:#9AA0A6;
+
+  --accent:#0B57D0; --accent-tint:#D3E3FD; --accent-soft:#E8F0FE; --accent-deep:#041E49;
+  --green:#188038; --green-tint:#E6F4EA; --green-line:#A8DAB5; --green-deep:#0D652D;
+  --amber:#B06000; --amber-tint:#FEF7E0; --amber-line:#FDE293; --amber-deep:#8A4600;
+  --red:#C5221F; --red-tint:#FCE8E6; --red-line:#F6AEA9; --red-deep:#A50E0E;
+  --violet:#9334E6; --violet-tint:#F3E8FD; --violet-line:#E0C6F7; --violet-deep:#6B21A8;
+  --blue:#1967D2;
+
+  --font:'Poppins',system-ui,sans-serif;
+  --mono:'Roboto Mono',ui-monospace,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.55;
+  letter-spacing:-.011em;-webkit-font-smoothing:antialiased;overflow:hidden;display:flex}
+::selection{background:rgba(11,87,208,.16)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,.13);border-radius:28px;border:3px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-track{background:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:none;border:none;cursor:pointer;font-family:inherit}
+:is(a,button,select,input):focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+@keyframes in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:1;transform:scale(1.35)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ---------- primitives (verbatim from the internal file) ---------- */
+.mono{font-family:var(--mono)}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;white-space:nowrap}
+.pill.amber{color:var(--amber);background:var(--amber-tint);border:1px solid var(--amber-line)}
+.pill.green{color:var(--green);background:var(--green-tint);border:1px solid var(--green-line)}
+.pill.blue{color:var(--blue);background:var(--accent-soft);border:1px solid #A8C7FA}
+.pill.grey{color:var(--ink-3);background:var(--fill);border:1px solid var(--line)}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.dot.live{animation:pulse 2.2s infinite}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:22px;box-shadow:0 1px 2px rgba(60,64,67,.08)}
+.btn{height:40px;padding:0 18px;border-radius:999px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;transition:transform .15s,background .15s,border-color .15s}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.primary:hover{transform:translateY(-1px)}
+.btn.ghost{background:var(--surface);border:1px solid var(--line-strong);color:var(--ink-2)}
+.btn.ghost:hover{background:var(--fill)}
+.btn.sm{height:34px;padding:0 14px;font-size:12.5px}
+.btn[disabled]{background:var(--hair);color:var(--ink-5);cursor:not-allowed;transform:none}
+.kicker{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-5);font-weight:600}
+h1.page{font-size:25px;font-weight:600;letter-spacing:-.028em;margin-bottom:5px}
+p.lede{font-size:14px;color:var(--ink-2)}
+.sechead{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.sechead b{font-size:13px;font-weight:600}
+.sechead .sp{flex:1}
+.sechead a{font-size:12.5px;color:var(--accent);font-weight:600;cursor:pointer}
+.stack{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;gap:14px;padding:15px 18px;border-radius:22px;background:var(--surface);border:1px solid var(--line);
+  width:100%;text-align:left;transition:border-color .14s,box-shadow .14s;box-shadow:0 1px 2px rgba(60,64,67,.08)}
+button.row:hover{border-color:#A8C7FA}
+.row .main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.row .main b{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .main i{font-style:normal;font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tint{width:38px;height:38px;border-radius:14px;flex:none;display:flex;align-items:center;justify-content:center}
+.av{border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+.av.s{width:24px;height:24px;font-size:9.5px}
+.av.l{width:34px;height:34px;font-size:12.5px}
+
+/* ---------- shell ---------- */
+aside{width:236px;flex:none;height:100vh;background:var(--rail);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:10px;padding:7px 9px;margin:14px 14px 10px;border-radius:16px}
+.mark{width:26px;height:26px;border-radius:8px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#6B47FF,#A78BFA);font-weight:800;font-size:11.5px;color:#fff}
+.brand b{display:block;font-size:11.5px;font-weight:600;letter-spacing:-.015em;white-space:nowrap}
+.brand i{display:block;font-style:normal;font-size:10.5px;color:var(--ink-3)}
+.cta{margin:0 14px 12px;height:40px;border-radius:16px;background:var(--accent);color:#fff;font-size:13.5px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;gap:9px;transition:transform .15s}
+.cta:hover{transform:translateY(-1px)}
+nav{flex:1;overflow-y:auto;padding:0 10px 16px}
+.group{margin-bottom:12px}
+.group .kicker{padding:8px 11px 5px;display:block}
+.nav{display:flex;align-items:center;gap:11px;width:100%;height:40px;padding:0 14px;border-radius:999px;margin:1px 0;
+  color:var(--ink-2);font-size:13px;font-weight:500;transition:background .14s,color .14s;text-align:left}
+.nav:hover{background:#DFE6F0}
+.nav svg{flex:none;stroke:var(--ink-4)}
+.nav span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav em{font-style:normal;font-family:var(--mono);font-size:10px;color:var(--ink-4);flex:none}
+.nav.on{background:var(--accent-tint);color:var(--accent-deep);font-weight:600}
+.nav.on svg{stroke:var(--accent)}
+.nav.on em{color:var(--accent)}
+.foot{padding:11px 12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.who{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:14px;width:100%;text-align:left}
+.who b{display:block;font-size:12px;font-weight:600}
+.who i{display:block;font-style:normal;font-size:10px;color:var(--ink-3)}
+main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
+.chrome{flex:none;height:56px;padding:0 24px;display:flex;align-items:center;gap:13px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.55)}
+.back{width:30px;height:30px;border-radius:12px;background:var(--surface);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;flex:none;transition:border-color .15s}
+.back:hover{border-color:var(--accent)}
+.back[hidden]{display:none}
+.chrome .t{min-width:0}
+.chrome .t b{display:block;font-size:13.5px;font-weight:600;white-space:nowrap}
+.chrome .t i{display:block;font-style:normal;font-size:11px;color:var(--ink-3);white-space:nowrap}
+.msg{display:flex;align-items:center;gap:8px;padding:6px 14px 6px 6px;border-radius:999px;background:var(--surface);border:1px solid var(--line);flex:none;transition:border-color .15s}
+.msg:hover{border-color:#A8C7FA}
+.msg span{font-size:11.5px;color:var(--ink-2);white-space:nowrap}
+.body{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column}
+#view{flex:1;display:flex;flex-direction:column;min-height:0}
+.wrap{max-width:1000px;margin:0 auto;padding:26px 28px 44px;animation:in .35s ease;width:100%}
+
+/* ---------- home callout ---------- */
+.callout{display:inline-flex;align-items:center;gap:10px;padding:8px 15px 8px 9px;
+  border:1px solid var(--amber-line);background:var(--amber-tint);border-radius:999px;
+  font:inherit;font-size:14px;color:var(--ink);cursor:pointer;text-align:left}
+.callout:hover{border-color:var(--amber)}
+.callout .pill{flex:none}
+
+/* ---------- batch windows ---------- */
+/* The chips are the whole navigation of a batch: one per deliverable the
+   client requested, each carrying its own state so the client can see the
+   entire batch's health without opening anything. */
+.wtabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 16px}
+.wtab{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:999px;
+  background:var(--surface);border:1px solid var(--line-strong);font-size:13px;font-weight:600;color:var(--ink-2);
+  transition:border-color .14s,background .14s}
+.wtab:hover{border-color:#A8C7FA}
+.wtab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.wtab .st{width:8px;height:8px;border-radius:50%;flex:none}
+.wtab .st.done{background:var(--green)}
+.wtab .st.you{background:var(--amber);animation:pulse 2.2s infinite}
+.wtab .st.locked{background:var(--line-strong)}
+.wtab.on .st.done{background:#8CE0AC}
+.wtab.on .st.you{background:#FFD97A}
+.wtab.on .st.locked{background:rgba(255,255,255,.5)}
+
+.win{animation:in .25s ease}
+.lockcard{padding:22px 24px;border-radius:20px;background:var(--surface);border:1px dashed var(--line-strong);
+  display:flex;gap:16px;align-items:flex-start}
+.lockcard .tint{background:var(--fill)}
+.lockcard b{display:block;font-size:14px;font-weight:600;margin-bottom:2px}
+.lockcard p{font-size:13px;color:var(--ink-3);max-width:64ch}
+.donebar{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:16px;
+  background:var(--green-tint);border:1px solid var(--green-line);margin-bottom:12px;font-size:13px;color:var(--green-deep);font-weight:600}
+
+/* concepts + scripts to review */
+.cpt{padding:16px 18px;border-radius:18px;background:var(--surface);border:1px solid var(--line);display:flex;gap:14px}
+.cpt.ok{border-color:var(--green-line);background:var(--green-tint)}
+.cpt .main{flex:1;min-width:0}
+.cpt .main b{display:block;font-size:13.5px;font-weight:600;margin-bottom:3px}
+.cpt .main p{font-size:12.5px;color:var(--ink-2);max-width:70ch}
+.cpt .main .hook{font-size:12px;color:var(--ink-3);font-style:italic;margin-top:5px}
+.cpt .acts{display:flex;flex-direction:column;gap:7px;flex:none;align-items:flex-end}
+.notebox{width:100%;margin-top:10px;padding:9px 12px;border-radius:12px;border:1px solid var(--line);font-size:12.5px;resize:vertical;min-height:38px;background:var(--bg)}
+.sendbar{display:flex;align-items:center;gap:12px;margin-top:16px}
+.sendbar span{font-size:12px;color:var(--ink-3)}
+
+/* talent shortlist */
+.tal{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.talc{border-radius:18px;background:var(--surface);border:1px solid var(--line);padding:16px;text-align:left;
+  display:flex;flex-direction:column;gap:9px;transition:border-color .14s}
+.talc:hover{border-color:#A8C7FA}
+.talc.pick{border-color:var(--green-line);background:var(--green-tint)}
+.talc .av.xl{width:52px;height:52px;font-size:17px}
+.talc b{font-size:13.5px;font-weight:600}
+.talc i{font-style:normal;font-size:11.5px;color:var(--ink-3)}
+
+/* ads grid */
+.lib{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.ad{border-radius:18px;overflow:hidden;background:var(--surface);border:1px solid var(--line);text-align:left;
+  transition:border-color .14s;display:flex;flex-direction:column}
+.ad:hover{border-color:#A8C7FA}
+.ad .th{aspect-ratio:9/13;display:flex;align-items:flex-end;padding:12px;position:relative}
+.ad .th .fmt{position:absolute;top:10px;left:10px}
+.ad .th b{color:#fff;font-size:13px;font-weight:600;text-shadow:0 1px 8px rgba(0,0,0,.45);line-height:1.3}
+.ad .ft{padding:10px 13px;display:flex;align-items:center;gap:8px}
+.ad .ft i{font-style:normal;font-size:11px;color:var(--ink-3);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- the concept slide, verbatim idiom from the internal board ------ */
+.board{display:grid;grid-template-columns:212px minmax(0,1fr) 250px;background:var(--surface);
+  border:1px solid var(--line);border-radius:24px;overflow:hidden;box-shadow:0 2px 8px rgba(60,64,67,.08)}
+@media (max-width:960px){.board{grid-template-columns:200px minmax(0,1fr)}.bmock{display:none}}
+@media (max-width:720px){.board{grid-template-columns:1fr}.brail{display:none}}
+.brail{border-right:1px solid var(--hair);background:#F8FAFD;padding:16px 12px;display:flex;flex-direction:column;min-width:0}
+.blist{overflow-y:auto;max-height:560px;display:flex;flex-direction:column;gap:2px}
+.bitem{display:flex;gap:9px;align-items:flex-start;width:100%;padding:8px 10px;border-radius:12px;
+  font-size:12.5px;line-height:1.35;color:var(--ink-2);text-align:left}
+.bitem:hover{background:#EDF1F8}
+.bitem.on{background:var(--accent-tint);color:var(--accent-deep);font-weight:600}
+.bnum{font-family:var(--mono);font-size:10px;color:var(--ink-5);flex:none;width:15px;padding-top:2px}
+.bitem.on .bnum{color:var(--accent)}
+.bitem .tick{margin-left:auto;flex:none;padding-top:2px}
+.bdoc{padding:24px 28px 18px;min-width:0;display:flex;flex-direction:column}
+.blab{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-4);font-weight:600;margin:18px 0 7px}
+.btitle{font-size:26px;font-weight:600;letter-spacing:-.03em;line-height:1.15;margin:4px 0 10px}
+.bp{font-size:13.5px;color:var(--ink-2);line-height:1.65}
+.bdash{display:flex;gap:10px;margin-bottom:6px}
+.bdash>span{color:var(--ink-4);flex:none;line-height:1.6}
+.bdash p{flex:1;min-width:0;font-size:13px;color:var(--ink-2);line-height:1.6}
+.bfoot{flex:none;display:flex;gap:9px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--hair);padding-top:12px;margin-top:16px}
+.bmock{border-left:1px solid var(--hair);background:#F8FAFD;padding:22px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.phone{width:100%;max-width:214px;border-radius:20px;overflow:hidden;background:#141416;box-shadow:0 10px 28px rgba(0,0,0,.18)}
+.phead{display:flex;align-items:center;gap:9px;padding:11px 13px}
+.phead b{display:block;font-size:12px;color:#fff;font-weight:600}
+.phead i{display:block;font-style:normal;font-size:9.5px;color:rgba(255,255,255,.55)}
+.pbody{min-height:264px;padding:18px 16px 14px;display:flex;flex-direction:column}
+.pbody>b{font-size:17px;line-height:1.2;color:#fff;font-weight:700;letter-spacing:-.015em}
+.pbody>p{font-size:12px;color:rgba(255,255,255,.92);margin-top:6px;line-height:1.45}
+.mtag{font-family:var(--mono);font-size:9.5px;color:#fff;background:rgba(0,0,0,.26);border-radius:6px;padding:4px 9px;white-space:nowrap;align-self:flex-start;margin-top:auto}
+.navbtn{width:34px;height:34px;border-radius:14px;background:var(--surface);border:1px solid var(--line-strong);
+  display:flex;align-items:center;justify-content:center;flex:none;transition:border-color .15s}
+.navbtn:hover{border-color:var(--accent)}
+.navbtn[disabled]{opacity:.4;cursor:not-allowed}
+
+/* ---------- the script doc, verbatim idiom from the internal scripts tool -- */
+.docgrid{display:grid;grid-template-columns:218px minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.docgrid{grid-template-columns:1fr}}
+.dritem{display:flex;align-items:center;gap:9px;width:100%;min-height:34px;padding:6px 12px;border-radius:999px;
+  font-size:12.5px;color:var(--ink-2);text-align:left;transition:background .14s}
+.dritem:hover{background:#E4E9F2}
+.dritem.on{background:var(--accent-tint);color:var(--accent-deep);font-weight:600}
+.dritem span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.paper{max-width:768px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:4px;
+  box-shadow:0 1px 3px rgba(60,64,67,.15);padding:clamp(28px,5vw,52px) clamp(24px,6vw,60px) 52px}
+.hooklab{font-size:14.5px;font-weight:700;margin:0 0 2px}
+.pline{font-size:14.5px;line-height:1.75;color:var(--ink)}
+.dirline{font-size:12px;color:var(--ink-4);font-style:italic;line-height:1.5;margin-top:2px}
+
+/* ---------- full-page views, the internal's own boardwrap/scriptwrap ------ */
+.wrap.boardwrap{max-width:none;width:100%;flex:1 1 0;min-height:0;margin:0;display:flex;flex-direction:column;padding:12px 22px 14px;animation:in .35s ease}
+.boardwrap .board{flex:1;min-height:0;grid-template-columns:196px minmax(0,1fr) 392px}
+.boardwrap .brail{min-height:0}
+.boardwrap .blist{max-height:none;flex:1}
+.boardwrap .bdoc{display:flex;flex-direction:column;padding:13px 24px 10px;min-width:0;min-height:0}
+.boardwrap .bmock{padding:14px 14px 10px;justify-content:center;min-height:0}
+.boardwrap .phone{max-width:358px;aspect-ratio:9/16.4;display:flex;flex-direction:column}
+.boardwrap .pbody{flex:1;min-height:0}
+.bscroll{flex:1;min-height:0;overflow-y:auto;padding-right:10px}
+.bscroll>*{max-width:940px}
+.bscroll .btitle{font-size:29px;margin:4px 0 11px}
+.bscroll .blab{margin:16px 0 6px;font-size:10.5px}
+.bscroll .bp{font-size:15px;line-height:1.66}
+.bscroll .bdash{margin-bottom:5px}
+.bscroll .bdash p{font-size:14.5px;line-height:1.58}
+.bscroll.mid .btitle{font-size:26px;margin:3px 0 9px}
+.bscroll.mid .blab{margin:12px 0 5px}
+.bscroll.mid .bp{font-size:14px;line-height:1.58}
+.bscroll.mid .bdash{margin-bottom:3px}
+.bscroll.mid .bdash p{font-size:13.5px;line-height:1.5}
+.bscroll.tight .btitle{font-size:23px;margin:2px 0 7px}
+.bscroll.tight .blab{margin:9px 0 4px;font-size:10px}
+.bscroll.tight .bp{font-size:13px;line-height:1.5}
+.bscroll.tight .bdash{margin-bottom:2px}
+.bscroll.tight .bdash p{font-size:12.5px;line-height:1.44}
+.bscroll.xtight .btitle{font-size:18.5px;margin:0 0 5px}
+.bscroll.xtight .blab{margin:6px 0 2px;font-size:9px}
+.bscroll.xtight .bp{font-size:11.5px;line-height:1.4}
+.bscroll.xtight .bdash{margin-bottom:0}
+.bscroll.xtight .bdash p{font-size:11px;line-height:1.32}
+@media (max-width:1120px){.boardwrap .board{grid-template-columns:196px minmax(0,1fr) 300px}}
+@media (max-width:960px){.boardwrap .board{grid-template-columns:180px minmax(0,1fr)}}
+@media (max-width:720px){.boardwrap .board{grid-template-columns:1fr}}
+
+.wrap.scriptwrap{max-width:1160px;width:100%;margin:0 auto;padding:18px 24px 44px;animation:in .35s ease}
+.scriptwrap .docgrid{grid-template-columns:230px minmax(0,1fr)}
+.scriptwrap .paper{max-width:820px}
+
+/* the launcher inside the batch window: preview tiles + one big button */
+.launch{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:22px 24px;
+  display:flex;gap:22px;align-items:center;flex-wrap:wrap;box-shadow:0 1px 2px rgba(60,64,67,.08)}
+.launch .prev{display:flex;gap:8px;flex:none}
+.launch .mini{width:64px;aspect-ratio:9/14;border-radius:10px;display:flex;align-items:flex-end;padding:6px;
+  box-shadow:0 4px 12px -6px rgba(0,0,0,.35)}
+.launch .mini b{font-size:7px;line-height:1.25;color:#fff;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+.launch .mini.doc{background:var(--surface);border:1px solid var(--line);align-items:flex-start;flex-direction:column;gap:3px;padding:8px 7px}
+.launch .mini.doc i{display:block;height:2.5px;border-radius:2px;background:var(--hair);width:100%}
+.launch .mini.doc i:nth-child(1){width:60%;background:var(--line-strong)}
+.launch .mini.doc i:nth-child(4){width:80%}
+.launch .mid{flex:1;min-width:220px}
+.launch .mid b{display:block;font-size:15px;font-weight:600;margin-bottom:3px}
+.launch .mid p{font-size:12.5px;color:var(--ink-3);max-width:52ch}
+
+/* the roadmap: the horizontal tracker from Kyle's portal hero - a node per
+   milestone, a green trail behind the current one. Shown only while a batch
+   is in flight; a delivered batch needs no map. */
+.wrap.batchwrap{max-width:none;padding:26px 40px 48px}
+.road{display:flex;align-items:flex-start;margin:6px 0 26px;overflow-x:auto;padding:8px 2px 4px}
+.rnode{display:flex;flex-direction:column;align-items:center;gap:9px;flex:0 1 130px;min-width:104px;text-align:center}
+.rdot{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:var(--surface);border:2px solid var(--line-strong);z-index:1}
+.rnode.done .rdot{background:var(--green);border-color:var(--green)}
+.rnode.cur .rdot{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 8px var(--accent-tint)}
+.rnode.cur.you .rdot{background:var(--amber);border-color:var(--amber);box-shadow:0 0 0 8px var(--amber-tint)}
+.rnode.up .rdot{background:var(--fill)}
+.rnode b{font-size:13.5px;font-weight:600;line-height:1.25}
+.rnode.cur b{color:var(--accent-deep)}
+.rnode.cur.you b{color:var(--amber-deep)}
+.rnode.up b{color:var(--ink-4);font-weight:500}
+.rnode i{font-style:normal;font-size:11.5px;color:var(--ink-4);line-height:1.3}
+.rnode.cur i{color:var(--ink-3);font-weight:600}
+.rseg{flex:1;min-width:30px;height:3px;border-radius:2px;background:var(--line);margin-top:33px}
+.rseg.done{background:var(--green)}
+
+/* the what-to-do strip: numbered, no room for interpretation */
+.steps{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--hair);width:100%}
+.stepx{flex:1;min-width:200px;display:flex;gap:11px;align-items:flex-start}
+.stepx .num{width:26px;height:26px;border-radius:50%;background:var(--accent-tint);color:var(--accent-deep);
+  font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+.stepx b{display:block;font-size:13px;font-weight:600;line-height:1.35}
+.stepx i{display:block;font-style:normal;font-size:11.5px;color:var(--ink-3);line-height:1.45}
+.warnnote{display:flex;gap:10px;align-items:flex-start;margin-top:14px;padding:12px 15px;border-radius:14px;
+  background:var(--amber-tint);border:1px solid var(--amber-line);font-size:13px;color:var(--amber-deep);
+  font-weight:500;line-height:1.5;width:100%}
+
+/* review chrome, straight off the internal board: chips, rail pager, the
+   comment popover */
+.bchip{display:inline-flex;align-items:center;height:26px;padding:0 11px;border-radius:8px;border:1px solid var(--line);
+  font-size:11.5px;color:var(--ink-2);white-space:nowrap;background:var(--surface)}
+.bchip.angle{background:var(--accent-tint);border-color:#A8C7FA;color:var(--accent-deep);font-weight:600}
+.chiprow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px}
+.pill.red{color:var(--red);background:var(--red-tint);border:1px solid var(--red-line)}
+.railtop{display:flex;align-items:center;gap:6px;padding:0 4px 4px}
+.railtop .kicker{flex:1;padding:0 6px}
+.railhint{font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;color:var(--ink-5);
+  text-transform:uppercase;padding:0 10px 8px;white-space:nowrap}
+.ctrlbar{display:flex;align-items:center;gap:11px;padding:0 2px 12px;flex-wrap:wrap}
+.ctrlbar .lab{font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:8px}
+.bfoot{position:relative}
+.compop{position:absolute;right:0;bottom:52px;width:330px;max-width:82vw;z-index:40;background:var(--surface);
+  border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 50px -12px rgba(32,33,36,.3);
+  padding:14px 15px;display:flex;flex-direction:column;gap:10px;animation:pop .18s ease}
+@keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+.compop .hd{font-size:12px;font-weight:600;color:var(--ink-2)}
+.cmt{display:flex;gap:9px;align-items:flex-start}
+.cmt .b{flex:1;min-width:0}
+.cmt .b .who{display:flex;align-items:baseline;gap:7px}
+.cmt .b .who b{font-size:11.5px;font-weight:600}
+.cmt .b .who time{font-size:10px;color:var(--ink-4)}
+.cmt .b p{font-size:12px;color:var(--ink-2);line-height:1.5}
+.cin{display:flex;gap:7px}
+.cin input{flex:1;min-width:0;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line);
+  font-size:12.5px;background:var(--bg)}
+
+/* schedule / billing */
+.when{width:62px;flex:none;text-align:center;font-size:11.5px;font-weight:700;
+  color:var(--ink-3);background:var(--fill);border:1px solid var(--hair);border-radius:999px;padding:7px 0}
+.when.now{color:var(--amber);background:var(--amber-tint);border-color:var(--amber-line)}
+.inv{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+
+.toast{position:fixed;right:22px;bottom:22px;z-index:90;display:flex;gap:11px;align-items:flex-start;
+  background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:13px 16px;max-width:360px;
+  box-shadow:0 18px 50px -12px rgba(32,33,36,.3);animation:in .25s ease}
+.toast b{display:block;font-size:12.5px;font-weight:600}
+.toast p{font-size:12px;color:var(--ink-3)}
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="brand">
+    <span class="mark">CA</span>
+    <span style="min-width:0"><b>Creative Ad&bull;Bundance</b><i>Client portal</i></span>
+  </div>
+  <button class="cta" data-toast="New batch|Tell us what you need and the studio scopes it. Demo only for now.">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    Start a new batch
+  </button>
+  <nav id="nav"></nav>
+  <div class="foot">
+    <div class="who">
+      <span class="av l" style="background:linear-gradient(135deg,#0F7B6C,#2BB3A3)">CB</span>
+      <span style="min-width:0"><b>Cole Brennan</b><i>Ello &middot; signed in</i></span>
+    </div>
+  </div>
+</aside>
+
+<main>
+  <div class="chrome">
+    <button class="back" id="back" title="Back" hidden>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3C4043" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="t"><b id="cTitle">Home</b><i id="cSub"></i></div>
+    <div style="flex:1;min-width:8px"></div>
+    <button class="msg" data-toast="Message the studio|Your strategist replies here within the working day.">
+      <span class="av s" style="background:linear-gradient(135deg,#D01884,#F06CBA)">KR</span>
+      <span>Message your strategist</span>
+    </button>
+  </div>
+  <div class="body"><div id="view"></div></div>
+</main>
+
+<script>
+/* ===========================================================================
+   Data. The STAGES array is the contract shared with 20-internal.html: same
+   ids, same ext labels, same blurbs. Do not edit one file without the other.
+   =========================================================================== */
+const CLIENT = { name:'Ello', contact:'Cole Brennan', first:'Cole' };
+
+const STAGES = [
+  { id:'received',   ext:'Request received',        hand:'them',
+    blurb:'We have your request and the brief attached to it.' },
+  { id:'review',     ext:'Our team is reviewing',   hand:'us',
+    blurb:'A strategist checks the brief and scopes the batch before anything is made.' },
+  { id:'loglines',   ext:'Log lines ready for you', hand:'them',
+    blurb:'Two sentences per idea. Pick the ones worth building and we only write those up.' },
+  { id:'concepts',   ext:'Concepts ready for you',  hand:'them',
+    blurb:'Approve the concepts or leave comments and we will rework them.' },
+  { id:'scripting',  ext:'Writing the scripts',     hand:'us',
+    blurb:'Approved concepts go to the copywriters.' },
+  { id:'scripts',    ext:'Scripts ready for you',   hand:'them',
+    blurb:'Read the scripts, suggest edits, approve or send them back.' },
+  { id:'casting',    ext:'Talent ready for you',    hand:'them',
+    blurb:'Meet the shortlist our casting team approved and pick who shoots this batch.' },
+  { id:'storyboard', ext:'Storyboard',              hand:'us', internalOnly:true,
+    blurb:'Handled inside the studio — you will see the finished ad rather than the boards.' },
+  { id:'building',   ext:'Building the ads',        hand:'us',
+    blurb:'Filmed, edited, captioned and sized for every placement.' },
+  { id:'ads',        ext:'Ads ready for you',       hand:'them',
+    blurb:'Approve the finished ads or send notes for a re-cut.' },
+  { id:'delivered',  ext:'Delivered',               hand:'us',
+    blurb:'Everything is signed off and in your library.' }
+];
+const stageIdx = id => STAGES.findIndex(s => s.id === id);
+
+/* ---------------------------------------------------------------------------
+   Batches. `wants` is what the client requested for the batch, and it decides
+   which windows the batch page shows - a statics-only batch never shows a
+   Talent window. `si` is the stage the batch sits on, the same convention the
+   internal board uses; the internal side pushing a step is what moves it.
+   --------------------------------------------------------------------------- */
+const g = (a,b) => `linear-gradient(160deg,${a},${b})`;
+
+const BATCHES = [
+  { id:'b6', name:'Batch 6', si: stageIdx('concepts'), started:'Aug 18',
+    note:'6 video-first concepts against the fall push.',
+    wants:['concepts','scripts','talent','videos'],
+    concepts:[
+      { n:'001', t:'The Group Chat Verdict', angle:'The chat already decided', lane:'UGC', dur:30,
+        hook:'A creator screenshots her group chat blowing up over one product question, then answers it on camera — the chat IS the hook.',
+        p:'The whole ad is framed as settling an argument that already happened. The screenshot does the selling before she says a word; her verdict just confirms what the chat suspected.',
+        beats:['Cold open on the screenshotted group chat, names blurred, one message circled.',
+               'She reads the circled question out loud, deadpan.',
+               'One-take answer at her desk, product in hand by beat three.',
+               'Cut back to the chat: her reply, then the reactions stacking up.',
+               'End card: the question, answered in five words.'],
+        comps:['Screenshot overlay with circle annotation','Reaction-stack animation on the close','Caption style: iMessage bubble font for the question'],
+        g:'linear-gradient(160deg,#1967D2,#8AB4F8)' },
+      { n:'002', t:'Five Things I Stopped Buying', angle:'The anti-haul', lane:'UGC', dur:35,
+        hook:'A quiet decluttering listicle where Ello replaces items three, four and five without ever being introduced.',
+        p:'Anti-ad pacing: the list is genuinely about stopping purchases, which buys trust for the reveal that one product retired three of them. Ello is never named until the end card.',
+        beats:['Handheld pan across five items on a counter.',
+               'Items one and two get honest, unrelated reasons.',
+               'Items three to five each get the same reason — and the camera drifts to Ello.',
+               'She shrugs: &quot;technically I replaced these with one thing.&quot;',
+               'End card: the five, crossed out, one left.'],
+        comps:['Numbered list overlays, hand-drawn strike-through','Slow push-in on the reveal','No music until beat four'],
+        g:'linear-gradient(160deg,#188038,#7ED4A0)' },
+      { n:'003', t:'The Return Window Test', angle:'Proof by return window', lane:'UGC', dur:30,
+        hook:'She orders it, sets a 30-day phone reminder to return it, and films the reminder going off — and getting dismissed.',
+        p:'The return reminder is the proof device: a purchase that survives its own return window is a stronger claim than any testimonial line.',
+        beats:['Unboxing with the phone visible: &quot;Return by Sep 30&quot; reminder being set.',
+               'Three fast daily-use clips, timestamp corner.',
+               'The reminder fires on screen — she looks at it, swipes dismiss.',
+               'One line to camera about why it stays.',
+               'End card: the dismissed notification.'],
+        comps:['Native iOS reminder UI as the recurring motif','Timestamp corner stamp','Silent last two seconds'],
+        g:'linear-gradient(160deg,#9334E6,#C77DFF)' },
+      { n:'004', t:'Comment Section Casting', angle:'You wrote this ad', lane:'Sketch', dur:40,
+        hook:'The real comments from the last ad, acted out by the creator, ending on the one everyone asked about.',
+        p:'Social proof played as sketch comedy: each comment becomes a character. The product answer lands on the most-liked question, which the audience already voted on.',
+        beats:['Title card: &quot;you wrote these.&quot;',
+               'Three comments acted out in costume-change cuts.',
+               'The top comment appears — she stops the bit and answers it straight.',
+               'Product demo of exactly the thing the comment doubted.',
+               'End card invites the next round of comments.'],
+        comps:['Real comment UI pulled as overlays','Costume-change jump cuts','Pinned-comment CTA'],
+        g:'linear-gradient(160deg,#B06000,#F0AC4E)' },
+      { n:'005', t:'What My Mom Noticed', angle:'The unpaid testimonial', lane:'Home video', dur:25,
+        hook:'A visit home. Mom asks about it unprompted — shot like a home video, not an ad.',
+        p:'The furthest-from-an-ad execution in the batch. One handheld take, bad lighting on purpose; the credibility is that nobody in the frame is performing.',
+        beats:['Doorway hug, camera still recording by accident.',
+               'Kitchen table. Mom asks the question mid-conversation.',
+               'She laughs, hands it over; mom inspects it in silence.',
+               'Mom&rsquo;s one-line verdict, unscripted.',
+               'Cut to black on the laugh, end card only.'],
+        comps:['Single continuous take','No captions until the end card','Room-tone audio, no music'],
+        g:'linear-gradient(160deg,#0F7B6C,#2BB3A3)' },
+      { n:'006', t:'The Duplicate Drawer', angle:'The category graveyard', lane:'UGC', dur:30,
+        hook:'Opening a drawer of failed alternatives bought before this one. Each gets one line about why it lost.',
+        p:'Category graveyard as proof of search: she is the buyer who tried everything, which makes the last product the conclusion of an experiment rather than a pitch.',
+        beats:['Drawer opens; a beat of silence over the pile.',
+               'Three failed products, one dismissive line each.',
+               'Ello lifted out last, kept aside from the pile.',
+               'The drawer closes on the rejects.',
+               'End card: &quot;the drawer is for the others.&quot;'],
+        comps:['Top-down drawer shot as the anchor frame','Price tags left visible on the rejects','One-word captions per reject'],
+        g:'linear-gradient(160deg,#C5221F,#F28B82)' }
+    ] },
+
+  { id:'b5', name:'Batch 5', si: stageIdx('building'), started:'Jul 30',
+    note:'Statics refresh — 4 concepts, 12 sizes.',
+    wants:['concepts','statics'],
+    concepts:[
+      { n:'001', t:'The Price-Per-Use Card',
+        hook:'One big number: what it costs per use after a year. Everything else on the canvas stays quiet.',
+        p:'A single arithmetic claim carries the whole static. The number is the hero; the product photo sits small and unbothered underneath it.',
+        beats:['Hero number, oversized.','Product small, bottom third.','One-line footnote doing the math honestly.'],
+        comps:['Oversized numeral type','Footnote math shown, not hidden'],
+        g:'linear-gradient(160deg,#1967D2,#8AB4F8)' },
+      { n:'002', t:'Before / After Drawer',
+        hook:'Split frame: the cluttered drawer of alternatives vs the one Ello. No copy beyond the logo.',
+        p:'The statics version of the Duplicate Drawer — the comparison is the copy, so the canvas needs none.',
+        beats:['Left: the pile.','Right: the one.','Logo, nothing else.'],
+        comps:['Hard vertical split','Identical lighting both sides'],
+        g:'linear-gradient(160deg,#188038,#7ED4A0)' },
+      { n:'003', t:'Review Screenshot Set',
+        hook:'Real five-star reviews, typeset as if screenshotted, one claim highlighted per size.',
+        p:'Each placement size carries a different review with a different highlighted claim, so the set reads as many voices rather than one ad repeated.',
+        beats:['Review card, native UI.','One phrase highlighted.','Star row and verified badge.'],
+        comps:['Native review UI recreation','Highlighter-stroke emphasis'],
+        g:'linear-gradient(160deg,#9334E6,#C77DFF)' },
+      { n:'004', t:'The Checklist',
+        hook:'Five checkboxes the category fails and Ello ticks. Reads in under two seconds.',
+        p:'Comparison table compressed to its skeleton: five rows, two columns, no numbers to read.',
+        beats:['Five rows, category column all crosses.','Ello column all ticks.','Logo under the ticks.'],
+        comps:['Tick/cross iconography only','Two-second readability rule'],
+        g:'linear-gradient(160deg,#B06000,#F0AC4E)' }
+    ] },
+
+  { id:'b4', name:'Batch 4', si: stageIdx('delivered'), started:'Jul 02',
+    note:'UGC round with the two creators you picked in June.',
+    delivered:'Aug 21', stats:'6 ads · Best CPL $1.80',
+    wants:['concepts','scripts','talent','videos','statics'],
+    concepts:[
+      { n:'001', t:'The Duplicate Drawer',
+        hook:'Opening a drawer of failed alternatives. Each gets one line about why it lost.',
+        p:'Category graveyard as proof of search — the buyer who tried everything.',
+        beats:['Drawer opens on the pile.','Three rejects, one line each.','Ello kept aside; drawer closes on the rest.'],
+        comps:['Top-down drawer anchor frame','One-word captions per reject'],
+        g:'linear-gradient(160deg,#1967D2,#8AB4F8)' },
+      { n:'002', t:'What My Mom Noticed',
+        hook:'A visit home, shot like a home video. Mom asks about it unprompted.',
+        p:'One handheld take; nobody in the frame is performing.',
+        beats:['Doorway hug, camera rolling.','Kitchen-table question.','Mom&rsquo;s unscripted verdict.'],
+        comps:['Single continuous take','No music'],
+        g:'linear-gradient(160deg,#188038,#7ED4A0)' },
+      { n:'003', t:'The Return Window Test',
+        hook:'A 30-day return reminder goes off — and gets dismissed.',
+        p:'The return window as the proof device.',
+        beats:['Reminder set on camera.','Daily-use clips.','The dismissal.'],
+        comps:['Native reminder UI motif','Timestamp corner'],
+        g:'linear-gradient(160deg,#9334E6,#C77DFF)' }
+    ],
+    scripts:[
+      { n:'001', t:'The Duplicate Drawer', draft:'final · written against 001',
+        hooks:[
+          { line:'Every single one of these was supposed to be the one.', dir:'Top-down on the open drawer. Beat of silence before the line.' },
+          { line:'I counted. This drawer cost me $214 before I stopped guessing.', dir:'Same frame, price tags visible. Flat delivery, no smile.' }
+        ],
+        script:[
+          { vo:'So this is the drawer. Everything in here promised the same thing.', dir:'Handheld, drawer at waist height.' },
+          { vo:'This one broke in a week. This one — I genuinely don&rsquo;t know what this one does anymore.', dir:'Lift and drop each reject back into the drawer.' },
+          { vo:'And then this one just&hellip; stayed out. It never made it into the drawer.', dir:'Pick up Ello from the counter, turn it once.' },
+          { vo:'The drawer is for the others.', dir:'Close the drawer with the hip. Cut to end card on the thunk.' }
+        ] },
+      { n:'002', t:'What My Mom Noticed', draft:'final · written against 002',
+        hooks:[
+          { line:'My mom has never once asked about anything I own. Until Tuesday.', dir:'Selfie framing in the car outside the house.' }
+        ],
+        script:[
+          { vo:'Okay so — visiting my mom. She doesn&rsquo;t notice things. Ever.', dir:'Walking to the door, camera low and casual.' },
+          { vo:'MOM: &quot;Wait — what did you do differently?&quot;', dir:'Kitchen table, mom mid-sentence, genuine.' },
+          { vo:'I just handed it to her. Didn&rsquo;t say anything.', dir:'Mom inspecting it in silence, turning it over.' },
+          { vo:'MOM: &quot;Get me one of these.&quot;', dir:'She doesn&rsquo;t look up. Freeze on that, end card.' }
+        ] }
+    ],
+    talent:[
+      { name:'Maya R.', tag:'Lifestyle · 210k', bg:'linear-gradient(135deg,#C4548A,#E85D9E)', picked:true },
+      { name:'Dana K.', tag:'Home & organisation · 88k', bg:'linear-gradient(135deg,#1967D2,#5B9DFF)', picked:true },
+      { name:'Jess T.', tag:'Comedy · 340k', bg:'linear-gradient(135deg,#B06000,#F0883E)' },
+      { name:'Priya S.', tag:'Reviews · 120k', bg:'linear-gradient(135deg,#188038,#34A853)' }
+    ],
+    videos:[
+      { t:'Duplicate Drawer v2', f:'9:16 video', g:g('#1967D2','#8AB4F8') },
+      { t:'Mom Noticed — hook B', f:'9:16 video', g:g('#188038','#7ED4A0') },
+      { t:'Return Window — cutdown', f:'1:1 video', g:g('#9334E6','#C77DFF') },
+      { t:'Mom Noticed — hook A', f:'9:16 video', g:g('#0F7B6C','#2BB3A3') }
+    ],
+    statics:[
+      { t:'Drawer — static A', f:'4:5 static', g:g('#B06000','#F0AC4E') },
+      { t:'Drawer — static B', f:'4:5 static', g:g('#C5221F','#F28B82') }
+    ] }
+];
+
+/* Delivered work across all batches, for the library page. */
+const LIBRARY = [
+  ...BATCHES.filter(b => STAGES[b.si].id === 'delivered')
+    .flatMap(b => [...(b.videos||[]), ...(b.statics||[])].map(a => ({ ...a, b: b.name }))),
+  { t:'Ello — evergreen static A', b:'Batch 3', f:'4:5 static', g:g('#B06000','#F0AC4E') },
+  { t:'Founder story — 60s', b:'Batch 3', f:'16:9 video', g:g('#0F7B6C','#2BB3A3') },
+  { t:'Comment Casting — v1', b:'Batch 2', f:'9:16 video', g:g('#3C4043','#9AA0A6') },
+  { t:'Launch teaser', b:'Batch 1', f:'9:16 video', g:g('#6B47FF','#A78BFA') }
+];
+
+const SCHEDULE = [
+  { day:'Tue',    what:'Concepts due back from you', batch:'Batch 6', now:true },
+  { day:'Sep 8',  what:'Scripts land for review', batch:'Batch 6' },
+  { day:'Sep 12', what:'Batch 5 statics ready for you', batch:'Batch 5' },
+  { day:'Sep 19', what:'Shoot week', batch:'Batch 6' }
+];
+
+const INVOICES = [
+  { n:'INV-0231', d:'Aug 01, 2026', amt:'$8,500.00', s:'Paid' },
+  { n:'INV-0224', d:'Jul 01, 2026', amt:'$8,500.00', s:'Paid' },
+  { n:'INV-0217', d:'Jun 01, 2026', amt:'$8,500.00', s:'Paid' }
+];
+
+/* ---------- state + helpers ---------- */
+const S = { view:'home', batch:'b6', tab:{}, approved:{}, declined:{}, picks:{}, cIdx:{}, sIdx:{}, comOpen:false, coms:{}, notesOpen:{}, notes:{} };
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ico = (d, stroke='currentColor', w=15) =>
+  `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+const batch = id => BATCHES.find(b => b.id === id);
+
+/* One comment thread per artifact. The strategist's opener is seeded so the
+   thread never looks like a dead letterbox; the client's comments append. */
+function comsOf(key){
+  if (!S.coms[key]) S.coms[key] = [
+    { who:'Krithika', role:'your strategist', ini:'KR', bg:'linear-gradient(135deg,#D01884,#F06CBA)',
+      time:'yesterday', text:'Anything you want reworked, say it here and it comes back revised within the day.' }
+  ];
+  return S.coms[key];
+}
+/* approved beats declined beats untouched */
+function verdictOf(key){
+  if (S.approved[key]) return { label:'Approved', cls:'green' };
+  if (S.declined[key]) return { label:'Sent back', cls:'red' };
+  return { label:'Needs your call', cls:'amber' };
+}
+
+function chrome(title, sub, back){
+  $('#cTitle').textContent = title;
+  $('#cSub').textContent = sub || '';
+  $('#back').hidden = !back;
+}
+function toast(title, body){
+  const old = $('.toast'); if (old) old.remove();
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<span class="tint" style="width:26px;height:26px;border-radius:50%;background:var(--green-tint)">
+      ${ico('M4 12l5 5L20 6','var(--green)',14)}</span>
+    <span style="flex:1;min-width:0"><b>${esc(title)}</b><p>${esc(body)}</p></span>`;
+  document.body.appendChild(el);
+  clearTimeout(toast._t); toast._t = setTimeout(()=>el.remove(), 4500);
+}
+
+function metaOf(b){
+  const st = STAGES[b.si];
+  if (st.id === 'delivered') return { label:'Delivered', cls:'green' };
+  if (st.hand === 'them')    return { label:'Needs you', cls:'amber' };
+  return { label:'With the studio', cls:'blue' };
+}
+const needsYou = () => BATCHES.filter(b => metaOf(b).label === 'Needs you');
+
+/* ---------------------------------------------------------------------------
+   The window model. Each deliverable lands with the client at one stage - the
+   gate - which the internal board pushes when that step is done on our side.
+
+     locked  the studio still holds it        (grey dot, waiting copy)
+     you     pushed to the client, act now    (amber dot, review + approve UI)
+     done    the client signed it off         (green dot, read-only)
+   --------------------------------------------------------------------------- */
+const WINDOWS = {
+  concepts: { label:'Concepts', gate:'concepts',
+    icon:'M4 5h16v11H4zM8 20h8M12 16v4' },
+  scripts:  { label:'Scripts',  gate:'scripts',
+    icon:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h4' },
+  talent:   { label:'Talent',   gate:'casting',
+    icon:'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20a6 6 0 0 1 12 0M17 5.5a3 3 0 0 1 0 6M15.5 14.5A6 6 0 0 1 22 20' },
+  videos:   { label:'Videos',   gate:'ads',
+    icon:'M4 6h12v12H4zM16 10l5-3v10l-5-3' },
+  statics:  { label:'Statics',  gate:'ads',
+    icon:'M4 4h16v16H4zM4 15l5-5 4 4 3-3 4 4' }
+};
+
+function winState(b, w){
+  const gi = stageIdx(WINDOWS[w].gate);
+  if (b.si > gi) return 'done';
+  /* concepts land with the client twice: log lines first, then the write-ups.
+     Both read as the Concepts window being in the client's hands. */
+  if (w === 'concepts' && (STAGES[b.si].id === 'loglines' || STAGES[b.si].id === 'concepts')) return 'you';
+  if (b.si === gi) return 'you';
+  return 'locked';
+}
+/* ---------------------------------------------------------------------------
+   The roadmap. Eleven pipeline stages compress into the handful of milestones
+   a client actually thinks in, and a milestone only appears if the batch
+   requested that deliverable - a statics-only batch has no Talent stop.
+   --------------------------------------------------------------------------- */
+function milestonesFor(b){
+  const M = [
+    { l:'Your brief',  ids:['received','review'],      icon:'M6 3h9l4 4v14H6zM14 3v5h5' },
+    { l:'Concepts',    ids:['loglines','concepts'],     icon:'M4 5h16v11H4zM8 20h8M12 16v4' },
+    b.wants.includes('scripts') ? { l:'Scripts', ids:['scripting','scripts'], icon:'M9 13h6M9 17h4M6 3h9l4 4v14H6z' } : null,
+    b.wants.includes('talent')  ? { l:'Talent',  ids:['casting'],             icon:'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20a6 6 0 0 1 12 0' } : null,
+    { l:'In production', ids:['storyboard','building'], icon:'M4 6h12v12H4zM16 10l5-3v10l-5-3' },
+    { l:'Your ads',    ids:['ads'],                     icon:'M4 4h16v16H4zM4 15l5-5 4 4 3-3 4 4' },
+    { l:'Delivered',   ids:['delivered'],               icon:'M4 12l5 5L20 6' }
+  ].filter(Boolean);
+  const cur = STAGES[b.si].id;
+  let seen = false;
+  return M.map(m => {
+    const holds = m.ids.includes(cur);
+    const state = holds ? 'cur' : (seen ? 'up' : 'done');
+    if (holds) seen = true;
+    const st = holds ? STAGES[b.si] : null;
+    return { ...m, state,
+      you: !!(st && st.hand === 'them'),
+      meta: holds ? (st.hand === 'them' ? 'needs you' : 'with the studio')
+           : state === 'done' ? 'done' : '' };
+  });
+}
+function roadmap(b){
+  if (STAGES[b.si].id === 'delivered') return '';
+  const ms = milestonesFor(b);
+  return `<div class="road">${ms.map((m, i) => `
+    ${i ? `<span class="rseg ${m.state === 'done' || m.state === 'cur' ? 'done' : ''}"></span>` : ''}
+    <span class="rnode ${m.state}${m.you ? ' you' : ''}">
+      <span class="rdot">${m.state === 'done'
+        ? ico('M4 12l5 5L20 6','#fff',22)
+        : ico(m.icon, m.state === 'cur' ? '#fff' : 'var(--ink-4)', 22)}</span>
+      <b>${esc(m.l)}</b>${m.meta ? `<i>${esc(m.meta)}</i>` : '<i>&nbsp;</i>'}
+    </span>`).join('')}</div>`;
+}
+
+/* Open on whatever needs the client; otherwise the furthest finished window. */
+function defaultTab(b){
+  const t = b.wants.find(w => winState(b, w) === 'you');
+  if (t) return t;
+  const done = b.wants.filter(w => winState(b, w) === 'done');
+  return done.length ? done[done.length - 1] : b.wants[0];
+}
+
+/* ---------- sidebar ---------- */
+const NAV = [
+  { id:'home',     label:'Home',             icon:'M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z' },
+  { id:'batches',  label:'Your batches',     icon:'M4 7a1 1 0 0 1 1-1h4l2 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z' },
+  { id:'library',  label:'Creative library', icon:'M4 5h16v11H4zM8 20h8M12 16v4' },
+  { id:'schedule', label:'Schedule',         icon:'M4 5h16v15H4zM4 9h16M8 3v4M16 3v4' },
+  { id:'billing',  label:'Billing',          icon:'M3 7h18v10H3zM3 11h18' }
+];
+function renderNav(){
+  const n = needsYou().length;
+  $('#nav').innerHTML = `<div class="group">` + NAV.map(x => `
+    <button class="nav ${S.view === x.id || (S.view === 'batch' && x.id === 'batches') ? 'on' : ''}" data-go="${x.id}">
+      ${ico(x.icon, 'currentColor', 16)}<span>${esc(x.label)}</span>
+      ${x.id === 'batches' && n ? `<em>${n}</em>` : ''}
+    </button>`).join('') + `</div>
+    <div class="group"><span class="kicker">Your team</span>
+      <button class="nav" data-toast="Your team|Krithika is your strategist and Joi runs the schedule. Message them from the top bar.">
+        ${ico('M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20a6 6 0 0 1 12 0M17 5.5a3 3 0 0 1 0 6M15.5 14.5A6 6 0 0 1 22 20','currentColor',16)}
+        <span>Who you work with</span>
+      </button>
+    </div>`;
+}
+
+/* ---------- views ---------- */
+function vHome(){
+  const est = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const hour = est.getHours();
+  const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const ny = needsYou();
+  chrome('Home', CLIENT.name, false);
+
+  return `<div class="wrap">
+    <div style="text-align:center;margin-bottom:30px">
+      <h1 style="font-size:30px;font-weight:600;letter-spacing:-.032em;margin-bottom:11px">${greet}, ${esc(CLIENT.first)}.</h1>
+      ${ny.length
+        ? `<button class="callout" data-open="${ny[0].id}">
+             <span class="pill amber">${ny.length}</span>
+             <span>${ny.length === 1 ? 'thing is' : 'things are'} waiting on you before the studio can move</span>
+             ${ico('M5 12h14M13 6l6 6-6 6','var(--ink-3)',15)}
+           </button>`
+        : `<p style="font-size:14.5px;color:var(--ink-2)">Nothing is waiting on you. The studio is building.</p>`}
+    </div>
+
+    <div class="sechead"><b>Your batches</b><span class="sp"></span><a data-go="batches">All batches</a></div>
+    <div class="stack" style="margin-bottom:30px">${BATCHES.slice(0,2).map(rowBatch).join('')}</div>
+
+    <div class="sechead"><b>Coming up</b><span class="sp"></span><a data-go="schedule">Full schedule</a></div>
+    <div class="stack">${SCHEDULE.slice(0,2).map(rowSched).join('')}</div>
+  </div>`;
+}
+
+function rowBatch(b){
+  const st = STAGES[b.si], m = metaOf(b);
+  return `<button class="row" data-open="${b.id}">
+    <span class="tint" style="background:${m.cls === 'amber' ? 'var(--amber-tint)' : m.cls === 'green' ? 'var(--green-tint)' : 'var(--accent-soft)'}">
+      ${ico('M4 7a1 1 0 0 1 1-1h4l2 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z',
+        m.cls === 'amber' ? 'var(--amber)' : m.cls === 'green' ? 'var(--green)' : 'var(--blue)', 17)}</span>
+    <span class="main">
+      <b>${esc(b.name)}</b>
+      <i>${esc(st.ext)} &middot; started ${esc(b.started)}</i>
+    </span>
+    <span class="pill ${m.cls}">${m.cls === 'amber' ? `<span class="dot live" style="background:currentColor"></span>` : ''}${m.label}</span>
+    ${ico('M9 18l6-6-6-6','var(--ink-3)',17)}
+  </button>`;
+}
+
+function rowSched(s){
+  return `<div class="row" style="cursor:default">
+    <span class="when${s.now ? ' now' : ''}">${esc(s.day)}</span>
+    <span class="main"><b>${esc(s.what)}</b><i>${esc(s.batch)}</i></span>
+    ${s.now ? `<span class="pill amber">Needs you</span>` : ''}
+  </div>`;
+}
+
+function vBatches(){
+  chrome('Your batches', `${BATCHES.length} total`, true);
+  return `<div class="wrap">
+    <h1 class="page">Your batches</h1>
+    <p class="lede">Every round of creative we are making for ${esc(CLIENT.name)}. Amber means the next move is yours.</p>
+    <div style="height:20px"></div>
+    <div class="stack">${BATCHES.map(rowBatch).join('')}</div>
+  </div>`;
+}
+
+/* ---------------------------------------------------------------------------
+   The batch page: header, one chip per requested deliverable, and the open
+   window underneath. No flow to read - the chips carry the whole story.
+   --------------------------------------------------------------------------- */
+function vBatch(){
+  const b = batch(S.batch);
+  const st = STAGES[b.si], m = metaOf(b);
+  const tab = S.tab[b.id] || defaultTab(b);
+  chrome(b.name, st.ext, true);
+
+  const delivered = st.id === 'delivered';
+  const chips = b.wants.map(w => {
+    const ws = winState(b, w);
+    return `<button class="wtab ${tab === w ? 'on' : ''}" data-tab="${w}">
+      <span class="st ${ws}"></span>${esc(WINDOWS[w].label)}</button>`;
+  }).join('');
+
+  return `<div class="wrap batchwrap">
+    <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:260px">
+        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+          <h1 class="page" style="margin-bottom:0">${esc(b.name)}</h1>
+          <span class="pill ${m.cls}">${m.label}</span>
+        </div>
+        <p class="lede">${delivered
+          ? `${esc(b.stats)} &middot; delivered ${esc(b.delivered)}`
+          : `${esc(b.note)} &middot; right now: ${esc(st.ext)}`}</p>
+      </div>
+      ${delivered ? `<button class="btn primary" data-toast="Download all|Every master from ${esc(b.name)} zips up here in the live portal.">
+        ${ico('M12 3v12m0 0 4-4m-4 4-4-4M5 21h14','#fff',15)} Download all</button>` : ''}
+    </div>
+    ${roadmap(b)}
+    <div class="wtabs">${chips}</div>
+    <div class="win">${renderWindow(b, tab)}</div>
+  </div>`;
+}
+
+function renderWindow(b, w){
+  const ws = winState(b, w);
+  if (ws === 'locked') return lockCard(b, w);
+  if (w === 'concepts') return winConcepts(b, ws);
+  if (w === 'scripts')  return winScripts(b, ws);
+  if (w === 'talent')   return winTalent(b, ws);
+  if (w === 'videos' || w === 'statics') return winAds(b, w, ws);
+  return '';
+}
+
+/* A locked window says what the studio is doing RIGHT NOW, not a generic
+   "coming soon" - the current stage's own words, straight off the contract. */
+function lockCard(b, w){
+  const st = STAGES[b.si];
+  return `<div class="lockcard">
+    <span class="tint">${ico('M7 11V7a5 5 0 0 1 10 0v4M5 11h14v10H5z','var(--ink-4)',18)}</span>
+    <span>
+      <b>${esc(WINDOWS[w].label)} aren&rsquo;t here yet</b>
+      <p>Right now: <strong>${esc(st.ext)}</strong>. ${esc(st.blurb)} ${esc(WINDOWS[w].label)} land here the moment they are ready for you.</p>
+    </span>
+  </div>`;
+}
+
+/* ---------------------------------------------------------------------------
+   Inside the batch page, concepts and scripts are LAUNCHERS - status, a small
+   preview, one big button. The artifact itself gets the whole page, exactly
+   like the internal: the slide board for concepts, the doc for scripts.
+   --------------------------------------------------------------------------- */
+function winConcepts(b, ws){
+  const list = b.concepts || [];
+  const okCount = list.filter(c => S.approved[b.id + c.n]).length;
+  const bar = ws === 'done'
+    ? `<div class="donebar" style="margin:0 0 12px">${ico('M4 12l5 5L20 6','var(--green)',14)} You approved these concepts. The studio built from them.</div>`
+    : `<p class="lede" style="margin-bottom:12px">${esc(STAGES[stageIdx('concepts')].blurb)}</p>`;
+  const todo = ws === 'done' ? '' : `
+    <div class="steps">
+      <span class="stepx"><span class="num">1</span><span><b>Open the concepts</b>
+        <i>Use the blue button. Each concept is one full slide.</i></span></span>
+      <span class="stepx"><span class="num">2</span><span><b>Approve, or send back</b>
+        <i>On every slide: Approve if you like it, Send back with a comment if you don&rsquo;t.</i></span></span>
+      <span class="stepx"><span class="num">3</span><span><b>Press &ldquo;Send to the studio&rdquo;</b>
+        <i>That hands us your decisions and we start writing.</i></span></span>
+    </div>
+    <div class="warnnote">${ico('M12 4 2 20h20zM12 10v5M12 18h.01','var(--amber)',16)}
+      <span>The studio is waiting on this step &mdash; scripts can&rsquo;t start until you approve
+      ${list.length === 1 ? 'this concept' : 'these concepts'} or send them back.
+      ${okCount ? `You have approved ${okCount} of ${list.length} so far.` : `Nothing is approved yet.`}</span>
+    </div>`;
+  return bar + `<div class="launch" style="flex-wrap:wrap">
+    <span class="prev">${list.slice(0, 3).map(c => `
+      <span class="mini" style="background:${c.g}"><b>${esc(c.t)}</b></span>`).join('')}</span>
+    <span class="mid">
+      <b>${list.length} concept${list.length === 1 ? '' : 's'} in this batch</b>
+      <p>${ws === 'done'
+        ? 'Open the deck any time - every slide is exactly as you approved it.'
+        : 'Each one is a full slide: log line, narrative, design components and the placement mockup.'}</p>
+    </span>
+    <button class="btn primary" data-goview="concepts">
+      View all concepts ${ico('M5 12h14M13 6l6 6-6 6','#fff',14)}</button>
+    ${todo}
+  </div>`;
+}
+
+function winScripts(b, ws){
+  const list = b.scripts || [];
+  const okCount = list.filter(x => S.approved[b.id + 's' + x.n]).length;
+  const bar = ws === 'done'
+    ? `<div class="donebar" style="margin:0 0 12px">${ico('M4 12l5 5L20 6','var(--green)',14)} You approved these scripts.</div>`
+    : `<p class="lede" style="margin-bottom:12px">${esc(STAGES[stageIdx('scripts')].blurb)}</p>`;
+  const todo = ws === 'done' ? '' : `
+    <div class="steps">
+      <span class="stepx"><span class="num">1</span><span><b>Open the scripts</b>
+        <i>Use the blue button. Each script is the full doc.</i></span></span>
+      <span class="stepx"><span class="num">2</span><span><b>Approve, or send back</b>
+        <i>Approve each script, or send it back with a comment on what to change.</i></span></span>
+      <span class="stepx"><span class="num">3</span><span><b>Press &ldquo;Send to the studio&rdquo;</b>
+        <i>That locks the scripts and casting starts.</i></span></span>
+    </div>
+    <div class="warnnote">${ico('M12 4 2 20h20zM12 10v5M12 18h.01','var(--amber)',16)}
+      <span>The studio is waiting on this step &mdash; casting and filming can&rsquo;t be booked until
+      the scripts are approved. ${okCount ? `You have approved ${okCount} of ${list.length} so far.` : `Nothing is approved yet.`}</span>
+    </div>`;
+  return bar + `<div class="launch" style="flex-wrap:wrap">
+    <span class="prev">${list.slice(0, 2).map(() => `
+      <span class="mini doc"><i></i><i></i><i></i><i></i><i></i><i></i></span>`).join('')}</span>
+    <span class="mid">
+      <b>${list.length} script${list.length === 1 ? '' : 's'} in this batch</b>
+      <p>${ws === 'done'
+        ? 'The full docs stay here - hooks, lines and camera directions, as approved.'
+        : 'Read them as the full doc: hooks, opening lines and every camera direction.'}</p>
+    </span>
+    <button class="btn primary" data-goview="scripts">
+      Open the scripts ${ico('M5 12h14M13 6l6 6-6 6','#fff',14)}</button>
+    ${todo}
+  </div>`;
+}
+
+/* ---------------------------------------------------------------------------
+   The FULL concepts view - the internal's board, given the whole page:
+   numbered rail | the slide (auto-fitted type via fitDoc) | the 358px phone.
+   Approving happens on the slide's own footer.
+   --------------------------------------------------------------------------- */
+function vConcepts(){
+  const b = batch(S.batch);
+  const ws = winState(b, 'concepts');
+  const list = b.concepts || [];
+  const i = Math.min(S.cIdx[b.id] || 0, list.length - 1);
+  const k = list[i], key = b.id + k.n;
+  const ok = !!S.approved[key], dec = !!S.declined[key];
+  const okCount = list.filter(c => S.approved[b.id + c.n]).length;
+  const ro = ws === 'done';
+  const v = ro ? { label:'Approved', cls:'green' } : verdictOf(key);
+  chrome(`${b.name} · Concepts`, ro ? 'Approved' : `${okCount} of ${list.length} approved`, true);
+
+  /* batch-level bar above the board, like the internal's */
+  const ctrl = `<div class="ctrlbar">
+    <span class="lab">${ico('M4 5h16v11H4zM8 20h8M12 16v4','var(--ink-3)',15)} ${esc(b.name)} &middot; ${list.length} concepts</span>
+    <span style="flex:1"></span>
+    <span class="pill ${okCount === list.length ? 'green' : 'amber'}">${okCount} of ${list.length} approved</span>
+    ${ro ? '' : `<button class="btn primary sm" data-send="${b.id}" data-kind="concepts" ${okCount ? '' : 'disabled'}>
+      Send to the studio</button>`}
+  </div>`;
+
+  const rail = `<div class="brail">
+    <div class="railtop">
+      <span class="kicker" style="padding:0">Concepts &middot; ${list.length}</span>
+      <button class="navbtn" style="width:26px;height:26px;border-radius:10px" data-cidx="${i - 1}" ${i ? '' : 'disabled'}>${ico('M15 18l-6-6 6-6','var(--ink-3)',12)}</button>
+      <span style="font-size:10.5px;color:var(--ink-4);font-family:var(--mono)">${i + 1}/${list.length}</span>
+      <button class="navbtn" style="width:26px;height:26px;border-radius:10px" data-cidx="${i + 1}" ${i < list.length - 1 ? '' : 'disabled'}>${ico('M9 18l6-6-6-6','var(--ink-3)',12)}</button>
+    </div>
+    <span class="railhint">&#8592; &#8594; to move &middot; 1&ndash;${Math.min(list.length,9)} to jump</span>
+    <div class="blist">${list.map((c, ix) => {
+      const ck = b.id + c.n;
+      return `<button class="bitem ${ix === i ? 'on' : ''}" data-cidx="${ix}">
+        <span class="bnum">${ix + 1}</span><span style="flex:1;min-width:0">${esc(c.t)}</span>
+        ${ro || S.approved[ck] ? `<span class="tick">${ico('M4 12l5 5L20 6','var(--green)',12)}</span>`
+          : S.declined[ck] ? `<span class="tick">${ico('M18 6 6 18M6 6l12 12','var(--red)',11)}</span>` : ''}
+      </button>`;
+    }).join('')}</div>
+  </div>`;
+
+  /* Chips are internal shorthand (angle / duration / lane) - the client reads
+     the slide itself, so the row carries only the verdict. */
+  const chips = `<div class="chiprow">
+    <span style="flex:1;min-width:6px"></span>
+    <span class="pill ${v.cls}">${v.label}</span>
+  </div>`;
+
+  const coms = comsOf(key);
+  const foot = `<div class="bfoot">
+    ${ro
+      ? `<span class="pill green">${ico('M4 12l5 5L20 6','var(--green)',11)} You approved this</span>`
+      : `<button class="btn sm ${ok ? 'ghost' : 'primary'}" data-approve="${key}">
+           ${ico('M4 12l5 5L20 6', ok ? 'var(--green)' : '#fff', 13)} ${ok ? 'Approved' : 'Approve concept'}</button>
+         <button class="btn sm ghost" data-decline="${key}" ${dec ? 'style="border-color:var(--red-line);color:var(--red)"' : ''}>
+           ${dec ? 'Sent back &#10005;' : 'Send back'}</button>`}
+    <span style="flex:1"></span>
+    <button class="btn sm ghost" data-comtoggle>${ico('M4 5h16v11H7l-3 3z','currentColor',13)} Comments${coms.length > 1 ? ' &middot; ' + (coms.length - 1) : ''}</button>
+    ${S.comOpen ? `<div class="compop">
+      <span class="hd">Comments &middot; ${esc(k.n)} ${esc(k.t)}</span>
+      ${coms.map(c => `<div class="cmt">
+        <span class="av s" style="background:${c.bg}">${esc(c.ini)}</span>
+        <span class="b"><span class="who"><b>${esc(c.who)}</b><time>${esc(c.role ? c.role + ' · ' : '')}${esc(c.time)}</time></span>
+        <p>${esc(c.text)}</p></span>
+      </div>`).join('')}
+      <div class="cin">
+        <input type="text" data-cominput placeholder="Say what should change&hellip;">
+        <button class="btn sm primary" data-compost="${key}">Comment</button>
+      </div>
+    </div>` : ''}
+  </div>`;
+
+  const doc = `<div class="bdoc">
+    <div class="bscroll">
+      <span class="blab" style="margin-top:0">${esc(b.name)} &middot; Concept ${i + 1} of ${list.length}</span>
+      <h1 class="btitle">${esc(k.t)}</h1>
+      ${chips}
+      <span class="blab">Log line</span>
+      <p class="bp">${k.hook}</p>
+      <span class="blab">Concept</span>
+      <p class="bp">${k.p}</p>
+      <span class="blab">Narrative</span>
+      ${(k.beats || []).map(x => `<div class="bdash"><span>&ndash;</span><p>${x}</p></div>`).join('')}
+      <span class="blab">Design components</span>
+      ${(k.comps || []).map(x => `<div class="bdash"><span>&ndash;</span><p>${x}</p></div>`).join('')}
+    </div>
+    ${foot}
+  </div>`;
+
+  const mock = `<div class="bmock">
+    <div class="phone">
+      <div class="phead"><span class="av s" style="background:${k.g}">E</span>
+        <span><b>ello</b><i>Sponsored</i></span></div>
+      <div class="pbody" style="background:${k.g}">
+        <b>${esc(k.t)}</b>
+        <p>${k.hook}</p>
+        <span class="mtag">9:16 &middot; concept mockup</span>
+      </div>
+    </div>
+  </div>`;
+
+  return `<div class="wrap boardwrap">
+    ${ctrl}
+    <div class="board">${rail}${doc}${mock}</div>
+  </div>`;
+}
+
+/* The FULL scripts view - the internal's doc page: rail | the paper, with the
+   control bar above it. The page scrolls like a doc should. */
+function vScripts(){
+  const b = batch(S.batch);
+  const ws = winState(b, 'scripts');
+  const list = b.scripts || [];
+  const i = Math.min(S.sIdx[b.id] || 0, list.length - 1);
+  const cur = list[i], key = b.id + 's' + cur.n, ok = !!S.approved[key];
+  const okCount = list.filter(x => S.approved[b.id + 's' + x.n]).length;
+  const ro = ws === 'done';
+  chrome(`${b.name} · Scripts`, ro ? 'Approved' : `${okCount} of ${list.length} approved`, true);
+
+  const rail = `<div>
+    <span class="kicker" style="padding:0 12px 8px;display:block">Scripts &middot; ${list.length}</span>
+    ${list.map((x, ix) => `
+      <button class="dritem ${ix === i ? 'on' : ''}" data-sidx="${ix}">
+        <span>${esc(x.n)}_${esc(x.t)}</span>
+        ${ro || S.approved[b.id + 's' + x.n] ? ico('M4 12l5 5L20 6','var(--green)',12) : ''}
+      </button>`).join('')}
+  </div>`;
+
+  const dec = !!S.declined[key];
+  const coms = comsOf(key);
+  const ctrl = ro
+    ? `<div class="donebar" style="margin:0 0 14px">${ico('M4 12l5 5L20 6','var(--green)',14)} You approved these scripts.</div>`
+    : `<div class="card" style="display:flex;align-items:center;gap:11px;padding:10px 14px;flex-wrap:wrap;margin-bottom:14px;position:relative">
+        <span class="pill ${verdictOf(key).cls}">${verdictOf(key).label}</span>
+        <span style="font-size:12px;color:var(--ink-3);flex:1;min-width:140px">${esc(STAGES[stageIdx('scripts')].blurb)}</span>
+        <button class="btn sm ${ok ? 'ghost' : 'primary'}" data-approve="${key}">${ico('M4 12l5 5L20 6', ok ? 'var(--green)' : '#fff', 13)} ${ok ? 'Approved' : 'Approve script'}</button>
+        <button class="btn sm ghost" data-decline="${key}" ${dec ? 'style="border-color:var(--red-line);color:var(--red)"' : ''}>${dec ? 'Sent back &#10005;' : 'Send back'}</button>
+        <button class="btn sm ghost" data-comtoggle>${ico('M4 5h16v11H7l-3 3z','currentColor',13)} Comments${coms.length > 1 ? ' &middot; ' + (coms.length - 1) : ''}</button>
+        <button class="btn sm primary" data-send="${b.id}" data-kind="scripts" ${okCount ? '' : 'disabled'}>Send to the studio</button>
+        ${S.comOpen ? `<div class="compop" style="bottom:auto;top:52px">
+          <span class="hd">Comments &middot; ${esc(cur.n)} ${esc(cur.t)}</span>
+          ${coms.map(c => `<div class="cmt">
+            <span class="av s" style="background:${c.bg}">${esc(c.ini)}</span>
+            <span class="b"><span class="who"><b>${esc(c.who)}</b><time>${esc(c.role ? c.role + ' · ' : '')}${esc(c.time)}</time></span>
+            <p>${esc(c.text)}</p></span>
+          </div>`).join('')}
+          <div class="cin">
+            <input type="text" data-cominput placeholder="Suggest the edit&hellip;">
+            <button class="btn sm primary" data-compost="${key}">Comment</button>
+          </div>
+        </div>` : ''}
+      </div>`;
+
+  const hooks = (cur.hooks || []).map((h, ix) => `
+    <p class="hooklab" style="margin-top:${ix ? 18 : 0}px">Hook ${ix + 1}:</p>
+    <p class="hooklab">Opening Line:</p>
+    <div class="pline">${h.line}</div>
+    <p class="dirline">[${h.dir}]</p>`).join('');
+
+  const body = (cur.script || []).map(x => `
+    <div style="margin-bottom:14px">
+      <div class="pline">${x.vo}</div>
+      ${x.dir ? `<p class="dirline">[${x.dir}]</p>` : ''}
+    </div>`).join('');
+
+  return `<div class="wrap scriptwrap">
+    ${ctrl}
+    <div class="docgrid">
+      ${rail}
+      <div>
+        <div class="paper">
+          <div style="font-size:24px;font-weight:700;letter-spacing:-.012em;margin-bottom:6px">${esc(CLIENT.name)} Scripts</div>
+          <p style="font-size:12px;color:var(--ink-3);margin-bottom:16px">${esc(b.name)} &middot; prepared by your strategist</p>
+          <p style="font-size:11.5px;line-height:1.65;color:var(--ink-3);font-style:italic;margin-bottom:20px">
+            We assume that you have proper substantiation for any claims about your products and services, and that you will
+            add any disclaimers required for full legal compliance, including, without limitation, compliance with the FTC&rsquo;s
+            endorsement guidelines and any other applicable advertising related disclosures.</p>
+          <div style="height:1px;background:var(--line);margin-bottom:24px"></div>
+          <div style="font-size:19px;font-weight:700;color:var(--accent);margin-bottom:4px">${esc(cur.n)} &middot; ${esc(cur.t)}</div>
+          <p style="font-size:12px;color:var(--ink-3);margin-bottom:22px">${esc(cur.draft || 'first draft')}</p>
+          ${hooks}
+          <p class="hooklab" style="margin-top:26px;margin-bottom:10px">Script:</p>
+          ${body}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function winTalent(b, ws){
+  const list = b.talent || [];
+  if (ws === 'done'){
+    const chosen = list.filter(t => t.picked);
+    return `
+      <div class="donebar">${ico('M4 12l5 5L20 6','var(--green)',14)} You picked ${chosen.length} creator${chosen.length === 1 ? '' : 's'} for this batch.</div>
+      <div class="tal">${chosen.map(talCard).join('')}</div>`;
+  }
+  const picked = list.filter(t => S.picks[b.id + t.name]).length;
+  return `
+    <p class="lede" style="margin-bottom:14px">${esc(STAGES[stageIdx('casting')].blurb)}</p>
+    <div class="tal">${list.map(t => {
+      const k = b.id + t.name, on = !!S.picks[k];
+      return `<button class="talc ${on ? 'pick' : ''}" data-pick="${esc(k)}">
+        <span class="av xl" style="background:${t.bg}">${esc(t.name.split(' ').map(x=>x[0]).join(''))}</span>
+        <b>${esc(t.name)}</b><i>${esc(t.tag)}</i>
+        <span class="pill ${on ? 'green' : 'grey'}">${on ? 'Picked &#10003;' : 'Tap to pick'}</span>
+      </button>`;
+    }).join('')}</div>
+    <div class="sendbar">
+      <button class="btn primary" data-send="${b.id}" data-kind="talent" ${picked ? '' : 'disabled'}>
+        Confirm ${picked || ''} creator${picked === 1 ? '' : 's'}</button>
+      <span>${picked} picked</span>
+    </div>`;
+}
+const talCard = t => `<div class="talc pick" style="cursor:default">
+  <span class="av xl" style="background:${t.bg}">${esc(t.name.split(' ').map(x=>x[0]).join(''))}</span>
+  <b>${esc(t.name)}</b><i>${esc(t.tag)}</i>
+  <span class="pill green">Shot this batch</span></div>`;
+
+function winAds(b, w, ws){
+  const list = b[w] || [];
+  const head = ws === 'done'
+    ? `<div class="donebar">${ico('M4 12l5 5L20 6','var(--green)',14)} Signed off and in your library. Masters are in the shared drive.</div>`
+    : `<p class="lede" style="margin-bottom:14px">${esc(STAGES[stageIdx('ads')].blurb)}</p>`;
+  return head + `<div class="lib">${list.map(a => `
+    <button class="ad" data-toast="${esc(a.t)}|The full render opens here in the live portal.">
+      <span class="th" style="background:${a.g}">
+        <span class="fmt pill grey" style="background:rgba(255,255,255,.85)">${esc(a.f)}</span>
+        <b>${esc(a.t)}</b>
+      </span>
+      <span class="ft"><i>${esc(b.name)}</i>${ico('M12 3v12m0 0 4-4m-4 4-4-4M5 21h14','var(--ink-4)',14)}</span>
+    </button>`).join('')}</div>`;
+}
+
+function vLibrary(){
+  chrome('Creative library', `${LIBRARY.length} delivered`, true);
+  return `<div class="wrap">
+    <h1 class="page">Creative library</h1>
+    <p class="lede">Everything we have delivered, newest first. Masters live in your shared drive.</p>
+    <div style="height:20px"></div>
+    <div class="lib">${LIBRARY.map(a => `
+      <button class="ad" data-toast="${esc(a.t)}|The full render opens here in the live portal.">
+        <span class="th" style="background:${a.g}">
+          <span class="fmt pill grey" style="background:rgba(255,255,255,.85)">${esc(a.f)}</span>
+          <b>${esc(a.t)}</b>
+        </span>
+        <span class="ft"><i>${esc(a.b)}</i>${ico('M12 3v12m0 0 4-4m-4 4-4-4M5 21h14','var(--ink-4)',14)}</span>
+      </button>`).join('')}</div>
+  </div>`;
+}
+
+function vSchedule(){
+  chrome('Schedule', 'Dates the studio is holding', true);
+  return `<div class="wrap">
+    <h1 class="page">Schedule</h1>
+    <p class="lede">What lands when. Amber rows need something from you first.</p>
+    <div style="height:20px"></div>
+    <div class="stack">${SCHEDULE.map(rowSched).join('')}</div>
+  </div>`;
+}
+
+function vBilling(){
+  chrome('Billing', 'Retainer', true);
+  return `<div class="wrap">
+    <h1 class="page">Billing</h1>
+    <p class="lede">Your plan and invoice history. Questions go to your strategist.</p>
+    <div style="height:20px"></div>
+    <div class="card" style="padding:20px 22px;margin-bottom:22px;display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+      <span class="tint" style="background:var(--violet-tint)">${ico('M3 7h18v10H3zM3 11h18','var(--violet)',18)}</span>
+      <span style="flex:1;min-width:180px">
+        <b style="font-size:14px;font-weight:600;display:block">Creative retainer</b>
+        <i style="font-style:normal;font-size:12px;color:var(--ink-3)">2 batches a month &middot; renews on the 1st</i>
+      </span>
+      <span style="font-size:20px;font-weight:600;letter-spacing:-.02em">$8,500<span style="font-size:12px;color:var(--ink-3);font-weight:500">/mo</span></span>
+    </div>
+    <div class="sechead"><b>Invoices</b></div>
+    <div class="stack">${INVOICES.map(v => `
+      <div class="row" style="cursor:default">
+        <span class="inv">${esc(v.n)}</span>
+        <span class="main"><b>${esc(v.amt)}</b><i>${esc(v.d)}</i></span>
+        <span class="pill green">${esc(v.s)}</span>
+      </div>`).join('')}</div>
+  </div>`;
+}
+
+/* ---------- router ---------- */
+const URL_VIEWS = new Set(['home','batches','batch','concepts','scripts','library','schedule','billing']);
+function syncUrl(){
+  if (!URL_VIEWS.has(S.view)) return;
+  const q = new URLSearchParams();
+  q.set('view', S.view);
+  if (S.view === 'batch'){ q.set('b', S.batch); const t = S.tab[S.batch]; if (t) q.set('t', t); }
+  if (S.view === 'concepts' || S.view === 'scripts') q.set('b', S.batch);
+  try { history.replaceState(null, '', location.pathname + '?' + q.toString()); } catch(e){}
+}
+function restoreFromUrl(){
+  let p; try { p = new URLSearchParams(location.search); } catch(e){ return; }
+  const b = p.get('b');
+  if (b && batch(b)) S.batch = b;
+  const t = p.get('t');
+  if (t && WINDOWS[t]) S.tab[S.batch] = t;
+  const v = p.get('view');
+  if (v && URL_VIEWS.has(v)) S.view = v;
+}
+function go(v){ S.view = v; render(); }
+function render(){
+  renderNav();
+  const v = S.view;
+  let html;
+  if (v === 'home') html = vHome();
+  else if (v === 'batches') html = vBatches();
+  else if (v === 'batch') html = vBatch();
+  else if (v === 'concepts') html = vConcepts();
+  else if (v === 'scripts') html = vScripts();
+  else if (v === 'library') html = vLibrary();
+  else if (v === 'schedule') html = vSchedule();
+  else if (v === 'billing') html = vBilling();
+  else html = vHome();
+  $('#view').innerHTML = html;
+  $('.body').scrollTop = 0;
+  syncUrl();
+  fitDoc();
+}
+
+/* The internal's slide auto-fit: try the full type scale, and only step down
+   when the rendered slide genuinely overflows its pane. */
+const FIT_STEPS = ['', 'mid', 'tight', 'xtight'];
+function fitDoc(){
+  const el = $('.bscroll');
+  if (!el) return;
+  for (let i = 0; i < FIT_STEPS.length; i++){
+    el.className = 'bscroll' + (FIT_STEPS[i] ? ' ' + FIT_STEPS[i] : '');
+    if (el.scrollHeight <= el.clientHeight + 1) return;
+  }
+}
+
+document.addEventListener('click', e => {
+  const t = e.target;
+  const go_ = t.closest('[data-go]');
+  if (go_) { go(go_.dataset.go); return; }
+  const open = t.closest('[data-open]');
+  if (open) { S.batch = open.dataset.open; go('batch'); return; }
+  const gv = t.closest('[data-goview]');
+  if (gv) { go(gv.dataset.goview); return; }
+  const tb = t.closest('[data-tab]');
+  if (tb) { S.tab[S.batch] = tb.dataset.tab; render(); return; }
+  const ap = t.closest('[data-approve]');
+  if (ap) {
+    const k = ap.dataset.approve;
+    S.approved[k] = !S.approved[k];
+    if (S.approved[k]) S.declined[k] = false;
+    render(); return;
+  }
+  const pk = t.closest('[data-pick]');
+  if (pk) { const k = pk.dataset.pick; S.picks[k] = !S.picks[k]; render(); return; }
+  const ci = t.closest('[data-cidx]');
+  if (ci && !ci.disabled) { S.cIdx[S.batch] = +ci.dataset.cidx; S.comOpen = false; render(); return; }
+  const sx = t.closest('[data-sidx]');
+  if (sx) { S.sIdx[S.batch] = +sx.dataset.sidx; S.comOpen = false; render(); return; }
+  const cm = t.closest('[data-comment]');
+  if (cm) { const k = cm.dataset.comment; S.notesOpen[k] = !S.notesOpen[k]; render(); return; }
+  const dc = t.closest('[data-decline]');
+  if (dc) {
+    const k = dc.dataset.decline;
+    S.declined[k] = !S.declined[k];
+    if (S.declined[k]) { S.approved[k] = false; S.comOpen = true; }  /* say why */
+    render(); return;
+  }
+  if (t.closest('[data-comtoggle]')) { S.comOpen = !S.comOpen; render(); return; }
+  const cp = t.closest('[data-compost]');
+  if (cp) {
+    const inp = document.querySelector('[data-cominput]');
+    const txt = (inp && inp.value || '').trim();
+    if (txt) {
+      comsOf(cp.dataset.compost).push({ who:'You', ini:'CB',
+        bg:'linear-gradient(135deg,#0F7B6C,#2BB3A3)', time:'just now', text:txt });
+      render();
+    }
+    return;
+  }
+  const sd = t.closest('[data-send]');
+  if (sd && !sd.disabled) {
+    /* The handoff rule, honoured even in the demo: the CLIENT's acceptance is
+       what advances the batch. Each sign-off moves it to the next studio step. */
+    const b = batch(sd.dataset.send), kind = sd.dataset.kind;
+    if (kind === 'concepts'){ b.si = stageIdx('scripting');
+      toast('Sent to the studio', 'Approved concepts went to the copywriters. Scripts land next.'); }
+    else if (kind === 'scripts'){ b.si = stageIdx('casting');
+      toast('Sent to the studio', 'Scripts locked. The casting shortlist is next.'); }
+    else if (kind === 'talent'){ b.si = stageIdx('storyboard');
+      toast('Creators confirmed', 'The studio takes it from here — you will see finished ads next.'); }
+    render(); return;
+  }
+  const ts = t.closest('[data-toast]');
+  if (ts) { const [a, b] = ts.dataset.toast.split('|'); toast(a, b || ''); return; }
+  if (t.closest('#back')) {
+    go(S.view === 'concepts' || S.view === 'scripts' ? 'batch'
+       : S.view === 'batch' ? 'batches' : 'home');
+    return;
+  }
+});
+document.addEventListener('keydown', e => {
+  if (S.view !== 'concepts') return;
+  if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  const b = batch(S.batch), n = (b.concepts || []).length;
+  const i = Math.min(S.cIdx[b.id] || 0, n - 1);
+  if (e.key === 'ArrowRight' && i < n - 1) { S.cIdx[b.id] = i + 1; render(); }
+  else if (e.key === 'ArrowLeft' && i > 0) { S.cIdx[b.id] = i - 1; render(); }
+  else if (/^[1-9]$/.test(e.key) && +e.key <= n) { S.cIdx[b.id] = +e.key - 1; render(); }
+});
+document.addEventListener('input', e => {
+  const n = e.target.closest('[data-note]');
+  if (n) S.notes[n.dataset.note] = n.value;
+});
+
+restoreFromUrl();
+render();
+</script>
+</body>
+</html>
