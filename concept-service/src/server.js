@@ -528,6 +528,18 @@ const server = http.createServer(async (req, res) => {
       return rec ? json(res, 200, rec) : json(res, 404, { error: 'no such pipeline' });
     }
 
+    if (p === '/notifications' && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      return json(res, 200, { notifications: store.notifsFor(url.searchParams.get('for')) });
+    }
+
+    if (p === '/notifications/read' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      store.markNotifsRead(b.for, Array.isArray(b.ids) ? b.ids : null);
+      return json(res, 200, { ok: true });
+    }
+
     if (p === '/footage' && req.method === 'GET') {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
       return json(res, 200, { jobs: store.listFootage(url.searchParams.get('client')) });
@@ -583,6 +595,12 @@ const server = http.createServer(async (req, res) => {
         flagged: list(b.flagged),
         error: str(b.error, 1000),
       });
+      if (job.status === 'done' || job.status === 'error') {
+        store.notify({ to: job.requestedBy, client: job.client, open: 'footage',
+          text: job.status === 'done'
+            ? 'The footage renamer finished for ' + job.client + (job.flagged && job.flagged.length ? ' - ' + job.flagged.length + ' item' + (job.flagged.length === 1 ? ' needs' : 's need') + ' a human.' : ' - everything filed clean.')
+            : 'The footage renamer failed for ' + job.client + ': ' + String(job.error || '').slice(0, 140) });
+      }
       return json(res, 200, job);
     }
 

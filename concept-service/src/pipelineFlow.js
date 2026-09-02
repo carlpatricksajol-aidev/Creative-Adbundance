@@ -95,10 +95,14 @@ function sync(rec) {
       c.at = new Date().toISOString();
       rec.cur = 'concept_pass';
       save(rec);
+      store.notify({ to: rec.requestedBy, client: rec.client, open: 'pipeline',
+        text: 'The concept generator finished for ' + rec.client + ' - the batch is on the board and the concept pass is yours.' });
     } else if (run && run.status === 'error') {
       c.status = 'error';
       c.detail = run.error || 'the run failed';
       save(rec);
+      store.notify({ to: rec.requestedBy, client: rec.client, open: 'pipeline',
+        text: 'The concept run for ' + rec.client + ' failed: ' + String(run.error || '').slice(0, 140) });
     }
   }
   return rec;

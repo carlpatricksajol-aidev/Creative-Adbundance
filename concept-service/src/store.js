@@ -14,6 +14,7 @@ const RUNS = path.join(DATA, 'runs');
 const BATCHES = path.join(DATA, 'batches');
 const STORIES = path.join(DATA, 'storyboards');
 const FOOTAGE = path.join(DATA, 'footage');
+const NOTIFS = path.join(DATA, 'notifications.json');
 
 for (const d of [DATA, RUNS, BATCHES, STORIES, FOOTAGE]) fs.mkdirSync(d, { recursive: true });
 
@@ -214,5 +215,37 @@ function listFootage(client) {
     .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
 }
 
+/* Notifications: one file, addressed by name (the same names requestedBy
+   carries), capped so it never grows without bound. The bell in the OS polls
+   these; read state is per notification. */
+function allNotifs() {
+  try { return JSON.parse(fs.readFileSync(NOTIFS, 'utf8')); } catch { return []; }
+}
+function notify({ to, client, text, open }) {
+  if (!to || !text) return null;
+  const list = allNotifs();
+  const n = { id: 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    to: String(to).slice(0, 120), client: String(client || '').slice(0, 120),
+    text: String(text).slice(0, 400), open: String(open || '').slice(0, 60),
+    at: new Date().toISOString(), read: false };
+  list.unshift(n);
+  writeJSON(NOTIFS, list.slice(0, 400));
+  return n;
+}
+function notifsFor(to) {
+  const want = String(to || '').toLowerCase();
+  return allNotifs().filter((n) => String(n.to).toLowerCase() === want).slice(0, 30);
+}
+function markNotifsRead(to, ids) {
+  const want = String(to || '').toLowerCase();
+  const list = allNotifs();
+  for (const n of list) {
+    if (String(n.to).toLowerCase() !== want) continue;
+    if (!ids || ids.includes(n.id)) n.read = true;
+  }
+  writeJSON(NOTIFS, list);
+}
+
 module.exports = { newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext,
-                   saveStory, getStory, listStories, saveFootage, getFootage, listFootage, DATA };
+                   saveStory, getStory, listStories, saveFootage, getFootage, listFootage,
+                   notify, notifsFor, markNotifsRead, DATA };
