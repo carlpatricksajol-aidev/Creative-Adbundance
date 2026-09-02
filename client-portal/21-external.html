@@ -652,13 +652,10 @@ const ico = (d, stroke='currentColor', w=15) =>
   `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
 const batch = id => BATCHES.find(b => b.id === id);
 
-/* One comment thread per artifact. The strategist's opener is seeded so the
-   thread never looks like a dead letterbox; the client's comments append. */
+/* One comment thread per artifact, and it starts empty: the client's own
+   words are the thread. */
 function comsOf(key){
-  if (!S.coms[key]) S.coms[key] = [
-    { who:'Creative Ad•Bundance', role:'your studio', ini:'CA', bg:'linear-gradient(135deg,#6B47FF,#A78BFA)',
-      time:'yesterday', text:'Anything you want reworked, say it here and it comes back revised within the day.' }
-  ];
+  if (!S.coms[key]) S.coms[key] = [];
   return S.coms[key];
 }
 /* Line-anchored comments on scripts, the way the internal Docs surface does
@@ -1054,9 +1051,10 @@ function vConcepts(){
          <button class="btn sm ghost" data-decline="${key}" ${dec ? 'style="border-color:var(--red-line);color:var(--red)"' : ''}>
            ${dec ? 'Rejected &#10005;' : 'Reject concept'}</button>`}
     <span style="flex:1"></span>
-    <button class="btn sm ghost" data-comtoggle>${ico('M4 5h16v11H7l-3 3z','currentColor',13)} ${coms.length > 1 ? 'Comments &middot; ' + (coms.length - 1) : 'Add comment'}</button>
+    <button class="btn sm ghost" data-comtoggle>${ico('M4 5h16v11H7l-3 3z','currentColor',13)} ${coms.length ? 'Comments &middot; ' + coms.length : 'Add comment'}</button>
     ${S.comOpen ? `<div class="compop">
       <span class="hd">${S.comReq === key ? 'Rejecting &middot; tell the studio why' : `Comments &middot; ${esc(k.n)} ${esc(k.t)}`}</span>
+      ${!coms.length && S.comReq !== key ? `<p style="font-size:12px;color:var(--ink-4);padding:2px 0 6px">No comments yet.</p>` : ''}
       ${coms.map(c => `<div class="cmt">
         <span class="av s" style="background:${c.bg}">${esc(c.ini)}</span>
         <span class="b"><span class="who"><b>${esc(c.who)}</b><time>${esc(c.role ? c.role + ' · ' : '')}${esc(c.time)}</time></span>
@@ -1141,11 +1139,12 @@ function vScripts(){
         <span style="font-size:12px;color:var(--ink-3);flex:1;min-width:140px">${esc(STAGES[stageIdx('scripts')].blurb)}</span>
         <button class="btn sm ${ok ? 'ghost' : 'primary'}" data-approve="${key}">${ico('M4 12l5 5L20 6', ok ? 'var(--green)' : '#fff', 13)} ${ok ? 'Approved' : 'Approve script'}</button>
         <button class="btn sm ghost" data-decline="${key}" ${dec ? 'style="border-color:var(--red-line);color:var(--red)"' : ''}>${dec ? 'Rejected &#10005;' : 'Reject script'}</button>
-        <button class="btn sm ghost" data-comtoggle>${ico('M4 5h16v11H7l-3 3z','currentColor',13)} ${coms.length > 1 ? 'Comments &middot; ' + (coms.length - 1) : 'Add comment'}</button>
+        <button class="btn sm ghost" data-comtoggle>${ico('M4 5h16v11H7l-3 3z','currentColor',13)} ${coms.length ? 'Comments &middot; ' + coms.length : 'Add comment'}</button>
         <button class="btn sm primary" data-send="${b.id}" data-kind="scripts" ${okCount ? '' : 'disabled'}>Send to the studio</button>
         ${S.comOpen ? `<div class="compop" style="bottom:auto;top:52px">
           <span class="hd">${S.comReq === key ? 'Rejecting &middot; tell the studio why' : `Comments &middot; ${esc(cur.n)} ${esc(cur.t)}`}</span>
-          ${coms.map(c => `<div class="cmt">
+          ${!coms.length && S.comReq !== key ? `<p style="font-size:12px;color:var(--ink-4);padding:2px 0 6px">No comments yet.</p>` : ''}
+      ${coms.map(c => `<div class="cmt">
             <span class="av s" style="background:${c.bg}">${esc(c.ini)}</span>
             <span class="b"><span class="who"><b>${esc(c.who)}</b><time>${esc(c.role ? c.role + ' · ' : '')}${esc(c.time)}</time></span>
             <p>${esc(c.text)}</p></span>
