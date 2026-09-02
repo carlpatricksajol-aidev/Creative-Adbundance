@@ -11,9 +11,10 @@
 
 const http = require('http');
 const store = require('./store');
-const brand = require('./brand');
+const brand = require('./dossier');
 const pipeline = require('./pipeline');
 const research = require('./research');
+const onboarding = require('./onboarding');
 
 const PORT = Number(process.env.PORT || 8900);
 const TOKEN = process.env.RUN_TOKEN || '';
@@ -52,7 +53,7 @@ function cors(req, res) {
     res.setHeader('access-control-allow-origin', origin);
     res.setHeader('vary', 'origin');
   }
-  res.setHeader('access-control-allow-headers', 'authorization,content-type');
+  res.setHeader('access-control-allow-headers', 'authorization,content-type,x-file-name');
   res.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS');
 }
 
@@ -63,6 +64,23 @@ function authed(req) {
   if (!TOKEN) return false;
   const h = req.headers.authorization || '';
   return h === `Bearer ${TOKEN}`;
+}
+
+/* The logo arrives as raw bytes with its own content-type, not JSON — a
+   base64 round trip through body() would inflate a 5 MB file by a third for no
+   benefit. Capped hard so a stray large POST cannot hold memory here. */
+function rawBody(req, cap) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let n = 0;
+    req.on('data', (c) => {
+      n += c.length;
+      if (n > cap) { reject(Object.assign(new Error('that file is too large'), { status: 413 })); req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
 }
 
 function body(req) {
@@ -185,6 +203,139 @@ const server = http.createServer(async (req, res) => {
     /* Storyboards are authored in the page, so these three are a plain shared
        document store: list per client, read one, upsert one. No model, no
        spend, so they are safe to call on every keystroke's debounce. */
+    /* Onboarding intake. The OS page has no server of its own, so these are
+       how a new client reaches the Knowledge Layer and how the Drive read gets
+       asked for. See src/onboarding.js for which store and why. */
+    if (p === '/onboarding' && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const brands = await onboarding.listIntake();
+      return json(res, 200, {
+        brands,
+        canRunAgent: onboarding.queueMounted(),
+        canUploadLogo: onboarding.storageReady(),
+      });
+    }
+
+    if (p === '/onboarding' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      const intake = await onboarding.upsertIntake(b);
+
+      let queuedIntentId = null;
+      let note = null;
+      if (b.runAgent === false) {
+        note = 'Saved without running anything, as asked.';
+      } else if (!intake.hasSource) {
+        /* Nothing named and no folder either — there is literally nothing for
+           the agent to open, and the name guess it would fall back to is what
+           this form exists to replace. */
+        note = 'Saved. Add the creative brief or the onboarding deck to have the agent read them.';
+      } else if (!onboarding.queueMounted()) {
+        note = 'Saved, but this server cannot reach the runner queue, so nothing was started.';
+      } else {
+        queuedIntentId = onboarding.queueBootstrap({
+          clientName: intake.clientName,
+          driveFolderUrl: intake.driveFolderUrl,
+          docUrls: intake.docUrls,
+          website: intake.website,
+          requestedBy: b.requestedBy || null,
+        });
+      }
+
+      return json(res, 200, {
+        ok: true, intake, queuedIntentId, note,
+        message: queuedIntentId
+          ? 'Reading ' + (intake.docUrls.length
+              ? intake.docUrls.length + ' document' + (intake.docUrls.length === 1 ? '' : 's') + ' for ' + intake.brandName
+              : intake.brandName + '’s Drive folder')
+            + ' now. What it finds needs a pass before it is stored.'
+          : note,
+      });
+    }
+
+    /* Logo upload. The file goes to Storage and only its public URL is kept on
+       the brand row, because Storage lives in a different Supabase project
+       from the Knowledge Layer. The filename is chosen here, never taken from
+       the upload. */
+    if (p === '/onboarding/logo' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const bytes = await rawBody(req, onboarding.MAX_LOGO_BYTES + 1024);
+      const out = await onboarding.uploadLogo(
+        bytes,
+        req.headers['content-type'],
+        req.headers['x-file-name'] ? decodeURIComponent(String(req.headers['x-file-name'])) : ''
+      );
+      return json(res, 200, out);
+    }
+
+    /* ---- footage renamer: the OS is the trigger, n8n does the work ------
+       POST /footage/run   { client, batch, storyboardId, dropbox, requestedBy }
+       GET  /footage?client=            the job list, newest first
+       GET  /footage/:id                one job
+       POST /footage/result { id, status, folder, renamed, flagged, error }
+                            n8n reports back here with the same bearer token.
+       If FOOTAGE_WEBHOOK_URL is unset the job is recorded as 'queued' and a
+       human runs the renamer as before - the page still shows the request. */
+    if (p === '/footage' && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      return json(res, 200, { jobs: store.listFootage(url.searchParams.get('client')) });
+    }
+
+    if (p === '/footage/run' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      const str = (v, cap) => String(v == null ? '' : v).slice(0, cap);
+      if (!b.client) return json(res, 400, { error: 'client is required' });
+      if (!/^https:\/\/(www\.)?dropbox\.com\//.test(String(b.dropbox || ''))) {
+        return json(res, 400, { error: 'that does not look like a Dropbox link' });
+      }
+      const hook = process.env.FOOTAGE_WEBHOOK_URL || '';
+      let job = store.saveFootage({
+        client: str(b.client, 120), batch: str(b.batch, 120),
+        storyboardId: str(b.storyboardId, 120), dropbox: str(b.dropbox, 800),
+        requestedBy: str(b.requestedBy, 120),
+        status: hook ? 'running' : 'queued',
+      });
+      if (hook) {
+        try {
+          const r = await fetch(hook, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ jobId: job.id, client: job.client, batch: job.batch,
+              storyboardId: job.storyboardId, dropbox: job.dropbox, requestedBy: job.requestedBy }),
+          });
+          if (!r.ok) throw new Error('the renamer webhook answered ' + r.status);
+        } catch (err) {
+          job = store.saveFootage({ id: job.id, status: 'error',
+            error: 'could not reach the renamer: ' + (err && err.message ? err.message : err) });
+        }
+      }
+      return json(res, 200, job);
+    }
+
+    if (p === '/footage/result' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      if (!b.id || !store.getFootage(b.id)) return json(res, 404, { error: 'no such footage job' });
+      const str = (v, cap) => String(v == null ? '' : v).slice(0, cap);
+      const list = (v, cap) => (Array.isArray(v) ? v : []).slice(0, 500).map((x) => str(x, 400));
+      const job = store.saveFootage({
+        id: b.id,
+        status: ['done', 'error', 'running'].includes(b.status) ? b.status : 'done',
+        folder: str(b.folder, 800),
+        renamed: list(b.renamed),
+        flagged: list(b.flagged),
+        error: str(b.error, 1000),
+      });
+      return json(res, 200, job);
+    }
+
+    if (p.startsWith('/footage/') && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const j = store.getFootage(decodeURIComponent(p.slice('/footage/'.length)));
+      return j ? json(res, 200, j) : json(res, 404, { error: 'no such footage job' });
+    }
+
     if (p === '/storyboards' && req.method === 'GET') {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
       return json(res, 200, { storyboards: store.listStories(url.searchParams.get('client')) });

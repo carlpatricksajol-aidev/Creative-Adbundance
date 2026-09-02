@@ -13,8 +13,9 @@ const DATA = process.env.DATA_DIR || '/data';
 const RUNS = path.join(DATA, 'runs');
 const BATCHES = path.join(DATA, 'batches');
 const STORIES = path.join(DATA, 'storyboards');
+const FOOTAGE = path.join(DATA, 'footage');
 
-for (const d of [DATA, RUNS, BATCHES, STORIES]) fs.mkdirSync(d, { recursive: true });
+for (const d of [DATA, RUNS, BATCHES, STORIES, FOOTAGE]) fs.mkdirSync(d, { recursive: true });
 
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 /* Ids arrive from the page, so they never reach a path unfiltered. */
@@ -185,5 +186,33 @@ function priorContext(client, capChars = 9000) {
   return { text: out.join('\n\n'), batches, concepts };
 }
 
+/* Footage-renamer jobs. The renamer itself lives in n8n; this is the front
+   door and the record of what was asked and what came back, so the page can
+   show a job's life without touching Dropbox or Notion. */
+const footageFile = (id) => path.join(FOOTAGE, `${safeId(id)}.json`);
+
+function saveFootage(rec) {
+  const id = safeId(rec.id) || 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const prev = getFootage(id) || {};
+  const out = { ...prev, ...rec, id, updatedAt: new Date().toISOString() };
+  out.createdAt = prev.createdAt || out.updatedAt;
+  writeJSON(footageFile(id), out);
+  return out;
+}
+
+function getFootage(id) {
+  try { return JSON.parse(fs.readFileSync(footageFile(id), 'utf8')); }
+  catch { return null; }
+}
+
+function listFootage(client) {
+  const want = client ? slug(client) : null;
+  return fs.readdirSync(FOOTAGE)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => { try { return JSON.parse(fs.readFileSync(path.join(FOOTAGE, f), 'utf8')); } catch { return null; } })
+    .filter((j) => j && (!want || slug(j.client || '') === want))
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+
 module.exports = { newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext,
-                   saveStory, getStory, listStories, DATA };
+                   saveStory, getStory, listStories, saveFootage, getFootage, listFootage, DATA };
