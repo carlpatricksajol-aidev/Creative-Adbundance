@@ -437,7 +437,7 @@ const STAGES = [
   { id:'scripting',  ext:'Writing the scripts',     hand:'us',
     blurb:'Approved concepts go to the copywriters.' },
   { id:'scripts',    ext:'Scripts ready for you',   hand:'them',
-    blurb:'Read the scripts, suggest edits, approve or send them back.' },
+    blurb:'Read the scripts, suggest edits, approve or reject them.' },
   { id:'casting',    ext:'Talent ready for you',    hand:'them',
     blurb:'Meet the shortlist our casting team approved and pick who shoots this batch.' },
   { id:'storyboard', ext:'Storyboard',              hand:'us', internalOnly:true,
@@ -669,7 +669,7 @@ function lineComsOf(k){ if (!S.lineCom) S.lineCom = {}; return S.lineCom[k] || [
 /* approved beats declined beats untouched */
 function verdictOf(key){
   if (S.approved[key]) return { label:'Approved', cls:'green' };
-  if (S.declined[key]) return { label:'Sent back', cls:'red' };
+  if (S.declined[key]) return { label:'Rejected', cls:'red' };
   return { label:'Needs your call', cls:'amber' };
 }
 
@@ -935,14 +935,14 @@ function winConcepts(b, ws){
     <div class="steps">
       <span class="stepx"><span class="num">1</span><span><b>Open the concepts</b>
         <i>Use the blue button. Each concept is one full slide.</i></span></span>
-      <span class="stepx"><span class="num">2</span><span><b>Approve, or send back</b>
-        <i>On every slide: Approve if you like it, Send back with a comment if you don&rsquo;t.</i></span></span>
+      <span class="stepx"><span class="num">2</span><span><b>Approve, or reject</b>
+        <i>On every slide: Approve if you like it, Reject with a note on why if you don&rsquo;t.</i></span></span>
       <span class="stepx"><span class="num">3</span><span><b>Press &ldquo;Send to the studio&rdquo;</b>
         <i>That hands us your decisions and we start writing.</i></span></span>
     </div>
     <div class="warnnote">${ico('M12 4 2 20h20zM12 10v5M12 18h.01','var(--amber)',16)}
       <span>The studio is waiting on this step &mdash; scripts can&rsquo;t start until you approve
-      ${list.length === 1 ? 'this concept' : 'these concepts'} or send them back.
+      ${list.length === 1 ? 'this concept' : 'these concepts'} or reject them with a note.
       ${okCount ? `You have approved ${okCount} of ${list.length} so far.` : `Nothing is approved yet.`}</span>
     </div>`;
   return bar + `<div class="launch" style="flex-wrap:wrap">
@@ -970,8 +970,8 @@ function winScripts(b, ws){
     <div class="steps">
       <span class="stepx"><span class="num">1</span><span><b>Open the scripts</b>
         <i>Use the blue button. Each script is the full doc.</i></span></span>
-      <span class="stepx"><span class="num">2</span><span><b>Approve, or send back</b>
-        <i>Approve each script, or send it back with a comment on what to change.</i></span></span>
+      <span class="stepx"><span class="num">2</span><span><b>Approve, or reject</b>
+        <i>Approve each script, or reject it with a note on what to change.</i></span></span>
       <span class="stepx"><span class="num">3</span><span><b>Press &ldquo;Send to the studio&rdquo;</b>
         <i>That locks the scripts and casting starts.</i></span></span>
     </div>
@@ -1052,19 +1052,19 @@ function vConcepts(){
       : `<button class="btn sm ${ok ? 'ghost' : 'primary'}" data-approve="${key}">
            ${ico('M4 12l5 5L20 6', ok ? 'var(--green)' : '#fff', 13)} ${ok ? 'Approved' : 'Approve concept'}</button>
          <button class="btn sm ghost" data-decline="${key}" ${dec ? 'style="border-color:var(--red-line);color:var(--red)"' : ''}>
-           ${dec ? 'Sent back &#10005;' : 'Send back'}</button>`}
+           ${dec ? 'Rejected &#10005;' : 'Reject concept'}</button>`}
     <span style="flex:1"></span>
-    <button class="btn sm ghost" data-comtoggle>${ico('M4 5h16v11H7l-3 3z','currentColor',13)} Comments${coms.length > 1 ? ' &middot; ' + (coms.length - 1) : ''}</button>
+    <button class="btn sm ghost" data-comtoggle>${ico('M4 5h16v11H7l-3 3z','currentColor',13)} ${coms.length > 1 ? 'Comments &middot; ' + (coms.length - 1) : 'Add comment'}</button>
     ${S.comOpen ? `<div class="compop">
-      <span class="hd">${S.comReq === key ? 'Sending back &middot; tell the studio why' : `Comments &middot; ${esc(k.n)} ${esc(k.t)}`}</span>
+      <span class="hd">${S.comReq === key ? 'Rejecting &middot; tell the studio why' : `Comments &middot; ${esc(k.n)} ${esc(k.t)}`}</span>
       ${coms.map(c => `<div class="cmt">
         <span class="av s" style="background:${c.bg}">${esc(c.ini)}</span>
         <span class="b"><span class="who"><b>${esc(c.who)}</b><time>${esc(c.role ? c.role + ' · ' : '')}${esc(c.time)}</time></span>
         <p>${esc(c.text)}</p></span>
       </div>`).join('')}
       <div class="cin">
-        <input type="text" data-cominput placeholder="${S.comReq === key ? 'Why is it going back?' : 'Say what should change&hellip;'}">
-        <button class="btn sm primary" data-compost="${key}">${S.comReq === key ? 'Send back' : 'Comment'}</button>
+        <input type="text" data-cominput placeholder="${S.comReq === key ? 'Why are you rejecting it?' : 'Say what should change&hellip;'}">
+        <button class="btn sm primary" data-compost="${key}">${S.comReq === key ? 'Reject' : 'Comment'}</button>
       </div>
     </div>` : ''}
   </div>`;
@@ -1140,19 +1140,19 @@ function vScripts(){
         <span class="pill ${verdictOf(key).cls}">${verdictOf(key).label}</span>
         <span style="font-size:12px;color:var(--ink-3);flex:1;min-width:140px">${esc(STAGES[stageIdx('scripts')].blurb)}</span>
         <button class="btn sm ${ok ? 'ghost' : 'primary'}" data-approve="${key}">${ico('M4 12l5 5L20 6', ok ? 'var(--green)' : '#fff', 13)} ${ok ? 'Approved' : 'Approve script'}</button>
-        <button class="btn sm ghost" data-decline="${key}" ${dec ? 'style="border-color:var(--red-line);color:var(--red)"' : ''}>${dec ? 'Sent back &#10005;' : 'Send back'}</button>
-        <button class="btn sm ghost" data-comtoggle>${ico('M4 5h16v11H7l-3 3z','currentColor',13)} Comments${coms.length > 1 ? ' &middot; ' + (coms.length - 1) : ''}</button>
+        <button class="btn sm ghost" data-decline="${key}" ${dec ? 'style="border-color:var(--red-line);color:var(--red)"' : ''}>${dec ? 'Rejected &#10005;' : 'Reject script'}</button>
+        <button class="btn sm ghost" data-comtoggle>${ico('M4 5h16v11H7l-3 3z','currentColor',13)} ${coms.length > 1 ? 'Comments &middot; ' + (coms.length - 1) : 'Add comment'}</button>
         <button class="btn sm primary" data-send="${b.id}" data-kind="scripts" ${okCount ? '' : 'disabled'}>Send to the studio</button>
         ${S.comOpen ? `<div class="compop" style="bottom:auto;top:52px">
-          <span class="hd">${S.comReq === key ? 'Sending back &middot; tell the studio why' : `Comments &middot; ${esc(cur.n)} ${esc(cur.t)}`}</span>
+          <span class="hd">${S.comReq === key ? 'Rejecting &middot; tell the studio why' : `Comments &middot; ${esc(cur.n)} ${esc(cur.t)}`}</span>
           ${coms.map(c => `<div class="cmt">
             <span class="av s" style="background:${c.bg}">${esc(c.ini)}</span>
             <span class="b"><span class="who"><b>${esc(c.who)}</b><time>${esc(c.role ? c.role + ' · ' : '')}${esc(c.time)}</time></span>
             <p>${esc(c.text)}</p></span>
           </div>`).join('')}
           <div class="cin">
-            <input type="text" data-cominput placeholder="${S.comReq === key ? 'Why is it going back?' : 'Suggest the edit&hellip;'}">
-            <button class="btn sm primary" data-compost="${key}">${S.comReq === key ? 'Send back' : 'Comment'}</button>
+            <input type="text" data-cominput placeholder="${S.comReq === key ? 'Why are you rejecting it?' : 'Suggest the edit&hellip;'}">
+            <button class="btn sm primary" data-compost="${key}">${S.comReq === key ? 'Reject' : 'Comment'}</button>
           </div>
         </div>` : ''}
       </div>`;
