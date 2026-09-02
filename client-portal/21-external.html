@@ -267,9 +267,32 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
 @media (max-width:960px){.boardwrap .board{grid-template-columns:180px minmax(0,1fr)}}
 @media (max-width:720px){.boardwrap .board{grid-template-columns:1fr}}
 
-.wrap.scriptwrap{max-width:1160px;width:100%;margin:0 auto;padding:18px 24px 44px;animation:in .35s ease}
-.scriptwrap .docgrid{grid-template-columns:230px minmax(0,1fr)}
-.scriptwrap .paper{max-width:820px}
+.wrap.scriptwrap{max-width:none;width:100%;flex:1 1 0;min-height:0;margin:0;display:flex;flex-direction:column;padding:12px 22px 0;animation:in .35s ease}
+.scriptwrap .docgrid{flex:1;min-height:0;align-items:stretch}
+.scriptwrap .drail{overflow-y:auto;min-height:0;padding-bottom:16px}
+.scriptwrap .docpane{overflow-y:auto;min-height:0;padding-bottom:26px}
+.scriptwrap .paper{max-width:880px}
+/* line-anchored comments, straight off the internal Docs surface */
+.cline{position:relative;border-radius:4px;padding-right:38px}
+.cline .cbtn{position:absolute;right:4px;top:1px;width:26px;height:26px;border-radius:50%;background:var(--surface);
+  border:1px solid var(--line-strong);display:none;align-items:center;justify-content:center;color:var(--ink-3)}
+.cline:hover .cbtn{display:flex}
+.cline .cbtn:hover{border-color:var(--accent);color:var(--accent)}
+.cline.has{background:#FEF7E0}
+.cline.has .cbtn{display:flex;border-color:#F9AB00;color:#B06000;background:#FEF7E0}
+.cline.has .cbtn em{font-style:normal;font-family:var(--mono);font-size:9px;font-weight:700}
+.lthread{border:1px solid var(--line);border-left:3px solid #F9AB00;border-radius:12px;background:var(--surface);
+  box-shadow:0 4px 16px rgba(60,64,67,.10);padding:13px 14px 12px;margin:9px 0 16px;max-width:560px}
+.lthread .clist{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.lthread .cin{display:flex;gap:8px}
+.lthread .cin input{flex:1;min-width:0;height:34px;border-radius:999px;border:1px solid var(--line);padding:0 13px;font-size:12.5px}
+.lthread .cin input:focus{outline:none;border-color:var(--accent)}
+.citem{display:flex;gap:9px}
+.citem .b{flex:1;min-width:0}
+.citem .hd{display:flex;align-items:baseline;gap:7px}
+.citem .hd b{font-size:12px;font-weight:600}
+.citem .hd time{font-size:10.5px;color:var(--ink-4)}
+.citem p{font-size:12.5px;color:var(--ink-2);line-height:1.5;margin-top:1px}
 
 /* the launcher inside the batch window: preview tiles + one big button */
 .launch{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:22px 24px;
@@ -400,7 +423,7 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
    Data. The STAGES array is the contract shared with 20-internal.html: same
    ids, same ext labels, same blurbs. Do not edit one file without the other.
    =========================================================================== */
-const CLIENT = { name:'Ello', contact:'Cole Brennan', first:'Cole' };
+const CLIENT = { name:'Ello', contact:'Cole Brennan', first:'Cole', ini:'CB', grad:'linear-gradient(135deg,#188038,#34A853)' };
 
 const STAGES = [
   { id:'received',   ext:'Request received',        hand:'them',
@@ -638,6 +661,11 @@ function comsOf(key){
   ];
   return S.coms[key];
 }
+/* Line-anchored comments on scripts, the way the internal Docs surface does
+   it: hover a line for the bubble, a commented line goes Docs-yellow. The
+   client's notes travel to the studio with the send. */
+function lineComsOf(k){ if (!S.lineCom) S.lineCom = {}; return S.lineCom[k] || []; }
+
 /* approved beats declined beats untouched */
 function verdictOf(key){
   if (S.approved[key]) return { label:'Approved', cls:'green' };
@@ -972,7 +1000,7 @@ function winScripts(b, ws){
    Approving happens on the slide's own footer.
    --------------------------------------------------------------------------- */
 function vConcepts(){
-  const b = batch(S.batch);
+  const b = batch(S.batch) || BATCHES.find(x => (x.concepts || []).length) || BATCHES[0];
   const ws = winState(b, 'concepts');
   const list = b.concepts || [];
   const i = Math.min(S.cIdx[b.id] || 0, list.length - 1);
@@ -1079,7 +1107,7 @@ function vConcepts(){
 /* The FULL scripts view - the internal's doc page: rail | the paper, with the
    control bar above it. The page scrolls like a doc should. */
 function vScripts(){
-  const b = batch(S.batch);
+  const b = batch(S.batch) || BATCHES.find(x => (x.scripts || []).length) || BATCHES[0];
   const ws = winState(b, 'scripts');
   const list = b.scripts || [];
   const i = Math.min(S.sIdx[b.id] || 0, list.length - 1);
@@ -1088,13 +1116,20 @@ function vScripts(){
   const ro = ws === 'done';
   chrome(`${b.name} · Scripts`, ro ? 'Approved' : `${okCount} of ${list.length} approved`, true);
 
-  const rail = `<div>
-    <span class="kicker" style="padding:0 12px 8px;display:block">Scripts &middot; ${list.length}</span>
-    ${list.map((x, ix) => `
-      <button class="dritem ${ix === i ? 'on' : ''}" data-sidx="${ix}">
+  const rail = `<div class="drail">
+    <span class="kicker" style="padding:0 12px 8px;display:block">Scripts &middot; ${esc(b.name)}</span>
+    ${list.map((x, ix) => {
+      const xok = ro || S.approved[b.id + 's' + x.n];
+      const xdec = S.declined[b.id + 's' + x.n];
+      const dotc = xok ? 'var(--green)' : xdec ? 'var(--red)' : 'var(--line-strong)';
+      return `<button class="dritem ${ix === i ? 'on' : ''}" data-sidx="${ix}">
+        <span class="dot" style="background:${dotc};flex:0 0 auto;width:6px;height:6px;border-radius:50%"></span>
         <span>${esc(x.n)}_${esc(x.t)}</span>
-        ${ro || S.approved[b.id + 's' + x.n] ? ico('M4 12l5 5L20 6','var(--green)',12) : ''}
-      </button>`).join('')}
+        ${xok ? ico('M4 12l5 5L20 6','var(--green)',12) : ''}
+      </button>`;
+    }).join('')}
+    <p style="font-size:11px;color:var(--ink-4);line-height:1.55;padding:12px 12px 0">Each script submits on its own.
+      The studio sees your decisions the moment you press Send.</p>
   </div>`;
 
   const dec = !!S.declined[key];
@@ -1122,15 +1157,33 @@ function vScripts(){
         </div>` : ''}
       </div>`;
 
+  /* every hook and VO line takes a comment, anchored to that line, the way
+     Docs does it - same surface the studio uses on its side */
+  const lineBlock = (k, inner) => {
+    const cs = lineComsOf(k), open = S.lineOpen === k;
+    return `<div class="cline${cs.length ? ' has' : ''}">
+      ${inner}
+      <button class="cbtn" data-lcbtn="${k}" title="Comment on this line">${cs.length ? `<em>${cs.length}</em>` : ico('M4 5h16v11H7l-3 3z','currentColor',12)}</button>
+    </div>
+    ${open ? `<div class="lthread">
+      <div class="clist">${cs.length ? cs.map(n => `
+        <div class="citem">
+          <span class="av s" style="background:${n.bg}">${esc(n.ini)}</span>
+          <span class="b"><span class="hd"><b>${esc(n.who)}</b><time>${esc(n.time)}</time></span><p>${esc(n.text)}</p></span>
+        </div>`).join('') : `<p style="font-size:12px;color:var(--ink-4);margin-bottom:2px">No comments on this line yet.</p>`}</div>
+      <div class="cin"><input type="text" data-lcinput placeholder="Comment on this line&hellip;"><button class="btn sm primary" data-lcpost="${k}">Comment</button></div>
+    </div>` : ''}`;
+  };
+
   const hooks = (cur.hooks || []).map((h, ix) => `
     <p class="hooklab" style="margin-top:${ix ? 18 : 0}px">Hook ${ix + 1}:</p>
-    <p class="hooklab">Opening Line:</p>
-    <div class="pline">${h.line}</div>
+    <p class="hooklab" style="font-weight:700">Opening Line:</p>
+    ${lineBlock(`${key}:h${ix}`, `<div class="pline">${h.line}</div>`)}
     <p class="dirline">[${h.dir}]</p>`).join('');
 
-  const body = (cur.script || []).map(x => `
+  const body = (cur.script || []).map((x, ix) => `
     <div style="margin-bottom:14px">
-      <div class="pline">${x.vo}</div>
+      ${lineBlock(`${key}:s${ix}`, `<div class="pline">${x.vo}</div>`)}
       ${x.dir ? `<p class="dirline">[${x.dir}]</p>` : ''}
     </div>`).join('');
 
@@ -1138,10 +1191,10 @@ function vScripts(){
     ${ctrl}
     <div class="docgrid">
       ${rail}
-      <div>
+      <div class="docpane">
         <div class="paper">
           <div style="font-size:24px;font-weight:700;letter-spacing:-.012em;margin-bottom:6px">${esc(CLIENT.name)} Scripts</div>
-          <p style="font-size:12px;color:var(--ink-3);margin-bottom:16px">${esc(b.name)} &middot; prepared by your strategist</p>
+          <p style="font-size:12px;color:var(--ink-3);margin-bottom:16px">${esc(b.name)} &middot; prepared by Creative Ad•Bundance</p>
           <p style="font-size:11.5px;line-height:1.65;color:var(--ink-3);font-style:italic;margin-bottom:20px">
             We assume that you have proper substantiation for any claims about your products and services, and that you will
             add any disclaimers required for full legal compliance, including, without limitation, compliance with the FTC&rsquo;s
@@ -1234,7 +1287,7 @@ function vBilling(){
   chrome('Billing', 'Retainer', true);
   return `<div class="wrap">
     <h1 class="page">Billing</h1>
-    <p class="lede">Your plan and invoice history. Questions go to your strategist.</p>
+    <p class="lede">Your plan and invoice history. Questions go to the studio.</p>
     <div style="height:20px"></div>
     <div class="card" style="padding:20px 22px;margin-bottom:22px;display:flex;gap:18px;align-items:center;flex-wrap:wrap">
       <span class="tint" style="background:var(--violet-tint)">${ico('M3 7h18v10H3zM3 11h18','var(--violet)',18)}</span>
@@ -1339,6 +1392,20 @@ document.addEventListener('click', e => {
   if (pk) { const k = pk.dataset.pick; S.picks[k] = !S.picks[k]; render(); return; }
   const ci = t.closest('[data-cidx]');
   if (ci && !ci.disabled) { S.cIdx[S.batch] = +ci.dataset.cidx; S.comOpen = false; render(); return; }
+  const lcb = t.closest('[data-lcbtn]');
+  if (lcb) { S.lineOpen = S.lineOpen === lcb.dataset.lcbtn ? null : lcb.dataset.lcbtn; render(); return; }
+  const lcp = t.closest('[data-lcpost]');
+  if (lcp) {
+    const inp = $('[data-lcinput]');
+    const v = inp ? inp.value.trim() : '';
+    if (v) {
+      if (!S.lineCom) S.lineCom = {};
+      const k = lcp.dataset.lcpost;
+      S.lineCom[k] = [...lineComsOf(k), { who: CLIENT.contact, ini: CLIENT.ini, bg: CLIENT.grad, time: 'Just now', text: v }];
+      render();
+    }
+    return;
+  }
   const sx = t.closest('[data-sidx]');
   if (sx) { S.sIdx[S.batch] = +sx.dataset.sidx; S.comOpen = false; render(); return; }
   const cm = t.closest('[data-comment]');
