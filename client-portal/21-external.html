@@ -294,19 +294,33 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
 .citem p{font-size:12.5px;color:var(--ink-2);line-height:1.5;margin-top:1px}
 
 /* the launcher inside the batch window: preview tiles + one big button */
-.launch{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:22px 24px;
-  display:flex;gap:22px;align-items:center;flex-wrap:wrap;box-shadow:0 1px 2px rgba(60,64,67,.08)}
-.launch .prev{display:flex;gap:8px;flex:none}
-.launch .mini{width:64px;aspect-ratio:9/14;border-radius:10px;display:flex;align-items:flex-end;padding:6px;
-  box-shadow:0 4px 12px -6px rgba(0,0,0,.35)}
-.launch .mini b{font-size:7px;line-height:1.25;color:#fff;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.5)}
-.launch .mini.doc{background:var(--surface);border:1px solid var(--line);align-items:flex-start;flex-direction:column;gap:3px;padding:8px 7px}
-.launch .mini.doc i{display:block;height:2.5px;border-radius:2px;background:var(--hair);width:100%}
-.launch .mini.doc i:nth-child(1){width:60%;background:var(--line-strong)}
-.launch .mini.doc i:nth-child(4){width:80%}
-.launch .mid{flex:1;min-width:220px}
-.launch .mid b{display:block;font-size:15px;font-weight:600;margin-bottom:3px}
-.launch .mid p{font-size:12.5px;color:var(--ink-3);max-width:52ch}
+.launch{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:30px 34px;
+  display:flex;gap:34px;align-items:center;flex-wrap:wrap;box-shadow:0 1px 2px rgba(60,64,67,.06),0 12px 34px -18px rgba(32,33,36,.18)}
+/* the deck: cards fanned like they were set down on a table, straightening a
+   touch when the hand hovers */
+.launch .prev{display:flex;flex:none;padding:6px 10px 6px 2px}
+.launch .mini{width:92px;aspect-ratio:9/14;border-radius:13px;display:flex;flex-direction:column;justify-content:flex-end;padding:9px;
+  box-shadow:0 2px 0 rgba(255,255,255,.35) inset,0 16px 30px -12px rgba(32,33,36,.45);border:1px solid rgba(255,255,255,.35);
+  transition:transform .25s ease}
+.launch .mini + .mini{margin-left:-58px}
+.launch .mini:nth-child(1){transform:rotate(-7deg) translateY(4px)}
+.launch .mini:nth-child(2){transform:rotate(-1deg) translateY(-2px);z-index:1}
+.launch .mini:nth-child(3){transform:rotate(6deg) translateY(3px);z-index:2}
+.launch:hover .mini:nth-child(1){transform:rotate(-9deg) translate(-6px,3px)}
+.launch:hover .mini:nth-child(3){transform:rotate(8deg) translate(6px,2px)}
+.launch .mini b{font-size:8.5px;line-height:1.3;color:#fff;font-weight:600;text-shadow:0 1px 5px rgba(0,0,0,.55)}
+.launch .mini .k{font-size:6.5px;letter-spacing:.12em;color:rgba(255,255,255,.75);font-weight:700;text-transform:uppercase;margin-bottom:2px}
+.launch .mini.doc{background:#fff;border:1px solid var(--line);justify-content:flex-start;gap:4px;padding:11px 10px}
+.launch .mini.doc i{display:block;height:3px;border-radius:2px;background:var(--hair);width:100%}
+.launch .mini.doc i:nth-child(1){width:55%;background:#A8C7FA}
+.launch .mini.doc i:nth-child(4){width:78%}
+.launch .mini.doc i:nth-child(6){width:64%}
+.launch .mid{flex:1;min-width:240px}
+.launch .mid .kick{display:block;font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-4);font-weight:700;margin-bottom:6px}
+.launch .mid b{display:block;font-size:19px;font-weight:600;letter-spacing:-.014em;margin-bottom:5px}
+.launch .mid p{font-size:13px;color:var(--ink-3);max-width:54ch;line-height:1.6}
+.launch .mid .meta{display:flex;gap:8px;align-items:center;margin-top:11px;flex-wrap:wrap}
+.launch .btn.primary{height:46px;padding:0 26px;font-size:13.5px;border-radius:999px;box-shadow:0 10px 22px -10px rgba(11,87,208,.55)}
 
 /* the roadmap: the horizontal tracker from Kyle's portal hero - a node per
    milestone, a green trail behind the current one. Shown only while a batch
@@ -733,7 +747,7 @@ function milestonesFor(b){
   const M = [
     { l:'Your brief',  ids:['received','review'],      icon:'M6 3h9l4 4v14H6zM14 3v5h5' },
     { l:'Concepts',    ids:['loglines','concepts'],     icon:'M4 5h16v11H4zM8 20h8M12 16v4' },
-    b.wants.includes('scripts') ? { l:'Scripts', ids:['scripting','scripts'], icon:'M9 13h6M9 17h4M6 3h9l4 4v14H6z' } : null,
+    { l:'Scripts', ids:['scripting','scripts'], icon:'M9 13h6M9 17h4M6 3h9l4 4v14H6z' },
     b.wants.includes('talent')  ? { l:'Talent',  ids:['casting'],             icon:'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20a6 6 0 0 1 12 0' } : null,
     { l:'In production', ids:['storyboard','building'], icon:'M4 6h12v12H4zM16 10l5-3v10l-5-3' },
     { l:'Your ads',    ids:['ads'],                     icon:'M4 4h16v16H4zM4 15l5-5 4 4 3-3 4 4' },
@@ -943,13 +957,18 @@ function winConcepts(b, ws){
       ${okCount ? `You have approved ${okCount} of ${list.length} so far.` : `Nothing is approved yet.`}</span>
     </div>`;
   return bar + `<div class="launch" style="flex-wrap:wrap">
-    <span class="prev">${list.slice(0, 3).map(c => `
-      <span class="mini" style="background:${c.g}"><b>${esc(c.t)}</b></span>`).join('')}</span>
+    <span class="prev">${list.slice(0, 3).map((c, ci) => `
+      <span class="mini" style="background:${c.g}"><span class="k">Concept ${String(ci + 1).padStart(3, '0')}</span><b>${esc(c.t)}</b></span>`).join('')}</span>
     <span class="mid">
-      <b>${list.length} concept${list.length === 1 ? '' : 's'} in this batch</b>
+      <span class="kick">${esc(b.name)} &middot; the concept deck</span>
+      <b>${list.length} concept${list.length === 1 ? '' : 's'}, each a full slide</b>
       <p>${ws === 'done'
         ? 'Open the deck any time - every slide is exactly as you approved it.'
-        : 'Each one is a full slide: log line, narrative, design components and the placement mockup.'}</p>
+        : 'Log line, narrative, design components and the placement mockup - approve or reject each one on its own slide.'}</p>
+      <span class="meta">
+        ${ws === 'done' ? `<span class="pill green">Approved</span>`
+          : `<span class="pill ${okCount ? 'green' : 'amber'}">${okCount} of ${list.length} approved</span>`}
+      </span>
     </span>
     <button class="btn primary" data-goview="concepts">
       View all concepts ${ico('M5 12h14M13 6l6 6-6 6','#fff',14)}</button>
@@ -977,13 +996,18 @@ function winScripts(b, ws){
       the scripts are approved. ${okCount ? `You have approved ${okCount} of ${list.length} so far.` : `Nothing is approved yet.`}</span>
     </div>`;
   return bar + `<div class="launch" style="flex-wrap:wrap">
-    <span class="prev">${list.slice(0, 2).map(() => `
-      <span class="mini doc"><i></i><i></i><i></i><i></i><i></i><i></i></span>`).join('')}</span>
+    <span class="prev">${list.slice(0, 3).map(() => `
+      <span class="mini doc"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>`).join('')}</span>
     <span class="mid">
-      <b>${list.length} script${list.length === 1 ? '' : 's'} in this batch</b>
+      <span class="kick">${esc(b.name)} &middot; the scripts</span>
+      <b>${list.length} script${list.length === 1 ? '' : 's'}, written as full docs</b>
       <p>${ws === 'done'
         ? 'The full docs stay here - hooks, lines and camera directions, as approved.'
-        : 'Read them as the full doc: hooks, opening lines and every camera direction.'}</p>
+        : 'Hooks, opening lines and every camera direction - comment on any line, approve or reject each one.'}</p>
+      <span class="meta">
+        ${ws === 'done' ? `<span class="pill green">Approved</span>`
+          : `<span class="pill ${okCount ? 'green' : 'amber'}">${okCount} of ${list.length} approved</span>`}
+      </span>
     </span>
     <button class="btn primary" data-goview="scripts">
       Open the scripts ${ico('M5 12h14M13 6l6 6-6 6','#fff',14)}</button>
