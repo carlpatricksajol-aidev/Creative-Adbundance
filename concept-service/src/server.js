@@ -16,6 +16,7 @@ const pipeline = require('./pipeline');
 const research = require('./research');
 const onboarding = require('./onboarding');
 const auth = require('./auth');
+const flow = require('./pipelineFlow');
 const fs = require('fs');
 const path = require('path');
 
@@ -483,6 +484,50 @@ const server = http.createServer(async (req, res) => {
                             n8n reports back here with the same bearer token.
        If FOOTAGE_WEBHOOK_URL is unset the job is recorded as 'queued' and a
        human runs the renamer as before - the page still shows the request. */
+    /* ---- the batch pipeline: one flow, gates between every stage -------- */
+    if (p === '/pipeline' && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      return json(res, 200, { pipelines: flow.list(url.searchParams.get('client')), steps: flow.STEPS });
+    }
+
+    if (p === '/pipeline/start' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      if (!b.client) return json(res, 400, { error: 'client is required' });
+      return json(res, 200, flow.start({ client: b.client, requestedBy: b.requestedBy }));
+    }
+
+    if (p === '/pipeline/advance' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      const rec = flow.get(b.id);
+      if (!rec) return json(res, 404, { error: 'no such pipeline' });
+      /* the same guards the /run route enforces, so the pipeline cannot
+         sneak past concurrency or a missing key */
+      const guardedRun = async (args) => {
+        if (!process.env.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY is not set on the server');
+        if (active >= MAX_CONCURRENT) throw new Error(`already running ${active} batches, pass the gate again when one finishes`);
+        await brand.resolve(args.client);
+        return startRun(args);
+      };
+      return json(res, 200, flow.advance(rec, { by: b.by, note: b.note, startRunFn: guardedRun }));
+    }
+
+    if (p === '/pipeline/back' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      const rec = flow.get(b.id);
+      if (!rec) return json(res, 404, { error: 'no such pipeline' });
+      if (!b.note) return json(res, 400, { error: 'a send-back carries a note' });
+      return json(res, 200, flow.sendBack(rec, { by: b.by, note: b.note }));
+    }
+
+    if (p.startsWith('/pipeline/') && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const rec = flow.get(decodeURIComponent(p.slice('/pipeline/'.length)));
+      return rec ? json(res, 200, rec) : json(res, 404, { error: 'no such pipeline' });
+    }
+
     if (p === '/footage' && req.method === 'GET') {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
       return json(res, 200, { jobs: store.listFootage(url.searchParams.get('client')) });
