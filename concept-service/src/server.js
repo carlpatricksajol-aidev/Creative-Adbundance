@@ -15,6 +15,99 @@ const brand = require('./dossier');
 const pipeline = require('./pipeline');
 const research = require('./research');
 const onboarding = require('./onboarding');
+const auth = require('./auth');
+const fs = require('fs');
+const path = require('path');
+
+/* ---- the OS itself, behind the session -----------------------------------
+   The page carries client data baked into its HTML, so a login screen inside
+   it protects nothing: the file itself must sit behind the session. GET /os
+   serves the full page only to a valid session cookie; everyone else gets the
+   sign-in page below, which holds no data at all. Deploying the page is now
+   an scp to data/os/20-internal.html - read per request, no restart. */
+const OS_FILE = path.join(process.env.DATA_DIR || '/data', 'os', '20-internal.html');
+
+function cookieOf(req, name) {
+  const raw = req.headers.cookie || '';
+  for (const part of raw.split(';')) {
+    const [k, ...v] = part.trim().split('=');
+    if (k === name) return decodeURIComponent(v.join('='));
+  }
+  return '';
+}
+
+const LOGIN_HTML = `<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Sign in \u00b7 Creative Ad\u2022Bundance</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+<style>
+:root{--ink:#1F1F1F;--ink3:#5F6368;--ink4:#80868B;--accent:#0B57D0;--red:#D93025;--line:#DADCE0}
+*{box-sizing:border-box;margin:0}body{font:400 14px/1.5 Poppins,system-ui,sans-serif;background:#F1F3F6;color:var(--ink);
+min-height:100vh;display:flex;align-items:center;justify-content:center}
+.card{width:min(420px,92vw);background:#fff;border:1px solid var(--line);border-radius:22px;padding:34px;box-shadow:0 2px 10px rgba(60,64,67,.08);display:flex;flex-direction:column;gap:14px}
+.mark{display:flex;align-items:center;gap:11px}.av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#0B57D0,#4285F4);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+h1{font-size:17px}p{font-size:13px;color:var(--ink3);line-height:1.6}
+input{width:100%;height:42px;border:1px solid var(--line);border-radius:11px;padding:0 13px;font:inherit}
+input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(11,87,208,.12)}
+#code{height:46px;font-size:22px;letter-spacing:8px;text-align:center;font-family:ui-monospace,monospace}
+button{height:42px;border:none;border-radius:999px;background:var(--accent);color:#fff;font:600 13.5px Poppins;cursor:pointer}
+button:disabled{opacity:.6}.ghost{background:none;color:var(--ink3);font-weight:500;height:34px}
+.err{font-size:12.5px;color:var(--red)}.hint{font-size:11px;color:var(--ink4);line-height:1.5;margin-top:4px}
+[hidden]{display:none!important}
+</style></head><body>
+<div class="card">
+  <div class="mark"><span class="av">CA</span><span><b style="display:block;font-size:15px">Creative Ad\u2022Bundance</b>
+  <i style="font-style:normal;font-size:11.5px;color:var(--ink4)">Abundance Ecosystem</i></span></div>
+  <div id="s1">
+    <h1>Sign in</h1>
+    <p style="margin:8px 0 12px">Use your work email. A six-digit code lands in your inbox; nobody gets in without it.</p>
+    <input id="email" type="email" placeholder="you@creativeadbundance.com" autocomplete="email">
+    <p class="err" id="e1" style="margin-top:8px" hidden></p>
+    <button id="send" style="width:100%;margin-top:12px">Email me a code</button>
+  </div>
+  <div id="s2" hidden>
+    <h1>Check your inbox</h1>
+    <p style="margin:8px 0 12px" id="msg">If that address is on the roster, a code is on its way.</p>
+    <input id="code" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code">
+    <p class="err" id="e2" style="margin-top:8px" hidden></p>
+    <button id="go" style="width:100%;margin-top:12px">Sign in</button>
+    <button class="ghost" id="back" style="width:100%;margin-top:6px">Different email</button>
+  </div>
+  <p class="hint">Codes work for ten minutes. Your session lasts thirty days on this device.</p>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let email='';
+$('send').onclick=async()=>{
+  email=$('email').value.trim();
+  if(!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)){$('e1').textContent='That does not look like an email address.';$('e1').hidden=false;return;}
+  $('send').disabled=true;$('e1').hidden=true;
+  try{
+    const r=await fetch('/auth/request',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Could not send the code.');
+    $('msg').textContent=d.message||$('msg').textContent;
+    $('s1').hidden=true;$('s2').hidden=false;$('code').focus();
+  }catch(err){$('e1').textContent=err.message;$('e1').hidden=false;}
+  $('send').disabled=false;
+};
+$('go').onclick=async()=>{
+  const code=$('code').value.trim();
+  if(code.length!==6){$('e2').textContent='The code is six digits.';$('e2').hidden=false;return;}
+  $('go').disabled=true;$('e2').hidden=true;
+  try{
+    const r=await fetch('/auth/verify',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,code})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'That code did not work.');
+    try{localStorage.setItem('ca_session',d.token);localStorage.setItem('ca_as',d.id);}catch(e){}
+    location.href='/os';
+  }catch(err){$('e2').textContent=err.message;$('e2').hidden=false;$('go').disabled=false;}
+};
+$('back').onclick=()=>{$('s2').hidden=true;$('s1').hidden=false;};
+$('email').addEventListener('keydown',e=>{if(e.key==='Enter')$('send').click();});
+$('code').addEventListener('keydown',e=>{if(e.key==='Enter')$('go').click();});
+</script></body></html>`;
 
 const PORT = Number(process.env.PORT || 8900);
 const TOKEN = process.env.RUN_TOKEN || '';
@@ -61,9 +154,13 @@ function cors(req, res) {
    only ever handed to someone already authenticated. This stops a stranger who
    finds the endpoint from spending our tokens; it is not a user identity. */
 function authed(req) {
-  if (!TOKEN) return false;
   const h = req.headers.authorization || '';
-  return h === `Bearer ${TOKEN}`;
+  if (TOKEN && h === `Bearer ${TOKEN}`) return true;
+  return Boolean(auth.sessionOf(h.replace(/^Bearer /, '')));
+}
+/* some things stay admin-only: the service token, never a person's session */
+function adminAuthed(req) {
+  return Boolean(TOKEN) && (req.headers.authorization || '') === `Bearer ${TOKEN}`;
 }
 
 /* The logo arrives as raw bytes with its own content-type, not JSON — a
@@ -257,6 +354,71 @@ const server = http.createServer(async (req, res) => {
        the brand row, because Storage lives in a different Supabase project
        from the Knowledge Layer. The filename is chosen here, never taken from
        the upload. */
+    /* ---- sign-in: email a six-digit code, trade it for a session --------
+       The answer to /auth/request never says whether an address is on the
+       roster - an outsider probing addresses learns nothing. */
+    if (p === '/auth/request' && req.method === 'POST') {
+      const b = await body(req);
+      const emp = auth.lookup(b.email);
+      let emailed = false;
+      if (emp) {
+        const code = auth.issueCode(emp.email);
+        try { emailed = await auth.sendCode(emp.email, code); }
+        catch (err) { console.error('[auth] mail failed for %s: %s', emp.email, err.message); }
+      }
+      return json(res, 200, {
+        ok: true, emailed,
+        message: emailed
+          ? 'If that address is on the roster, a code is on its way.'
+          : 'If that address is on the roster, a code was issued. Mail is not configured on this server yet - ask Carl for the code.',
+      });
+    }
+
+    if (p === '/auth/verify' && req.method === 'POST') {
+      const b = await body(req);
+      const emp = auth.lookup(b.email);
+      if (!emp || !auth.checkCode(emp.email, b.code)) {
+        return json(res, 401, { error: 'that code is wrong or expired' });
+      }
+      const token = auth.createSession(emp);
+      /* same-origin page loads authenticate by cookie; API calls by bearer */
+      res.setHeader('set-cookie',
+        'ca_sess=' + encodeURIComponent(token) + '; Path=/; Max-Age=' + (30 * 24 * 3600) + '; HttpOnly; Secure; SameSite=Lax');
+      return json(res, 200, { token, id: emp.id, name: emp.name, role: emp.role });
+    }
+
+    if (p === '/auth/me' && req.method === 'GET') {
+      const s = auth.sessionOf((req.headers.authorization || '').replace(/^Bearer /, ''));
+      return s ? json(res, 200, { id: s.id, name: s.name, role: s.role, email: s.email })
+               : json(res, 401, { error: 'not signed in' });
+    }
+
+    if (p === '/auth/signout' && req.method === 'POST') {
+      auth.dropSession((req.headers.authorization || '').replace(/^Bearer /, ''));
+      auth.dropSession(cookieOf(req, 'ca_sess'));
+      res.setHeader('set-cookie', 'ca_sess=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax');
+      return json(res, 200, { ok: true });
+    }
+
+    /* the OS itself: full page for a session, the sign-in page for everyone else */
+    if ((p === '/os' || p === '/os/index.html') && req.method === 'GET') {
+      const ok = auth.sessionOf(cookieOf(req, 'ca_sess'));
+      let html = LOGIN_HTML;
+      if (ok) {
+        try { html = fs.readFileSync(OS_FILE, 'utf8'); }
+        catch { html = '<h1 style="font-family:sans-serif">The OS page is not uploaded on this server yet.</h1>'; }
+      }
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex' });
+      return res.end(html);
+    }
+
+    /* while mail is unconfigured: the admin reads pending codes and hands
+       them out. Service token only - a person's session cannot read these. */
+    if (p === '/auth/codes' && req.method === 'GET') {
+      if (!adminAuthed(req)) return json(res, 401, { error: 'unauthorized' });
+      return json(res, 200, { mailConfigured: Boolean(process.env.RESEND_API_KEY), codes: auth.pendingCodes() });
+    }
+
     if (p === '/onboarding/logo' && req.method === 'POST') {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
       const bytes = await rawBody(req, onboarding.MAX_LOGO_BYTES + 1024);
@@ -438,7 +600,7 @@ const server = http.createServer(async (req, res) => {
     return json(res, 404, { error: 'not found' });
   } catch (err) {
     console.error(err);
-    return json(res, 500, { error: (err && err.message) || 'server error' });
+    return json(res, (err && err.status) || 500, { error: (err && err.message) || 'server error' });
   }
 });
 
