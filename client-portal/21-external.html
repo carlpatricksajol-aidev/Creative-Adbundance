@@ -285,8 +285,7 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
   box-shadow:0 4px 16px rgba(60,64,67,.10);padding:13px 14px 12px;margin:9px 0 16px;max-width:560px}
 .lthread .clist{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
 .lthread .cin{display:flex;gap:8px}
-.lthread .cin input{flex:1;min-width:0;height:34px;border-radius:999px;border:1px solid var(--line);padding:0 13px;font-size:12.5px}
-.lthread .cin input:focus{outline:none;border-color:var(--accent)}
+.lthread .cin textarea{background:var(--surface)}
 .citem{display:flex;gap:9px}
 .citem .b{flex:1;min-width:0}
 .citem .hd{display:flex;align-items:baseline;gap:7px}
@@ -366,9 +365,10 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
 .cmt .b .who b{font-size:11.5px;font-weight:600}
 .cmt .b .who time{font-size:10px;color:var(--ink-4)}
 .cmt .b p{font-size:12px;color:var(--ink-2);line-height:1.5}
-.cin{display:flex;gap:7px}
-.cin input{flex:1;min-width:0;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line);
-  font-size:12.5px;background:var(--bg)}
+.cin{display:flex;gap:7px;align-items:flex-end}
+.cin textarea{flex:1;min-width:0;min-height:34px;max-height:150px;padding:7px 13px;border-radius:17px;border:1px solid var(--line);
+  font:400 12.5px/1.5 'Poppins',sans-serif;background:var(--bg);resize:none;overflow-y:auto;color:var(--ink)}
+.cin textarea:focus{outline:none;border-color:var(--accent)}
 
 /* schedule / billing */
 .when{width:62px;flex:none;text-align:center;font-size:11.5px;font-weight:700;
@@ -1061,7 +1061,7 @@ function vConcepts(){
         <p>${esc(c.text)}</p></span>
       </div>`).join('')}
       <div class="cin">
-        <input type="text" data-cominput placeholder="${S.comReq === key ? 'Why are you rejecting it?' : 'Say what should change&hellip;'}">
+        <textarea data-cominput rows="1" placeholder="${S.comReq === key ? 'Why are you rejecting it?' : 'Say what should change&hellip;'}"></textarea>
         <button class="btn sm primary" data-compost="${key}">${S.comReq === key ? 'Reject' : 'Comment'}</button>
       </div>
     </div>` : ''}
@@ -1150,7 +1150,7 @@ function vScripts(){
             <p>${esc(c.text)}</p></span>
           </div>`).join('')}
           <div class="cin">
-            <input type="text" data-cominput placeholder="${S.comReq === key ? 'Why are you rejecting it?' : 'Suggest the edit&hellip;'}">
+            <textarea data-cominput rows="1" placeholder="${S.comReq === key ? 'Why are you rejecting it?' : 'Suggest the edit&hellip;'}"></textarea>
             <button class="btn sm primary" data-compost="${key}">${S.comReq === key ? 'Reject' : 'Comment'}</button>
           </div>
         </div>` : ''}
@@ -1170,7 +1170,7 @@ function vScripts(){
           <span class="av s" style="background:${n.bg}">${esc(n.ini)}</span>
           <span class="b"><span class="hd"><b>${esc(n.who)}</b><time>${esc(n.time)}</time></span><p>${esc(n.text)}</p></span>
         </div>`).join('') : `<p style="font-size:12px;color:var(--ink-4);margin-bottom:2px">No comments on this line yet.</p>`}</div>
-      <div class="cin"><input type="text" data-lcinput placeholder="Comment on this line&hellip;"><button class="btn sm primary" data-lcpost="${k}">Comment</button></div>
+      <div class="cin"><textarea data-lcinput rows="1" placeholder="Comment on this line&hellip;"></textarea><button class="btn sm primary" data-lcpost="${k}">Comment</button></div>
     </div>` : ''}`;
   };
 
@@ -1369,6 +1369,14 @@ function fitDoc(){
 }
 let extFitRz;
 window.addEventListener('resize', () => { clearTimeout(extFitRz); extFitRz = setTimeout(fitDoc, 120); });
+
+/* comment fields grow with the text instead of scrolling inside one line */
+document.addEventListener('input', e => {
+  const ta = e.target;
+  if (!ta.matches || !ta.matches('[data-cominput],[data-lcinput]')) return;
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight + 2, 150) + 'px';
+});
 
 document.addEventListener('click', e => {
   const t = e.target;
