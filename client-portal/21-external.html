@@ -1056,15 +1056,15 @@ function vConcepts(){
     <span style="flex:1"></span>
     <button class="btn sm ghost" data-comtoggle>${ico('M4 5h16v11H7l-3 3z','currentColor',13)} Comments${coms.length > 1 ? ' &middot; ' + (coms.length - 1) : ''}</button>
     ${S.comOpen ? `<div class="compop">
-      <span class="hd">Comments &middot; ${esc(k.n)} ${esc(k.t)}</span>
+      <span class="hd">${S.comReq === key ? 'Sending back &middot; tell the studio why' : `Comments &middot; ${esc(k.n)} ${esc(k.t)}`}</span>
       ${coms.map(c => `<div class="cmt">
         <span class="av s" style="background:${c.bg}">${esc(c.ini)}</span>
         <span class="b"><span class="who"><b>${esc(c.who)}</b><time>${esc(c.role ? c.role + ' · ' : '')}${esc(c.time)}</time></span>
         <p>${esc(c.text)}</p></span>
       </div>`).join('')}
       <div class="cin">
-        <input type="text" data-cominput placeholder="Say what should change&hellip;">
-        <button class="btn sm primary" data-compost="${key}">Comment</button>
+        <input type="text" data-cominput placeholder="${S.comReq === key ? 'Why is it going back?' : 'Say what should change&hellip;'}">
+        <button class="btn sm primary" data-compost="${key}">${S.comReq === key ? 'Send back' : 'Comment'}</button>
       </div>
     </div>` : ''}
   </div>`;
@@ -1144,15 +1144,15 @@ function vScripts(){
         <button class="btn sm ghost" data-comtoggle>${ico('M4 5h16v11H7l-3 3z','currentColor',13)} Comments${coms.length > 1 ? ' &middot; ' + (coms.length - 1) : ''}</button>
         <button class="btn sm primary" data-send="${b.id}" data-kind="scripts" ${okCount ? '' : 'disabled'}>Send to the studio</button>
         ${S.comOpen ? `<div class="compop" style="bottom:auto;top:52px">
-          <span class="hd">Comments &middot; ${esc(cur.n)} ${esc(cur.t)}</span>
+          <span class="hd">${S.comReq === key ? 'Sending back &middot; tell the studio why' : `Comments &middot; ${esc(cur.n)} ${esc(cur.t)}`}</span>
           ${coms.map(c => `<div class="cmt">
             <span class="av s" style="background:${c.bg}">${esc(c.ini)}</span>
             <span class="b"><span class="who"><b>${esc(c.who)}</b><time>${esc(c.role ? c.role + ' · ' : '')}${esc(c.time)}</time></span>
             <p>${esc(c.text)}</p></span>
           </div>`).join('')}
           <div class="cin">
-            <input type="text" data-cominput placeholder="Suggest the edit&hellip;">
-            <button class="btn sm primary" data-compost="${key}">Comment</button>
+            <input type="text" data-cominput placeholder="${S.comReq === key ? 'Why is it going back?' : 'Suggest the edit&hellip;'}">
+            <button class="btn sm primary" data-compost="${key}">${S.comReq === key ? 'Send back' : 'Comment'}</button>
           </div>
         </div>` : ''}
       </div>`;
@@ -1373,6 +1373,11 @@ window.addEventListener('resize', () => { clearTimeout(extFitRz); extFitRz = set
 
 document.addEventListener('click', e => {
   const t = e.target;
+  /* an open comment thread closes on any click outside it - no hunting for
+     the Comments button again */
+  if (S.comOpen && !t.closest('.compop') && !t.closest('[data-comtoggle]') && !t.closest('[data-decline]')) {
+    S.comOpen = false; S.comReq = null; render(); return;
+  }
   const go_ = t.closest('[data-go]');
   if (go_) { go(go_.dataset.go); return; }
   const open = t.closest('[data-open]');
@@ -1413,18 +1418,22 @@ document.addEventListener('click', e => {
   const dc = t.closest('[data-decline]');
   if (dc) {
     const k = dc.dataset.decline;
-    S.declined[k] = !S.declined[k];
-    if (S.declined[k]) { S.approved[k] = false; S.comOpen = true; }  /* say why */
+    if (S.declined[k]) { S.declined[k] = false; S.comReq = null; render(); return; }
+    /* a send-back carries a reason: the thread opens and the decline only
+       lands when the reason is posted */
+    S.comReq = k; S.comOpen = true;
     render(); return;
   }
-  if (t.closest('[data-comtoggle]')) { S.comOpen = !S.comOpen; render(); return; }
+  if (t.closest('[data-comtoggle]')) { S.comOpen = !S.comOpen; if (!S.comOpen) S.comReq = null; render(); return; }
   const cp = t.closest('[data-compost]');
   if (cp) {
     const inp = document.querySelector('[data-cominput]');
     const txt = (inp && inp.value || '').trim();
     if (txt) {
-      comsOf(cp.dataset.compost).push({ who:'You', ini:'CB',
+      const k = cp.dataset.compost;
+      comsOf(k).push({ who:'You', ini:'CB',
         bg:'linear-gradient(135deg,#0F7B6C,#2BB3A3)', time:'just now', text:txt });
+      if (S.comReq === k) { S.declined[k] = true; S.approved[k] = false; S.comReq = null; }
       render();
     }
     return;
