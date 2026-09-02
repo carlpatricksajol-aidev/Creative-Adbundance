@@ -44,8 +44,17 @@ const LOGIN_HTML = `<!doctype html><html><head><meta charset="utf-8">
 <style>
 :root{--ink:#1F1F1F;--ink3:#5F6368;--ink4:#80868B;--accent:#0B57D0;--red:#D93025;--line:#DADCE0}
 *{box-sizing:border-box;margin:0}body{font:400 14px/1.5 Poppins,system-ui,sans-serif;background:#F1F3F6;color:var(--ink);
-min-height:100vh;display:flex;align-items:center;justify-content:center}
-.card{width:min(420px,92vw);background:#fff;border:1px solid var(--line);border-radius:22px;padding:34px;box-shadow:0 2px 10px rgba(60,64,67,.08);display:flex;flex-direction:column;gap:14px}
+min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+/* the studio breathing behind the door: three soft brand orbs on slow drift */
+.orb{position:fixed;border-radius:50%;filter:blur(70px);opacity:.5;pointer-events:none;z-index:0}
+.o1{width:46vmax;height:46vmax;left:-14vmax;top:-16vmax;background:radial-gradient(circle at 35% 35%,#6B47FF,transparent 70%);animation:drift1 26s ease-in-out infinite alternate}
+.o2{width:38vmax;height:38vmax;right:-12vmax;bottom:-14vmax;background:radial-gradient(circle at 60% 55%,#0B57D0,transparent 70%);animation:drift2 32s ease-in-out infinite alternate}
+.o3{width:26vmax;height:26vmax;left:52%;top:64%;background:radial-gradient(circle at 50% 45%,#C77DFF,transparent 70%);opacity:.32;animation:drift3 38s ease-in-out infinite alternate}
+@keyframes drift1{from{transform:translate(0,0) scale(1)}to{transform:translate(9vmax,7vmax) scale(1.12)}}
+@keyframes drift2{from{transform:translate(0,0) scale(1.08)}to{transform:translate(-8vmax,-6vmax) scale(.94)}}
+@keyframes drift3{from{transform:translate(0,0)}to{transform:translate(-10vmax,-8vmax) scale(1.18)}}
+@media (prefers-reduced-motion:reduce){.orb{animation:none}}
+.card{position:relative;z-index:1;width:min(420px,92vw);background:rgba(255,255,255,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:22px;padding:34px;box-shadow:0 10px 34px rgba(60,64,67,.14);display:flex;flex-direction:column;gap:14px}
 .mark{display:flex;align-items:center;gap:11px}.av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#0B57D0,#4285F4);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
 h1{font-size:17px}p{font-size:13px;color:var(--ink3);line-height:1.6}
 input{width:100%;height:42px;border:1px solid var(--line);border-radius:11px;padding:0 13px;font:inherit}
@@ -56,6 +65,7 @@ button:disabled{opacity:.6}.ghost{background:none;color:var(--ink3);font-weight:
 .err{font-size:12.5px;color:var(--red)}.hint{font-size:11px;color:var(--ink4);line-height:1.5;margin-top:4px}
 [hidden]{display:none!important}
 </style></head><body>
+<div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
 <div class="card">
   <div class="mark"><span class="av">CA</span><span><b style="display:block;font-size:15px">Creative Ad\u2022Bundance</b>
   <i style="font-style:normal;font-size:11.5px;color:var(--ink4)">Abundance Ecosystem</i></span></div>
