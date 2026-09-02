@@ -127,6 +127,48 @@ function dropSession(token) {
 }
 
 /* ---- delivery ---- */
+/* The branded card, Carl-approved 2026-09-02. Tables and inline styles so it
+   holds in Gmail and Outlook; the wordmark is rebuilt in HTML because mail
+   clients block remote images and a blocked logo would gut the branding. */
+function codeEmailHtml(code) {
+  return `<!doctype html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#F4F2FB">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F2FB;padding:40px 16px">
+<tr><td align="center">
+  <table role="presentation" width="440" cellpadding="0" cellspacing="0"
+    style="max-width:440px;width:100%;background:#FFFFFF;border:1px solid #E3DEF7;border-radius:22px;overflow:hidden">
+    <tr><td style="background:#6B47FF;padding:30px 36px 28px">
+      <div style="font:600 24px/1.25 'Poppins',Arial,sans-serif;color:#FFFFFF;letter-spacing:.2px">
+        Creative<br>Ad<span style="font-size:15px;vertical-align:2px">&#9656;</span>Bundance</div>
+    </td></tr>
+    <tr><td style="padding:28px 36px 0;font-family:'Poppins',Arial,sans-serif">
+      <div style="font-size:17px;font-weight:600;color:#1F1F1F">Here is your sign-in code</div>
+      <div style="font-size:13.5px;line-height:1.6;color:#5F6368;padding-top:6px">
+        Go back to the sign-in screen and type this code in.</div>
+    </td></tr>
+    <tr><td style="padding:20px 36px 0">
+      <div style="background:#F3F0FF;border:1px solid #DCD2FF;border-radius:14px;padding:22px;
+        text-align:center;font:700 34px/1 'Courier New',ui-monospace,monospace;letter-spacing:12px;
+        color:#6B47FF;text-indent:12px">${code}</div>
+      <div style="font-family:'Poppins',Arial,sans-serif;font-size:12px;color:#80868B;text-align:center;padding-top:10px">
+        This code stops working in 10 minutes</div>
+    </td></tr>
+    <tr><td style="padding:24px 36px 30px;font-family:'Poppins',Arial,sans-serif">
+      <div style="border-top:1px solid #EFEDF7;padding-top:16px;font-size:12px;line-height:1.7;color:#80868B">
+        Keep this code to yourself &mdash; it is your key into the studio.
+        If you did not try to sign in, you can safely ignore this email:
+        nobody can get in without the code.</div>
+    </td></tr>
+  </table>
+  <table role="presentation" width="440" cellpadding="0" cellspacing="0" style="max-width:440px;width:100%">
+    <tr><td style="padding:18px 12px;text-align:center;font-family:'Poppins',Arial,sans-serif;
+      font-size:11px;color:#9AA0A6;line-height:1.6">
+      You received this because this address was entered on the
+      Creative Ad&bull;Bundance OS sign-in screen.</td></tr>
+  </table>
+</td></tr></table></body></html>`;
+}
+
 async function sendCode(email, code) {
   const key = process.env.RESEND_API_KEY || '';
   const from = process.env.MAIL_FROM || 'Creative Ad-Bundance OS <os@creativeadbundance.com>';
@@ -137,9 +179,11 @@ async function sendCode(email, code) {
     body: JSON.stringify({
       from, to: [norm(email)],
       subject: code + ' is your sign-in code',
-      text: 'Your Creative Ad-Bundance OS sign-in code is ' + code + '.\n\n' +
-            'It works for ten minutes and only on the device that asked for it. ' +
-            'If you did not request this, ignore it - nobody can get in without this code.',
+      html: codeEmailHtml(code),
+      text: 'Here is your Creative Ad-Bundance OS sign-in code: ' + code + '. ' +
+            'Go back to the sign-in screen and type it in. It stops working in 10 minutes. ' +
+            'Keep this code to yourself. If you did not try to sign in, ignore this email - ' +
+            'nobody can get in without the code.'
     }),
   });
   if (!res.ok) {
