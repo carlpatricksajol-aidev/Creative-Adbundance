@@ -195,25 +195,34 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
 .talc .tacts .btn{flex:1;justify-content:center;height:32px;font-size:12px}
 /* sample lightbox: the 9:16 reel, front and centre */
 .tvscrim{position:fixed;inset:0;background:rgba(17,17,20,.62);z-index:80}
-.tvbox{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:81;width:min(420px,92vw);max-height:90vh;overflow-y:auto;
-  background:var(--surface);border-radius:22px;box-shadow:0 30px 80px rgba(0,0,0,.45);animation:tvpop .2s ease}
+.tvbox{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:81;width:min(780px,94vw);max-height:90vh;overflow:hidden;
+  background:var(--surface);border-radius:22px;box-shadow:0 30px 80px rgba(0,0,0,.45);animation:tvpop .2s ease;
+  display:flex}
 @keyframes tvpop{from{opacity:0;transform:translate(-50%,-50%) scale(.96)}to{opacity:1;transform:translate(-50%,-50%)}}
-.tvhead{display:flex;align-items:center;gap:14px;padding:22px 24px 0}
-.tvhead .tini{width:58px;height:58px;border-radius:50%;color:#fff;font-size:19px;font-weight:700;
-  display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 8px 18px -8px rgba(32,33,36,.4)}
-.tvhead b{display:block;font-size:17px;font-weight:600}
-.tvhead i{display:block;font-style:normal;font-size:12.5px;color:var(--ink-3);margin-top:2px}
-.tvrows{padding:16px 24px 0;display:grid;grid-template-columns:88px 1fr;gap:7px 14px}
+/* left: the profile, big - the whole panel is their portrait */
+.tvport{flex:0 0 46%;min-height:480px;display:flex;align-items:center;justify-content:center;position:relative}
+.tvport .tini{width:132px;height:132px;border-radius:50%;color:#fff;font-size:44px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.22);
+  border:3px solid rgba(255,255,255,.75);box-shadow:0 18px 40px -14px rgba(0,0,0,.5);text-shadow:0 2px 8px rgba(0,0,0,.3)}
+.tvport .cap{position:absolute;left:16px;right:16px;bottom:14px;font-size:10.5px;color:rgba(255,255,255,.85);
+  line-height:1.4;text-shadow:0 1px 4px rgba(0,0,0,.4);text-align:center}
+/* right: info up top, the sample video below */
+.tvside{flex:1;min-width:0;display:flex;flex-direction:column;overflow-y:auto}
+.tvhead{padding:24px 26px 0}
+.tvhead b{display:block;font-size:19px;font-weight:600;letter-spacing:-.012em}
+.tvhead i{display:block;font-style:normal;font-size:13px;color:var(--ink-3);margin-top:3px}
+.tvrows{padding:16px 26px 0;display:grid;grid-template-columns:88px 1fr;gap:7px 14px}
 .tvrows .k{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-5);font-weight:700;padding-top:2px}
 .tvrows .v{font-size:12.5px;color:var(--ink-2);line-height:1.5}
-.tvvid{margin:16px 24px 0}
+.tvvid{margin:18px 26px 0}
 .tvvid .klab{display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-5);font-weight:700;margin-bottom:8px}
 .tvplayer{aspect-ratio:16/10;border-radius:14px;display:flex;align-items:center;justify-content:center;position:relative;
   border:1px solid rgba(255,255,255,.3);cursor:pointer}
 .tvplayer .pl{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.24);border:2px solid rgba(255,255,255,.7);
   display:flex;align-items:center;justify-content:center}
 .tvplayer .cap{position:absolute;left:12px;right:12px;bottom:10px;font-size:10.5px;color:rgba(255,255,255,.9);line-height:1.4;text-shadow:0 1px 4px rgba(0,0,0,.4)}
-.tvfoot{padding:16px 24px 22px}
+.tvfoot{padding:16px 26px 22px;margin-top:auto}
+@media (max-width:640px){.tvbox{flex-direction:column;overflow-y:auto}.tvport{flex:none;min-height:220px}}
 
 /* ads grid */
 .lib{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
@@ -1403,25 +1412,29 @@ function talLight(b, list){
   if (!t) return '';
   return `<div class="tvscrim" data-talclose></div>
     <div class="tvbox">
-      <div class="tvhead">
-        <span class="tini" style="background:${t.bg}">${esc(t.name.split(' ').map(x=>x[0]).join(''))}</span>
-        <span><b>${esc(t.name)}</b><i>${t.age ? esc(String(t.age)) + ' · ' : ''}${esc(t.sex || '')} · ${esc(t.loc || '')}</i></span>
+      <div class="tvport" style="background:${t.bg}">
+        <span class="tini">${esc(t.name.split(' ').map(x=>x[0]).join(''))}</span>
+        <span class="cap">The live portal shows ${esc(t.name.split(' ')[0])}'s photo here</span>
       </div>
-      <div class="tvrows">
-        <span class="k">Niche</span><span class="v">${esc(t.tag)}</span>
-        <span class="k">Following</span><span class="v">${esc(t.fol || '')}</span>
-        <span class="k">History</span><span class="v">${esc(t.hist || '')}</span>
-        ${t.note ? `<span class="k">Why them</span><span class="v">${esc(t.note)}</span>` : ''}
-      </div>
-      <div class="tvvid">
-        <span class="klab">Sample video</span>
-        <div class="tvplayer" style="background:${t.bg}">
-          <span class="pl">${ico('M8 5l11 7-11 7z','#fff',20)}</span>
-          <span class="cap">Sample reel &middot; ${esc(t.name)} &middot; the live portal streams the real reel here</span>
+      <div class="tvside">
+        <div class="tvhead">
+          <b>${esc(t.name)}</b>
+          <i>${t.age ? esc(String(t.age)) + ' · ' : ''}${esc(t.sex || '')} · ${esc(t.loc || '')}</i>
         </div>
-      </div>
-      <div class="tvfoot">
-        <button class="btn ghost sm" data-talclose style="width:100%;justify-content:center">Close</button>
+        <div class="tvrows">
+          <span class="k">Niche</span><span class="v">${esc(t.tag)}</span>
+          <span class="k">Following</span><span class="v">${esc(t.fol || '')}</span>
+        </div>
+        <div class="tvvid">
+          <span class="klab">Sample video</span>
+          <div class="tvplayer" style="background:${t.bg}">
+            <span class="pl">${ico('M8 5l11 7-11 7z','#fff',20)}</span>
+            <span class="cap">Sample reel &middot; ${esc(t.name)} &middot; the live portal streams the real reel here</span>
+          </div>
+        </div>
+        <div class="tvfoot">
+          <button class="btn ghost sm" data-talclose style="width:100%;justify-content:center">Close</button>
+        </div>
       </div>
     </div>`;
 }
