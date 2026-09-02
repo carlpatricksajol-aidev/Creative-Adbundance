@@ -254,28 +254,15 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
 .boardwrap .bmock{padding:14px 14px 10px;justify-content:center;min-height:0}
 .boardwrap .phone{max-width:358px;aspect-ratio:9/16.4;display:flex;flex-direction:column}
 .boardwrap .pbody{flex:1;min-height:0}
-.bscroll{flex:1;min-height:0;overflow-y:auto;padding-right:10px}
+/* the internal board's continuous fit: one tightness dial, every size linear
+   in --t, so the text always fills the pane with no dead band at the bottom */
+.bscroll{flex:1;min-height:0;overflow-y:auto;padding-right:10px;--t:0}
 .bscroll>*{max-width:940px}
-.bscroll .btitle{font-size:29px;margin:4px 0 11px}
-.bscroll .blab{margin:16px 0 6px;font-size:10.5px}
-.bscroll .bp{font-size:15px;line-height:1.66}
-.bscroll .bdash{margin-bottom:5px}
-.bscroll .bdash p{font-size:14.5px;line-height:1.58}
-.bscroll.mid .btitle{font-size:26px;margin:3px 0 9px}
-.bscroll.mid .blab{margin:12px 0 5px}
-.bscroll.mid .bp{font-size:14px;line-height:1.58}
-.bscroll.mid .bdash{margin-bottom:3px}
-.bscroll.mid .bdash p{font-size:13.5px;line-height:1.5}
-.bscroll.tight .btitle{font-size:23px;margin:2px 0 7px}
-.bscroll.tight .blab{margin:9px 0 4px;font-size:10px}
-.bscroll.tight .bp{font-size:13px;line-height:1.5}
-.bscroll.tight .bdash{margin-bottom:2px}
-.bscroll.tight .bdash p{font-size:12.5px;line-height:1.44}
-.bscroll.xtight .btitle{font-size:18.5px;margin:0 0 5px}
-.bscroll.xtight .blab{margin:6px 0 2px;font-size:9px}
-.bscroll.xtight .bp{font-size:11.5px;line-height:1.4}
-.bscroll.xtight .bdash{margin-bottom:0}
-.bscroll.xtight .bdash p{font-size:11px;line-height:1.32}
+.bscroll .btitle{font-size:calc(29px - 11px*var(--t));margin:calc(4px - 4px*var(--t)) 0 calc(11px - 6px*var(--t))}
+.bscroll .blab{margin:calc(16px - 10px*var(--t)) 0 calc(6px - 4px*var(--t));font-size:calc(10.5px - 1.5px*var(--t))}
+.bscroll .bp{font-size:calc(15px - 4px*var(--t));line-height:calc(1.66 - .3*var(--t))}
+.bscroll .bdash{margin-bottom:calc(5px - 5px*var(--t))}
+.bscroll .bdash p{font-size:calc(14.5px - 4px*var(--t));line-height:calc(1.58 - .28*var(--t))}
 @media (max-width:1120px){.boardwrap .board{grid-template-columns:196px minmax(0,1fr) 300px}}
 @media (max-width:960px){.boardwrap .board{grid-template-columns:180px minmax(0,1fr)}}
 @media (max-width:720px){.boardwrap .board{grid-template-columns:1fr}}
@@ -1306,17 +1293,24 @@ function render(){
   fitDoc();
 }
 
-/* The internal's slide auto-fit: try the full type scale, and only step down
-   when the rendered slide genuinely overflows its pane. */
-const FIT_STEPS = ['', 'mid', 'tight', 'xtight'];
+/* The internal's slide auto-fit, verbatim: binary search on the --t tightness
+   dial for the largest type with no overflow. A short concept relaxes a touch
+   below the design size; a window resize refits. */
 function fitDoc(){
   const el = $('.bscroll');
   if (!el) return;
-  for (let i = 0; i < FIT_STEPS.length; i++){
-    el.className = 'bscroll' + (FIT_STEPS[i] ? ' ' + FIT_STEPS[i] : '');
-    if (el.scrollHeight <= el.clientHeight + 1) return;
+  const fits = t => { el.style.setProperty('--t', t.toFixed(3)); return el.scrollHeight <= el.clientHeight + 1; };
+  let lo = -0.25, hi = 1;
+  if (fits(lo)) { return; }
+  if (!fits(hi)) { return; }
+  for (let i = 0; i < 7; i++){
+    const mid = (lo + hi) / 2;
+    if (fits(mid)) hi = mid; else lo = mid;
   }
+  fits(hi);
 }
+let extFitRz;
+window.addEventListener('resize', () => { clearTimeout(extFitRz); extFitRz = setTimeout(fitDoc, 120); });
 
 document.addEventListener('click', e => {
   const t = e.target;
