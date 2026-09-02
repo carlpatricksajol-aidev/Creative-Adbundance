@@ -174,15 +174,39 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
 .sendbar{display:flex;align-items:center;gap:12px;margin-top:16px}
 .sendbar span{font-size:12px;color:var(--ink-3)}
 
-/* talent shortlist */
-.tal{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
-.talc{border-radius:18px;background:var(--surface);border:1px solid var(--line);padding:16px;text-align:left;
-  display:flex;flex-direction:column;gap:9px;transition:border-color .14s}
-.talc:hover{border-color:#A8C7FA}
-.talc.pick{border-color:var(--green-line);background:var(--green-tint)}
-.talc .av.xl{width:52px;height:52px;font-size:17px}
-.talc b{font-size:13.5px;font-weight:600}
-.talc i{font-style:normal;font-size:11.5px;color:var(--ink-3)}
+/* talent: casting cards - portrait cover with a sample player, the details,
+   Select / Reject. A rejected creator leaves the shortlist. */
+.tal{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
+.talc{border-radius:20px;background:var(--surface);border:1px solid var(--line);padding:0;text-align:left;
+  display:flex;flex-direction:column;overflow:hidden;transition:border-color .16s,transform .16s,box-shadow .16s}
+.talc:hover{border-color:var(--line-strong);transform:translateY(-2px);box-shadow:0 14px 30px -16px rgba(32,33,36,.25)}
+.talc.pick{border-color:var(--green-line)}
+.tcover{position:relative;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.tcover .tini{width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.22);border:2px solid rgba(255,255,255,.65);
+  color:#fff;font-size:21px;font-weight:700;display:flex;align-items:center;justify-content:center;text-shadow:0 1px 4px rgba(0,0,0,.25)}
+.tcover .tplay{position:absolute;left:10px;bottom:10px;display:flex;align-items:center;gap:6px;height:28px;padding:0 11px;
+  border-radius:999px;background:rgba(17,17,20,.55);color:#fff;font-size:11px;font-weight:600;backdrop-filter:blur(4px)}
+.tcover:hover .tplay{background:rgba(17,17,20,.75)}
+.talc .tbody{padding:14px 16px 16px;display:flex;flex-direction:column;gap:4px}
+.talc .tbody b{font-size:14.5px;font-weight:600}
+.talc .tbody i{font-style:normal;font-size:11.5px;color:var(--ink-3);line-height:1.5}
+.talc .tbody .tnote{font-size:11.5px;color:var(--ink-4);line-height:1.5;margin-top:3px}
+.talc .tacts{display:flex;gap:7px;margin-top:11px}
+.talc .tacts .btn{flex:1;justify-content:center;height:32px;font-size:12px}
+/* sample lightbox: the 9:16 reel, front and centre */
+.tvscrim{position:fixed;inset:0;background:rgba(17,17,20,.62);z-index:80}
+.tvbox{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:81;display:flex;gap:22px;align-items:center;
+  animation:tvpop .2s ease}
+@keyframes tvpop{from{opacity:0;transform:translate(-50%,-50%) scale(.95)}to{opacity:1;transform:translate(-50%,-50%)}}
+.tvphone{width:min(320px,74vw);aspect-ratio:9/16;border-radius:26px;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 30px 80px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25);position:relative}
+.tvphone .pl{width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.24);border:2px solid rgba(255,255,255,.7);
+  display:flex;align-items:center;justify-content:center}
+.tvphone .cap{position:absolute;left:14px;right:14px;bottom:14px;font-size:11px;color:rgba(255,255,255,.85);line-height:1.5;text-shadow:0 1px 4px rgba(0,0,0,.4)}
+.tvinfo{width:min(280px,80vw);background:var(--surface);border-radius:18px;padding:20px 22px;display:flex;flex-direction:column;gap:6px}
+.tvinfo b{font-size:16px;font-weight:600}
+.tvinfo p{font-size:12.5px;color:var(--ink-3);line-height:1.55;margin:0}
+@media (max-width:760px){.tvbox{flex-direction:column}.tvinfo{display:none}}
 
 /* ads grid */
 .lib{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
@@ -657,10 +681,14 @@ const BATCHES = [
         ] }
     ],
     talent:[
-      { name:'Maya R.', tag:'Lifestyle · 210k', bg:'linear-gradient(135deg,#C4548A,#E85D9E)', picked:true },
-      { name:'Dana K.', tag:'Home & organisation · 88k', bg:'linear-gradient(135deg,#1967D2,#5B9DFF)', picked:true },
-      { name:'Jess T.', tag:'Comedy · 340k', bg:'linear-gradient(135deg,#B06000,#F0883E)' },
-      { name:'Priya S.', tag:'Reviews · 120k', bg:'linear-gradient(135deg,#188038,#34A853)' }
+      { name:'Maya R.', tag:'Lifestyle', fol:'210k followers', loc:'Austin, TX', hist:'Shot 2 past batches',
+        note:'Warm kitchen-table delivery; strong with deadpan hooks.', bg:'linear-gradient(135deg,#C4548A,#E85D9E)', picked:true },
+      { name:'Dana K.', tag:'Home & organisation', fol:'88k followers', loc:'Denver, CO', hist:'Shot 1 past batch',
+        note:'Clean b-roll instincts; her drawers-and-shelves footage cuts itself.', bg:'linear-gradient(135deg,#1967D2,#5B9DFF)', picked:true },
+      { name:'Jess T.', tag:'Comedy', fol:'340k followers', loc:'Chicago, IL', hist:'New to this brand',
+        note:'Fast, loud, great for pattern-interrupt openers.', bg:'linear-gradient(135deg,#B06000,#F0883E)' },
+      { name:'Priya S.', tag:'Reviews', fol:'120k followers', loc:'Seattle, WA', hist:'New to this brand',
+        note:'Measured, credible read; suits claim-careful scripts.', bg:'linear-gradient(135deg,#188038,#34A853)' }
     ],
     videos:[
       { t:'Duplicate Drawer v2', f:'9:16 video', g:g('#1967D2','#8AB4F8') },
@@ -708,6 +736,7 @@ const batch = id => BATCHES.find(b => b.id === id);
 /* One comment thread per artifact, and it starts empty: the client's own
    words are the thread. */
 function comsOf(key){
+  if (!S.talNo) S.talNo = {};
   if (!S.coms[key]) S.coms[key] = [];
   return S.coms[key];
 }
@@ -1305,35 +1334,78 @@ function vScripts(){
   </div>`;
 }
 
+function talCover(b, t){
+  return `<div class="tcover" style="background:${t.bg}" data-talview="${esc(b.id)}|${esc(t.name)}" title="Watch ${esc(t.name)}&rsquo;s sample">
+    <span class="tini">${esc(t.name.split(' ').map(x=>x[0]).join(''))}</span>
+    <span class="tplay">${ico('M8 5l11 7-11 7z','#fff',11)} Watch sample</span>
+  </div>`;
+}
+function talInfo(t){
+  return `<b>${esc(t.name)}</b>
+    <i>${esc(t.tag)} &middot; ${esc(t.fol || '')}</i>
+    <i>${esc(t.loc || '')} &middot; ${esc(t.hist || '')}</i>
+    ${t.note ? `<span class="tnote">${esc(t.note)}</span>` : ''}`;
+}
 function winTalent(b, ws){
+  if (!S.picks) S.picks = {};
+  if (!S.talNo) S.talNo = {};
   const list = b.talent || [];
   if (ws === 'done'){
     const chosen = list.filter(t => t.picked);
     return `
       <div class="donebar">${ico('M4 12l5 5L20 6','var(--green)',14)} You picked ${chosen.length} creator${chosen.length === 1 ? '' : 's'} for this batch.</div>
-      <div class="tal">${chosen.map(talCard).join('')}</div>`;
+      <div class="tal">${chosen.map(t => `<div class="talc pick">
+        ${talCover(b, t)}
+        <span class="tbody">${talInfo(t)}
+          <span class="tacts"><span class="pill green" style="flex:1;justify-content:center;height:32px">Shot this batch</span></span>
+        </span></div>`).join('')}</div>
+      ${talLight(b, list)}`;
   }
-  const picked = list.filter(t => S.picks[b.id + t.name]).length;
+  const alive = list.filter(t => !S.talNo[b.id + t.name]);
+  const gone = list.length - alive.length;
+  const picked = alive.filter(t => S.picks[b.id + t.name]).length;
   return `
-    <p class="lede" style="margin-bottom:14px">${esc(STAGES[stageIdx('casting')].blurb)}</p>
-    <div class="tal">${list.map(t => {
+    <p class="lede" style="margin-bottom:14px">${esc(STAGES[stageIdx('casting')].blurb)}
+      Watch each creator&rsquo;s sample, then select who shoots this batch &mdash; rejecting removes them from your shortlist.</p>
+    <div class="tal">${alive.map(t => {
       const k = b.id + t.name, on = !!S.picks[k];
-      return `<button class="talc ${on ? 'pick' : ''}" data-pick="${esc(k)}">
-        <span class="av xl" style="background:${t.bg}">${esc(t.name.split(' ').map(x=>x[0]).join(''))}</span>
-        <b>${esc(t.name)}</b><i>${esc(t.tag)}</i>
-        <span class="pill ${on ? 'green' : 'grey'}">${on ? 'Picked &#10003;' : 'Tap to pick'}</span>
-      </button>`;
+      return `<div class="talc ${on ? 'pick' : ''}">
+        ${talCover(b, t)}
+        <span class="tbody">${talInfo(t)}
+          <span class="tacts">
+            <button class="btn ${on ? 'ghost' : 'primary'} sm" data-pick="${esc(k)}">${on ? `${ico('M4 12l5 5L20 6','var(--green)',12)} Selected` : 'Select for this batch'}</button>
+            <button class="btn ghost sm" data-talno="${esc(k)}" style="flex:0 0 auto;padding:0 13px">Reject</button>
+          </span>
+        </span></div>`;
     }).join('')}</div>
+    ${gone ? `<p style="font-size:11.5px;color:var(--ink-4);margin-top:12px">${gone} creator${gone === 1 ? '' : 's'} rejected and removed.
+      <button data-talrestore="${esc(b.id)}" style="color:var(--accent);font-weight:600">Bring them back</button></p>` : ''}
     <div class="sendbar">
       <button class="btn primary" data-send="${b.id}" data-kind="talent" ${picked ? '' : 'disabled'}>
         Confirm ${picked || ''} creator${picked === 1 ? '' : 's'}</button>
-      <span>${picked} picked</span>
+      <span>${picked} selected</span>
+    </div>
+    ${talLight(b, list)}`;
+}
+/* the sample lightbox: a 9:16 reel mock with the creator beside it */
+function talLight(b, list){
+  if (!S.talView) return '';
+  const [bid, name] = S.talView.split('|');
+  if (bid !== b.id) return '';
+  const t = list.find(x => x.name === name);
+  if (!t) return '';
+  return `<div class="tvscrim" data-talclose></div>
+    <div class="tvbox">
+      <div class="tvphone" style="background:${t.bg}">
+        <span class="pl">${ico('M8 5l11 7-11 7z','#fff',24)}</span>
+        <span class="cap">Sample reel &middot; ${esc(t.name)} &middot; the live portal streams the real reel here</span>
+      </div>
+      <div class="tvinfo">
+        ${talInfo(t)}
+        <button class="btn ghost sm" data-talclose style="margin-top:12px;justify-content:center">Close</button>
+      </div>
     </div>`;
 }
-const talCard = t => `<div class="talc pick" style="cursor:default">
-  <span class="av xl" style="background:${t.bg}">${esc(t.name.split(' ').map(x=>x[0]).join(''))}</span>
-  <b>${esc(t.name)}</b><i>${esc(t.tag)}</i>
-  <span class="pill green">Shot this batch</span></div>`;
 
 function winAds(b, w, ws){
   const list = b[w] || [];
@@ -1517,6 +1589,22 @@ document.addEventListener('click', e => {
   if (sx) { S.sIdx[S.batch] = +sx.dataset.sidx; S.comOpen = false; render(); return; }
   const cm = t.closest('[data-comment]');
   if (cm) { const k = cm.dataset.comment; S.notesOpen[k] = !S.notesOpen[k]; render(); return; }
+  const tv = t.closest('[data-talview]');
+  if (tv) { S.talView = tv.dataset.talview; render(); return; }
+  if (t.closest('[data-talclose]')) { S.talView = null; render(); return; }
+  const tn = t.closest('[data-talno]');
+  if (tn) {
+    if (!S.talNo) S.talNo = {};
+    S.talNo[tn.dataset.talno] = true;
+    const k = tn.dataset.talno;
+    if (S.picks[k]) delete S.picks[k];   /* a rejected creator cannot stay selected */
+    render(); return;
+  }
+  const tr = t.closest('[data-talrestore]');
+  if (tr) {
+    if (S.talNo) for (const k of Object.keys(S.talNo)) if (k.startsWith(tr.dataset.talrestore)) delete S.talNo[k];
+    render(); return;
+  }
   const dc = t.closest('[data-decline]');
   if (dc) {
     const k = dc.dataset.decline;
