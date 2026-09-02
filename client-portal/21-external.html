@@ -217,7 +217,7 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
 .bdash>span{color:var(--ink-4);flex:none;line-height:1.6}
 .bdash p{flex:1;min-width:0;font-size:13px;color:var(--ink-2);line-height:1.6}
 .bfoot{flex:none;display:flex;gap:9px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--hair);padding-top:12px;margin-top:16px}
-.bmock{border-left:1px solid var(--hair);background:#F8FAFD;padding:22px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.bmock{background:#F8FAFD;padding:22px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
 .phone{width:100%;max-width:214px;border-radius:20px;overflow:hidden;background:#141416;box-shadow:0 10px 28px rgba(0,0,0,.18)}
 .phead{display:flex;align-items:center;gap:9px;padding:11px 13px}
 .phead b{display:block;font-size:12px;color:#fff;font-weight:600}
@@ -387,9 +387,9 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
     </button>
     <div class="t"><b id="cTitle">Home</b><i id="cSub"></i></div>
     <div style="flex:1;min-width:8px"></div>
-    <button class="msg" data-toast="Message the studio|Your strategist replies here within the working day.">
-      <span class="av s" style="background:linear-gradient(135deg,#D01884,#F06CBA)">KR</span>
-      <span>Message your strategist</span>
+    <button class="msg" data-toast="Message the studio|Creative Ad•Bundance replies here within the working day.">
+      <span class="av s" style="background:linear-gradient(135deg,#6B47FF,#A78BFA)">CA</span>
+      <span>Message the studio</span>
     </button>
   </div>
   <div class="body"><div id="view"></div></div>
@@ -633,7 +633,7 @@ const batch = id => BATCHES.find(b => b.id === id);
    thread never looks like a dead letterbox; the client's comments append. */
 function comsOf(key){
   if (!S.coms[key]) S.coms[key] = [
-    { who:'Krithika', role:'your strategist', ini:'KR', bg:'linear-gradient(135deg,#D01884,#F06CBA)',
+    { who:'Creative Ad•Bundance', role:'your studio', ini:'CA', bg:'linear-gradient(135deg,#6B47FF,#A78BFA)',
       time:'yesterday', text:'Anything you want reworked, say it here and it comes back revised within the day.' }
   ];
   return S.coms[key];
@@ -764,7 +764,7 @@ function renderNav(){
       ${x.id === 'batches' && n ? `<em>${n}</em>` : ''}
     </button>`).join('') + `</div>
     <div class="group"><span class="kicker">Your team</span>
-      <button class="nav" data-toast="Your team|Krithika is your strategist and Joi runs the schedule. Message them from the top bar.">
+      <button class="nav" data-toast="Your team|Creative Ad•Bundance runs your strategy and schedule. Message the studio from the top bar.">
         ${ico('M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20a6 6 0 0 1 12 0M17 5.5a3 3 0 0 1 0 6M15.5 14.5A6 6 0 0 1 22 20','currentColor',16)}
         <span>Who you work with</span>
       </button>
@@ -1288,6 +1288,12 @@ function render(){
   else if (v === 'billing') html = vBilling();
   else html = vHome();
   $('#view').innerHTML = html;
+  /* the entry fade belongs to arriving somewhere, not to every re-render -
+     replaying it on a comment or an approve reads as a flicker */
+  if (render.last === v) {
+    document.querySelectorAll('#view .wrap, #view .win').forEach(el => el.style.animation = 'none');
+  }
+  render.last = v;
   $('.body').scrollTop = 0;
   syncUrl();
   fitDoc();
