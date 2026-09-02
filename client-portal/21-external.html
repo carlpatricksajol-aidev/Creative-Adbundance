@@ -322,8 +322,10 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
 .launch .mid .meta{display:flex;gap:8px;align-items:center;margin-top:11px;flex-wrap:wrap}
 .launch .btn.primary{height:46px;padding:0 26px;font-size:13.5px;border-radius:999px;box-shadow:0 10px 22px -10px rgba(11,87,208,.55)}
 
-/* Your batches: one generous card per round, the deck fanned on the left,
-   a mini trail of the road underneath the words */
+/* Your batches: one generous card per round. The fan belongs to the concept
+   deck, so here the left is a PROGRESS RING - how far through the road, the
+   current stage's icon inside, coloured by whose move it is. The mini road
+   underneath names every stop. */
 .bcard{display:flex;gap:26px;align-items:center;width:100%;text-align:left;background:var(--surface);
   border:1px solid var(--line);border-radius:24px;padding:24px 28px;
   box-shadow:0 1px 2px rgba(60,64,67,.06),0 12px 34px -20px rgba(32,33,36,.2);
@@ -331,24 +333,30 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
 .bcard:hover{transform:translateY(-2px);border-color:var(--line-strong);
   box-shadow:0 1px 2px rgba(60,64,67,.06),0 18px 44px -18px rgba(32,33,36,.28)}
 .bcard.hot{border-color:var(--amber-line)}
-.bcard .fan{display:flex;flex:none;padding:4px 12px 4px 2px}
-.bcard .fan .mini{width:58px;aspect-ratio:9/14;border-radius:10px;border:1px solid rgba(255,255,255,.4);
-  box-shadow:0 10px 22px -10px rgba(32,33,36,.45)}
-.bcard .fan .mini + .mini{margin-left:-36px}
-.bcard .fan .mini:nth-child(1){transform:rotate(-8deg) translateY(3px)}
-.bcard .fan .mini:nth-child(2){transform:rotate(-1deg) translateY(-2px);z-index:1}
-.bcard .fan .mini:nth-child(3){transform:rotate(7deg) translateY(2px);z-index:2}
+.ring{position:relative;width:78px;height:78px;flex:none}
+.ring svg{transform:rotate(-90deg)}
+.ring .ic{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.ring .pct{position:absolute;left:0;right:0;bottom:-19px;text-align:center;font-size:10px;font-weight:700;
+  letter-spacing:.04em;color:var(--ink-4);text-transform:uppercase}
 .bcard .bmain{flex:1;min-width:0}
 .bcard .bmain b{display:block;font-size:17px;font-weight:600;letter-spacing:-.012em}
 .bcard .bmain i{display:block;font-style:normal;font-size:12.5px;color:var(--ink-3);margin-top:3px;line-height:1.5}
-.trail{display:flex;align-items:center;gap:0;margin-top:12px;max-width:420px}
-.trail i{flex:none;width:9px;height:9px;border-radius:50%;background:var(--surface);border:1.5px solid var(--line-strong)}
-.trail i.d{background:var(--green);border-color:var(--green)}
-.trail i.c{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
-.trail i.c.you{background:var(--amber);border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-tint)}
-.trail em{flex:1;height:2px;background:var(--line);min-width:14px}
-.trail em.d{background:var(--green-line)}
-.trail .tlab{font-style:normal;font-size:10.5px;color:var(--ink-4);margin-left:10px;white-space:nowrap;flex:none}
+/* the mini road: every stop named, the current one carrying its state */
+.trail2{display:flex;align-items:flex-start;margin-top:14px;max-width:560px}
+.trail2 .tn{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;align-items:center;gap:5px}
+.trail2 .tn .ln{position:absolute;top:4px;height:2px;background:var(--line);z-index:0}
+.trail2 .tn .ln.l{left:0;width:50%}
+.trail2 .tn .ln.r{left:50%;width:50%}
+.trail2 .tn .ln.d{background:var(--green-line)}
+.trail2 .tn i{position:relative;z-index:1;width:10px;height:10px;border-radius:50%;background:var(--surface);border:1.5px solid var(--line-strong)}
+.trail2 .tn i.d{background:var(--green);border-color:var(--green)}
+.trail2 .tn i.c{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
+.trail2 .tn i.c.you{background:var(--amber);border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-tint)}
+.trail2 .tn em{font-style:normal;font-size:10px;color:var(--ink-4);line-height:1.25;text-align:center;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.trail2 .tn em b{display:block;font-size:10px;font-weight:700}
+.trail2 .tn.cur em{color:var(--ink-2);font-weight:700}
+.trail2 .tn.cur.you em{color:var(--amber)}
+.trail2 .tn.done em{color:var(--ink-4)}
 .bcard .side{display:flex;align-items:center;gap:14px;flex:none}
 
 /* the roadmap: the horizontal tracker from Kyle's portal hero - a node per
@@ -867,22 +875,43 @@ function vHome(){
   </div>`;
 }
 
+const TRAIL_SHORT = { 'Your brief':'Brief', 'In production':'Production', 'Your ads':'Ads' };
 function rowBatch(b){
   const st = STAGES[b.si], m = metaOf(b);
   const ms = milestonesFor(b);
-  const curM = ms.find(x => x.state === 'cur');
-  const fan = (b.concepts || []).slice(0, 3).map(c =>
-    `<span class="mini" style="background:${c.g}"></span>`).join('')
-    || `<span class="mini" style="background:linear-gradient(135deg,#DADCE0,#F1F3F6)"></span>`;
-  const trail = ms.map((x, i) => `
-    ${i ? `<em class="${x.state === 'done' || x.state === 'cur' ? 'd' : ''}"></em>` : ''}
-    <i class="${x.state === 'done' ? 'd' : x.state === 'cur' ? 'c' + (x.you ? ' you' : '') : ''}" title="${esc(x.l)}"></i>`).join('');
+  const finished = st.id === 'delivered';
+  const curM = finished ? null : ms.find(x => x.state === 'cur');
+  const doneN = ms.filter(x => x.state === 'done').length + (curM ? 0.5 : 0);
+  const frac = curM ? doneN / ms.length : 1;
+  /* the ring: circumference 2*PI*34 = 213.6 */
+  const tone = m.cls === 'amber' ? 'var(--amber)' : m.cls === 'green' ? 'var(--green)' : 'var(--accent)';
+  const tint = m.cls === 'amber' ? 'var(--amber-tint)' : m.cls === 'green' ? 'var(--green-tint)' : 'var(--accent-tint)';
+  const ring = `<span class="ring">
+    <svg width="78" height="78" viewBox="0 0 78 78">
+      <circle cx="39" cy="39" r="34" fill="${tint}" stroke="var(--hair)" stroke-width="5"/>
+      <circle cx="39" cy="39" r="34" fill="none" stroke="${tone}" stroke-width="5" stroke-linecap="round"
+        stroke-dasharray="${(frac * 213.6).toFixed(1)} 213.6"/>
+    </svg>
+    <span class="ic">${ico(curM ? curM.icon : 'M4 12l5 5L20 6', tone, 26)}</span>
+    <span class="pct">${curM ? Math.round(frac * 100) + '%' : 'done'}</span>
+  </span>`;
+  const trail = ms.map((x, i) => {
+    const short = TRAIL_SHORT[x.l] || x.l;
+    const stateWord = finished ? 'done'
+      : x.state === 'cur' ? (x.you ? 'needs you' : 'with the studio') : x.state === 'done' ? 'done' : '';
+    return `<span class="tn ${x.state === 'cur' ? 'cur' + (x.you ? ' you' : '') : x.state}">
+      ${i ? `<span class="ln l ${ms[i - 1].state === 'done' || x.state === 'done' || x.state === 'cur' ? 'd' : ''}"></span>` : ''}
+      ${i < ms.length - 1 ? `<span class="ln r ${x.state === 'done' ? 'd' : ''}"></span>` : ''}
+      <i class="${finished || x.state === 'done' ? 'd' : x.state === 'cur' ? 'c' + (x.you ? ' you' : '') : ''}"></i>
+      <em><b>${esc(short)}</b>${stateWord ? esc(stateWord) : '&nbsp;'}</em>
+    </span>`;
+  }).join('');
   return `<button class="bcard${m.cls === 'amber' ? ' hot' : ''}" data-open="${b.id}">
-    <span class="fan">${fan}</span>
+    ${ring}
     <span class="bmain">
       <b>${esc(b.name)}</b>
       <i>${esc(b.note || st.ext)} &middot; started ${esc(b.started)}</i>
-      <span class="trail">${trail}<em style="background:none"></em><i class="tlab">${curM ? esc(curM.l) + (m.cls === 'amber' ? ' \u00b7 needs you' : '') : 'Delivered'}</i></span>
+      <span class="trail2">${trail}</span>
     </span>
     <span class="side">
       <span class="pill ${m.cls}">${m.cls === 'amber' ? `<span class="dot live" style="background:currentColor"></span>` : ''}${m.label}</span>
