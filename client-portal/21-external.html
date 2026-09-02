@@ -322,6 +322,35 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
 .launch .mid .meta{display:flex;gap:8px;align-items:center;margin-top:11px;flex-wrap:wrap}
 .launch .btn.primary{height:46px;padding:0 26px;font-size:13.5px;border-radius:999px;box-shadow:0 10px 22px -10px rgba(11,87,208,.55)}
 
+/* Your batches: one generous card per round, the deck fanned on the left,
+   a mini trail of the road underneath the words */
+.bcard{display:flex;gap:26px;align-items:center;width:100%;text-align:left;background:var(--surface);
+  border:1px solid var(--line);border-radius:24px;padding:24px 28px;
+  box-shadow:0 1px 2px rgba(60,64,67,.06),0 12px 34px -20px rgba(32,33,36,.2);
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s}
+.bcard:hover{transform:translateY(-2px);border-color:var(--line-strong);
+  box-shadow:0 1px 2px rgba(60,64,67,.06),0 18px 44px -18px rgba(32,33,36,.28)}
+.bcard.hot{border-color:var(--amber-line)}
+.bcard .fan{display:flex;flex:none;padding:4px 12px 4px 2px}
+.bcard .fan .mini{width:58px;aspect-ratio:9/14;border-radius:10px;border:1px solid rgba(255,255,255,.4);
+  box-shadow:0 10px 22px -10px rgba(32,33,36,.45)}
+.bcard .fan .mini + .mini{margin-left:-36px}
+.bcard .fan .mini:nth-child(1){transform:rotate(-8deg) translateY(3px)}
+.bcard .fan .mini:nth-child(2){transform:rotate(-1deg) translateY(-2px);z-index:1}
+.bcard .fan .mini:nth-child(3){transform:rotate(7deg) translateY(2px);z-index:2}
+.bcard .bmain{flex:1;min-width:0}
+.bcard .bmain b{display:block;font-size:17px;font-weight:600;letter-spacing:-.012em}
+.bcard .bmain i{display:block;font-style:normal;font-size:12.5px;color:var(--ink-3);margin-top:3px;line-height:1.5}
+.trail{display:flex;align-items:center;gap:0;margin-top:12px;max-width:420px}
+.trail i{flex:none;width:9px;height:9px;border-radius:50%;background:var(--surface);border:1.5px solid var(--line-strong)}
+.trail i.d{background:var(--green);border-color:var(--green)}
+.trail i.c{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
+.trail i.c.you{background:var(--amber);border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-tint)}
+.trail em{flex:1;height:2px;background:var(--line);min-width:14px}
+.trail em.d{background:var(--green-line)}
+.trail .tlab{font-style:normal;font-size:10.5px;color:var(--ink-4);margin-left:10px;white-space:nowrap;flex:none}
+.bcard .side{display:flex;align-items:center;gap:14px;flex:none}
+
 /* the roadmap: the horizontal tracker from Kyle's portal hero - a node per
    milestone, a green trail behind the current one. Shown only while a batch
    is in flight; a delivered batch needs no map. */
@@ -840,16 +869,25 @@ function vHome(){
 
 function rowBatch(b){
   const st = STAGES[b.si], m = metaOf(b);
-  return `<button class="row" data-open="${b.id}">
-    <span class="tint" style="background:${m.cls === 'amber' ? 'var(--amber-tint)' : m.cls === 'green' ? 'var(--green-tint)' : 'var(--accent-soft)'}">
-      ${ico('M4 7a1 1 0 0 1 1-1h4l2 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z',
-        m.cls === 'amber' ? 'var(--amber)' : m.cls === 'green' ? 'var(--green)' : 'var(--blue)', 17)}</span>
-    <span class="main">
+  const ms = milestonesFor(b);
+  const curM = ms.find(x => x.state === 'cur');
+  const fan = (b.concepts || []).slice(0, 3).map(c =>
+    `<span class="mini" style="background:${c.g}"></span>`).join('')
+    || `<span class="mini" style="background:linear-gradient(135deg,#DADCE0,#F1F3F6)"></span>`;
+  const trail = ms.map((x, i) => `
+    ${i ? `<em class="${x.state === 'done' || x.state === 'cur' ? 'd' : ''}"></em>` : ''}
+    <i class="${x.state === 'done' ? 'd' : x.state === 'cur' ? 'c' + (x.you ? ' you' : '') : ''}" title="${esc(x.l)}"></i>`).join('');
+  return `<button class="bcard${m.cls === 'amber' ? ' hot' : ''}" data-open="${b.id}">
+    <span class="fan">${fan}</span>
+    <span class="bmain">
       <b>${esc(b.name)}</b>
-      <i>${esc(st.ext)} &middot; started ${esc(b.started)}</i>
+      <i>${esc(b.note || st.ext)} &middot; started ${esc(b.started)}</i>
+      <span class="trail">${trail}<em style="background:none"></em><i class="tlab">${curM ? esc(curM.l) + (m.cls === 'amber' ? ' \u00b7 needs you' : '') : 'Delivered'}</i></span>
     </span>
-    <span class="pill ${m.cls}">${m.cls === 'amber' ? `<span class="dot live" style="background:currentColor"></span>` : ''}${m.label}</span>
-    ${ico('M9 18l6-6-6-6','var(--ink-3)',17)}
+    <span class="side">
+      <span class="pill ${m.cls}">${m.cls === 'amber' ? `<span class="dot live" style="background:currentColor"></span>` : ''}${m.label}</span>
+      ${ico('M9 18l6-6-6-6','var(--ink-3)',17)}
+    </span>
   </button>`;
 }
 
@@ -863,11 +901,13 @@ function rowSched(s){
 
 function vBatches(){
   chrome('Your batches', `${BATCHES.length} total`, true);
-  return `<div class="wrap">
+  const waiting = needsYou().length;
+  return `<div class="wrap" style="max-width:1080px">
     <h1 class="page">Your batches</h1>
-    <p class="lede">Every round of creative we are making for ${esc(CLIENT.name)}. Amber means the next move is yours.</p>
+    <p class="lede">Every round of creative we are making for ${esc(CLIENT.name)}.
+      ${waiting ? `<b style="color:var(--amber);font-weight:600">${waiting} ${waiting === 1 ? 'is' : 'are'} waiting on you.</b>` : 'Everything is moving.'}</p>
     <div style="height:20px"></div>
-    <div class="stack">${BATCHES.map(rowBatch).join('')}</div>
+    <div class="stack" style="gap:16px">${BATCHES.map(rowBatch).join('')}</div>
   </div>`;
 }
 
