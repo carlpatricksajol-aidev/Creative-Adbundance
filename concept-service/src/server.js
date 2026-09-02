@@ -54,6 +54,28 @@ min-height:100vh;display:flex;align-items:center;justify-content:center;overflow
 @keyframes drift2{from{transform:translate(0,0) scale(1.08)}to{transform:translate(-8vmax,-6vmax) scale(.94)}}
 @keyframes drift3{from{transform:translate(0,0)}to{transform:translate(-10vmax,-8vmax) scale(1.18)}}
 @media (prefers-reduced-motion:reduce){.orb{animation:none}}
+/* floating studio objects: each rises through the frame and slowly turns.
+   --dur speed, --dl phase (negative = already mid-flight), --x lane, --sz size,
+   --o presence, --rot how much it turns on the way up. Far ones are blurred a
+   touch for depth. */
+.fw{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.fl{position:absolute;left:var(--x);bottom:-140px;width:var(--sz);height:var(--sz);opacity:var(--o,.4);
+  animation:flrise var(--dur,30s) linear infinite;animation-delay:var(--dl,0s);will-change:transform}
+.fl.far{filter:blur(2.5px)}
+@keyframes flrise{
+  0%{transform:translateY(0) rotate(0deg)}
+  100%{transform:translateY(calc(-100vh - 300px)) rotate(var(--rot,200deg))}
+}
+.fl.glass{border-radius:22%;background:linear-gradient(135deg,rgba(255,255,255,.55),rgba(255,255,255,.12));
+  border:1px solid rgba(255,255,255,.75);box-shadow:0 14px 34px rgba(107,71,255,.16),inset 0 1px 0 rgba(255,255,255,.9)}
+.fl.glass.violet{background:linear-gradient(135deg,rgba(107,71,255,.32),rgba(199,125,255,.10));border-color:rgba(190,170,255,.7)}
+.fl.glass.blue{background:linear-gradient(135deg,rgba(11,87,208,.26),rgba(91,157,255,.08));border-color:rgba(160,195,255,.7)}
+.fl.ring{border-radius:50%;border:2.5px solid rgba(107,71,255,.35);background:none}
+.fl.ring.thin{border-width:1.5px;border-color:rgba(11,87,208,.30)}
+.fl.dot{border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.9),rgba(107,71,255,.45))}
+.fl svg{width:100%;height:100%;display:block}
+@media (prefers-reduced-motion:reduce){.fl{animation:none;bottom:auto;top:calc(100% * var(--rm,.5))}}
+
 .card{position:relative;z-index:1;width:min(420px,92vw);background:rgba(255,255,255,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:22px;padding:34px;box-shadow:0 10px 34px rgba(60,64,67,.14);display:flex;flex-direction:column;gap:14px}
 .mark{display:flex;align-items:center;gap:11px}.av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#0B57D0,#4285F4);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
 h1{font-size:17px}p{font-size:13px;color:var(--ink3);line-height:1.6}
@@ -66,6 +88,7 @@ button:disabled{opacity:.6}.ghost{background:none;color:var(--ink3);font-weight:
 [hidden]{display:none!important}
 </style></head><body>
 <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+<div class="fw"><span class="fl glass violet" style="--x:7%;--sz:74px;--dur:34s;--dl:-6s;--o:.5;--rot:160deg;--rm:.2"></span><span class="fl glass blue far" style="--x:18%;--sz:44px;--dur:46s;--dl:-30s;--o:.38;--rot:-220deg;--rm:.65"></span><span class="fl ring" style="--x:26%;--sz:88px;--dur:52s;--dl:-18s;--o:.4;--rot:90deg;--rm:.35"></span><span class="fl glass" style="--x:33%;--sz:30px;--dur:38s;--dl:-12s;--o:.45;--rot:300deg;--rm:.8"></span><span class="fl dot far" style="--x:40%;--sz:14px;--dur:28s;--dl:-4s;--o:.5;--rm:.15"></span><span class="fl" style="--x:47%;--sz:52px;--dur:44s;--dl:-24s;--o:.42;--rot:240deg;--rm:.55"><svg viewBox="0 0 24 24" fill="none" stroke="#6B47FF" stroke-width="1.4" stroke-linejoin="round" opacity=".8"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" fill="rgba(107,71,255,.18)"/></svg></span><span class="fl dot" style="--x:55%;--sz:10px;--dur:24s;--dl:-16s;--o:.55;--rm:.4"></span><span class="fl" style="--x:61%;--sz:40px;--dur:40s;--dl:-8s;--o:.45;--rot:-160deg;--rm:.25"><svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z" fill="rgba(11,87,208,.30)" stroke="rgba(11,87,208,.55)" stroke-width="1.2" stroke-linejoin="round"/></svg></span><span class="fl ring thin far" style="--x:68%;--sz:58px;--dur:56s;--dl:-40s;--o:.35;--rot:-90deg;--rm:.7"></span><span class="fl glass violet far" style="--x:76%;--sz:36px;--dur:48s;--dl:-20s;--o:.35;--rot:200deg;--rm:.1"></span><span class="fl" style="--x:84%;--sz:64px;--dur:36s;--dl:-14s;--o:.5;--rot:120deg;--rm:.5"><svg viewBox="0 0 24 24" fill="none" stroke="#C77DFF" stroke-width="1.3" stroke-linejoin="round" opacity=".85"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" fill="rgba(199,125,255,.16)"/></svg></span><span class="fl glass blue" style="--x:91%;--sz:50px;--dur:42s;--dl:-28s;--o:.45;--rot:-260deg;--rm:.85"></span><span class="fl dot far" style="--x:96%;--sz:18px;--dur:32s;--dl:-10s;--o:.4;--rm:.3"></span></div>
 <div class="card">
   <div class="mark"><span class="av">CA</span><span><b style="display:block;font-size:15px">Creative Ad\u2022Bundance</b>
   <i style="font-style:normal;font-size:11.5px;color:var(--ink4)">Abundance Ecosystem</i></span></div>
