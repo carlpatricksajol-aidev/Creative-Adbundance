@@ -291,7 +291,7 @@ const server = http.createServer(async (req, res) => {
       }
       const hook = process.env.FOOTAGE_WEBHOOK_URL || '';
       let job = store.saveFootage({
-        client: str(b.client, 120), batch: str(b.batch, 120),
+        client: str(b.client, 120), batch: str(b.batch, 120), creator: str(b.creator, 120),
         storyboardId: str(b.storyboardId, 120), dropbox: str(b.dropbox, 800),
         requestedBy: str(b.requestedBy, 120),
         status: hook ? 'running' : 'queued',
@@ -301,8 +301,12 @@ const server = http.createServer(async (req, res) => {
           const r = await fetch(hook, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
+            /* the bridge behind the webhook talks back to this service, so it
+               gets the same bearer token this request arrived with */
             body: JSON.stringify({ jobId: job.id, client: job.client, batch: job.batch,
-              storyboardId: job.storyboardId, dropbox: job.dropbox, requestedBy: job.requestedBy }),
+              creator: job.creator, storyboardId: job.storyboardId, dropbox: job.dropbox,
+              requestedBy: job.requestedBy, api: process.env.SELF_URL || 'https://concepts.srv1486031.hstgr.cloud',
+              token: TOKEN }),
           });
           if (!r.ok) throw new Error('the renamer webhook answered ' + r.status);
         } catch (err) {
