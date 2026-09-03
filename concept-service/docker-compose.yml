@@ -15,6 +15,9 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./data:/data
+      # the runner's job queue, so onboarding can ask for a Drive read. Same
+      # volume the adbundance-os hud and runner already share.
+      - adbundance-os_vault:/vault
       # the skill is read from the repo checkout, so `git pull` updates the craft
       - /root/Creative-Adbundance:/srv/repo:ro
     labels:
@@ -23,3 +26,8 @@ services:
       traefik.http.routers.concepts.entrypoints: "websecure"
       traefik.http.routers.concepts.tls.certresolver: "letsencrypt"
       traefik.http.services.concepts.loadbalancer.server.port: "8900"
+
+volumes:
+  # created by the adbundance-os stack; joined here, never owned here
+  adbundance-os_vault:
+    external: true

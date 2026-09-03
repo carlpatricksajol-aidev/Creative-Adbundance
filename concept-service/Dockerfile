@@ -1,6 +1,8 @@
 FROM node:20-alpine
 WORKDIR /app
 COPY package.json ./
+# first real dependency (pg): the Knowledge Layer is raw Postgres, no REST
+RUN npm install --omit=dev --no-audit --no-fund
 COPY src ./src
 ENV NODE_ENV=production
 EXPOSE 8900

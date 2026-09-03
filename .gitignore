@@ -74,3 +74,6 @@ Docs/AdBundance OS client view/
 concept-service/.env
 concept-service/data/
 concept-service/.testdata/
+
+# agent skills installed by npx skills (vendor content, not project code)
+.agents/

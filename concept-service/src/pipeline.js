@@ -12,7 +12,10 @@
 const fs = require('fs');
 const path = require('path');
 const { ask } = require('./llm');
-const brand = require('./brand');
+/* The snapshot now comes from the Knowledge Layer, not a flat brand_brain
+   row: the same knowledge in the shapes the skill actually asks for, plus
+   the client's own marketing plan, which brand_brain never carried. */
+const brand = require('./dossier');
 const research = require('./research');
 
 const SKILL_DIR = process.env.SKILL_DIR ||
@@ -240,19 +243,31 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     if (out.__usage) { spend.push(out.__usage); delete out.__usage; }
     return out;
   };
-  const { row, matched } = await brand.resolve(client);
   log('Intake and brand analysis', 'running');
-  const snapshot = brand.toMarkdown(row);
+  const { record, matched } = await brand.resolve(client);
+  const snapshot = brand.toMarkdown(record);
+  /* Say what the snapshot was actually built from. A run grounded in a brand
+     with no marketing plan and no compliance rules should say so in the step,
+     not read identical to one that had both. */
+  const built = [
+    record.snap ? 'identity' : null,
+    record.plan ? 'marketing plan' : null,
+    record.rules.length ? `${record.rules.length} compliance rule${record.rules.length === 1 ? '' : 's'}` : null,
+    record.products.length ? `${record.products.length} product${record.products.length === 1 ? '' : 's'}` : null,
+    record.colors.length ? 'colours' : null,
+  ].filter(Boolean);
   log('Intake and brand analysis', 'done',
-    `snapshot for ${row.brand_name} (matched on ${matched}), confidence ${row.confidence || 'unknown'}`);
+    `snapshot for ${record.brand.brand_name} (matched on ${matched}) from ${built.length ? built.join(', ') : 'a bare brand row'}`);
 
   log('Library check', 'done',
     prior
       ? `${priorMeta ? priorMeta.concepts : '?'} prior concepts across ${priorMeta ? priorMeta.batches : '?'} batches fed in, deduping at observation level`
       : 'no prior batch on file, nothing to dedup against');
+  const winners = record.snap && record.snap.winning_concepts;
+  const losers = record.snap && record.snap.losing_patterns;
   log('Performance filter', 'done',
-    (row.winning_concepts ? 'winner set from winning_concepts' : 'no winner set on file, defaulting') +
-    (row.losing_patterns ? ', losers excluded' : ''));
+    (winners ? 'winner set from what has worked' : 'no winner set on file, defaulting') +
+    (losers ? ', known losing patterns excluded' : ', nothing on file to exclude'));
 
   /* The Marketing report, per Workflow V1: read the Research Agent's library
      before anything creative happens. Absence degrades honestly, never
@@ -283,17 +298,22 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   log('Deck ready', 'done', `${concepts.length} concepts, 9:16 space reserved`);
 
   return {
-    client: row.brand_name,
+    client: record.brand.brand_name,
     concepts,
     observations: harvest.observations,
     harvest_notes: harvest.notes,
     composition_note: drafted.composition_note,
     change_log: reviews.map((r) => ({ num: r.num, verdict: r.verdict, note: r.change_log })),
     composition,
-    brand_confidence: row.confidence || null,
+    /* brand_brain carried a single self-reported confidence for the whole
+       row. The Knowledge Layer records it per colour and per font instead, so
+       what a batch can honestly report is how much of the snapshot was
+       actually filled. */
+    brand_fields: [record.snap, record.plan, record.rules.length, record.products.length].filter(Boolean).length,
+    used_marketing_plan: Boolean(record.plan),
     cost_usd: Math.round(spend.reduce((a, u) => a + (u && u.cost || 0), 0) * 100) / 100,
     used_research: Boolean(researchMd),
-    has_brand_visuals: Boolean((row.accent_color_hex || '').trim() && (row.brand_fonts || '').trim()),
+    has_brand_visuals: record.colors.length > 0 && record.fonts.length > 0,
   };
 }
 

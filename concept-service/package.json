@@ -4,6 +4,13 @@
   "private": true,
   "description": "Runs the ad-concept-generator pipeline behind an HTTP API so the OS button can trigger it.",
   "main": "src/server.js",
-  "scripts": { "start": "node src/server.js" },
-  "engines": { "node": ">=20" }
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
 }
