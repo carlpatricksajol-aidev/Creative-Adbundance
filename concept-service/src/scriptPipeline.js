@@ -437,6 +437,15 @@ async function run({ client, batch, concepts, batchLabel, log }) {
   const docs = reviewed.map((r) => {
     const s = swapped.get(String(r.script.num)) || r.script;
     const rec = scoreOf.get(String(s.num));
+    /* The house format opens the body with the interchangeable-hook marker
+       rather than a line, and the model returns that beat with an empty vo.
+       Empty renders as a blank row, so name it. */
+    if (s.script && s.script.length && !String(s.script[0].vo || '').trim()) {
+      s.script[0].vo = '*Insert Opening Line*';
+      if (!String(s.script[0].dir || '').trim()) {
+        s.script[0].dir = 'Whichever of the three hooks is being shot';
+      }
+    }
     return {
       id: `s${s.num}`,
       no: s.num,
