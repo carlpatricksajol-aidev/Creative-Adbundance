@@ -10,6 +10,10 @@ services:
       PORT: "8900"
       DATA_DIR: /data
       SKILL_DIR: /srv/repo/.claude/skills/ad-concept-generator
+      # the script writer and the shoot package, read the same way: from the
+      # repo checkout, so a `git pull` changes their craft with no deploy
+      SCRIPT_SKILL_DIR: /srv/repo/.claude/skills/ad-script-writer
+      STORY_SKILL_DIR: /srv/repo/.claude/skills/batch-shoot-package
       RESEARCH_AGENT_URL: http://host.docker.internal:3210
     extra_hosts:
       - "host.docker.internal:host-gateway"
