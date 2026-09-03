@@ -13,6 +13,8 @@ const http = require('http');
 const store = require('./store');
 const brand = require('./dossier');
 const pipeline = require('./pipeline');
+const scriptPipeline = require('./scriptPipeline');
+const storyboardPipeline = require('./storyboardPipeline');
 const research = require('./research');
 const onboarding = require('./onboarding');
 const auth = require('./auth');
@@ -266,6 +268,92 @@ async function startRun({ client, count, requestedBy }) {
   return id;
 }
 
+/* Scripts and storyboards run through the same run record and the same
+ * concurrency counter as concepts, so the page follows all three with one poll
+ * and three simultaneous generators cannot quietly exhaust the box.
+ */
+async function startScriptRun({ client, batchId, nums, requestedBy }) {
+  const src = store.getBatch(batchId);
+  if (!src) { const e = new Error('that concept batch is not on file'); e.status = 404; throw e; }
+  const want = Array.isArray(nums) && nums.length ? new Set(nums.map(String)) : null;
+  const concepts = (src.concepts || []).filter((c) => !want || want.has(String(c.num)));
+  if (!concepts.length) {
+    const e = new Error(want ? 'none of those concept numbers are in that batch' : 'that batch has no concepts');
+    e.status = 400; throw e;
+  }
+
+  const id = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  store.newRun({ id, client, count: concepts.length, requestedBy, kind: 'scripts', from: batchId });
+  const log = (name, state, detail) => store.step(id, name, state, detail);
+  const batchLabel = src.batch || batchNameOf(src);
+
+  (async () => {
+    active++;
+    try {
+      const result = await scriptPipeline.run({ client, batch: batchId, concepts, batchLabel, log });
+      const rec = store.saveScripts(result);
+      store.finishRun(id, { status: 'done', scriptsId: rec.id, cost_usd: result.cost_usd });
+      const flagged = (result.below_threshold || []).length;
+      store.notify({
+        to: requestedBy, client, open: 'scripts',
+        text: `${result.docs.length} script${result.docs.length === 1 ? '' : 's'} written for ${batchLabel}` +
+          (flagged ? `, ${flagged} below the DR threshold and flagged for a human` : ', all clear on the scorecard'),
+      });
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      log('Failed', 'error', msg.slice(0, 400));
+      store.finishRun(id, { status: 'error', error: msg.slice(0, 1000) });
+      store.notify({ to: requestedBy, client, open: 'scripts', text: `The script generator stopped: ${msg.slice(0, 160)}` });
+      console.error('[scripts %s] %s', id, msg);
+    } finally { active--; }
+  })();
+
+  return id;
+}
+
+async function startStoryRun({ client, scriptsId, requestedBy, savedBy }) {
+  const src = store.getScripts(scriptsId);
+  if (!src) { const e = new Error('that scripts batch is not on file'); e.status = 404; throw e; }
+  const scripts = src.docs || [];
+  if (!scripts.length) { const e = new Error('that scripts batch has no scripts'); e.status = 400; throw e; }
+
+  const id = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  store.newRun({ id, client, count: scripts.length, requestedBy, kind: 'storyboards', from: scriptsId });
+  const log = (name, state, detail) => store.step(id, name, state, detail);
+
+  (async () => {
+    active++;
+    try {
+      const result = await storyboardPipeline.run({
+        client, scripts, batchLabel: src.batch || 'this batch', savedBy, log,
+      });
+      const rec = store.saveStory(result);
+      store.finishRun(id, { status: 'done', storyId: rec.id, cost_usd: result.cost_usd });
+      store.notify({
+        to: requestedBy, client, open: 'storyboards',
+        text: `Storyboard ready for ${result.batch}: ${result.concepts.length} concept${result.concepts.length === 1 ? '' : 's'}, ${result.shots} shots to film` +
+          ((result.repairs || []).length ? `. ${result.repairs.length} cell${result.repairs.length === 1 ? '' : 's'} repaired so the footage renamer parses it` : ''),
+      });
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      log('Failed', 'error', msg.slice(0, 400));
+      store.finishRun(id, { status: 'error', error: msg.slice(0, 1000) });
+      store.notify({ to: requestedBy, client, open: 'storyboards', text: `The storyboard generator stopped: ${msg.slice(0, 160)}` });
+      console.error('[storyboard %s] %s', id, msg);
+    } finally { active--; }
+  })();
+
+  return id;
+}
+
+/* A batch's own label if it recorded one, else an ordinal from its position in
+   the client's history, which is how the OS names batches. */
+function batchNameOf(rec) {
+  const all = store.listBatches(rec.client);
+  const ix = all.findIndex((b) => b.id === rec.id);
+  return 'Batch ' + (ix >= 0 ? all.length - ix : all.length || 1);
+}
+
 const server = http.createServer(async (req, res) => {
   cors(req, res);
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
@@ -503,14 +591,21 @@ const server = http.createServer(async (req, res) => {
       const rec = flow.get(b.id);
       if (!rec) return json(res, 404, { error: 'no such pipeline' });
       /* the same guards the /run route enforces, so the pipeline cannot
-         sneak past concurrency or a missing key */
-      const guardedRun = async (args) => {
+         sneak past concurrency or a missing key, applied identically to all
+         three generators rather than only to concepts */
+      const guard = (start) => async (args) => {
         if (!process.env.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY is not set on the server');
-        if (active >= MAX_CONCURRENT) throw new Error(`already running ${active} batches, pass the gate again when one finishes`);
+        if (active >= MAX_CONCURRENT) throw new Error(`already running ${active} generators, pass the gate again when one finishes`);
         await brand.resolve(args.client);
-        return startRun(args);
+        return start(args);
       };
-      return json(res, 200, flow.advance(rec, { by: b.by, note: b.note, startRunFn: guardedRun }));
+      return json(res, 200, flow.advance(rec, {
+        by: b.by,
+        note: b.note,
+        startRunFn: guard(startRun),
+        startScriptFn: guard(startScriptRun),
+        startStoryFn: guard(startStoryRun),
+      }));
     }
 
     if (p === '/pipeline/back' && req.method === 'POST') {
@@ -608,6 +703,58 @@ const server = http.createServer(async (req, res) => {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
       const j = store.getFootage(decodeURIComponent(p.slice('/footage/'.length)));
       return j ? json(res, 200, j) : json(res, 404, { error: 'no such footage job' });
+    }
+
+    /* ---- scripts: generated from an approved concept batch ---- */
+    if (p === '/scripts' && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      return json(res, 200, { scripts: store.listScripts(url.searchParams.get('client') || '') });
+    }
+
+    if (p === '/script/run' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      if (!process.env.OPENROUTER_API_KEY) {
+        return json(res, 503, { error: 'OPENROUTER_API_KEY is not set on the server, so runs cannot start' });
+      }
+      if (active >= MAX_CONCURRENT) {
+        return json(res, 429, { error: `already running ${active} generators, try again when one finishes` });
+      }
+      const b = await body(req);
+      if (!b.client) return json(res, 400, { error: 'client is required' });
+      if (!b.batchId) return json(res, 400, { error: 'batchId is required, scripts are written from an approved concept batch' });
+      try { await brand.resolve(b.client); }
+      catch (e) { return json(res, 400, { error: e.message }); }
+      const id = await startScriptRun({
+        client: b.client, batchId: b.batchId, nums: b.nums, requestedBy: b.requestedBy,
+      });
+      return json(res, 202, { runId: id });
+    }
+
+    if (p.startsWith('/script/') && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const rec = store.getScripts(p.slice('/script/'.length));
+      if (!rec) return json(res, 404, { error: 'not found' });
+      return json(res, 200, rec);
+    }
+
+    /* ---- storyboards: generated from an approved scripts batch ---- */
+    if (p === '/storyboard/run' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      if (!process.env.OPENROUTER_API_KEY) {
+        return json(res, 503, { error: 'OPENROUTER_API_KEY is not set on the server, so runs cannot start' });
+      }
+      if (active >= MAX_CONCURRENT) {
+        return json(res, 429, { error: `already running ${active} generators, try again when one finishes` });
+      }
+      const b = await body(req);
+      if (!b.client) return json(res, 400, { error: 'client is required' });
+      if (!b.scriptsId) return json(res, 400, { error: 'scriptsId is required, a storyboard is built from approved scripts' });
+      try { await brand.resolve(b.client); }
+      catch (e) { return json(res, 400, { error: e.message }); }
+      const id = await startStoryRun({
+        client: b.client, scriptsId: b.scriptsId, requestedBy: b.requestedBy, savedBy: b.savedBy,
+      });
+      return json(res, 202, { runId: id });
     }
 
     if (p === '/storyboards' && req.method === 'GET') {

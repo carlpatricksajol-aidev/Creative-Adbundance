@@ -13,10 +13,11 @@ const DATA = process.env.DATA_DIR || '/data';
 const RUNS = path.join(DATA, 'runs');
 const BATCHES = path.join(DATA, 'batches');
 const STORIES = path.join(DATA, 'storyboards');
+const SCRIPTS = path.join(DATA, 'scripts');
 const FOOTAGE = path.join(DATA, 'footage');
 const NOTIFS = path.join(DATA, 'notifications.json');
 
-for (const d of [DATA, RUNS, BATCHES, STORIES, FOOTAGE]) fs.mkdirSync(d, { recursive: true });
+for (const d of [DATA, RUNS, BATCHES, STORIES, SCRIPTS, FOOTAGE]) fs.mkdirSync(d, { recursive: true });
 
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 /* Ids arrive from the page, so they never reach a path unfiltered. */
@@ -29,9 +30,14 @@ function writeJSON(p, obj) {
   fs.renameSync(tmp, p);           // atomic, so a poll never reads a half-written file
 }
 
-function newRun({ id, client, count, requestedBy }) {
+function newRun({ id, client, count, requestedBy, kind, from }) {
   const run = {
     id, client, count, requestedBy: requestedBy || 'unknown',
+    /* Concepts, scripts and storyboards all run through the same run record so
+       the page can follow any of them with one poll. Default keeps every run
+       written before this field existed reading as a concept run. */
+    kind: kind || 'concepts',
+    from: from || null,
     status: 'running',
     startedAt: new Date().toISOString(),
     finishedAt: null,
@@ -140,6 +146,43 @@ function listStories(client) {
 
 /* Newest first. Used both by the frontend's batch picker and by the library
    check, which needs the titles of everything already shipped for a client. */
+/* ---------- generated scripts ----------
+ * Produced by a run, unlike storyboards which can also be authored by hand, so
+ * a save is an insert keyed on the run that made it. Shape is the one the OS
+ * scripts surface already renders: docs[] with hooks[] and script[].
+ */
+function saveScripts(result) {
+  const id = `${slug(result.client)}-${Date.now()}`;
+  const rec = { id, savedAt: new Date().toISOString(), ...result };
+  writeJSON(path.join(SCRIPTS, `${id}.json`), rec);
+  return rec;
+}
+
+function getScripts(id) {
+  try { return JSON.parse(fs.readFileSync(path.join(SCRIPTS, `${safeId(id)}.json`), 'utf8')); }
+  catch { return null; }
+}
+
+function listScripts(client) {
+  const want = client ? slug(client) : null;
+  return fs.readdirSync(SCRIPTS)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => {
+      try {
+        const b = JSON.parse(fs.readFileSync(path.join(SCRIPTS, f), 'utf8'));
+        return {
+          id: b.id, client: b.client, batch: b.batch, savedAt: b.savedAt,
+          count: (b.docs || []).length,
+          titles: (b.docs || []).map((d) => d.title),
+          flagged: (b.docs || []).filter((d) => d.flag).length,
+        };
+      } catch { return null; }
+    })
+    .filter(Boolean)
+    .filter((b) => !want || slug(b.client) === want)
+    .sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
+}
+
 function listBatches(client) {
   const want = client ? slug(client) : null;
   return fs.readdirSync(BATCHES)
@@ -247,5 +290,6 @@ function markNotifsRead(to, ids) {
 }
 
 module.exports = { newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext,
+                   saveScripts, getScripts, listScripts,
                    saveStory, getStory, listStories, saveFootage, getFootage, listFootage,
                    notify, notifsFor, markNotifsRead, DATA };

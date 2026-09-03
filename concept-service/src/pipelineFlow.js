@@ -5,14 +5,16 @@
  * run on their own; gate stages wait for a person, and nothing below a gate
  * starts until it passes.
  *
- * The record is deliberately lazy about the concepts run: advancing the
- * concept stage fires the existing generator and stores the run id, and every
- * read of the pipeline syncs that stage against the run record. No timers, no
+ * The record is deliberately lazy about its generators: advancing onto a
+ * generated stage fires that generator and stores the run id, and every read
+ * of the pipeline syncs those stages against their run records. No timers, no
  * queues - a poll of the pipeline IS the observer.
  *
- * Script and storyboard generation wait on Ricardo's agents. Until those land,
- * the stages sit as 'waiting' and a person marks them done by hand - the flow
- * is real end to end today, just with two manual rungs.
+ * Concepts, scripts and storyboards are all generated now, each from the
+ * artifact the stage above it produced: concepts from the brand record,
+ * scripts from the approved concept batch, storyboards from the approved
+ * scripts. A stage whose input is missing parks as 'waiting' and says why,
+ * rather than firing a generator with nothing to work from.
  */
 
 const fs = require('fs');
@@ -27,14 +29,110 @@ const STEPS = [
   { id: 'plan_pass',    kind: 'gate',   label: 'Plan pass' },
   { id: 'concepts',     kind: 'auto',   label: 'Concepts' },
   { id: 'concept_pass', kind: 'gate',   label: 'Concept pass + client' },
-  { id: 'scripts',      kind: 'agent',  label: 'Scripts' },
+  { id: 'scripts',      kind: 'auto',   label: 'Scripts' },
   { id: 'script_pass',  kind: 'gate',   label: 'Script pass + client' },
-  { id: 'storyboards',  kind: 'agent',  label: 'Storyboards + shoot guides' },
+  { id: 'storyboards',  kind: 'auto',   label: 'Storyboards + shoot guides' },
   { id: 'production',   kind: 'manual', label: 'Talent, shoot, footage' },
   { id: 'edit',         kind: 'manual', label: 'Edit, ads, client pass' },
   { id: 'delivered',    kind: 'gate',   label: 'Delivered' },
 ];
 const idx = (id) => STEPS.findIndex((s) => s.id === id);
+const nextOf = (id) => STEPS[idx(id) + 1];
+
+/* The three generated rungs, in one table instead of a chain of special cases.
+ *
+ * The old code fired the generator from `if (next.id === 'concepts')`, keyed on
+ * a literal id rather than on kind, so a second auto rung silently landed in
+ * the else branch and parked forever. Everything a generated rung needs now
+ * lives on its entry here:
+ *   fn      which runner the server injected
+ *   artifact  the field the finished run writes, copied onto the step so the
+ *             rung links to what it produced instead of asserting it happened
+ *   input   where this rung's material comes from, and the honest sentence to
+ *           show when it is not there yet
+ */
+const GENERATED = {
+  concepts: {
+    fn: 'startRunFn',
+    artifact: 'batchId',
+    running: 'The generator is writing. Takes about twenty minutes; this page follows it.',
+    done: (rec, step) => 'Batch ' + (step.batchId || '') + ' is on the board.',
+    args: (rec, by) => ({ client: rec.client, count: 5, requestedBy: rec.requestedBy || by }),
+  },
+  scripts: {
+    fn: 'startScriptFn',
+    artifact: 'scriptsId',
+    running: 'The script writer is drafting, then the DR scorecard reviews every script. This page follows it.',
+    done: (rec, step) => 'Scripts are written and reviewed. Open the Scripts area to read them.',
+    input: (rec) => {
+      const b = rec.steps.concepts && rec.steps.concepts.batchId;
+      return b
+        ? { ok: true, args: { client: rec.client, batchId: b, requestedBy: rec.requestedBy } }
+        : { ok: false, why: 'No approved concept batch is linked to this pipeline yet, so there is nothing to script. Run the concept stage, or write the scripts by hand in the Scripts area and mark this rung done.' };
+    },
+  },
+  storyboards: {
+    fn: 'startStoryFn',
+    artifact: 'storyId',
+    running: 'Building the scene tables from the approved scripts, then checking every Footage Name against the renamer contract.',
+    done: (rec, step) => 'The storyboard is built. Open Storyboards to review it before the shoot.',
+    input: (rec) => {
+      const s = rec.steps.scripts && rec.steps.scripts.scriptsId;
+      return s
+        ? { ok: true, args: { client: rec.client, scriptsId: s, requestedBy: rec.requestedBy, savedBy: rec.requestedBy } }
+        : { ok: false, why: 'No generated scripts are linked to this pipeline yet, so there is nothing to board. Run the script stage, or build the batch page by hand in Storyboards and mark this rung done.' };
+    },
+  },
+};
+
+/* What a manual rung tells the person who lands on it. Shared, because a rung
+   can be entered two ways - by a person passing the gate above it, or by the
+   observer promoting a finished generator - and both have to say the same
+   thing. Keeping one copy is what stopped 'production' arriving blank. */
+const MANUAL_DETAIL = {
+  production: 'Pick talent, shoot, and run the Footage renamer on the upload. Mark done when the clean folder is in.',
+  edit: 'Assemble the edit, pass the ads through the gate to the client. Mark done when they accept.',
+};
+
+/* Move the record onto `id` and set that rung up for whoever arrives on it.
+   `fns` is empty when the observer does the moving, and no generated rung ever
+   directly follows another, so that case only ever enters a gate or a manual
+   rung. If that ever stops being true, the rung parks with an honest sentence
+   rather than sitting silently pending. */
+function enter(rec, id, fns, by) {
+  rec.cur = id;
+  const def = STEPS[idx(id)];
+  const ns = rec.steps[id];
+  if (!def || !ns) return rec;
+
+  const gen = GENERATED[id];
+  if (gen) {
+    const runner = fns && fns[gen.fn];
+    const input = gen.input ? gen.input(rec) : { ok: true, args: gen.args(rec, by) };
+    if (!runner) {
+      ns.status = 'waiting';
+      ns.detail = fns
+        ? 'The ' + def.label.toLowerCase() + ' generator is not wired up on this server. Do this rung by hand and mark it done.'
+        : 'Ready to generate. Advance this rung to start the ' + def.label.toLowerCase() + ' generator.';
+    } else if (!input.ok) {
+      ns.status = 'waiting';
+      ns.detail = input.why;
+    } else {
+      ns.status = 'running';
+      ns.detail = gen.running;
+      ns.at = new Date().toISOString();
+      Promise.resolve(runner(input.args))
+        .then((runId) => { ns.runId = runId; save(rec); })
+        .catch((e) => { ns.status = 'error'; ns.detail = e.message; save(rec); });
+    }
+  } else if (def.kind === 'manual') {
+    ns.status = 'waiting';
+    ns.detail = MANUAL_DETAIL[id] || 'Do this rung by hand and mark it done.';
+  } else {
+    ns.status = 'pending';
+  }
+  return rec;
+}
 
 const safeId = (s) => String(s || '').replace(/[^A-Za-z0-9._-]/g, '').slice(0, 120);
 const file = (id) => path.join(DIR, `${safeId(id)}.json`);
@@ -83,35 +181,55 @@ function start({ client, requestedBy }) {
   return save(rec);
 }
 
-/* the lazy observer: a running concepts stage follows its run record */
+/* The lazy observer. Every generated rung that is running follows its own run
+   record, so one poll of the pipeline advances whichever of the three is in
+   flight. Only the rung the pipeline is actually sitting on can move it on,
+   which keeps a late-finishing run from yanking `cur` backwards. */
 function sync(rec) {
-  const c = rec.steps && rec.steps.concepts;
-  if (c && c.status === 'running' && c.runId) {
-    const run = store.getRun(c.runId);
-    if (run && run.status === 'done') {
-      c.status = 'done';
-      c.batchId = run.batchId;
-      c.detail = 'Batch ' + (run.batchId || '') + ' is on the board.';
-      c.at = new Date().toISOString();
-      rec.cur = 'concept_pass';
-      save(rec);
-      store.notify({ to: rec.requestedBy, client: rec.client, open: 'pipeline',
-        text: 'The concept generator finished for ' + rec.client + ' - the batch is on the board and the concept pass is yours.' });
-    } else if (run && run.status === 'error') {
-      c.status = 'error';
-      c.detail = run.error || 'the run failed';
-      save(rec);
-      store.notify({ to: rec.requestedBy, client: rec.client, open: 'pipeline',
-        text: 'The concept run for ' + rec.client + ' failed: ' + String(run.error || '').slice(0, 140) });
+  let dirty = false;
+  for (const [id, def] of Object.entries(GENERATED)) {
+    const step = rec.steps && rec.steps[id];
+    if (!step || step.status !== 'running' || !step.runId) continue;
+    const run = store.getRun(step.runId);
+    if (!run) continue;
+
+    if (run.status === 'done') {
+      step.status = 'done';
+      if (run[def.artifact]) step[def.artifact] = run[def.artifact];
+      step.detail = def.done(rec, step);
+      step.at = new Date().toISOString();
+      dirty = true;
+      if (rec.cur === id) {
+        const nx = nextOf(id);
+        if (nx) enter(rec, nx.id, null, rec.requestedBy);
+        else rec.cur = 'done';
+      }
+      store.notify({
+        to: rec.requestedBy, client: rec.client, open: 'pipeline',
+        text: id === 'concepts'
+          ? 'The concept generator finished for ' + rec.client + ' - the batch is on the board and the concept pass is yours.'
+          : id === 'scripts'
+            ? 'The scripts are written for ' + rec.client + ' - the script pass is yours.'
+            : 'The storyboard is built for ' + rec.client + ' - review it before the shoot.',
+      });
+    } else if (run.status === 'error') {
+      step.status = 'error';
+      step.detail = run.error || 'the run failed';
+      dirty = true;
+      store.notify({
+        to: rec.requestedBy, client: rec.client, open: 'pipeline',
+        text: 'The ' + id + ' run for ' + rec.client + ' failed: ' + String(run.error || '').slice(0, 140),
+      });
     }
   }
+  if (dirty) save(rec);
   return rec;
 }
 
-/* Passing the current gate (or hand-finishing a manual/agent rung) moves the
-   pipeline on. The next auto stage fires immediately; agent stages without
-   their agent yet park as 'waiting' so the batch never silently stalls. */
-function advance(rec, { by, note, startRunFn }) {
+/* Passing the current gate (or hand-finishing a manual rung) moves the
+   pipeline on. A generated stage fires its generator immediately, unless the
+   artifact it needs is missing, in which case it parks and says so. */
+function advance(rec, { by, note, ...fns }) {
   const cur = rec.steps[rec.cur];
   const def = STEPS[idx(rec.cur)];
   if (!cur || !def) throw Object.assign(new Error('this pipeline has nowhere to go'), { status: 400 });
@@ -123,29 +241,7 @@ function advance(rec, { by, note, startRunFn }) {
 
   const next = STEPS[idx(rec.cur) + 1];
   if (!next) { rec.cur = 'done'; return save(rec); }
-  rec.cur = next.id;
-  const ns = rec.steps[next.id];
-
-  if (next.id === 'concepts') {
-    ns.status = 'running';
-    ns.detail = 'The generator is writing. Takes about twenty minutes; this page follows it.';
-    ns.at = new Date().toISOString();
-    Promise.resolve(startRunFn({ client: rec.client, count: 5, requestedBy: rec.requestedBy || by }))
-      .then((runId) => { ns.runId = runId; save(rec); })
-      .catch((e) => { ns.status = 'error'; ns.detail = e.message; save(rec); });
-  } else if (next.kind === 'agent') {
-    ns.status = 'waiting';
-    ns.detail = next.id === 'scripts'
-      ? "Waiting on Ricardo's script agent (with the compliance checker). Write the scripts in the Scripts area, then mark this rung done."
-      : "Waiting on Ricardo's storyboard agent. Build the batch page in Storyboards, then mark this rung done.";
-  } else if (next.kind === 'manual') {
-    ns.status = 'waiting';
-    ns.detail = next.id === 'production'
-      ? 'Pick talent, shoot, and run the Footage renamer on the upload. Mark done when the clean folder is in.'
-      : 'Assemble the edit, pass the ads through the gate to the client. Mark done when they accept.';
-  } else {
-    ns.status = 'pending';
-  }
+  enter(rec, next.id, fns || {}, by);
   return save(rec);
 }
 

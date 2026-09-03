@@ -5,10 +5,10 @@
  *
  * No dependencies. Node stdlib only (https).
  *
- *   node brand-snapshot.js "ARMRA"
+ *   node brand-snapshot.js "<Brand>"
  *   node brand-snapshot.js "ADR"                 # matches an alias
  *   node brand-snapshot.js --list                # every name you can type
- *   node brand-snapshot.js "ThreadBeast" > tb.md
+ *   node brand-snapshot.js "<Brand>" > brand.md
  *
  * Why this exists: the per-brand JSON files under
  *   Docs/Static Ads Generator/brand-brain-harvest/

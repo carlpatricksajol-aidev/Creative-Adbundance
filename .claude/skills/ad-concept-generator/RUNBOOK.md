@@ -58,7 +58,7 @@ research the brand from scratch when we already hold the answer.
 cd .claude/skills/ad-concept-generator/scripts
 
 node brand-snapshot.js --list                 # every name you can type
-node brand-snapshot.js "ARMRA" > armra.md      # one client, as markdown
+node brand-snapshot.js "<Brand>" > brand.md      # one client, as markdown
 node brand-snapshot.js "ADR"                   # aliases work
 ```
 

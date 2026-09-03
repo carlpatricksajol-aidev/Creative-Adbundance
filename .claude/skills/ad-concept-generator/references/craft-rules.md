@@ -1,6 +1,6 @@
 # Craft rules — writing the concepts
 
-Hard-won rules from real client feedback (a telehealth brand, two social-growth tools, a parenting app). Every rule below
+Hard-won rules from real client feedback (the telehealth account, a social-growth tool, a social-growth tool, the parenting app). Every rule below
 exists because a concept failed a specific way in front of a client. Read them literally.
 
 ## The generation formula (run per concept, in order)
@@ -54,7 +54,7 @@ batch against ALL of them before the strategist gate:
    natively: tier lists ("provider support as your needs change → S, one-size-fits-all → D"),
    blind reviews ("Website A / B / C" with a pinned checklist, brand revealed last), side-by-side
    scorecards, "what actually matters when choosing" rankings. A batch that sells "start HRT"
-   when the objective is "why this brand's HRT" fails even if every concept is individually good.
+   when the objective is "why the telehealth account's HRT" fails even if every concept is individually good.
 2. **Insight-family cap.** Dedup one level deeper than situation/vehicle: group concepts by the
    INSIGHT FAMILY they express ("getting BC the old way is friction," "nighttime symptom
    desperation," "OTC skincare doesn't work"). Max ~2 concepts per family per batch. Four
@@ -94,7 +94,7 @@ The title is the fastest test of whether a concept is a concept.
 
 - **Passes:** "HRT Dating Profile" · "Vacation Countdown" · "My Bank Account Is Confused" · "Put A
   Finger Down: Hormone Edition" · "Birth Control Side Quest" · "My Mom's HRT Advice vs. My
-  Provider's" · "Group Chat Blowing Up About It" · "Toxic Trait: I Forget My Pills" · "Did You
+  Provider's" · "Group Chat Blowing Up About the telehealth account" · "Toxic Trait: I Forget My Pills" · "Did You
   Know: Skipping Periods" · "Search History: 3 A.M."
 - **Fails:** "I Became My Own Doctor. Then I Hired One." (line, not vehicle) · "The 2.4-Year
   Reckoning" (headline, not vehicle) · "Same Diet, Different Middle" (message, no vehicle) · "The
@@ -146,9 +146,9 @@ Someone should understand the whole idea after reading the description once. If 
 translate strategist jargon, it's failed.
 
 - **Pass:** "A car talking-head from a mom on her lunch break about the pediatrician question she
-  couldn't answer this morning. She opens the app in the parking lot and finds the answer in
+  couldn't answer this morning. She opens the parenting app in the parking lot and finds the answer in
   three taps. The whole video is her one-take confession + one look at her phone."
-- **Fail:** "A concept that positions the app as a memory bank for mental-load carriers,
+- **Fail:** "A concept that positions the parenting app as a memory bank for mental-load carriers,
   reframing pediatrician anxiety into confident retrieval and proving the value of a single
   source of truth."
 
@@ -156,8 +156,14 @@ Same idea. The pass version is what we're actually making.
 
 ## Narrative — short shootable beatboard
 
-5-6 beats. Each beat tells the creator what happens next in plain, action-based language. Not a
-script. Not strategy notes. Beats, like a producer's shot list on a napkin.
+**EXACTLY 3 bullets (v6).** Each bullet tells the creator what happens next in plain, action-based
+language. Not a script. Not strategy notes. Beats, like a producer's shot list on a napkin.
+
+v4 and v5 asked for 5-6 beats. v6 compresses to three, and each bullet may carry more than one
+beat: (1) establish the situation / problem / premise, (2) introduce the product, mechanism or
+proof, (3) deliver the payoff and turn toward the CTA. The compression is deliberate. It forces
+the DR spine to be visible on the slide instead of the setup eating the whole beatboard. The
+craft rules below are unchanged; only the count moved.
 
 - **Do:** "Open in the car, seatbelt on, sunglasses off. She's on lunch." / "She opens the app on
   her phone. Real UI on-screen for 2 seconds." / "She reads the answer aloud, half-laughing."
@@ -180,11 +186,11 @@ Vary the arc across the batch:
 - **Never five concepts in a row with the same shape** (open on person + name the problem + show
   the app + close on the improvement). If the skeletons match with nouns swapped, rewrite until
   they don't.
-- **The slide serves the concept, not the concept the slide.** Beat count (4–6), beat density,
-  where dialogue lives, whether there's a price/offer beat — all follow what THIS concept needs.
-  A single-take confessional may be 4 long beats; a fast ranking bit may be 5 snappy ones. If
-  every narrative in the batch has exactly 6 beats of the same weight, the format is driving the
-  ideas.
+- **The slide serves the concept, not the concept the slide.** The count is fixed at 3, but beat
+  density, where dialogue lives, and whether there's a price/offer beat all follow what THIS
+  concept needs. A single-take confessional may be three long bullets; a fast ranking bit three
+  clipped ones. If every narrative in the batch reads as three bullets of identical weight and
+  shape, the format is driving the ideas.
 
 One explicit product beat. The payoff must be persona-specific — never generic "she felt better"
 or "numbers went up."
@@ -265,7 +271,7 @@ Make it ownable through:
 - The brand's real proof assets (its actual guarantee, actual free tool, actual track record)
 - The brand's real product mechanic (dose adjustment, savings-card matching, unlimited support)
 
-**Category-worn vehicle test (client feedback, a telehealth anti-aging line).** Some vehicles pass the generic
+**Category-worn vehicle test (client feedback, the telehealth account, anti-aging).** Some vehicles pass the generic
 test in the abstract but are worn out inside a specific category — every competitor has already
 run them, so they read as stock even when well executed. Known worn-per-category examples:
 - **Skincare / anti-aging:** the "serum graveyard" / drawer of failed products, the "my entire

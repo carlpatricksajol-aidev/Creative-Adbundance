@@ -85,104 +85,84 @@ the raw material; skip it and every concept degrades.
 
 ---
 
-## 2. Vehicle library (the creative leap)
+## 2. Vehicle library (the creative leap) — LIVE FROM DB
 
-A vehicle IS the ad. Assign one per concept. Extend live via web search when a new native format
-starts working. Never write a concept without a specific vehicle.
+A vehicle IS the ad. Assign one per concept. Never write a concept without a specific vehicle.
 
-### Format-native (borrowed from platform behavior)
-- Dating profile / swipe mechanic — for choice, personalization, options
-- Banking-app POV / bank statement forensic — for price, cost-of-waiting, receipts
-- Group-chat chaos / text-bubble reveal — for social validation, peer pressure, discovery
-- Search history reveal (3 A.M. Google searches) — for hidden pain, "you're not alone"
-- Camera-roll scroll to *the* photo — for triggers, before/after, self-recognition
-- Notes-app confession / to-do-list reveal — for mental load, planning, honesty
-- Voice-note answer — for asynchronous friend-advice tone
-- FaceTime / phone-call two-hander — for rant, accusation, celebration
-- Comment-reply / greenscreen react — for trust, objection-handling, dunking on bad advice
-- Podcast-clip staging — for authority + long-form-in-short-form
-- Fake TV commercial parody — for category satire (as low-fi phone-screen play)
-- Fake infomercial parody — for absurdist takedown of competitor
-- Mock news broadcast — for stat delivery with a knowing wink
-- Mock dating-app UI on phone screen — for choice / options
-- Mock CRM screen — for B2B / service work
-- Mock e-commerce cart abandoned — for hesitation, price, "add to cart" moment
+**Data source: `knowledge_vehicle_bank` (229 rows and growing).** Load it at the start of the
+Creative Director pass. Primary transport is the **Supabase MCP** — call `Supabase:execute_sql`
+with `project_id="xakngjsybyytldyqfsmi"` and the SQL in SKILL.md's Step 6. Local alternative:
 
-### Trend-shape (delivery systems, not messaging)
-- "Put a finger down: [x] edition"
-- "Toxic trait: I..."
-- "Green flags / red flags of..."
-- "Did you know..." fake explainer
-- "Rating [x] from worst to best" ranking
-- "POV: you're..."
-- "Reasons I left [x] (a list)"
-- "Things nobody warned me about [x]"
-- "Rate my [x]" evaluation
-- "Storytime" confessional
-- "Reply to @username" — even without a real reply
-- "Get ready with me while I explain..."
-- Netflix-style confessional (single spotlight, direct address)
-- Documentary re-enactment
-- Same-person two-hander skit
-- "I tried this so you don't have to"
-- "This is your sign to..."
-- "Choose your fighter"
-- "Which [x] are you?" quiz
+```bash
+node scripts/fetch-vehicles.js --format md
+```
 
-### Physical / prop-forward
-- Wall calendar transformation (3 months on the wall, cycle marks fading)
-- Receipt printer / receipts on a table
-- Empty product boxes / "graveyard" of old attempts — ⚠ category-worn in skincare/anti-aging
-  (every brand runs the serum drawer); fine elsewhere, or needs a hard twist
-- Post-it wall
-- Whiteboard math
-- Napkin drawing / kitchen-table explainer
-- Countdown timer (a real one — vacation, event, refill)
-- Wardrobe reveal / outfit change
-- Kitchen counter progression across a day
-- Full-length mirror reveal
-- Bathroom vanity confessional
-- Parked-car aftermath confessional
-- Grocery-cart stack
+Rows are ordered by `proven_count DESC` — vehicles with the most approved concepts behind them
+float to the top. Prefer proven vehicles for the DR spine. When a new native format starts working
+and hasn't been added yet, flag it: it belongs in the bank, not in this file.
 
-### Environmental / situational
-- Vacation packing POV
-- Airport / TSA line
-- Doctor's waiting room
-- School drop-off line
-- Coffee-shop overheard conversation
-- Gas-station receipt shock
-- Yoga-mat aftermath
-- Post-workout car text
-- Sunday-scaries couch monologue
-- Morning kitchen POV (bare feet, coffee, one exhale)
-- Late-night desk POV (single lamp, one screen open)
+### How to read the bank (usage guidance, not data)
 
-**Rule:** if the concept doesn't have one of these (or an equivalent) as its vehicle, it's not a
-concept — it's an angle. Reject it.
+- **`proven_by` length is the strength signal.** A vehicle with `proven_count=7` has been picked by
+  clients seven times — that's not a coincidence, it's the closest thing to a track record we have.
+- **`mechanic_summary` + `hook_strategy` are the actual "how it works."** Read these before the
+  description. They tell you what the vehicle does structurally and how the first 3 seconds land.
+- **`origin='client_proven'` beats `origin='handpicked'`** for the same proven count. Client-proven
+  means the vehicle emerged from an approved batch; handpicked means we seeded it in the bank.
+- **`needs_review=true` vehicles are excluded by default.** Rerun with `--include-review` when
+  auditing the bank.
+
+### Category cautions (survives the DB — these are craft rules, not data)
+
+- **Empty-bottle / "graveyard" reveals are category-worn in skincare/anti-aging.** Every brand runs
+  the serum drawer. Fine elsewhere; in skincare, needs a hard twist or a different vehicle entirely.
+- **"I tried this so you don't have to"** frames the brand as arguing against trial — kills DR
+  performance. Reframe to enthusiasm ("After I tried it, I can't stop talking about it").
+- **Solo-woman-with-phone saturation** — solo talking-head batches read flat and cast identically.
+  If more than ~40% of the batch is a solo woman on her phone, force some second-character
+  dynamics (see section 2c) or physical/environmental vehicles.
+
+### Rule
+If the concept doesn't have a specific vehicle from the bank (or a genuinely novel one flagged for
+addition), it's not a concept — it's an angle. Reject it.
 
 ---
 
-## 2b. Trend-template library (the trend IS the vehicle)
+## 2b. Trend-template library — LIVE FROM DB
 
 Cultural templates the viewer recognizes in one frame. The brand's message rides inside — never a
-"trend bucket" at the end of the deck. From one client's finals: "Your Skincare Wrapped" (year-in-
-review stat cards: "Serums purchased: 14. Money spent: we're not discussing it. Products finished:
-2."), "My Birth Control Has a Performance Review" (annual review across the desk, scorecard with
-checkboxes).
+"trend bucket" at the end of the deck.
 
-- "Your [X] Wrapped" — year-in-review parody, fast animated stat cards, joke stats → real stat
-- Annual performance review — product or habit sits across the desk, gets scored
-- Tier list — S/A/B/C/D board, creator drags items while reacting
-- Blind review / blind ranking — anonymized options A/B/C against a pinned checklist, reveal last
-- Awards show — "and the winner of Most Money Wasted goes to..."
-- "Put a finger down" — challenge format
-- "Today years old" — discovery confession
-- Draft night / starting lineup — picking a roster of products/habits
-- Speed-run — completing the task absurdly fast, gamer overlay
-- Yearbook superlatives — "most likely to sit unused in a drawer"
+**Data source: `knowledge_researched_vehicles` (107 rows, refreshes per catalog edition).** Load it
+alongside the proven bank. Primary transport is the **Supabase MCP** (SQL in SKILL.md's Step 6).
+Local alternative:
 
-Refresh per batch: check what templates are currently circulating before defaulting to this list.
+```bash
+node scripts/fetch-trend-vehicles.js --format md
+node scripts/fetch-trend-vehicles.js --platform meta --cohort rising --format md
+```
+
+Rising cohort surfaces first, then established. The default filter is `status='active'`; dormant
+formats (three months without re-observation) are hidden until you pass `--include-dormant`.
+
+### Two confidence vocabularies — never conflate them
+
+Every row has an `evidence_basis` that decides which vocabulary the `confidence` field uses:
+- **`observed`** (from our own scraped-ad corpus, has `advertiser_count`): `thin` (1–2 brands),
+  `reported` (3–4), `strong` (5+).
+- **`trend_research`** (from published trend reporting with named sources, no advertiser count):
+  `trend-thin` (one weak source), `trend-reported` (a named published source), `trend-verified`
+  (corroborated across independent sources).
+
+A `trend-*` row makes ZERO claim about how many brands actually run the format. Mixing the two
+vocabularies is how the catalog produced the false "50 formats backed by 3+ brands" claim on
+2026-08-14 — don't repeat it.
+
+### When to borrow a trend vehicle
+
+Use one when the batch needs freshness or the target persona spends time in the trend's platform
+neighborhood. Never present a trend vehicle as proven, and never place its evidence claim in the
+concept's language on the slide. Reference-only inside the deck's rationale/backchannel notes.
 
 ---
 
