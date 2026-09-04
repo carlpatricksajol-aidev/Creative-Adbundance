@@ -273,6 +273,12 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
   font-size:11px;font-weight:700;letter-spacing:.01em;white-space:nowrap;vertical-align:middle;margin-left:10px}
 .vbadge.ok{color:var(--green-deep);background:var(--green-tint);border:1px solid var(--green-line)}
 .vbadge.no{color:var(--red-deep);background:var(--red-tint);border:1px solid var(--red-line)}
+/* A prompt, not a badge. It sits left of the actions it is asking for, and
+   stays quieter than the primary button so it points at it rather than
+   competing with it. */
+.asks{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+  color:var(--amber-deep);white-space:nowrap}
+.asks::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--amber);flex:none}
 .phone{width:100%;max-width:214px;border-radius:20px;overflow:hidden;background:#141416;box-shadow:0 10px 28px rgba(0,0,0,.18)}
 .phead{display:flex;align-items:center;gap:9px;padding:11px 13px}
 .phead b{display:block;font-size:12px;color:#fff;font-weight:600}
@@ -1253,16 +1259,15 @@ function vConcepts(){
 
   /* Chips are internal shorthand (angle / duration / lane) - the client reads
      the slide itself, so the row carries only the verdict. */
-  /* Only while it is still undecided. Once a verdict exists the badge beside
-     the title says it, and a pill repeating the same word two lines below is
-     the duplication this row was trimmed to avoid. */
-  const chips = (ok || dec || ro) ? '' : `<div class="chiprow">
-    <span style="flex:1;min-width:6px"></span>
-    <span class="pill ${v.cls}">${v.label}</span>
-  </div>`;
+  /* Nothing between the title and the log line. A status sitting inside the
+     document body reads as part of the concept rather than as something asked
+     of the reader, which is exactly how it was landing. The prompt moved to
+     the footer, beside the buttons that answer it. */
+  const chips = '';
 
   const coms = comsOf(key);
   const foot = `<div class="bfoot">
+    ${ro || ok || dec ? '' : `<span class="asks">Needs your call</span>`}
     ${ro
       ? `<span class="pill green">${ico('M4 12l5 5L20 6','var(--green)',11)} You approved this</span>`
       : `<button class="btn sm ${ok ? 'ghost' : 'primary'}" data-approve="${key}">
