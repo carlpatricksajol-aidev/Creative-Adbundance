@@ -67,28 +67,33 @@ async function vehicleMenu(usedLines) {
         're-skins included (a two-hander is a two-hander whatever the room it is shot in):\n' +
         usedLines.map((l) => '    - ' + String(l).slice(0, 100)).join('\n')
       : '';
+    /* The rules travel on their own too, because Batch 7 proved a rule only
+       the writer sees is a suggestion: a banned two-hander and a 20-second
+       concept both sailed through three review gates that had never been shown
+       the rule they were breaking. */
+    const rules = 'VEHICLE RULES, from the creative director. These are FAILABLE CHECKS, not advice: a ' +
+      'concept that breaks one is edited or replaced before the deck ships.\n' +
+      '- The skill\'s flow is binding and the vehicle comes LAST: business objective, then persona, then ' +
+      'selling argument, then the human observation, and only then a vehicle chosen to CARRY that argument. ' +
+      'A concept built around a vehicle fails review. The objective must be a commercial outcome in the ' +
+      'brand\'s own terms (deposits, first orders, repeat rate), never a statement about the creative itself.\n' +
+      '- Describe the execution in plain production words and never quote a bank id or catalog name in the ' +
+      'concept.\n' +
+      '- Do NOT default to group-chat, text-thread or messaging-screen framing: at most ONE concept in the ' +
+      'batch may use any message-thread surface, and only when the observation genuinely lives there.\n' +
+      '- No two concepts share a vehicle or an obvious vehicle family. Spread across production paths ' +
+      'where the strategy allows.' + usedMd + '\n' +
+      '- DURATION is MORE THAN 30 seconds, always: write 30 to 40. A concept under 30 seconds fails, ' +
+      'whatever the funnel slot.';
     return {
       count: pick.length,
       total,
       banned,
+      rules,
       md: 'THE VEHICLE BANK, a fresh random sample of ' + pick.length + ' from the ' + total +
         ' curated vehicles on file' + (banned ? ' (' + banned + ' this client already used are not offered)' : '') +
-        ':\n' + lines + '\n\n' +
-        'VEHICLE RULES, from the creative director:\n' +
-        '- The skill\'s flow is binding and the vehicle comes LAST: business objective, then persona, then ' +
-        'selling argument, then the human observation, and only then a vehicle chosen to CARRY that argument. ' +
-        'A concept built around a vehicle fails review. The objective must be a commercial outcome in the ' +
-        'brand\'s own terms (deposits, first orders, repeat rate), never a statement about the creative itself.\n' +
-        '- This menu is an offer, not an assignment: pick from it when a vehicle fits the argument, adapt or ' +
-        'depart from it when the observation calls for something better. Describe the execution in plain ' +
-        'production words and never quote a bank id or catalog name in the concept.\n' +
-        '- Do NOT default to group-chat, text-thread or messaging-screen framing: at most ONE concept in the ' +
-        'batch may use any message-thread surface, and only when the observation genuinely lives there.\n' +
-        '- No two concepts share a vehicle or an obvious vehicle family. Spread across production paths ' +
-        'where the strategy allows.' + usedMd + '\n' +
-        '- DURATION defaults to about 30 seconds (write 25 to 35). Go shorter only where the brand\'s own ' +
-        'marketing report explicitly prescribes it for that funnel slot, name that reason in the concept, ' +
-        'and never write under 20 seconds.',
+        '. This menu is an offer, not an assignment: pick from it when a vehicle fits the argument, adapt or ' +
+        'depart from it when the observation calls for something better.\n' + lines + '\n\n' + rules,
     };
   } catch { return null; }
 }
@@ -880,15 +885,20 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     snapshot: snapshotPlus, prior, observations: harvest.observations, count, startNum,
     log, ask: trackedAsk, researchMd, strategy, harvestMd,
   });
-  const reviews = await stageGate({ snapshot, concepts: drafted.concepts, log, ask: trackedAsk });
+  /* The reviewers judge against the same vehicle and duration rules the writer
+     was given, as failable checks. Batch 7's banned two-hander and 20-second
+     concept got through because no gate had ever been shown the rules. */
+  const snapshotRules = vehicles ? snapshot + '\n\n' + vehicles.rules : snapshot;
+
+  const reviews = await stageGate({ snapshot: snapshotRules, concepts: drafted.concepts, log, ask: trackedAsk });
   let concepts = reconcile(drafted.concepts, reviews);
 
   let feedback = null;
   let compliance = null;
   if (V6) {
-    feedback = await stageFeedback({ snapshot, concepts, strategy, log, ask: trackedAsk });
+    feedback = await stageFeedback({ snapshot: snapshotRules, concepts, strategy, log, ask: trackedAsk });
     concepts = reconcile(concepts, feedback.reviews);
-    compliance = await stageCompliance({ snapshot, concepts, strategy, log, ask: trackedAsk });
+    compliance = await stageCompliance({ snapshot: snapshotRules, concepts, strategy, log, ask: trackedAsk });
     /* A hard compliance fail is not allowed to leave quietly. It rides on the
        concept as a flag, which is what the board already renders as "did not
        clear the batch check", so a human sees it on the slide itself. */
@@ -903,7 +913,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     }
   }
 
-  const composition = await stageComposition({ snapshot, concepts, log, ask: trackedAsk });
+  const composition = await stageComposition({ snapshot: snapshotRules, concepts, log, ask: trackedAsk });
 
   const blocked = concepts.filter((c) => c.flag).length;
   log('Deck ready', 'done',
