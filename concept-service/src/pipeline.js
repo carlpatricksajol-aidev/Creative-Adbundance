@@ -23,6 +23,52 @@ const { canonNum, numSet } = require('./num');
 const SKILL_DIR = process.env.SKILL_DIR ||
   '/srv/repo/.claude/skills/ad-concept-generator';
 
+/* Ricardo's vehicle rule. Batch 5 defaulted to group-chat and text-thread
+   framing, which he suspected was top-of-list anchoring, and the duration
+   drifted to 12-25s where he wants ~30. The curated bank holds 229 vehicles:
+   all of them would drown the prompt and a fixed page would recreate the
+   anchoring, so each run draws a fresh random 30. The researched-vehicles
+   library is separate and stays ranked, because there the order IS the
+   evidence. */
+const VEHICLE_SAMPLE = 30;
+
+async function vehicleMenu() {
+  const u = process.env.SUPABASE_URL, k = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!u || !k) return null;
+  try {
+    const res = await fetch(u + '/rest/v1/knowledge_vehicle_bank?select=vehicle_id,name,description,production_path',
+      { headers: { apikey: k, authorization: 'Bearer ' + k }, signal: AbortSignal.timeout(12000) });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    if (!Array.isArray(rows) || !rows.length) return null;
+    /* Fisher-Yates: a draw, not a page */
+    for (let i = rows.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = rows[i]; rows[i] = rows[j]; rows[j] = t;
+    }
+    const pick = rows.slice(0, VEHICLE_SAMPLE);
+    const lines = pick.map(function (v) {
+      return '- [#' + v.vehicle_id + ', ' + v.production_path + '] ' + v.name + ': ' +
+        String(v.description || '').slice(0, 160);
+    }).join('\n');
+    return {
+      count: pick.length,
+      total: rows.length,
+      md: 'THE VEHICLE BANK, a fresh random sample of ' + pick.length + ' from the ' + rows.length +
+        ' curated vehicles on file:\n' + lines + '\n\n' +
+        'VEHICLE RULES, from the creative director:\n' +
+        '- Source each concept\'s vehicle from this sample. Do NOT default to group-chat, text-thread or ' +
+        'messaging-screen framing: at most ONE concept in the batch may use any message-thread surface, ' +
+        'and only when the observation genuinely lives there.\n' +
+        '- No two concepts share a vehicle or an obvious vehicle family. Spread across production paths ' +
+        'where the strategy allows.\n' +
+        '- DURATION defaults to about 30 seconds (write 25 to 35). Go shorter only where the brand\'s own ' +
+        'marketing report explicitly prescribes it for that funnel slot, name that reason in the concept, ' +
+        'and never write under 20 seconds.',
+    };
+  } catch { return null; }
+}
+
 function ref(name) {
   const p = path.join(SKILL_DIR, 'references', name);
   try { return fs.readFileSync(p, 'utf8'); }
@@ -758,6 +804,14 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
       'could not reach the research library (' + err.message.slice(0, 80) + '), generating from the brand snapshot alone');
   }
 
+  /* Ricardo's vehicle rule: a fresh random draw from the curated bank every
+     run, so no vehicle family sits permanently at the top of the menu. */
+  log('Vehicle bank', 'running');
+  const vehicles = await vehicleMenu();
+  log('Vehicle bank', 'done', vehicles
+    ? vehicles.count + ' vehicles drawn at random from the ' + vehicles.total + ' on file, duration rule ~30s attached'
+    : 'the vehicle bank is unreachable, so the skill\'s own libraries carry the batch alone');
+
   /* The audience harvest, if one has been posted for this client. Absence is
      reported honestly rather than passed over: a batch built on imagined
      observations should say so in its own step log. */
@@ -781,13 +835,17 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     log('Audience harvest', 'done', 'could not read the harvest store (' + err.message.slice(0, 60) + '), generating without it');
   }
 
+  /* the strategist allocates the lanes and the writer picks the vehicles;
+     two different menus would let the plan and the concepts disagree */
+  const snapshotPlus = vehicles ? snapshot + '\n\n' + vehicles.md : snapshot;
+
   const strategy = V6
-    ? await stageStrategy({ snapshot, count, log, ask: trackedAsk, researchMd })
+    ? await stageStrategy({ snapshot: snapshotPlus, count, log, ask: trackedAsk, researchMd })
     : null;
 
   const harvest = await stageHarvest({ snapshot, prior, log, ask: trackedAsk, researchMd, strategy, harvestMd });
   const drafted = await stageWrite({
-    snapshot, prior, observations: harvest.observations, count, startNum,
+    snapshot: snapshotPlus, prior, observations: harvest.observations, count, startNum,
     log, ask: trackedAsk, researchMd, strategy, harvestMd,
   });
   const reviews = await stageGate({ snapshot, concepts: drafted.concepts, log, ask: trackedAsk });
