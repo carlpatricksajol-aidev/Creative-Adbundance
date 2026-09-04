@@ -694,6 +694,11 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
      not read identical to one that had both. */
   const built = [
     record.snap ? 'identity' : null,
+    /* First in the list because it is first in the snapshot, and because a run
+       that read it should be distinguishable at a glance from one that did
+       not. Naming it here is how Carl can tell the marketing_report table is
+       actually being used without going and querying it. */
+    record.report ? 'the brand strategy snapshot' : null,
     record.plan ? 'marketing plan' : null,
     record.rules.length ? `${record.rules.length} compliance rule${record.rules.length === 1 ? '' : 's'}` : null,
     record.products.length ? `${record.products.length} product${record.products.length === 1 ? '' : 's'}` : null,
@@ -712,21 +717,25 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     (winners ? 'winner set from what has worked' : 'no winner set on file, defaulting') +
     (losers ? ', known losing patterns excluded' : ', nothing on file to exclude'));
 
-  /* The Marketing report, per Workflow V1: read the Research Agent's library
-     before anything creative happens. Absence degrades honestly, never
-     silently: the step says exactly what was and was not on file. */
-  log('Marketing report', 'running');
+  /* The market research library: the Research Agent's catalogue of ad formats,
+     which is shared across every client rather than being about this one. It
+     used to be logged as "Marketing report", which collided with the step that
+     commissions THIS CLIENT'S report in marketingReport.js. Steps are keyed by
+     name, so the two were one row and the client report never showed. Absence
+     degrades honestly, never silently: the step says what was and was not on
+     file. */
+  log('Market research library', 'running');
   let researchMd = null;
   try {
     const brief = await research.fetchBrief();
     researchMd = research.toMarkdown(brief);
-    log('Marketing report', 'done', brief
+    log('Market research library', 'done', brief
       ? `${brief.vehicles.length} researched vehicles read` +
         (brief.edition ? `, catalog edition of ${String(brief.edition.ran_at).slice(0, 10)}` : '') +
         `, ${(brief.probes || []).length} recent probes`
       : 'the research library is empty, generating from the brand snapshot alone');
   } catch (err) {
-    log('Marketing report', 'done',
+    log('Market research library', 'done',
       'could not reach the research library (' + err.message.slice(0, 80) + '), generating from the brand snapshot alone');
   }
 

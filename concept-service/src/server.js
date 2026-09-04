@@ -366,14 +366,32 @@ async function startScriptRun({ client, batchId, nums, requestedBy }) {
   return id;
 }
 
-async function startStoryRun({ client, scriptsId, requestedBy, savedBy }) {
+async function startStoryRun({ client, scriptsId, nums, requestedBy, savedBy }) {
   const src = store.getScripts(scriptsId);
   if (!src) { const e = new Error('that scripts batch is not on file'); e.status = 404; throw e; }
-  const scripts = src.docs || [];
-  if (!scripts.length) { const e = new Error('that scripts batch has no scripts'); e.status = 400; throw e; }
+  const all = src.docs || [];
+  if (!all.length) { const e = new Error('that scripts batch has no scripts'); e.status = 400; throw e; }
+
+  /* Board what was picked. Boarding a whole batch spends the run on concepts
+     nobody has decided to film yet, and the decision of what to shoot is made
+     after the client approves, by a different person. */
+  const want = Array.isArray(nums) && nums.length
+    ? new Set(nums.map(store.canonNum))
+    : null;
+  const scripts = all.filter((d) => !want || want.has(store.canonNum(d.num)));
+  if (!scripts.length) {
+    const e = new Error(
+      `none of those concepts are in this scripts batch. It has ${all.map((d) => store.canonNum(d.num)).join(', ')}.`);
+    e.status = 400; throw e;
+  }
 
   const id = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   store.newRun({ id, client, count: scripts.length, requestedBy, kind: 'storyboards', from: scriptsId });
+  if (want) {
+    store.step(id, 'Scope', 'done',
+      `${scripts.length} of ${all.length} concept${all.length === 1 ? '' : 's'} picked to board: ` +
+      scripts.map((d) => store.canonNum(d.num)).join(', '));
+  }
   const log = (name, state, detail) => store.step(id, name, state, detail);
 
   (async () => {
@@ -1240,7 +1258,8 @@ const server = http.createServer(async (req, res) => {
       try { await brand.resolve(b.client); }
       catch (e) { return json(res, 400, { error: e.message }); }
       const id = await startStoryRun({
-        client: b.client, scriptsId: b.scriptsId, requestedBy: b.requestedBy, savedBy: b.savedBy,
+        client: b.client, scriptsId: b.scriptsId, nums: b.nums,
+        requestedBy: b.requestedBy, savedBy: b.savedBy,
       });
       return json(res, 202, { runId: id });
     }
