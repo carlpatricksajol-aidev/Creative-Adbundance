@@ -28,6 +28,52 @@ const { Client } = require('pg');
 
 const KL_URL = process.env.SUPABASE_KNOWLEDGE_LAYER_URL || '';
 
+/* The marketing_report table lives in the Heartreel project, not the Knowledge
+   Layer, so it is read over REST with the credentials this service already
+   holds rather than through the pool above. */
+const SB_URL = process.env.SUPABASE_URL || '';
+const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || '';
+
+/* The thirteen strategy fields, in the order they are meant to be read: who
+   the work is for, then how it should sound, then how it should look. */
+const REPORT_FIELDS = [
+  ['audience_core', 'CORE AUDIENCE'],
+  ['audience_secondary', 'SECONDARY AUDIENCE'],
+  ['psychographic', 'PSYCHOGRAPHIC'],
+  ['job_to_be_hired_for', 'THE JOB IT IS HIRED FOR'],
+  ['voice_archetype', 'VOICE ARCHETYPE'],
+  ['tone_pillars', 'TONE PILLARS'],
+  ['voice_dos', 'VOICE, DO'],
+  ['visual_system', 'VISUAL SYSTEM'],
+  ['color', 'COLOUR'],
+  ['typography', 'TYPOGRAPHY'],
+  ['imagery', 'IMAGERY'],
+  ['overall_mood', 'OVERALL MOOD'],
+];
+
+/* The brand's strategy snapshot, if one has been written. Matched on the brand
+   name and then the client name, case-insensitively, because the roster here
+   and the report table are maintained separately and their spelling of the
+   same brand does not always agree. */
+async function fetchMarketingReport(brandName, clientName) {
+  if (!SB_URL || !SB_KEY) return null;
+  const headers = { apikey: SB_KEY, authorization: 'Bearer ' + SB_KEY };
+  for (const name of [brandName, clientName].filter(Boolean)) {
+    /* ilike with no wildcards is case-insensitive equality, so a differently
+       cased row still matches and a partial name never does. */
+    const q = `${SB_URL}/rest/v1/marketing_report`
+      + `?select=*&brand=ilike.${encodeURIComponent(String(name))}`
+      + `&report_period=eq.current&limit=1`;
+    try {
+      const res = await fetch(q, { headers, signal: AbortSignal.timeout(12000) });
+      if (!res.ok) continue;
+      const rows = await res.json();
+      if (Array.isArray(rows) && rows.length) return rows[0];
+    } catch { /* the snapshot is better without it than not at all */ }
+  }
+  return null;
+}
+
 const configured = () => Boolean(KL_URL);
 
 async function withDb(fn) {
@@ -165,7 +211,12 @@ async function loadRecord(c, brand) {
     ? await one('select source, finding_type, content from research_findings where marketing_plan_id=$1', [plan.id])
     : [];
 
-  return { brand, snap: snap || null, colors, fonts, voice, rules, products, plan: plan || null, personas, findings };
+  /* The strategy snapshot. Fetched here so every caller of resolve() gets it
+     without knowing where it lives. */
+  const report = await fetchMarketingReport(brand.brand_name, brand.client_name);
+
+  return { brand, snap: snap || null, colors, fonts, voice, rules, products,
+    plan: plan || null, personas, findings, report };
 }
 
 /* ---- rendering ----------------------------------------------------------- */
@@ -184,7 +235,7 @@ const kv = (o) => Object.entries(o || {})
   .join('\n');
 
 function toMarkdown(rec) {
-  const { brand, snap, colors, fonts, voice, rules, products, plan, personas, findings } = rec;
+  const { brand, snap, colors, fonts, voice, rules, products, plan, personas, findings, report } = rec;
   const out = [];
   const missing = [];
   const S = (title, body) => { if (has(body)) out.push(`### ${title}\n${body}\n`); else missing.push(title.toLowerCase()); };
@@ -194,6 +245,30 @@ function toMarkdown(rec) {
   out.push('');
 
   S('WEBSITE', brand.website);
+
+  /* THE STRATEGY SNAPSHOT COMES FIRST. It is the most considered thing on file
+     about this brand, written per brand rather than assembled from fragments,
+     so the model reads it before anything else. Everything below it is
+     supporting detail. */
+  if (report) {
+    out.push(`## BRAND STRATEGY SNAPSHOT`);
+    out.push(`_${report.report_kind || 'Brand Strategy Snapshot'}`
+      + `${report.source ? `, ${String(report.source).split(/[.\n]/)[0].trim()}` : ''}._\n`);
+    for (const [key, title] of REPORT_FIELDS) {
+      if (has(report[key])) out.push(`### ${title}\n${report[key]}\n`);
+    }
+    /* The don'ts are a boundary, not a note. Rendered the way compliance rules
+       are rendered, because on this brand "never say odds" is the difference
+       between an ad and a problem. */
+    if (has(report.voice_donts)) {
+      out.push(`### VOICE, NEVER\n${report.voice_donts}\n`
+        + `_These are hard boundaries. A concept that breaks one is rejected, not revised._\n`);
+    }
+    if (has(report.production_evidence)) out.push(`### PRODUCTION EVIDENCE\n${report.production_evidence}\n`);
+  } else {
+    missing.push('the brand strategy snapshot');
+  }
+
   S('CATEGORY', snap && snap.category);
   S('POSITIONING', snap && snap.positioning);
   S('KEY OFFER', snap && snap.value_prop);
