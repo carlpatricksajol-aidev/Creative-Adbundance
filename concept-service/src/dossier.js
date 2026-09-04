@@ -34,22 +34,72 @@ const KL_URL = process.env.SUPABASE_KNOWLEDGE_LAYER_URL || '';
 const SB_URL = process.env.SUPABASE_URL || '';
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || '';
 
-/* The thirteen strategy fields, in the order they are meant to be read: who
-   the work is for, then how it should sound, then how it should look. */
-const REPORT_FIELDS = [
-  ['audience_core', 'CORE AUDIENCE'],
-  ['audience_secondary', 'SECONDARY AUDIENCE'],
-  ['psychographic', 'PSYCHOGRAPHIC'],
-  ['job_to_be_hired_for', 'THE JOB IT IS HIRED FOR'],
-  ['voice_archetype', 'VOICE ARCHETYPE'],
-  ['tone_pillars', 'TONE PILLARS'],
-  ['voice_dos', 'VOICE, DO'],
-  ['visual_system', 'VISUAL SYSTEM'],
-  ['color', 'COLOUR'],
-  ['typography', 'TYPOGRAPHY'],
-  ['imagery', 'IMAGERY'],
-  ['overall_mood', 'OVERALL MOOD'],
+/* The report's columns are the team's to change, and they DID change, hours
+   after this was first wired: the thirteen strategy fields became the report
+   document's own sections. So nothing here names a content column any more.
+   Identifiers are skipped, a preferred order puts the sections a strategist
+   reads first at the top, and any column the team adds next week renders
+   automatically instead of silently not existing. */
+const REPORT_SKIP = new Set(['id', 'brand', 'brand_brain_id', 'created_at', 'updated_at',
+  'report_period', 'report_kind', 'subject_type', 'source', 'findings']);
+const REPORT_ORDER = ['overview', 'audience', 'audience_core', 'audience_secondary',
+  'objectives_and_messaging', 'what_is_working', 'content_strategy', 'channel_strategy',
+  'competitive_landscape', 'compliance_guardrails', 'sources_and_open_items'];
+/* boundaries render as boundaries, not prose, whatever the column is called */
+const REPORT_HARD = new Set(['compliance_guardrails', 'voice_donts']);
+
+const reportTitle = (k) => String(k).replace(/_/g, ' ').toUpperCase();
+
+function reportKeys(row) {
+  const keys = Object.keys(row).filter((k) => !REPORT_SKIP.has(k)
+    && row[k] != null && String(row[k]).trim() !== '' && String(row[k]) !== '[]');
+  return keys.sort((a, b) => {
+    const ia = REPORT_ORDER.indexOf(a), ib = REPORT_ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+}
+
+/* The Brand Brain row: the free-text account record every strategist works
+   from, and the thing Carl pastes into a Claude Web session alongside the
+   marketing report. The relational snapshot replaced it for STRUCTURE, but
+   these fields have no relational home and were reaching nobody. Order
+   matters less than presence; each is capped so one runaway field cannot
+   drown the snapshot. */
+const BRAIN_FIELDS = [
+  ['key_offer', 'KEY OFFER'],
+  ['brand_tone', 'BRAND TONE'],
+  ['brand_personality', 'BRAND PERSONALITY'],
+  ['target_personas', 'TARGET PERSONAS'],
+  ['core_pain_points', 'CORE PAIN POINTS'],
+  ['product_benefits', 'PRODUCT BENEFITS'],
+  ['creative_brief', 'CREATIVE BRIEF'],
+  ['dos_and_donts', 'DOS AND DONTS'],
+  ['creative_boundaries', 'CREATIVE BOUNDARIES'],
+  ['winning_hooks', 'WINNING HOOKS'],
+  ['winning_concepts', 'WINNING CONCEPTS'],
+  ['losing_patterns', 'LOSING PATTERNS'],
+  ['compliance_notes', 'COMPLIANCE NOTES'],
+  ['disclaimer_text', 'REQUIRED DISCLAIMER'],
+  ['notes', 'ACCOUNT NOTES'],
 ];
+const BRAIN_FIELD_CAP = 2200;
+
+async function fetchBrandBrain(brandName, clientName) {
+  if (!SB_URL || !SB_KEY) return null;
+  const headers = { apikey: SB_KEY, authorization: 'Bearer ' + SB_KEY };
+  for (const name of [brandName, clientName].filter(Boolean)) {
+    const q = `${SB_URL}/rest/v1/brand_brain?select=*`
+      + `&or=(client_name.ilike.${encodeURIComponent(String(name))},brand_name.ilike.${encodeURIComponent(String(name))})`
+      + `&limit=1`;
+    try {
+      const res = await fetch(q, { headers, signal: AbortSignal.timeout(12000) });
+      if (!res.ok) continue;
+      const rows = await res.json();
+      if (Array.isArray(rows) && rows.length) return rows[0];
+    } catch { /* the snapshot is better without it than not at all */ }
+  }
+  return null;
+}
 
 /* The brand's strategy snapshot, if one has been written. Matched on the brand
    name and then the client name, case-insensitively, because the roster here
@@ -60,10 +110,12 @@ async function fetchMarketingReport(brandName, clientName) {
   const headers = { apikey: SB_KEY, authorization: 'Bearer ' + SB_KEY };
   for (const name of [brandName, clientName].filter(Boolean)) {
     /* ilike with no wildcards is case-insensitive equality, so a differently
-       cased row still matches and a partial name never does. */
+       cased row still matches and a partial name never does. No other filter:
+       report_period was a column for less than a day, and filtering on it made
+       every fetch 400 the moment the team removed it. */
     const q = `${SB_URL}/rest/v1/marketing_report`
       + `?select=*&brand=ilike.${encodeURIComponent(String(name))}`
-      + `&report_period=eq.current&limit=1`;
+      + `&limit=1`;
     try {
       const res = await fetch(q, { headers, signal: AbortSignal.timeout(12000) });
       if (!res.ok) continue;
@@ -211,12 +263,17 @@ async function loadRecord(c, brand) {
     ? await one('select source, finding_type, content from research_findings where marketing_plan_id=$1', [plan.id])
     : [];
 
-  /* The strategy snapshot. Fetched here so every caller of resolve() gets it
-     without knowing where it lives. */
-  const report = await fetchMarketingReport(brand.brand_name, brand.client_name);
+  /* The strategy snapshot and the Brand Brain row. Fetched here so every
+     caller of resolve() gets them without knowing where they live. In
+     parallel: they come from the same project and neither depends on the
+     other. */
+  const [report, brain] = await Promise.all([
+    fetchMarketingReport(brand.brand_name, brand.client_name),
+    fetchBrandBrain(brand.brand_name, brand.client_name),
+  ]);
 
   return { brand, snap: snap || null, colors, fonts, voice, rules, products,
-    plan: plan || null, personas, findings, report };
+    plan: plan || null, personas, findings, report, brain };
 }
 
 /* ---- rendering ----------------------------------------------------------- */
@@ -235,7 +292,7 @@ const kv = (o) => Object.entries(o || {})
   .join('\n');
 
 function toMarkdown(rec) {
-  const { brand, snap, colors, fonts, voice, rules, products, plan, personas, findings, report } = rec;
+  const { brand, snap, colors, fonts, voice, rules, products, plan, personas, findings, report, brain } = rec;
   const out = [];
   const missing = [];
   const S = (title, body) => { if (has(body)) out.push(`### ${title}\n${body}\n`); else missing.push(title.toLowerCase()); };
@@ -251,22 +308,32 @@ function toMarkdown(rec) {
      so the model reads it before anything else. Everything below it is
      supporting detail. */
   if (report) {
-    out.push(`## BRAND STRATEGY SNAPSHOT`);
-    out.push(`_${report.report_kind || 'Brand Strategy Snapshot'}`
-      + `${report.source ? `, ${String(report.source).split(/[.\n]/)[0].trim()}` : ''}._\n`);
-    for (const [key, title] of REPORT_FIELDS) {
-      if (has(report[key])) out.push(`### ${title}\n${report[key]}\n`);
+    out.push(`## THE MARKETING REPORT, this brand's own`);
+    for (const key of reportKeys(report)) {
+      const v = report[key];
+      const text = typeof v === 'object' ? JSON.stringify(v, null, 1) : String(v);
+      out.push(`### ${reportTitle(key)}\n${text}\n`
+        + (REPORT_HARD.has(key)
+          ? `_These are hard boundaries. A concept that breaks one is rejected, not revised._\n`
+          : ''));
     }
-    /* The don'ts are a boundary, not a note. Rendered the way compliance rules
-       are rendered, because on this brand "never say odds" is the difference
-       between an ad and a problem. */
-    if (has(report.voice_donts)) {
-      out.push(`### VOICE, NEVER\n${report.voice_donts}\n`
-        + `_These are hard boundaries. A concept that breaks one is rejected, not revised._\n`);
-    }
-    if (has(report.production_evidence)) out.push(`### PRODUCTION EVIDENCE\n${report.production_evidence}\n`);
   } else {
-    missing.push('the brand strategy snapshot');
+    missing.push("the brand's marketing report");
+  }
+
+  /* The account record, as the strategists keep it. This is the half of what
+     Carl pastes into a working session that the relational tables never
+     carried: the do-not list, the hooks that already converted, the brief. */
+  if (brain) {
+    out.push('## BRAND BRAIN, the account record');
+    for (const [key, title] of BRAIN_FIELDS) {
+      const v = brain[key];
+      if (v == null || String(v).trim() === '' || String(v) === '[]') continue;
+      const text = typeof v === 'object' ? JSON.stringify(v, null, 1) : String(v);
+      out.push(`### ${title}\n${text.length > BRAIN_FIELD_CAP ? text.slice(0, BRAIN_FIELD_CAP) + ' ...' : text}\n`);
+    }
+  } else {
+    missing.push('the brand brain record');
   }
 
   S('CATEGORY', snap && snap.category);

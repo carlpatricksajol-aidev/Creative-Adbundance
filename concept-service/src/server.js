@@ -253,30 +253,50 @@ async function startRun({ client, count, requestedBy }) {
   (async () => {
     active++;
     try {
-      /* Fresh research before anything creative, every batch. See
-         marketingReport.js for why this is not optional any more. */
-      let hadPlanBefore = false;
-      try { hadPlanBefore = Boolean((await brand.resolve(client)).record.plan); } catch { /* resolve fails loudly below */ }
+      /* Fresh research before anything creative, every batch. Resolved ONCE,
+         and the RESOLVED brand name goes to the runner: the picker's raw name
+         and Brand Brain's name do not always agree, and the raw name 424'd
+         brands that were perfectly generatable (Onsen, Miracle Made). */
+      const { record: pre } = await brand.resolve(client);
+      const brandName = pre.brand.brand_name;
+
+      /* Grounded means the model has something real to write from, from ANY of
+         the stores. The old test keyed on marketing_plans alone, which 3 of 86
+         brands have, so one hiccup in the chain abandoned batches for brands
+         carrying rich snapshots, with a message the data contradicted. */
+      const snap = pre.snap || {};
+      const grounded = Boolean(
+        pre.report || pre.brain || pre.plan || pre.rules.length ||
+        (Array.isArray(snap.messaging_pillars) && snap.messaging_pillars.length) ||
+        (Array.isArray(snap.creative_hook_territory) && snap.creative_hook_territory.length));
+
+      if (marketingReport.inFlight(brandName)) {
+        const e = new Error(
+          `a marketing report for ${brandName} is already being commissioned by another run. ` +
+          'Wait for that batch rather than buying the same research twice.');
+        e.status = 409;
+        throw e;
+      }
 
       try {
-        await marketingReport.commission({ client, requestedBy, log });
+        await marketingReport.commission({ client: brandName, requestedBy, log });
       } catch (err) {
         const why = err && err.message ? err.message : String(err);
-        if (!hadPlanBefore) {
-          /* The PackDraw case. There is nothing brand-specific to write from,
-             so stopping is the honest outcome: a batch generated here is
-             invention, and it costs real money to produce and read. */
+        if (!grounded) {
+          /* The original PackDraw case: nothing brand-specific in ANY store,
+             so a batch generated here is invention, and it costs real money
+             to produce and read. */
           log('Marketing report', 'error', why.slice(0, 200));
           const e = new Error(
-            `${why}. There is no marketing plan on file for ${client}, so the concepts would be written ` +
-            'from an empty brand record. Nothing was generated.');
+            `${why}. Nothing brand-specific is on file for ${brandName} in any store, so the concepts ` +
+            'would be pure invention. Nothing was generated.');
           e.status = 424;
           throw e;
         }
-        /* There is older research to stand on. Say exactly that, rather than
-           letting the batch read as though it was freshly grounded. */
+        /* There is real grounding to stand on. Say exactly what happened
+           rather than letting the batch read as freshly researched. */
         log('Marketing report', 'done',
-          `could not refresh the research (${why.slice(0, 90)}), so this batch stands on the plan already on file`);
+          `could not refresh the research (${why.slice(0, 90)}), so this batch stands on what is already on file`);
       }
 
       const priorCtx = store.priorContext(client);

@@ -64,6 +64,13 @@ const REPORT_TIMEOUT_MS = Number(process.env.REPORT_TIMEOUT_MS || 15 * 60 * 1000
 const POLL_MS = 5000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* One report per brand at a time. Without this, two batches started close
+   together bought two research reports and raced two auto-approved writes at
+   the same snapshot row. Same shape as the mockup guard, and in memory for the
+   same reason: a restart kills the in-flight work anyway. */
+const reportsInFlight = new Set();
+const inFlight = (brandName) => reportsInFlight.has(String(brandName).toLowerCase());
 const readJson = (p) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; } };
 
 const queueMounted = () => fs.existsSync(QUEUE());
@@ -107,18 +114,53 @@ async function waitForRun(id, deadline, label, log) {
 }
 
 /* The proposal the knowledge pass writes. Matched on the run that produced it
-   so this can never approve somebody else's pending action. */
-async function waitForProposal(sourceRunIds, deadline) {
+   so this can never approve somebody else's pending action.
+
+   It also watches the chained run's OWN status, because the actions folder is
+   not the only way this ends: a knowledge pass that dies (a truncated
+   completion did exactly this on Aug 28) never writes a proposal, and watching
+   only the folder meant burning the remaining thirteen minutes in silence and
+   then blaming the wrong step. */
+async function waitForProposal(reportId, deadline) {
+  let graceUntil = 0;
   while (Date.now() < deadline) {
+    const ids = chainedRunIds(reportId);
+
     let names = [];
     try { names = fs.readdirSync(ACTIONS()); } catch { names = []; }
     for (const n of names) {
       if (!n.endsWith('.json')) continue;
       const rec = readJson(path.join(ACTIONS(), n));
       if (!rec || rec.tool !== 'knowledge_layer') continue;
-      if (!sourceRunIds.has(String(rec.source_run_id))) continue;
+      if (!ids.has(String(rec.source_run_id))) continue;
       return { id: n.slice(0, -'.json'.length), rec, file: path.join(ACTIONS(), n) };
     }
+
+    /* the chained run failing, or finishing with nothing to propose, is an
+       answer too, and a faster one than the deadline */
+    for (const id of ids) {
+      if (id === String(reportId)) continue;             // that one already finished ok
+      const run = readJson(path.join(RUNS(), id + '.json'));
+      if (!run || !run.status) continue;
+      if (run.status !== 'ok' && run.status !== 'running' && run.status !== 'queued') {
+        const e = new Error(
+          `the knowledge pass failed before proposing anything: ${String(run.summary || run.status).slice(0, 140)}`);
+        e.reportFailed = true;
+        throw e;
+      }
+      if (run.status === 'ok') {
+        /* finished cleanly but no proposal yet: give the file a short grace,
+           then call it what it is, a pass that extracted nothing */
+        if (!graceUntil) graceUntil = Date.now() + 20000;
+        else if (Date.now() > graceUntil) {
+          const e = new Error(
+            'the knowledge pass finished without proposing anything, most likely zero brands extracted from the report');
+          e.reportFailed = true;
+          throw e;
+        }
+      }
+    }
+
     await sleep(POLL_MS);
   }
   return null;
@@ -148,6 +190,16 @@ function chainedRunIds(reportId) {
  * the caller can decide whether a batch may still go ahead.
  */
 async function commission({ client, requestedBy, log }) {
+  const key = String(client).toLowerCase();
+  reportsInFlight.add(key);
+  try {
+    return await commissionInner({ client, requestedBy, log });
+  } finally {
+    reportsInFlight.delete(key);
+  }
+}
+
+async function commissionInner({ client, requestedBy, log }) {
   const deadline = Date.now() + REPORT_TIMEOUT_MS;
 
   const reportId = randomUUID();
@@ -167,9 +219,21 @@ async function commission({ client, requestedBy, log }) {
 
   /* The runner chains the knowledge pass itself. We wait for its proposal
      rather than queueing a second job, so there is exactly one chain. */
-  const found = await waitForProposal(chainedRunIds(reportId), deadline);
+  const found = await waitForProposal(reportId, deadline);
   if (!found) {
     const e = new Error('the report was written but its findings never came back as a proposal to approve');
+    e.reportFailed = true;
+    throw e;
+  }
+
+  /* Approving starts a write that lands whether or not anyone is still
+     watching. On the deadline's last poll the old code approved, queued the
+     executor, and then failed the batch, leaving the write to arrive minutes
+     after the run said it gave up. If there is not enough budget left to see
+     the write through, the honest move is to not start it. */
+  if (Date.now() > deadline - 60 * 1000) {
+    const e = new Error(
+      'the findings arrived too close to the time limit to safely write and verify them. Run it again.');
     e.reportFailed = true;
     throw e;
   }
@@ -209,4 +273,4 @@ async function commission({ client, requestedBy, log }) {
   return { reportId, actionId: found.id, summary: after.summary || '' };
 }
 
-module.exports = { commission, queueMounted, REPORT_TIMEOUT_MS };
+module.exports = { commission, inFlight, queueMounted, REPORT_TIMEOUT_MS };

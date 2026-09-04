@@ -29,6 +29,25 @@ function ref(name) {
   catch { throw new Error(`missing skill reference ${name} at ${p}. Is the repo checked out and up to date?`); }
 }
 
+/* The skill itself, whole. For months the service read only the reference
+   files and re-told the process in its own words, and the difference showed:
+   the same data given to a Claude Web session running the real SKILL.md
+   produced good concepts while the service produced, in Carl's words, "just
+   words". A summary of a craft document is not the craft document. The
+   generative stages get the original; the review gates keep the reviewer docs
+   that were written for them. */
+function skillDoc() {
+  const p = path.join(SKILL_DIR, 'SKILL.md');
+  try { return fs.readFileSync(p, 'utf8'); }
+  catch { throw new Error(`missing SKILL.md at ${p}. Is the repo checked out and up to date?`); }
+}
+
+const SKILL_PREFACE = `THE SKILL YOU ARE EXECUTING, in full. This is the source of truth for what a
+concept is and how one is written. The mechanical steps it describes (deck building, file output,
+rendering scripts) are handled by the service around you, so ignore instructions about producing
+files or slides; everything about METHOD, JUDGMENT, FORMATS, LANES and QUALITY is yours to follow
+exactly. Where these instructions and the shorter notes below ever disagree, the skill wins.`;
+
 /* --------------------------------------------------------------- schemas ---- */
 
 /* v6 is the default. CONCEPT_PIPELINE=v4 falls back to the two-agent chain and
@@ -285,7 +304,7 @@ Hard rules that apply to every stage:
 async function stageStrategy({ snapshot, count, log, ask, researchMd }) {
   log('Strategic analysis', 'running');
   const out = await ask({
-    system: `You are the Strategic Analyst. You run Step Zero of the skill, before any observation is harvested and before any concept is written. Your craft rules:\n\n${ref('craft-rules.md')}\n${researchMd ? '\nLive market research from the Research Agent. The confidence labels are honest, respect them:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
+    system: `You are the Strategic Analyst. You run Step Zero of the skill, before any observation is harvested and before any concept is written.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n${researchMd ? '\nLive market research from the Research Agent. The confidence labels are honest, respect them:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n\nRun Step Zero and produce the Batch Strategy Map for a batch of ${count} concepts.
 
 Reach your answers by asking the guiding questions, not by jumping to what-ifs: who is this for,
@@ -372,7 +391,7 @@ ${strategy.gaps.length ? `\nUnconfirmed, do not build a concept that depends on 
 async function stageHarvest({ snapshot, prior, log, ask, researchMd, strategy, harvestMd }) {
   log('Human observation harvest', 'running');
   const out = await ask({
-    system: `You are the Creative Director on this account. Your craft rules are below.\n\n${ref('craft-rules.md')}\n\nYour libraries, including the observation harvest bank:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent. The confidence labels are honest, respect them:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
+    system: `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules are below.\n\n${ref('craft-rules.md')}\n\nYour libraries, including the observation harvest bank:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent. The confidence labels are honest, respect them:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}\nALREADY DONE FOR THIS CLIENT, do not reuse these observations:\n${prior || '(nothing on file)'}\n\nRun step 4 of the skill: the human observation harvest, before any concept is written.
 ${harvestMd ? `A real harvest is above, gathered from public sources with a link on every line. START FROM IT.
 Carry its observations through in the customer's own words rather than restating them, and spend
@@ -400,7 +419,7 @@ async function stageWrite({ snapshot, prior, observations, count, startNum, log,
   log('Creative Director pass', 'running');
   const obsList = observations.map((o, i) => `${i + 1}. [${o.insight_family}] ${o.text}`).join('\n');
   const out = await ask({
-    system: `You are the Creative Director on this account. Your craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent. Researched vehicles are fair game for the creative leap, and a trend-verified or corroborated one beats a stale guess. Thin entries are leads, not facts:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
+    system: `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent. Researched vehicles are fair game for the creative leap, and a trend-verified or corroborated one beats a stale guess. Thin entries are leads, not facts:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}\nALREADY DONE, do not repeat these:\n${prior || '(nothing on file)'}\n\nObservations harvested for this client:\n${obsList}\n\nRun step 5. Write ${count} concepts, numbered from ${startNum} upward.
 ${strategy ? `Work down the allocation. Take one allocation row, pick an observation from THAT
 persona's world, then write the concept. Every concept must carry the objective, persona and
