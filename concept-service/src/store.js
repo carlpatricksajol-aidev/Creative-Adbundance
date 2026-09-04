@@ -482,8 +482,52 @@ function markNotifsRead(to, ids) {
   writeJSON(NOTIFS, list);
 }
 
+/* One row per client for the All-clients grid: what exists here and what state
+   it is in, so the page does not have to fetch every batch of every client to
+   stop saying "Nothing in flight" over real work. Seeded batches are the
+   generator's dedup memory, never work, so they do not count. */
+function overview() {
+  const out = {};
+  const row = (client) => {
+    const k = slug(client);
+    return out[k] || (out[k] = { client, concepts: 0, batches: 0, scripts: 0, flagged: 0,
+                                 storyboards: 0, pushed: 0, decided: 0, approved: 0, lastAt: '' });
+  };
+  const later = (r, at) => { if (at && at > r.lastAt) r.lastAt = at; };
+  for (const f of fs.readdirSync(BATCHES).filter((x) => x.endsWith('.json'))) {
+    try {
+      const b = JSON.parse(fs.readFileSync(path.join(BATCHES, f), 'utf8'));
+      if (!b.client || b.seeded || !(b.concepts || []).length) continue;
+      const r = row(b.client);
+      r.batches += 1; r.concepts += (b.concepts || []).length;
+      later(r, b.savedAt);
+    } catch {}
+  }
+  for (const s of listScripts(null)) {
+    const r = row(s.client);
+    r.scripts += s.count; r.flagged += s.flagged || 0;
+    later(r, s.savedAt);
+  }
+  for (const s of listStories(null)) {
+    const r = row(s.client);
+    r.storyboards += 1;
+    later(r, s.savedAt);
+  }
+  for (const pu of allPushes()) {
+    if (!pu.client) continue;
+    const r = row(pu.client);
+    r.pushed += 1;
+    const ds = Object.values(pu.decisions || {});
+    if (ds.length) r.decided += 1;
+    r.approved += ds.filter((d) => d && d.verdict === 'approved').length;
+    for (const d of ds) later(r, d && d.at);
+    later(r, pu.pushedAt);
+  }
+  return Object.values(out);
+}
+
 module.exports = {
-  canonNum, sweepOrphanedRuns, newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext,
+  canonNum, sweepOrphanedRuns, newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext, overview,
                    saveScripts, getScripts, listScripts,
                    savePush, getPush, getPushByBatch, getPushByToken, decide, approvedNums,
                    saveHarvest, listHarvests, latestHarvest, getHarvest,

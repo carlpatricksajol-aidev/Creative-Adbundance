@@ -620,6 +620,13 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { batches: store.listBatches(url.searchParams.get('client')) });
     }
 
+    /* The All-clients grid asks this once instead of fetching every batch of
+       every client: per client, what exists and what the client has decided. */
+    if (p === '/overview' && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      return json(res, 200, { clients: store.overview() });
+    }
+
     if (p.startsWith('/batch/') && req.method === 'GET') {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
       const b = store.getBatch(p.slice('/batch/'.length));
