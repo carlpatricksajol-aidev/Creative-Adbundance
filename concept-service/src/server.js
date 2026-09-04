@@ -15,6 +15,7 @@ const brand = require('./dossier');
 const pipeline = require('./pipeline');
 const scriptPipeline = require('./scriptPipeline');
 const storyboardPipeline = require('./storyboardPipeline');
+const mockup = require('./mockup');
 const research = require('./research');
 const onboarding = require('./onboarding');
 const auth = require('./auth');
@@ -340,6 +341,36 @@ async function startStoryRun({ client, scriptsId, requestedBy, savedBy }) {
       store.finishRun(id, { status: 'error', error: msg.slice(0, 1000) });
       store.notify({ to: requestedBy, client, open: 'storyboards', text: `The storyboard generator stopped: ${msg.slice(0, 160)}` });
       console.error('[storyboard %s] %s', id, msg);
+    } finally { active--; }
+  })();
+
+  return id;
+}
+
+async function startMockupRun({ client, batchId, nums, requestedBy }) {
+  const src = store.getBatch(batchId);
+  if (!src) { const e = new Error('that concept batch is not on file'); e.status = 404; throw e; }
+
+  const id = 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  store.newRun({ id, client, count: (src.concepts || []).length, requestedBy, kind: 'mockups', from: batchId });
+  const log = (name, state, detail) => store.step(id, name, state, detail);
+
+  (async () => {
+    active++;
+    try {
+      const result = await mockup.run({ client, batchId, nums, requestedBy, log });
+      store.finishRun(id, { status: 'done', mockupBatch: result.batchId, made: result.made, cost_usd: result.cost_usd });
+      store.notify({
+        to: requestedBy, client, open: 'concepts',
+        text: `${result.made} mockup${result.made === 1 ? '' : 's'} rendered for ${result.client}` +
+          (result.failed ? `, ${result.failed} failed and can be run again` : '') + '. The 9:16 box on each slide is filled.',
+      });
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      log('Failed', 'error', msg.slice(0, 400));
+      store.finishRun(id, { status: 'error', error: msg.slice(0, 1000) });
+      store.notify({ to: requestedBy, client, open: 'concepts', text: `The mockup generator stopped: ${msg.slice(0, 160)}` });
+      console.error('[mockups %s] %s', id, msg);
     } finally { active--; }
   })();
 
@@ -703,6 +734,43 @@ const server = http.createServer(async (req, res) => {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
       const j = store.getFootage(decodeURIComponent(p.slice('/footage/'.length)));
       return j ? json(res, 200, j) : json(res, 404, { error: 'no such footage job' });
+    }
+
+    /* ---- concept mockups: the 9:16 still for a concept slide ---- */
+    if (p === '/mockup/run' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      if (!process.env.KIE_API_KEY) {
+        return json(res, 503, { error: 'KIE_API_KEY is not set on the server, so mockups cannot be generated' });
+      }
+      if (active >= MAX_CONCURRENT) {
+        return json(res, 429, { error: `already running ${active} generators, try again when one finishes` });
+      }
+      const b = await body(req);
+      if (!b.client) return json(res, 400, { error: 'client is required' });
+      if (!b.batchId) return json(res, 400, { error: 'batchId is required, a mockup is generated for a concept in a batch' });
+      try { await brand.resolve(b.client); }
+      catch (e) { return json(res, 400, { error: e.message }); }
+      const id = await startMockupRun({
+        client: b.client, batchId: b.batchId, nums: b.nums, requestedBy: b.requestedBy,
+      });
+      return json(res, 202, { runId: id });
+    }
+
+    /* The image itself. Served from our disk rather than proxied to kie.ai,
+       whose URLs stop working after about a day. Open to a valid session the
+       same as everything else here. */
+    if (p.startsWith('/mockup/') && p.endsWith('.png') && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const file = mockup.imagePath(p.slice('/mockup/'.length, -'.png'.length));
+      if (!file) return json(res, 404, { error: 'no mockup for that concept yet' });
+      const buf = require('fs').readFileSync(file);
+      res.writeHead(200, {
+        'content-type': 'image/png',
+        'content-length': buf.length,
+        /* immutable: a regenerate writes a new id rather than the same one */
+        'cache-control': 'public, max-age=31536000, immutable',
+      });
+      return res.end(buf);
     }
 
     /* ---- audience harvests ----
