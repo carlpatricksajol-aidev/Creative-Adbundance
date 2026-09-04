@@ -490,8 +490,8 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
   <nav id="nav"></nav>
   <div class="foot">
     <div class="who">
-      <span class="av l" style="background:linear-gradient(135deg,#0F7B6C,#2BB3A3)">CB</span>
-      <span style="min-width:0"><b>Cole Brennan</b><i>Ello &middot; signed in</i></span>
+      <span class="av l" id="whoIni" style="background:linear-gradient(135deg,#0F7B6C,#2BB3A3)">CB</span>
+      <span style="min-width:0"><b id="whoName">Cole Brennan</b><i id="whoSub">Ello &middot; signed in</i></span>
     </div>
   </div>
 </aside>
@@ -1786,6 +1786,28 @@ function boot(){
     .then(({ ok, d }) => {
       if (!ok) throw new Error(d && d.error || 'that link is not valid');
       CLIENT.name = d.client || CLIENT.name;
+      /* The demo carries an invented contact name. A real client opening a
+         real link must never be shown a person who does not exist, least of
+         all as themselves, so in live mode the personal name goes and the
+         brand stands in for it until the service carries a real contact. */
+      CLIENT.contact = d.client || CLIENT.name;
+      CLIENT.first = (d.client || CLIENT.name || '').split(/\s+/)[0];
+      CLIENT.ini = (d.client || 'C').trim().slice(0, 2).toUpperCase();
+
+      /* Everything below was invented to make the demo legible and MUST NOT
+         reach a real client. The invoices are the sharpest case: three paid
+         entries at 8,500 dollars that no one was billed. An empty section
+         reads as "nothing here yet", which is true; a seeded one reads as a
+         financial record, which is not. */
+      SCHEDULE.length = 0;
+      INVOICES.length = 0;
+      LIBRARY.length = 0;
+
+      /* The sidebar identity is static markup, so a render never touches it. */
+      const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      setText('whoName', CLIENT.name);
+      setText('whoSub', 'Client portal');
+      setText('whoIni', CLIENT.ini);
       const b = liveBatch(d);
       BATCHES.length = 0;
       BATCHES.push(b);
