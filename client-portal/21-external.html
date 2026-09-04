@@ -518,6 +518,18 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
    =========================================================================== */
 const CLIENT = { name:'Ello', contact:'Cole Brennan', first:'Cole', ini:'CB', grad:'linear-gradient(135deg,#188038,#34A853)' };
 
+/* Live mode. A ?t=<token> in the link turns this page from a demo into the
+   real thing: it loads the batch the studio pushed for THIS client and writes
+   every decision back. The token is the whole credential and it scopes the
+   reader to one batch, so there is no login here and never should be. */
+const API = 'https://concepts.srv1486031.hstgr.cloud';
+const LIVE = (() => {
+  try { return new URLSearchParams(location.search).get('t') || null; } catch (e) { return null; }
+})();
+/* Decisions in flight, so a double click cannot send two verdicts, and a
+   failed write is visible rather than silently lost. */
+const SYNC = { busy: {}, err: null, loaded: false };
+
 const STAGES = [
   { id:'received',   ext:'Request received',        hand:'them',
     blurb:'We have your request and the brief attached to it.' },
@@ -551,6 +563,39 @@ const stageIdx = id => STAGES.findIndex(s => s.id === id);
    internal board uses; the internal side pushing a step is what moves it.
    --------------------------------------------------------------------------- */
 const g = (a,b) => `linear-gradient(160deg,${a},${b})`;
+
+/* The service speaks the generator's vocabulary and this page speaks its own.
+   One mapper, so the difference lives in a single place: num/title/logline/
+   desc/narrative/design becomes n/t/hook/p/beats/comps. Everything the client
+   should not see was already stripped server-side. */
+const LIVE_GRADS = [
+  'linear-gradient(160deg,#1967D2,#8AB4F8)', 'linear-gradient(160deg,#188038,#7ED4A0)',
+  'linear-gradient(160deg,#9334E6,#C77DFF)', 'linear-gradient(160deg,#B06000,#F0AC4E)',
+  'linear-gradient(160deg,#C5221F,#F28B82)', 'linear-gradient(160deg,#0F7B6C,#2BB3A3)',
+];
+function liveBatch(d){
+  const concepts = (d.concepts || []).map((c, i) => ({
+    n: String(c.num).padStart(3, '0'),
+    t: c.title || 'Untitled',
+    angle: c.selling_argument || '',
+    lane: c.format || 'UGC',
+    dur: parseInt(String(c.dur || '').replace(/[^0-9]/g, ''), 10) || 30,
+    hook: c.logline || '',
+    p: c.desc || '',
+    beats: c.narrative || [],
+    comps: c.design || [],
+    g: LIVE_GRADS[i % LIVE_GRADS.length],
+    /* what the client already decided, so a reload does not lose it */
+    _decision: c.decision || null,
+  }));
+  return {
+    id: 'live', name: d.batch || 'Your concepts', si: stageIdx('concepts'),
+    started: (d.pushedAt || '').slice(0, 10),
+    note: d.note || `${concepts.length} concept${concepts.length === 1 ? '' : 's'} for your review.`,
+    wants: ['concepts', 'scripts'],
+    concepts,
+  };
+}
 
 const BATCHES = [
   { id:'b6', name:'Batch 6', si: stageIdx('concepts'), started:'Aug 18',
@@ -760,6 +805,33 @@ function comsOf(key){
    it: hover a line for the bubble, a commented line goes Docs-yellow. The
    client's notes travel to the studio with the send. */
 function lineComsOf(k){ if (!S.lineCom) S.lineCom = {}; return S.lineCom[k] || []; }
+
+/* Send one decision to the studio. Optimistic on screen, because the client
+   should never wait on a network round trip to see their own click, but a
+   failure is surfaced rather than swallowed: a verdict the studio never
+   received is worse than one that visibly failed. */
+function sendDecision(num, verdict, note){
+  if (!LIVE) return;
+  const key = String(num);
+  if (SYNC.busy[key]) return;
+  SYNC.busy[key] = 1;
+  SYNC.err = null;
+  fetch(API + '/client/' + encodeURIComponent(LIVE) + '/decide', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ num: key, verdict, note: note || '', by: CLIENT.contact }),
+  })
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+      if (!ok) throw new Error(d && d.error || 'the studio did not accept that');
+    })
+    .catch(e => { SYNC.err = e.message; })
+    .then(() => { delete SYNC.busy[key]; render(); });
+}
+
+/* The page's own keys carry the batch id, and the service only wants the
+   concept number, so this is the one place that unpicks them. */
+const numOfKey = (k) => String(k || '').replace(/^live/, '').replace(/^s/, '');
 
 /* approved beats declined beats untouched */
 function verdictOf(key){
@@ -1597,6 +1669,9 @@ document.addEventListener('click', e => {
     const k = ap.dataset.approve;
     S.approved[k] = !S.approved[k];
     if (S.approved[k]) S.declined[k] = false;
+    /* Only an approval travels; un-approving is a local undo of something the
+       studio has not acted on yet, and there is no verdict for "never mind". */
+    if (S.approved[k]) sendDecision(numOfKey(k), 'approved');
     render(); return;
   }
   const pk = t.closest('[data-pick]');
@@ -1655,7 +1730,11 @@ document.addEventListener('click', e => {
       const k = cp.dataset.compost;
       comsOf(k).push({ who:'You', ini:'CB',
         bg:'linear-gradient(135deg,#0F7B6C,#2BB3A3)', time:'just now', text:txt });
-      if (S.comReq === k) { S.declined[k] = true; S.approved[k] = false; S.comReq = null; }
+      if (S.comReq === k) {
+        S.declined[k] = true; S.approved[k] = false; S.comReq = null;
+        /* the reason IS the message, so it travels with the rejection */
+        sendDecision(numOfKey(k), 'rejected', txt);
+      }
       render();
     }
     return;
@@ -1696,7 +1775,34 @@ document.addEventListener('input', e => {
 });
 
 restoreFromUrl();
-render();
+/* Without a token this is the demo it has always been. With one, the seeded
+   batches are replaced by the real pushed batch before anything paints, so a
+   client never sees someone else's example work. */
+function boot(){
+  if (!LIVE) { SYNC.loaded = true; render(); return; }
+  render();
+  fetch(API + '/client/' + encodeURIComponent(LIVE))
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+      if (!ok) throw new Error(d && d.error || 'that link is not valid');
+      CLIENT.name = d.client || CLIENT.name;
+      const b = liveBatch(d);
+      BATCHES.length = 0;
+      BATCHES.push(b);
+      /* replay what they already decided, so a reload is not a blank slate */
+      for (const c of b.concepts) {
+        if (!c._decision) continue;
+        const k = b.id + c.n;
+        if (c._decision.verdict === 'approved') S.approved[k] = true;
+        if (c._decision.verdict === 'rejected') S.declined[k] = true;
+      }
+      S.batch = b.id;
+      SYNC.loaded = true;
+      render();
+    })
+    .catch(e => { SYNC.err = e.message; SYNC.loaded = true; render(); });
+}
+boot();
 </script>
 </body>
 </html>
