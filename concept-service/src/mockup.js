@@ -44,6 +44,23 @@ const { canonNum, numSet } = require('./num');
    so updating the prompt needs no deploy. */
 const PROMPT_DIR = process.env.MOCKUP_PROMPT_DIR || '/vault/system/mockup';
 
+/* The concept skill's own image conventions. Carl went reference file by
+   reference file asking whether each one was wired in, and this was the one
+   that was not, despite being the skill's guidance for exactly this agent's
+   job: the 9:16 still as one continuous UGC-realism prompt with the
+   brand-styled hook caption. Read fresh from the mounted checkout like every
+   other skill file, so an edit lands on the next run. */
+const CONCEPT_SKILL_DIR = process.env.SKILL_DIR ||
+  '/srv/repo/.claude/skills/ad-concept-generator';
+
+function imageConventions() {
+  const p = path.join(CONCEPT_SKILL_DIR, 'references', 'image-prompts.md');
+  try { return fs.readFileSync(p, 'utf8'); }
+  catch {
+    throw new Error(`missing image-prompts.md at ${p}. Is the repo checked out and up to date?`);
+  }
+}
+
 const KIE_BASE = 'https://api.kie.ai/api/v1/jobs';
 const KIE_MODEL = 'nano-banana-2';
 const POLL_MS = 2000;
@@ -139,7 +156,13 @@ ${input.forcedTextTreatment ? `OVERLAY TREATMENT OVERRIDE: use exactly this styl
       max_tokens: 6000,
       temperature: 0.7,
       messages: [
-        { role: 'system', content: craft('concept-visualizer.md') },
+        /* the team's production mockup role first, then the skill's own image
+           conventions riding alongside it: they agree in spirit (UGC realism,
+           the hook caption in the brand's style) and the skill is the source
+           of truth Carl asked to be used on every run */
+        { role: 'system', content: craft('concept-visualizer.md')
+            + '\n\nTHE SKILL\'S IMAGE CONVENTIONS, from ad-concept-generator/references/image-prompts.md. Follow these as binding style rules for the prompt you write:\n\n'
+            + imageConventions() },
         { role: 'user', content: userPrompt },
       ],
     }),
