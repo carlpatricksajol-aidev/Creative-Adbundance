@@ -111,6 +111,11 @@
      mark visible: measured, a dark wordmark with no plate on this dark header
      is essentially invisible */
   .avatar.plate{background:#fff;}
+  /* and the other way round. PackDraw's logo is pure white (measured 1.000)
+     and shipped as a blank circle on the white plate above, exactly as ARMRA's
+     pure black one would vanish with no plate at all. storyframe.js measures
+     the file and picks. */
+  .avatar.plate.dark{background:#17171A;}
   .avatar img.fit{width:100%;height:100%;object-fit:contain;padding:2px;display:block;}
   /* and 19 of 86 active brands have no logo at all, including the two most
      often used for tests, so the initials are a designed state, not a hole */

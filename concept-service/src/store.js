@@ -53,6 +53,36 @@ function newRun({ id, client, count, requestedBy, kind, from }) {
   return run;
 }
 
+/* Runs do not survive a restart: the work is in memory and the process dying
+   takes it. So anything still marked running when we boot is dead, and leaving
+   it saying "running" makes the page poll a corpse forever. Carl waited ten
+   minutes on one of these. Called once, at startup. */
+function sweepOrphanedRuns() {
+  let n = 0;
+  let names = [];
+  try { names = fs.readdirSync(RUNS); } catch { return 0; }
+  for (const f of names) {
+    if (!f.endsWith('.json')) continue;
+    let run;
+    try { run = JSON.parse(fs.readFileSync(path.join(RUNS, f), 'utf8')); } catch { continue; }
+    if (!run || run.status !== 'running') continue;
+    run.status = 'error';
+    run.error = 'the service restarted while this was running, so the work stopped. Nothing was saved. Run it again.';
+    run.finishedAt = new Date().toISOString();
+    /* mark the step that was in flight too, or the panel shows a spinner
+       under a failed run */
+    for (const st of run.steps || []) {
+      if (st.state === 'running') {
+        st.state = 'error';
+        st.detail = 'stopped when the service restarted';
+      }
+    }
+    try { writeJSON(runFile(run.id), run); n++; } catch { /* nothing to do */ }
+  }
+  if (n) console.log('marked %d run(s) as stopped: the service had restarted while they were in flight', n);
+  return n;
+}
+
 function getRun(id) {
   try { return JSON.parse(fs.readFileSync(runFile(id), 'utf8')); }
   catch { return null; }
@@ -453,7 +483,7 @@ function markNotifsRead(to, ids) {
 }
 
 module.exports = {
-  canonNum, newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext,
+  canonNum, sweepOrphanedRuns, newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext,
                    saveScripts, getScripts, listScripts,
                    savePush, getPush, getPushByBatch, getPushByToken, decide, approvedNums,
                    saveHarvest, listHarvests, latestHarvest, getHarvest,

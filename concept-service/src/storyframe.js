@@ -33,6 +33,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 /* Same vault folder, same read-fresh-every-run contract, as the prompts. */
 const FRAME_DIR = process.env.MOCKUP_PROMPT_DIR || '/vault/system/mockup';
@@ -174,6 +175,79 @@ function measure(buf) {
   return { kind: 'unknown', w: 0, h: 0 };
 }
 
+/* Mean luminance of a PNG's visible pixels.
+ *
+ * The plate behind a contained logo cannot be a constant: ARMRA's wordmark
+ * measures 0.000 and disappears without a light plate, PackDraw's measures
+ * 1.000 and disappeared WITH one. Nothing in the file says which it is, so it
+ * is read. 8-bit truecolour with or without alpha covers every real logo seen
+ * here; anything else returns null and the caller keeps the safer default.
+ */
+function meanLuminance(buf) {
+  if (buf.length < 26 || buf.slice(0, 8).toString('latin1') !== '\x89PNG\r\n\x1a\n') return null;
+  const w = buf.readUInt32BE(16), h = buf.readUInt32BE(20);
+  const depth = buf[24], colorType = buf[25];
+  if (depth !== 8 || (colorType !== 2 && colorType !== 6)) return null;
+  const ch = colorType === 6 ? 4 : 3;
+
+  const parts = [];
+  let p = 8;
+  while (p + 8 <= buf.length) {
+    const len = buf.readUInt32BE(p);
+    const type = buf.slice(p + 4, p + 8).toString('latin1');
+    if (type === 'IDAT') parts.push(buf.slice(p + 8, p + 8 + len));
+    if (type === 'IEND') break;
+    p += 12 + len;
+  }
+  if (!parts.length) return null;
+
+  let raw;
+  try { raw = zlib.inflateSync(Buffer.concat(parts)); } catch { return null; }
+  const stride = w * ch;
+  if (raw.length < (stride + 1) * h) return null;
+
+  /* Rows must be unfiltered in order because each one can reference the row
+     above, so there is no shortcut past the decode. Sampling happens after. */
+  const prev = Buffer.alloc(stride);
+  const cur = Buffer.alloc(stride);
+  let sum = 0, seen = 0;
+  for (let y = 0; y < h; y++) {
+    const f = raw[y * (stride + 1)];
+    const off = y * (stride + 1) + 1;
+    for (let i = 0; i < stride; i++) {
+      const x = raw[off + i];
+      const a = i >= ch ? cur[i - ch] : 0;
+      const b = prev[i];
+      const c = i >= ch ? prev[i - ch] : 0;
+      let v;
+      if (f === 0) v = x;
+      else if (f === 1) v = x + a;
+      else if (f === 2) v = x + b;
+      else if (f === 3) v = x + ((a + b) >> 1);
+      else if (f === 4) {
+        const pa = Math.abs(b - c), pb = Math.abs(a - c), pc = Math.abs(a + b - 2 * c);
+        v = x + (pa <= pb && pa <= pc ? a : pb <= pc ? b : c);
+      } else return null;
+      cur[i] = v & 0xff;
+    }
+    /* every fourth row and pixel: an average does not need 80 megapixels of a
+       20000 pixel wide wordmark */
+    if (y % 4 === 0) {
+      for (let x = 0; x < w; x += 4) {
+        const i = x * ch;
+        if ((ch === 4 ? cur[i + 3] : 255) < 24) continue;   // transparent says nothing
+        sum += (0.2126 * cur[i] + 0.7152 * cur[i + 1] + 0.0722 * cur[i + 2]) / 255;
+        seen++;
+      }
+    }
+    cur.copy(prev);
+  }
+  return seen ? sum / seen : null;
+}
+
+/* Above this the logo is light enough that a white plate would swallow it. */
+const LIGHT_LOGO = 0.62;
+
 const MIME = {
   png: 'image/png', ico: 'image/x-icon', svg: 'image/svg+xml',
   jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif',
@@ -254,13 +328,21 @@ function avatarFor({ logoBuf, logoMeta, brandName }) {
       note: `square logo ${logoMeta.w}x${logoMeta.h}, filling the circle`,
     };
   }
+  /* Which plate depends on the logo, not on a guess. A white wordmark on the
+     white plate is exactly as invisible as a black one with no plate, and
+     PackDraw shipped a blank circle proving it. */
+  const lum = meanLuminance(logoBuf);
+  const light = lum != null && lum > LIGHT_LOGO;
+  const shade = light ? ' dark' : '';
+  const plate = light ? 'a dark plate' : 'a white plate';
+  const measured = lum == null ? 'unmeasurable, so the safer light plate' : `luminance ${lum.toFixed(2)}, so ${plate}`;
   return {
-    cls: 'plate', bg: '',
+    cls: 'plate' + shade, bg: '',
     content: `<img class="fit" src="${uri}" alt="">`,
-    mode: 'plate',
+    mode: light ? 'plate-dark' : 'plate',
     note: ar >= 1.1
-      ? `wide logo ${logoMeta.w}x${logoMeta.h} (${ar.toFixed(1)}:1), contained on a white plate so the wordmark stays readable`
-      : `tall logo ${logoMeta.w}x${logoMeta.h}, contained on a white plate`,
+      ? `wide logo ${logoMeta.w}x${logoMeta.h} (${ar.toFixed(1)}:1) on ${plate} (${measured})`
+      : `tall logo ${logoMeta.w}x${logoMeta.h} on ${plate} (${measured})`,
   };
 }
 
@@ -363,6 +445,6 @@ async function frame({ creativePng, brandName, logoBuf, logoMeta, cta, sponsored
 }
 
 module.exports = {
-  frame, buildHtml, loadLogo, avatarFor, initials, measure, brandGradient,
+  frame, buildHtml, loadLogo, avatarFor, initials, measure, brandGradient, meanLuminance,
   esc, cssUrl, FRAME_DIR, TEMPLATE, FONT, REQUIRED,
 };

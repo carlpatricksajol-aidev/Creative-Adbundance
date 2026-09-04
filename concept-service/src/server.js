@@ -1366,6 +1366,10 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+/* Anything still marked running is dead: this process is where the work lived.
+   Saying so at boot is what stops the board polling a corpse. */
+store.sweepOrphanedRuns();
+
 server.listen(PORT, () => {
   console.log('concept-service on :%d  model=%s  key=%s  data=%s',
     PORT, require('./llm').MODEL,
