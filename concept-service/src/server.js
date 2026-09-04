@@ -374,6 +374,41 @@ async function startStoryRun({ client, scriptsId, requestedBy, savedBy }) {
   return id;
 }
 
+/* Reframe an existing batch. Same shape as startMockupRun, except it costs
+   nothing and touches no external API, so it has no key check and no spend to
+   report. Editing the frame template in the vault is followed by one of
+   these, not by generating every concept again. */
+async function startReframeRun({ client, batchId, nums, requestedBy }) {
+  const src = store.getBatch(batchId);
+  if (!src) { const e = new Error('that concept batch is not on file'); e.status = 404; throw e; }
+
+  const id = 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  store.newRun({ id, client, count: (src.concepts || []).length, requestedBy, kind: 'frames', from: batchId });
+  const log = (name, state, detail) => store.step(id, name, state, detail);
+
+  (async () => {
+    active++;
+    try {
+      const result = await mockup.reframe({ client, batchId, nums, log });
+      store.finishRun(id, { status: 'done', made: result.made, cost_usd: 0 });
+      store.notify({
+        to: requestedBy, client, open: 'concepts',
+        text: `${result.made} mockup${result.made === 1 ? '' : 's'} reframed for ${result.client}` +
+          (result.failed ? `, ${result.failed} could not be reframed` : '') +
+          '. No generation spend.',
+      });
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      log('Failed', 'error', msg.slice(0, 400));
+      store.finishRun(id, { status: 'error', error: msg.slice(0, 1000) });
+      store.notify({ to: requestedBy, client, open: 'concepts', text: `The reframe stopped: ${msg.slice(0, 160)}` });
+      console.error('[frames %s] %s', id, msg);
+    } finally { active--; }
+  })();
+
+  return id;
+}
+
 async function startMockupRun({ client, batchId, nums, requestedBy }) {
   const src = store.getBatch(batchId);
   if (!src) { const e = new Error('that concept batch is not on file'); e.status = 404; throw e; }
@@ -819,7 +854,50 @@ const server = http.createServer(async (req, res) => {
     }
 
     /* ---- the client's side. Token-authenticated, never a staff session. ---- */
-    if (p.startsWith('/client/') && req.method === 'GET') {
+    /* This one is BEFORE the generic /client/:token GET below on purpose.
+       That route matches /client/<anything> and reads the whole tail as a
+       token, so with the order reversed it answers every mockup request
+       with "that link is not valid" and the portal shows a broken image. */
+    /* The story frame for one concept, under the client's own share token.
+       No session and no bearer: the token is the credential, exactly as it is
+       for the concepts themselves. */
+    if (p.startsWith('/client/') && /\/mockup\/[^/]+\.png$/.test(p) && req.method === 'GET') {
+      const m = /^\/client\/([^/]+)\/mockup\/([^/]+)\.png$/.exec(p);
+      if (!m) return json(res, 404, { error: 'not found' });
+      const rec = store.getPushByToken(decodeURIComponent(m[1]));
+      if (!rec) return json(res, 404, { error: 'that link is not valid' });
+      const batch = store.getBatch(rec.batchId);
+      if (!batch) return json(res, 404, { error: 'the work behind that link is no longer on file' });
+
+      /* The number has to belong to this batch AND be inside whatever scope
+         was pushed, so a valid token cannot be pointed at a concept the
+         client was never sent. */
+      const num = store.canonNum(decodeURIComponent(m[2]));
+      const inBatch = (batch.concepts || []).some((c) => store.canonNum(c.num) === num);
+      const scope = rec.nums && rec.nums.length ? new Set(rec.nums.map(store.canonNum)) : null;
+      if (!inBatch || (scope && !scope.has(num))) {
+        return json(res, 404, { error: 'that concept is not in this batch' });
+      }
+
+      const file = mockup.imagePath(`${batch.id}-c${num}`);
+      if (!file) return json(res, 404, { error: 'there is no render for that concept yet' });
+      res.writeHead(200, {
+        'content-type': 'image/png',
+        'cache-control': 'no-store',
+        'x-robots-tag': 'noindex',
+      });
+      return fs.createReadStream(file).pipe(res);
+    }
+
+    /* The token is the WHOLE segment here. Without that guard this branch
+       swallows /client/<token>/mockup/1.png, fails to resolve a token from
+       "<token>/mockup/1.png", and 404s it, which the portal then renders as
+       "no mockup yet" for every client with nothing in any log saying why.
+       The mockup route above already comes first, but depending on statement
+       order for correctness is fragile, and /decide escaped this only by
+       being a POST, which was luck rather than design. */
+    if (p.startsWith('/client/') && !p.slice('/client/'.length).includes('/')
+        && req.method === 'GET') {
       const rec = store.getPushByToken(decodeURIComponent(p.slice('/client/'.length)));
       if (!rec) return json(res, 404, { error: 'that link is not valid' });
       const batch = store.getBatch(rec.batchId);
@@ -848,6 +926,9 @@ const server = http.createServer(async (req, res) => {
           /* the same canonical key decide() writes under, so what the client
              already answered comes back and a reload is not a blank slate. */
           decision: (rec.decisions || {})[store.canonNum(c.num)] || null,
+          /* whether there is a story frame to show. The portal asks for it
+             under the token; see the route below. */
+          mockup: Boolean(mockup.imagePath(`${batch.id}-c${c.num}`)),
         }));
 
       return json(res, 200, {
@@ -921,6 +1002,26 @@ const server = http.createServer(async (req, res) => {
       return json(res, 202, { runId: id });
     }
 
+    /* Re-render the frames from the stills already on disk. No KIE_API_KEY
+       check on purpose: this route never generates, which is exactly why it
+       is safe to run as often as the design changes. */
+    if (p === '/mockup/reframe' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      if (active >= MAX_CONCURRENT) {
+        return json(res, 429, { error: `already running ${active} generators, try again when one finishes` });
+      }
+      const b = await body(req);
+      if (!b.batchId) return json(res, 400, { error: 'batchId is required' });
+      const cli = b.client || (store.getBatch(b.batchId) || {}).client;
+      if (!cli) return json(res, 400, { error: 'client is required, and the batch does not name one' });
+      try { await brand.resolve(cli); }
+      catch (e) { return json(res, 400, { error: e.message }); }
+      const id = await startReframeRun({
+        client: cli, batchId: b.batchId, nums: b.nums, requestedBy: b.requestedBy,
+      });
+      return json(res, 202, { runId: id });
+    }
+
     /* The image itself. Served from our disk rather than proxied to kie.ai,
        whose URLs stop working after about a day. Open to a valid session the
        same as everything else here. */
@@ -932,14 +1033,34 @@ const server = http.createServer(async (req, res) => {
          image changes nothing. */
       const bySession = Boolean(auth.sessionOf(cookieOf(req, 'ca_sess')));
       if (!authed(req) && !bySession) return json(res, 401, { error: 'unauthorized' });
-      const file = mockup.imagePath(p.slice('/mockup/'.length, -'.png'.length));
+      const wantId = p.slice('/mockup/'.length, -'.png'.length);
+      /* ?raw=1 serves the unframed still instead, which answers the only
+         question worth asking when a mockup looks wrong: did the generation
+         fail, or did the framing fail. */
+      const file = url.searchParams.get('raw') === '1'
+        ? mockup.creativePath(wantId)
+        : mockup.imagePath(wantId);
       if (!file) return json(res, 404, { error: 'no mockup for that concept yet' });
-      const buf = require('fs').readFileSync(file);
+
+      const st = fs.statSync(file);
+      /* NOT immutable, whatever the comment here used to claim. The id is
+         `${batch.id}-c${num}`, so a regenerate AND every free reframe
+         overwrite this exact URL; pinned for a year, an edit to the frame
+         template followed by a reframe shows the old image and looks like the
+         reframe did nothing. And private, not public: this response is
+         authenticated by a session cookie, so a shared cache must never be
+         allowed to hand one client's mockup to another. */
+      const etag = `"${st.size}-${Math.round(st.mtimeMs)}"`;
+      if (req.headers['if-none-match'] === etag) {
+        res.writeHead(304, { etag, 'cache-control': 'private, no-cache' });
+        return res.end();
+      }
+      const buf = fs.readFileSync(file);
       res.writeHead(200, {
         'content-type': 'image/png',
         'content-length': buf.length,
-        /* immutable: a regenerate writes a new id rather than the same one */
-        'cache-control': 'public, max-age=31536000, immutable',
+        etag,
+        'cache-control': 'private, no-cache',
       });
       return res.end(buf);
     }

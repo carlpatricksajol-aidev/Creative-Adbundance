@@ -1,0 +1,9 @@
+{
+  "name": "frame-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HTML in, PNG out. Rasterises the concept mockup story frame using the host's Chrome, because concept-service runs in an alpine image with no browser.",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "puppeteer-core": "^23.11.1" }
+}

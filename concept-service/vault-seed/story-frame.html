@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{BRAND_NAME}} story ad mockup</title>
+<!--
+  THE STORY AD FRAME. This is Carl's plixi-story-ad-mockup-v3.html with the
+  brand-specific parts turned into tokens. Every proportion he chose is
+  untouched, because those proportions ARE the design: the 203:417 frame, the
+  2.6% status bar, the 82% playbar fill, the 30px avatar, the 12.5px name.
+
+  Editing this file changes every mockup from the next run onward, with no
+  deploy, the same way concept-visualizer.md in this folder does.
+
+  THE TOKENS. Every one of these is required. If you replace this file with a
+  fresh export from a design tool and drop a token, the service REFUSES to
+  render rather than quietly shipping a frame with somebody else's brand name
+  baked into it:
+
+    {{FONT_URI}}        the embedded woff2, as a data: URI
+    {{CREATIVE_URI}}    the generated still, as a data: URI, inside a CSS url()
+    {{BRAND_NAME}}      the brand name, as HTML text, twice (title and header)
+    {{AVATAR_CLASS}}    "", "plate" or "lettermark", chosen from the logo shape
+    {{AVATAR_BG}}       an inline background for the lettermark, else empty
+    {{AVATAR_CONTENT}}  the <img> or the initials <span>
+    {{SPONSORED}}       the "Sponsored" label
+    {{CTA}}             the "Learn More" label
+
+  WHY THE FONT IS EMBEDDED. Carl's own note on the original said SF Pro is
+  Apple licensed and that to nail it off Apple you must self-host the woff2.
+  He was right, and it is worse than that on the render host: fc-match
+  "Helvetica Neue" there resolves to DejaVu Sans, which looks nothing like
+  iOS. So the face ships with the render and the output no longer depends on
+  which font packages a machine happens to have. Inter is the SF alike, SIL
+  OFL licensed, and variable, so one file covers 400 through 700.
+-->
+<style>
+  @font-face{
+    font-family:"Story UI";
+    src:url("{{FONT_URI}}") format("woff2");
+    font-weight:100 900;
+    font-style:normal;
+    /* block, not swap: swap paints a fallback first, and a screenshot taken in
+       that window ships the wrong typeface with no error anywhere */
+    font-display:block;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  body{
+    margin:0;
+    /* transparent, because only the .frame element is screenshotted: the grey
+       studio backdrop and the drop shadow of the original are presentation,
+       and the board and the portal already draw their own around the image */
+    background:transparent;
+    font-family:"Story UI","SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
+  }
+
+  /* Carl's exact proportion (203:417). Do not round this to 9:16. */
+  .frame{
+    position:relative;
+    width:270px;
+    aspect-ratio:203/417;
+    background:#000;
+    border-radius:20px;
+    overflow:hidden;
+  }
+
+  /* The generated still. It is 9:16 (measured 768x1376, ratio .558) and the
+     phone screen is 203:417 (.487), so the still is wider than the screen and
+     cover trims about 6% off each side. That is what the platform itself does
+     to a 9:16 asset on a tall phone, so the mockup stays honest. */
+  .media{
+    position:absolute;inset:0;
+    background-image:url("{{CREATIVE_URI}}");
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    /* if the still ever fails to decode this reads as an unlit screen, not as
+       a white hole in the middle of a black phone */
+    background-color:#141416;
+  }
+
+  .statusbar{position:absolute;top:0;left:0;right:0;height:2.6%;background:#000;z-index:4;}
+
+  .top{
+    position:absolute;top:2.6%;left:0;right:0;z-index:3;
+    padding:8px 11px 22px;
+    display:flex;flex-direction:column;gap:10px;
+    background:linear-gradient(180deg,rgba(0,0,0,.38) 0%,rgba(0,0,0,0) 100%);
+  }
+  .playbar{height:2px;border-radius:2px;background:rgba(255,255,255,.34);overflow:hidden;}
+  .playbar > i{display:block;height:100%;width:82%;background:#fff;border-radius:2px;}
+
+  .header{display:flex;align-items:center;gap:8px;}
+
+  /* THE AVATAR. Three modes, and the mode is picked from the logo's own
+     dimensions rather than hoped for. Of twelve sampled brand logos six are
+     wide wordmarks, ARMRA's being 5:1 at 20556x4114, and cropping one of
+     those into a circle produces a meaningless letterform fragment that
+     still reads as a logo, which is the worst kind of wrong. Measured. */
+  .avatar{
+    width:30px;height:30px;border-radius:50%;flex:none;overflow:hidden;
+    border:1.5px solid rgba(255,255,255,.85);
+    background:#2a2a2e;
+    display:flex;align-items:center;justify-content:center;
+  }
+  /* a square mark earns the full circle, which is how a real brand account
+     with a proper profile mark looks */
+  .avatar img.fill{width:100%;height:100%;object-fit:cover;display:block;}
+  /* a wordmark is contained instead, and the white plate is what keeps a dark
+     mark visible: measured, a dark wordmark with no plate on this dark header
+     is essentially invisible */
+  .avatar.plate{background:#fff;}
+  .avatar img.fit{width:100%;height:100%;object-fit:contain;padding:2px;display:block;}
+  /* and 19 of 86 active brands have no logo at all, including the two most
+     often used for tests, so the initials are a designed state, not a hole */
+  .avatar.lettermark span{
+    color:#fff;font-size:12.5px;font-weight:700;letter-spacing:-.02em;line-height:1;
+    text-shadow:0 1px 2px rgba(0,0,0,.28);
+  }
+
+  .names{display:flex;flex-direction:column;line-height:1.18;min-width:0;}
+  /* a long brand name ("Accredited Debt Relief") must not push the dots and
+     the close off the header, so it ellipsises instead of wrapping */
+  .name{color:#fff;font-size:12.5px;font-weight:600;letter-spacing:-.01em;
+    text-shadow:0 1px 3px rgba(0,0,0,.35);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sponsored{color:rgba(255,255,255,.85);font-size:11px;font-weight:400;text-shadow:0 1px 3px rgba(0,0,0,.35);}
+  .controls{margin-left:auto;display:flex;align-items:center;gap:14px;flex:none;}
+  .dots circle{fill:#fff;}
+  .close{stroke:#fff;stroke-width:2;stroke-linecap:round;fill:none;}
+  .controls svg{filter:drop-shadow(0 1px 2px rgba(0,0,0,.35));}
+
+  .bottom{
+    position:absolute;bottom:0;left:0;right:0;z-index:3;
+    background:#000;
+    padding:11px 0 30px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+  }
+  .arrow{stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;fill:none;}
+  .learn{color:#fff;font-size:13.5px;font-weight:600;letter-spacing:-.01em;}
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="media"></div>
+
+    <div class="statusbar"></div>
+
+    <div class="top">
+      <div class="playbar"><i></i></div>
+      <div class="header">
+        <div class="avatar {{AVATAR_CLASS}}" style="{{AVATAR_BG}}">{{AVATAR_CONTENT}}</div>
+        <div class="names">
+          <span class="name">{{BRAND_NAME}}</span>
+          <span class="sponsored">{{SPONSORED}}</span>
+        </div>
+        <div class="controls">
+          <svg class="dots" width="13" height="6" viewBox="0 0 18 6">
+            <circle cx="2" cy="3" r="2"/><circle cx="9" cy="3" r="2"/><circle cx="16" cy="3" r="2"/>
+          </svg>
+          <svg class="close" width="25" height="25" viewBox="0 0 24 24">
+            <path d="M6 6l12 12M18 6L6 18"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <svg class="arrow" width="20" height="12" viewBox="0 0 20 12"><path d="M3 9l7-6 7 6"/></svg>
+      <span class="learn">{{CTA}}</span>
+    </div>
+  </div>
+</body>
+</html>

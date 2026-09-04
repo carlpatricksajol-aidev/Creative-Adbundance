@@ -37,6 +37,7 @@ const fs = require('fs');
 const path = require('path');
 const brand = require('./dossier');
 const store = require('./store');
+const storyframe = require('./storyframe');
 const { canonNum, numSet } = require('./num');
 
 /* Where the craft lives. Same shape as SKILL_DIR: a mounted path, read fresh,
@@ -52,7 +53,31 @@ const POLL_MS = 2000;
 const MAX_WAIT_MS = 180 * 1000;
 
 const IMG_DIR = path.join(process.env.DATA_DIR || '/data', 'mockups');
+/* The still is kept as well as the framed composite. A still is paid for and
+   slow; a frame is free and fast. Keeping the still means a template change is
+   a re-render rather than a re-generation of the whole batch. */
+const CREATIVE_DIR = path.join(IMG_DIR, 'creative');
 fs.mkdirSync(IMG_DIR, { recursive: true });
+fs.mkdirSync(CREATIVE_DIR, { recursive: true });
+
+/* A killed run can leave a .part behind. It is never valid and never resumed,
+   so it goes at boot rather than lingering as a confusing artifact. */
+for (const d of [IMG_DIR, CREATIVE_DIR]) {
+  try {
+    for (const f of fs.readdirSync(d)) if (f.endsWith('.part')) fs.unlinkSync(path.join(d, f));
+  } catch { /* first boot: the directory was only just created */ }
+}
+
+/* Write to a temp name and rename, because `docker compose up -d --build` is
+   the deploy step here and it kills in-flight runs. A plain writeFileSync
+   interrupted mid-write leaves a truncated PNG that existsSync happily
+   reports as a finished mockup, and the board renders it in front of a
+   client. Same filesystem, so the rename is atomic. */
+function writeAtomic(file, buf) {
+  const tmp = file + '.part';
+  fs.writeFileSync(tmp, buf);
+  fs.renameSync(tmp, file);
+}
 
 function craft(name) {
   const p = path.join(PROMPT_DIR, name);
@@ -175,22 +200,53 @@ async function generateImage({ prompt, imageUrls }) {
   throw new Error('timed out waiting on kie.ai after ' + Math.round(MAX_WAIT_MS / 1000) + 's');
 }
 
-/* The URL rots in about a day, so the bytes come to us now. */
+/* The URL rots in about a day, so the bytes come to us now. The still lands in
+   its own directory: the served path belongs to the framed composite. */
 async function download(url, id) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`could not download the generated image (HTTP ${res.status})`);
   const buf = Buffer.from(await res.arrayBuffer());
   if (!buf.length) throw new Error('the generated image downloaded empty');
-  const file = path.join(IMG_DIR, `${id}.png`);
-  fs.writeFileSync(file, buf);
-  return { file, bytes: buf.length };
+  const file = path.join(CREATIVE_DIR, `${id}.png`);
+  writeAtomic(file, buf);
+  return { file, bytes: buf.length, buf };
+}
+
+/* Both paths run every id through the same sanitiser, so a crafted id cannot
+   walk out of either directory. */
+function safeId(id) {
+  return String(id || '').replace(/[^A-Za-z0-9._-]/g, '');
+}
+
+function creativePath(id) {
+  const safe = safeId(id);
+  if (!safe) return null;
+  const p = path.join(CREATIVE_DIR, `${safe}.png`);
+  return fs.existsSync(p) && fs.statSync(p).size > 0 ? p : null;
+}
+
+/* Frame one still and write it to the served path. Returns what it did so the
+   run can report a plate, a square mark or a lettermark per concept rather
+   than leaving Carl to notice a missing logo by eye. */
+async function frameOne({ id, creativeBuf, brandName, logo, cta }) {
+  const out = await storyframe.frame({
+    creativePng: creativeBuf,
+    brandName,
+    logoBuf: logo.buf,
+    logoMeta: logo.meta,
+    cta,
+  });
+  writeAtomic(path.join(IMG_DIR, `${safeId(id)}.png`), out.png);
+  return out;
 }
 
 function imagePath(id) {
-  const safe = String(id || '').replace(/[^A-Za-z0-9._-]/g, '');
+  const safe = safeId(id);
   if (!safe) return null;
   const p = path.join(IMG_DIR, `${safe}.png`);
-  return fs.existsSync(p) ? p : null;
+  /* size as well as existence: a lost rename race or a full disk leaves a
+     zero byte file that existsSync alone would call a finished mockup. */
+  return fs.existsSync(p) && fs.statSync(p).size > 0 ? p : null;
 }
 
 /* --------------------------------------------------------------- the run ---- */
@@ -202,6 +258,9 @@ function brandInputs(record) {
   const snap = record.snap || {};
   return {
     brandName: record.brand && record.brand.brand_name,
+    /* the frame's avatar. 19 of 86 active brands have no logo_url, so this is
+       often null and that is a designed state, not a gap. */
+    logoUrl: record.brand && record.brand.logo_url,
     productName: (record.products || []).map((p) => p.name || p.product_name).filter(Boolean)[0],
     hasProductReferenceImage: false,
     category: snap.category,
@@ -225,6 +284,13 @@ async function run({ client, batchId, nums, requestedBy, log }) {
   const treatments = JSON.parse(craft('text-treatments.json'));
   log('Intake', 'done',
     `${concepts.length} concept${concepts.length === 1 ? '' : 's'} in scope, snapshot for ${base.brandName} (matched on ${matched})`);
+
+  /* Once per run, not once per concept: a batch is five frames for one brand
+     and ARMRA's logo alone is 823KB. */
+  const logo = await storyframe.loadLogo(base.logoUrl);
+  log('Brand mark', 'done', logo.why
+    ? `${logo.why}, so the frame uses the ${base.brandName} initials`
+    : `logo on file, ${logo.meta.kind} ${logo.meta.w}x${logo.meta.h}`);
 
   const out = [];
   let spend = 0;
@@ -252,10 +318,31 @@ async function run({ client, batchId, nums, requestedBy, log }) {
       log(label, 'running', 'generating, this takes up to two minutes');
       const url = await generateImage({ prompt: authored.prompt });
       const id = `${batch.id}-c${c.num}`;
-      const { bytes } = await download(url, id);
+      const { bytes, buf } = await download(url, id);
 
-      out.push({ num: c.num, id, bytes, treatment: forcedTextTreatment, prompt: authored.prompt });
-      log(label, 'done', `${Math.round(bytes / 1024)}KB, ${String(forcedTextTreatment).slice(0, 40)}`);
+      /* The still is paid for and on disk from here on. Framing is free and
+         retryable, so it gets its own try: a frame failure must never make a
+         generation that already cost money and two minutes disappear. */
+      let framed = null, frameErr = null;
+      try {
+        framed = await frameOne({ id, creativeBuf: buf, brandName: base.brandName, logo, cta: 'Learn More' });
+      } catch (err) {
+        frameErr = err && err.message ? err.message : String(err);
+        /* serve the unframed still rather than nothing, so the paid work is
+           visible on the board and reframe() can finish the job for free */
+        writeAtomic(path.join(IMG_DIR, `${id}.png`), buf);
+      }
+
+      out.push({
+        num: c.num, id, bytes, treatment: forcedTextTreatment, prompt: authored.prompt,
+        framed: Boolean(framed),
+        avatar: framed ? framed.avatar.mode : null,
+        dims: framed ? `${framed.dims.w}x${framed.dims.h}` : null,
+        frameError: frameErr,
+      });
+      log(label, frameErr ? 'error' : 'done', frameErr
+        ? `the still is safe but the frame failed: ${frameErr.slice(0, 90)}`
+        : `framed ${framed.dims.w}x${framed.dims.h}, ${String(forcedTextTreatment).slice(0, 34)}`);
     } catch (err) {
       /* One concept failing must not lose the ones already paid for. */
       const msg = err && err.message ? err.message : String(err);
@@ -266,8 +353,12 @@ async function run({ client, batchId, nums, requestedBy, log }) {
 
   const made = out.filter((o) => o.id).length;
   const failed = out.length - made;
+  const unframed = out.filter((o) => o.id && !o.framed).length;
   log('Mockups ready', 'done',
-    `${made} of ${out.length} rendered` + (failed ? `, ${failed} failed and can be run again` : ''));
+    `${made} of ${out.length} rendered` +
+    (failed ? `, ${failed} failed and can be run again` : '') +
+    (unframed ? `, ${unframed} still unframed and can be reframed for free` : '') +
+    (logo.why ? ', brand initials used in place of a logo' : ''));
 
   return {
     client: base.brandName,
@@ -275,8 +366,72 @@ async function run({ client, batchId, nums, requestedBy, log }) {
     mockups: out,
     made,
     failed,
+    unframed,
+    /* so the board can say why an avatar is initials instead of a logo */
+    logo: logo.why ? { present: false, why: logo.why } : { present: true, kind: logo.meta.kind },
     cost_usd: Math.round(spend * 100) / 100,
   };
 }
 
-module.exports = { run, imagePath, IMG_DIR };
+/* Re-render the frames for a batch from the stills already on disk. No prompt
+   call, no kie.ai call, no spend, so editing story-frame.html in the vault or
+   adding a brand's logo costs one of these instead of a whole regeneration.
+   This is the entry point that makes the template safe to iterate on. */
+async function reframe({ client, batchId, nums, log }) {
+  const batch = store.getBatch(batchId);
+  if (!batch) { const e = new Error('that concept batch is not on file'); e.status = 404; throw e; }
+  const want = Array.isArray(nums) && nums.length ? numSet(nums) : null;
+  const concepts = (batch.concepts || []).filter((c) => !want || want.has(canonNum(c.num)));
+  if (!concepts.length) { const e = new Error('no concepts in scope'); e.status = 400; throw e; }
+
+  log('Intake', 'running');
+  const { record, matched } = await brand.resolve(client || batch.client);
+  const base = brandInputs(record);
+  const logo = await storyframe.loadLogo(base.logoUrl);
+  log('Intake', 'done',
+    `${concepts.length} concept${concepts.length === 1 ? '' : 's'} in scope for ${base.brandName} ` +
+    `(matched on ${matched}), ${logo.why ? 'no logo on file' : 'logo on file'}`);
+
+  const out = [];
+  for (const c of concepts) {
+    const id = `${batch.id}-c${c.num}`;
+    const label = `Concept ${c.num}`;
+    const src = creativePath(id);
+    if (!src) {
+      /* nothing was ever generated for this one, or it predates the split.
+         Either way there is no still to frame and saying so is better than
+         inventing one. */
+      out.push({ num: c.num, id, skipped: 'no generated still on file for this concept' });
+      log(label, 'error', 'no generated still on file, so there is nothing to frame');
+      continue;
+    }
+    try {
+      const framed = await frameOne({
+        id, creativeBuf: fs.readFileSync(src), brandName: base.brandName, logo, cta: 'Learn More',
+      });
+      out.push({ num: c.num, id, framed: true, avatar: framed.avatar.mode, dims: `${framed.dims.w}x${framed.dims.h}` });
+      log(label, 'done', `reframed ${framed.dims.w}x${framed.dims.h}, ${framed.avatar.mode}`);
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      out.push({ num: c.num, id, framed: false, error: msg });
+      log(label, 'error', msg.slice(0, 140));
+    }
+  }
+
+  const done = out.filter((o) => o.framed).length;
+  log('Frames ready', 'done',
+    `${done} of ${out.length} reframed, no generation spend` +
+    (logo.why ? ', brand initials used in place of a logo' : ''));
+
+  return {
+    client: base.brandName,
+    batchId: batch.id,
+    frames: out,
+    made: done,
+    failed: out.length - done,
+    logo: logo.why ? { present: false, why: logo.why } : { present: true, kind: logo.meta.kind },
+    cost_usd: 0,
+  };
+}
+
+module.exports = { run, reframe, imagePath, creativePath, IMG_DIR, CREATIVE_DIR };

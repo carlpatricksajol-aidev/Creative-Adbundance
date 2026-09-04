@@ -279,7 +279,22 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
 .asks{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
   color:var(--amber-deep);white-space:nowrap}
 .asks::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--amber);flex:none}
+/* Demo mode looks exactly like the real portal, because it now carries the
+   same real concepts. Without a mark there is no way to know that a decision
+   made here goes nowhere, which is how an hour of approvals got lost. */
+.demobar{position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;align-items:center;
+  justify-content:center;gap:8px;padding:7px 14px;background:var(--ink-1);color:#fff;
+  font-size:12px;font-weight:600;letter-spacing:.01em}
+.demobar b{font-weight:700}
+.demobar span{opacity:.72;font-weight:500}
+body.demo main{padding-bottom:34px}
 .phone{width:100%;max-width:214px;border-radius:20px;overflow:hidden;background:#141416;box-shadow:0 10px 28px rgba(0,0,0,.18)}
+/* The rendered frame is its own phone: black body, 20px corners, header and
+   CTA bar all inside the PNG. So no border-radius and no box-shadow here, or
+   the chrome is drawn twice and the shadow traces a rectangle around corners
+   that are transparent. */
+.phoneshot{width:100%;max-width:214px;display:block;filter:drop-shadow(0 10px 26px rgba(0,0,0,.2))}
+.boardwrap .phoneshot{max-width:358px}
 .phead{display:flex;align-items:center;gap:9px;padding:11px 13px}
 .phead b{display:block;font-size:12px;color:#fff;font-weight:600}
 .phead i{display:block;font-style:normal;font-size:9.5px;color:rgba(255,255,255,.55)}
@@ -608,6 +623,8 @@ function liveBatch(d){
     g: LIVE_GRADS[i % LIVE_GRADS.length],
     /* what the client already decided, so a reload does not lose it */
     _decision: c.decision || null,
+    /* whether the studio has rendered the story frame for this concept yet */
+    _mockup: Boolean(c.mockup),
   }));
   return {
     id: 'live', name: d.batch || 'Your concepts', si: stageIdx('concepts'),
@@ -840,8 +857,15 @@ function sendDecision(num, verdict, note){
 }
 
 /* The page's own keys carry the batch id, and the service only wants the
-   concept number, so this is the one place that unpicks them. */
-const numOfKey = (k) => String(k || '').replace(/^live/, '').replace(/^s/, '');
+   concept number, so this is the one place that unpicks them.
+   The page pads a number to three digits for display ('001'), the service
+   stores it as it was generated ('1'), and comparing the two as strings is
+   why every decision came back "that concept is not in this batch". The
+   padding comes off here, at the boundary. */
+const numOfKey = (k) => String(k || '')
+  .replace(/^live/, '')
+  .replace(/^s/, '')
+  .replace(/^0+(?=\d)/, '');
 
 /* approved beats declined beats untouched */
 function verdictOf(key){
@@ -1271,6 +1295,8 @@ function vConcepts(){
 
   const coms = comsOf(key);
   const foot = `<div class="bfoot">
+    ${SYNC.err ? `<span class="pill red" style="max-width:100%;white-space:normal">
+      Your last decision did not reach the studio: ${esc(SYNC.err)}. Try it again.</span>` : ''}
     ${ro || ok || dec ? '' : `<span class="asks">Needs your call</span>`}
     ${ro
       ? (ok
@@ -1322,16 +1348,24 @@ function vConcepts(){
     ${foot}
   </div>`;
 
+  /* The real story frame when the studio has rendered it. It is fetched under
+     the share token, which is the same credential that grants these concepts,
+     so a client needs nothing else. The image already contains the phone, the
+     brand header and the CTA bar, so the box around it draws none of those. */
+  const shot = LIVE && k._mockup;
   const mock = `<div class="bmock">
-    <div class="phone">
-      <div class="phead"><span class="av s" style="background:${k.g}">E</span>
-        <span><b>ello</b><i>Sponsored</i></span></div>
+    ${shot
+      ? `<img class="phoneshot" src="${API}/client/${encodeURIComponent(LIVE)}/mockup/${encodeURIComponent(numOfKey(b.id + k.n))}.png"
+           alt="Story ad mockup for ${esc(k.t)}">`
+      : `<div class="phone">
+      <div class="phead"><span class="av s" style="background:${k.g}">${esc((CLIENT.name || '?').trim().charAt(0).toUpperCase())}</span>
+        <span><b>${esc(CLIENT.name)}</b><i>Sponsored</i></span></div>
       <div class="pbody" style="background:${k.g}">
         <b>${esc(k.t)}</b>
         <p>${k.hook}</p>
-        <span class="mtag">9:16 &middot; concept mockup</span>
+        <span class="mtag">Mockup coming</span>
       </div>
-    </div>
+    </div>`}
   </div>`;
 
   return `<div class="wrap boardwrap">
@@ -1608,8 +1642,15 @@ const URL_VIEWS = new Set(['home','batches','batch','concepts','scripts','librar
 function syncUrl(){
   if (!URL_VIEWS.has(S.view)) return;
   const q = new URLSearchParams();
+  /* FIRST, and unconditionally. This rebuilds the query from scratch, so
+     anything not re-added here is erased. The share token used to be erased
+     by exactly that, one navigation at a time, and the page then fell back to
+     demo mode on the next load with the client's decisions going nowhere. */
+  if (LIVE) q.set('t', LIVE);
   q.set('view', S.view);
-  if (S.view === 'batch'){ q.set('b', S.batch); const t = S.tab[S.batch]; if (t) q.set('t', t); }
+  /* The tab is 'tab', not 't'. It collided with the token, which is the one
+     that cannot change because it is in links already sent to clients. */
+  if (S.view === 'batch'){ q.set('b', S.batch); const tb = S.tab[S.batch]; if (tb) q.set('tab', tb); }
   if (S.view === 'concepts' || S.view === 'scripts') q.set('b', S.batch);
   try { history.replaceState(null, '', location.pathname + '?' + q.toString()); } catch(e){}
 }
@@ -1617,8 +1658,10 @@ function restoreFromUrl(){
   let p; try { p = new URLSearchParams(location.search); } catch(e){ return; }
   const b = p.get('b');
   if (b && batch(b)) S.batch = b;
-  const t = p.get('t');
-  if (t && WINDOWS[t]) S.tab[S.batch] = t;
+  /* 'tab' now; 't' is still read as a fallback for any link written before
+     the rename, but only when it names a real window rather than a token. */
+  const tb = p.get('tab') || p.get('t');
+  if (tb && WINDOWS[tb]) S.tab[S.batch] = tb;
   const v = p.get('view');
   if (v && URL_VIEWS.has(v)) S.view = v;
 }
@@ -1809,7 +1852,17 @@ restoreFromUrl();
    batches are replaced by the real pushed batch before anything paints, so a
    client never sees someone else's example work. */
 function boot(){
-  if (!LIVE) { SYNC.loaded = true; render(); return; }
+  if (!LIVE) {
+    /* Say it plainly and permanently, at the bottom where it cannot be
+       mistaken for part of the work. */
+    document.body.classList.add('demo');
+    const bar = document.createElement('div');
+    bar.className = 'demobar';
+    bar.innerHTML = '<b>Demo</b> <span>nothing you approve here is saved or sent to the studio. '
+      + 'Open the link the studio sent you to decide for real.</span>';
+    document.body.appendChild(bar);
+    SYNC.loaded = true; render(); return;
+  }
   render();
   fetch(API + '/client/' + encodeURIComponent(LIVE))
     .then(r => r.json().then(d => ({ ok: r.ok, d })))
