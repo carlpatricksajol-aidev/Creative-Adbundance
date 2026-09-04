@@ -799,10 +799,11 @@ const server = http.createServer(async (req, res) => {
       if (!batch) return json(res, 404, { error: 'that concept batch is not on file' });
       const rec = store.savePush({
         batchId: b.batchId, client: batch.client, by: b.by, nums: b.nums, note: b.note,
+        reset: b.reset === true,
       });
       return json(res, 200, {
         id: rec.id, token: rec.token, client: rec.client, batchId: rec.batchId,
-        pushedAt: rec.pushedAt, decisions: rec.decisions,
+        pushedAt: rec.pushedAt, decisions: rec.decisions, reset: Boolean(rec.resetAt && b.reset === true),
         /* the link a person actually sends */
         url: (process.env.CLIENT_PORTAL_URL || 'https://adbundance-os-client-view.vercel.app')
           + '/21-external.html?t=' + rec.token,

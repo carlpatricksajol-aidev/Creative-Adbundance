@@ -169,7 +169,7 @@ function newToken() {
   return crypto.randomBytes(24).toString('base64url');
 }
 
-function savePush({ batchId, client, by, nums, note }) {
+function savePush({ batchId, client, by, nums, note, reset }) {
   const prev = getPushByBatch(batchId);
   /* Pushing the same batch again must not orphan the link the client already
      has, or invalidate decisions they already made. */
@@ -181,6 +181,13 @@ function savePush({ batchId, client, by, nums, note }) {
     createdAt: new Date().toISOString(),
     decisions: {},
   };
+  /* Only when asked for. The token is deliberately kept, so a link already
+     sent to the client still opens; what goes is the verdicts. */
+  if (reset && prev) {
+    rec.decisions = {};
+    rec.decidedAt = null;
+    rec.resetAt = new Date().toISOString();
+  }
   rec.by = by || rec.by || '';
   rec.note = note != null ? String(note).slice(0, 1000) : rec.note || '';
   /* Which concepts the client is being shown. Absent means all of them. */
