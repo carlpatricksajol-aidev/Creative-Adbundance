@@ -45,8 +45,22 @@ for:** anything behind a login, a Cloudflare interactive challenge, or comments 
 
 **Access:** WebFetch first (it respects robots.txt and will refuse disallowed sites). If it refuses or the page is
 JS-heavy, `https://r.jina.ai/<full-url-including-https>` returns markdown, free without a key at roughly 20 requests
-per minute. It fetches server-side, so it fails on the same bot-blocked hosts. It is not a way around a block. If both
-fail and the page matters, it is a desktop job.
+per minute.
+
+**The reader DOES clear an IP or user-agent block, and does NOT clear an auth wall.** This distinction decides
+whether a source is worth chasing, so it was measured rather than assumed, from the VPS on 2026-09-04:
+
+| Target | Direct | Through the reader |
+|---|---|---|
+| Styleforum thread | 403 | **200, 71KB of real replies.** Yielded lines like "I don't think it was coincidence that every one of these stylists was an alluring young woman." |
+| Trustpilot company page | 403 | 200, but only 9.6KB of Trustpilot's own boilerplate. The reviews are client-rendered, so the markdown carries the rating and the chrome, not the review text. |
+| Reddit subreddit | 403 | 200 wrapper, 478 bytes, containing "Target URL returned error 403" and "You've been blocked by network security. To continue, log in to your Reddit account or use your developer token." |
+
+Read that table as the rule. A host that blocks datacenter IPs usually yields to the reader, so the many forums that
+403 a plain curl are in fact harvestable. A host that requires a login does not yield, and no reader will change that.
+A JS-rendered page yields its shell rather than its content, which looks like success and is not: **check that the
+text you got back contains sentences a person wrote**, not just a title and a nav bar, before recording anything from
+it. If the page matters and neither route works, it is a desktop job.
 
 - Consumer (Nightfold): fetch the Discourse thread search surfaced, e.g.
   `https://<host>/t/anyone-else-awake-at-3am/48211`, and read replies 6 through 30. The first post states a problem;
@@ -239,9 +253,10 @@ on a complaint site is angry, so the harvest skews to the failure state. One sou
 **Access:** Quora is heavily login-walled now. Treat it as discovery, not bulk: find answers with `site:quora.com
 "<phrase>"` and try the page reader, of which roughly half render. ComplaintsBoard, PissedConsumer, SiteJabber and
 ConsumerAffairs are mostly readable with the page reader and organised by company. BBB profile pages carry complaint
-narratives. **Trustpilot returned 403 to a plain request on 2026-09-04**; it surfaces in web search and sometimes
-renders through a reader with a browser user agent, and its official API needs a business account and key. Do not
-build a harvest that depends on it.
+narratives. **Trustpilot 403s a plain request and, measured 2026-09-04, returns only its own boilerplate through the
+reader**: the rating comes through, the review bodies do not, because they are client-rendered. Its official API needs
+a business account and key. Treat Trustpilot as a source for the score, not for voice, and do not build a harvest that
+depends on it.
 
 - Consumer (Nightfold): `site:consumeraffairs.com OR site:complaintsboard.com "sleep supplement" subscription cancel`
 - B2B (Ledgerpost): `site:sitejabber.com OR site:trustpilot.com "expense management" "support ticket"`
