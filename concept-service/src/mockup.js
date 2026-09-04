@@ -143,37 +143,49 @@ PLATFORM: ${f(input.platform || 'Instagram Reels')}
 
 ${input.forcedTextTreatment ? `OVERLAY TREATMENT OVERRIDE: use exactly this style unless the Contrast Gate genuinely forbids it at the position this composition offers, in which case pick the closest legal option in the SAME visual category instead. This has already been chosen for you to guarantee variety across the batch: ${input.forcedTextTreatment}\n\n` : ''}Follow your instructions exactly. Output ONLY the filled prompt, no preamble, no commentary, no code fences.`;
 
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      authorization: 'Bearer ' + key,
-      'content-type': 'application/json',
-      'http-referer': 'https://adbundance-os-client-view.vercel.app',
-      'x-title': 'Abundance Ecosystem concept mockups',
-    },
-    body: JSON.stringify({
-      model: model || process.env.MOCKUP_MODEL || 'anthropic/claude-sonnet-5',
-      max_tokens: 6000,
-      temperature: 0.7,
-      messages: [
-        /* the team's production mockup role first, then the skill's own image
-           conventions riding alongside it: they agree in spirit (UGC realism,
-           the hook caption in the brand's style) and the skill is the source
-           of truth Carl asked to be used on every run */
-        { role: 'system', content: craft('concept-visualizer.md')
-            + '\n\nTHE SKILL\'S IMAGE CONVENTIONS, from ad-concept-generator/references/image-prompts.md. Follow these as binding style rules for the prompt you write:\n\n'
-            + imageConventions() },
-        { role: 'user', content: userPrompt },
-      ],
-    }),
-  });
-  const body = await res.json().catch(() => null);
-  if (!res.ok || !body || body.error) {
-    throw new Error('the prompt agent failed: ' + ((body && body.error && body.error.message) || 'HTTP ' + res.status));
+  /* The model reasons internally before writing, and that reasoning counts
+     against max_tokens: at 6000 a long think consumed the whole budget and the
+     API returned 200 with EMPTY content, which is exactly the intermittent
+     "returned nothing" failure. So the budget is big enough for the worst
+     think, the reasoning effort is bounded low (this is template filling, not
+     strategy), and an empty reply gets one retry before it becomes an error. */
+  let totalCost = 0;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer ' + key,
+        'content-type': 'application/json',
+        'http-referer': 'https://adbundance-os-client-view.vercel.app',
+        'x-title': 'Abundance Ecosystem concept mockups',
+      },
+      body: JSON.stringify({
+        model: model || process.env.MOCKUP_MODEL || 'anthropic/claude-sonnet-5',
+        max_tokens: 16000,
+        temperature: 0.7,
+        reasoning: { effort: 'low' },
+        messages: [
+          /* the team's production mockup role first, then the skill's own image
+             conventions riding alongside it: they agree in spirit (UGC realism,
+             the hook caption in the brand's style) and the skill is the source
+             of truth Carl asked to be used on every run */
+          { role: 'system', content: craft('concept-visualizer.md')
+              + '\n\nTHE SKILL\'S IMAGE CONVENTIONS, from ad-concept-generator/references/image-prompts.md. Follow these as binding style rules for the prompt you write:\n\n'
+              + imageConventions() },
+          { role: 'user', content: userPrompt },
+        ],
+      }),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body || body.error) {
+      throw new Error('the prompt agent failed: ' + ((body && body.error && body.error.message) || 'HTTP ' + res.status));
+    }
+    totalCost += (body.usage && body.usage.cost) || 0;
+    const out = body.choices && body.choices[0] && body.choices[0].message && body.choices[0].message.content;
+    if (out && String(out).trim()) return { prompt: String(out).trim(), cost: totalCost };
+    const finish = body.choices && body.choices[0] && body.choices[0].finish_reason;
+    if (attempt === 2) throw new Error('the prompt agent returned nothing twice (finish: ' + (finish || 'unknown') + ')');
   }
-  const out = body.choices && body.choices[0] && body.choices[0].message && body.choices[0].message.content;
-  if (!out || !String(out).trim()) throw new Error('the prompt agent returned nothing');
-  return { prompt: String(out).trim(), cost: (body.usage && body.usage.cost) || 0 };
 }
 
 /* ---------------------------------------------------------- the generator ---- */
