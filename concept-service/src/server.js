@@ -760,7 +760,13 @@ const server = http.createServer(async (req, res) => {
        whose URLs stop working after about a day. Open to a valid session the
        same as everything else here. */
     if (p.startsWith('/mockup/') && p.endsWith('.png') && req.method === 'GET') {
-      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      /* An <img> tag cannot send an Authorization header, and the board is
+         served from this same origin, so this ONE route also accepts the
+         session cookie. Deliberately not folded into authed(): letting every
+         POST authenticate by cookie would make them CSRF-able. A GET of an
+         image changes nothing. */
+      const bySession = Boolean(auth.sessionOf(cookieOf(req, 'ca_sess')));
+      if (!authed(req) && !bySession) return json(res, 401, { error: 'unauthorized' });
       const file = mockup.imagePath(p.slice('/mockup/'.length, -'.png'.length));
       if (!file) return json(res, 404, { error: 'no mockup for that concept yet' });
       const buf = require('fs').readFileSync(file);
