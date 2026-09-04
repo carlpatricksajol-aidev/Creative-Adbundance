@@ -8,6 +8,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const DATA = process.env.DATA_DIR || '/data';
 const RUNS = path.join(DATA, 'runs');
@@ -15,10 +16,11 @@ const BATCHES = path.join(DATA, 'batches');
 const STORIES = path.join(DATA, 'storyboards');
 const SCRIPTS = path.join(DATA, 'scripts');
 const HARVESTS = path.join(DATA, 'harvests');
+const PUSHES = path.join(DATA, 'pushes');
 const FOOTAGE = path.join(DATA, 'footage');
 const NOTIFS = path.join(DATA, 'notifications.json');
 
-for (const d of [DATA, RUNS, BATCHES, STORIES, SCRIPTS, HARVESTS, FOOTAGE]) fs.mkdirSync(d, { recursive: true });
+for (const d of [DATA, RUNS, BATCHES, STORIES, SCRIPTS, HARVESTS, PUSHES, FOOTAGE]) fs.mkdirSync(d, { recursive: true });
 
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 /* Ids arrive from the page, so they never reach a path unfiltered. */
@@ -147,6 +149,103 @@ function listStories(client) {
 
 /* Newest first. Used both by the frontend's batch picker and by the library
    check, which needs the titles of everything already shipped for a client. */
+/* ---------- pushes: one batch handed to a client ----------
+ * The join everything else was missing. A concept's identity is already
+ * stable, it is (batchId, num), but until now the CLIENT'S DECISION on it
+ * lived nowhere: the internal board tracked approvals in session state and
+ * the client portal was a demo with seeded arrays, so "the client picked
+ * these two" was something a person carried between two screens.
+ *
+ * A push is that fact, written down. It carries its own token, which is what
+ * the client opens: they are not staff and must not need a staff session, and
+ * the token scopes them to exactly one batch of one client.
+ *
+ * Decisions are keyed by concept number as a string, because that is what
+ * travels on the concept and through the script and storyboard generators.
+ */
+const pushFile = (id) => path.join(PUSHES, `${safeId(id)}.json`);
+
+function newToken() {
+  return crypto.randomBytes(24).toString('base64url');
+}
+
+function savePush({ batchId, client, by, nums, note }) {
+  const prev = getPushByBatch(batchId);
+  /* Pushing the same batch again must not orphan the link the client already
+     has, or invalidate decisions they already made. */
+  const rec = prev || {
+    id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    token: newToken(),
+    batchId,
+    client,
+    createdAt: new Date().toISOString(),
+    decisions: {},
+  };
+  rec.by = by || rec.by || '';
+  rec.note = note != null ? String(note).slice(0, 1000) : rec.note || '';
+  /* Which concepts the client is being shown. Absent means all of them. */
+  if (Array.isArray(nums) && nums.length) rec.nums = nums.map(String);
+  rec.pushedAt = new Date().toISOString();
+  writeJSON(pushFile(rec.id), rec);
+  return rec;
+}
+
+function getPush(id) {
+  try { return JSON.parse(fs.readFileSync(pushFile(id), 'utf8')); }
+  catch { return null; }
+}
+
+function allPushes() {
+  return fs.readdirSync(PUSHES)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => { try { return JSON.parse(fs.readFileSync(path.join(PUSHES, f), 'utf8')); } catch { return null; } })
+    .filter(Boolean);
+}
+
+function getPushByBatch(batchId) {
+  return allPushes().find((p) => p.batchId === batchId) || null;
+}
+
+/* The token is the client's whole credential, so it is compared in constant
+   time and never logged. */
+function getPushByToken(token) {
+  const want = String(token || '');
+  if (want.length < 16) return null;
+  const a = Buffer.from(want);
+  for (const p of allPushes()) {
+    const b = Buffer.from(String(p.token || ''));
+    if (a.length === b.length && crypto.timingSafeEqual(a, b)) return p;
+  }
+  return null;
+}
+
+/* One concept, one decision, recorded against the push. Re-deciding is allowed
+   and overwrites, because a client changing their mind is normal and the
+   previous verdict was never acted on until scripts run. */
+function decide(pushId, { num, verdict, note, by }) {
+  const rec = getPush(pushId);
+  if (!rec) return null;
+  rec.decisions = rec.decisions || {};
+  rec.decisions[String(num)] = {
+    verdict,
+    note: note ? String(note).slice(0, 2000) : '',
+    by: by ? String(by).slice(0, 120) : 'the client',
+    at: new Date().toISOString(),
+  };
+  rec.decidedAt = new Date().toISOString();
+  writeJSON(pushFile(rec.id), rec);
+  return rec;
+}
+
+/* What the script and storyboard generators should actually run on. */
+function approvedNums(batchId) {
+  const p = getPushByBatch(batchId);
+  if (!p) return null;                       // never pushed: caller decides
+  return Object.entries(p.decisions || {})
+    .filter(([, d]) => String(d.verdict).toLowerCase() === 'approved')
+    .map(([num]) => String(num));
+}
+
 /* ---------- audience harvests ----------
  * What real customers actually said, found by the audience-harvest skill and
  * posted here. Research is written by an agent and read by the service, the
@@ -343,6 +442,7 @@ function markNotifsRead(to, ids) {
 
 module.exports = { newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext,
                    saveScripts, getScripts, listScripts,
+                   savePush, getPush, getPushByBatch, getPushByToken, decide, approvedNums,
                    saveHarvest, listHarvests, latestHarvest, getHarvest,
                    saveStory, getStory, listStories, saveFootage, getFootage, listFootage,
                    notify, notifsFor, markNotifsRead, DATA };

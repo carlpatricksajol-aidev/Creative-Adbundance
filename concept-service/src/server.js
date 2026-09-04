@@ -276,7 +276,30 @@ async function startRun({ client, count, requestedBy }) {
 async function startScriptRun({ client, batchId, nums, requestedBy }) {
   const src = store.getBatch(batchId);
   if (!src) { const e = new Error('that concept batch is not on file'); e.status = 404; throw e; }
-  const want = Array.isArray(nums) && nums.length ? new Set(nums.map(String)) : null;
+
+  /* Scripts follow the CLIENT'S decision, not the size of the batch. Writing
+     five scripts when the client picked two spends money on three nobody
+     asked for and buries the two that matter. An explicit nums always wins,
+     because a person overriding on purpose is allowed; otherwise, once a
+     batch has been pushed, the approved set is the scope. A batch never
+     pushed still scripts whole, which is what an internal-only draft wants. */
+  let scope = Array.isArray(nums) && nums.length ? nums.map(String) : null;
+  let scopeReason = scope ? 'asked for explicitly' : null;
+  if (!scope) {
+    const approved = store.approvedNums(batchId);
+    if (approved && approved.length) {
+      scope = approved;
+      scopeReason = 'approved by the client';
+    } else if (approved) {
+      const decided = Object.keys((store.getPushByBatch(batchId) || {}).decisions || {}).length;
+      const e = new Error(decided
+        ? `${decided} concept${decided === 1 ? ' has' : 's have'} been decided and none approved, so there is nothing to script yet`
+        : 'this batch is with the client and none of it is approved yet, so there is nothing to script');
+      e.status = 409; throw e;
+    }
+  }
+
+  const want = scope ? new Set(scope) : null;
   const concepts = (src.concepts || []).filter((c) => !want || want.has(String(c.num)));
   if (!concepts.length) {
     const e = new Error(want ? 'none of those concept numbers are in that batch' : 'that batch has no concepts');
@@ -291,6 +314,10 @@ async function startScriptRun({ client, batchId, nums, requestedBy }) {
   (async () => {
     active++;
     try {
+      if (scopeReason) {
+        log('Scope', 'done',
+          `${concepts.length} of ${(src.concepts || []).length} concept${(src.concepts || []).length === 1 ? '' : 's'} in scope, ${scopeReason}`);
+      }
       const result = await scriptPipeline.run({ client, batch: batchId, concepts, batchLabel, log });
       const rec = store.saveScripts(result);
       store.finishRun(id, { status: 'done', scriptsId: rec.id, cost_usd: result.cost_usd });
@@ -734,6 +761,111 @@ const server = http.createServer(async (req, res) => {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
       const j = store.getFootage(decodeURIComponent(p.slice('/footage/'.length)));
       return j ? json(res, 200, j) : json(res, 404, { error: 'no such footage job' });
+    }
+
+    /* ---- the push: one batch handed to a client ----
+     * The client is not staff and must not need a staff session, so the token
+     * IS their credential and it scopes them to exactly one batch. Everything
+     * under /client/ is deliberately outside authed().
+     */
+    if (p === '/push' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      if (!b.batchId) return json(res, 400, { error: 'batchId is required' });
+      const batch = store.getBatch(b.batchId);
+      if (!batch) return json(res, 404, { error: 'that concept batch is not on file' });
+      const rec = store.savePush({
+        batchId: b.batchId, client: batch.client, by: b.by, nums: b.nums, note: b.note,
+      });
+      return json(res, 200, {
+        id: rec.id, token: rec.token, client: rec.client, batchId: rec.batchId,
+        pushedAt: rec.pushedAt, decisions: rec.decisions,
+        /* the link a person actually sends */
+        url: (process.env.CLIENT_PORTAL_URL || 'https://adbundance-os-client-view.vercel.app')
+          + '/21-external.html?t=' + rec.token,
+      });
+    }
+
+    /* What the internal board reads to know where the client got to. */
+    if (p.startsWith('/push/') && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const rec = store.getPushByBatch(decodeURIComponent(p.slice('/push/'.length)));
+      if (!rec) return json(res, 404, { error: 'that batch has not been pushed to the client yet' });
+      return json(res, 200, rec);
+    }
+
+    /* ---- the client's side. Token-authenticated, never a staff session. ---- */
+    if (p.startsWith('/client/') && req.method === 'GET') {
+      const rec = store.getPushByToken(decodeURIComponent(p.slice('/client/'.length)));
+      if (!rec) return json(res, 404, { error: 'that link is not valid' });
+      const batch = store.getBatch(rec.batchId);
+      if (!batch) return json(res, 404, { error: 'the work behind that link is no longer on file' });
+
+      const want = rec.nums && rec.nums.length ? new Set(rec.nums) : null;
+      /* Only what a client should see. The internal fields stay internal:
+         no scores, no strategy triple, no compliance flag, no observation, and
+         above all no teammate names. The studio speaks as one voice. */
+      const concepts = (batch.concepts || [])
+        .filter((c) => !want || want.has(String(c.num)))
+        .map((c) => ({
+          num: c.num,
+          title: c.title,
+          logline: c.logline,
+          desc: c.desc,
+          hooks: c.hooks,
+          narrative: c.narrative,
+          design: c.design,
+          dur: c.dur,
+          format: c.format,
+          decision: (rec.decisions || {})[String(c.num)] || null,
+        }));
+
+      return json(res, 200, {
+        client: rec.client,
+        batch: batch.batch || null,
+        pushedAt: rec.pushedAt,
+        note: rec.note || '',
+        concepts,
+        counts: {
+          total: concepts.length,
+          approved: concepts.filter((c) => c.decision && c.decision.verdict === 'approved').length,
+          rejected: concepts.filter((c) => c.decision && c.decision.verdict === 'rejected').length,
+        },
+      });
+    }
+
+    if (p.startsWith('/client/') && p.endsWith('/decide') && req.method === 'POST') {
+      const token = decodeURIComponent(p.slice('/client/'.length, -'/decide'.length));
+      const rec = store.getPushByToken(token);
+      if (!rec) return json(res, 404, { error: 'that link is not valid' });
+      const b = await body(req);
+      const verdict = String(b.verdict || '').toLowerCase();
+      if (verdict !== 'approved' && verdict !== 'rejected') {
+        return json(res, 400, { error: "verdict must be 'approved' or 'rejected'" });
+      }
+      if (b.num == null) return json(res, 400, { error: 'num is required' });
+      /* A rejection without a reason tells the studio nothing it can act on. */
+      if (verdict === 'rejected' && !String(b.note || '').trim()) {
+        return json(res, 400, { error: 'a rejection carries a reason, so we know what to change' });
+      }
+      const batch = store.getBatch(rec.batchId);
+      const known = (batch && batch.concepts || []).some((c) => String(c.num) === String(b.num));
+      if (!known) return json(res, 400, { error: 'that concept is not in this batch' });
+
+      const out = store.decide(rec.id, { num: b.num, verdict, note: b.note, by: b.by });
+      const approved = Object.values(out.decisions || {}).filter((d) => d.verdict === 'approved').length;
+      const decided = Object.keys(out.decisions || {}).length;
+      const total = (batch.concepts || []).length;
+
+      /* The studio hears about it without anyone relaying a message. */
+      store.notify({
+        to: out.by, client: out.client, open: 'concepts',
+        text: `${out.client} ${verdict} concept ${b.num}` +
+          (verdict === 'rejected' && b.note ? `: "${String(b.note).slice(0, 90)}"` : '') +
+          `. ${decided} of ${total} decided, ${approved} approved.`,
+      });
+
+      return json(res, 200, { ok: true, num: String(b.num), verdict, decided, approved, total });
     }
 
     /* ---- concept mockups: the 9:16 still for a concept slide ---- */
