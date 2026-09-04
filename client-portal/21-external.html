@@ -54,8 +54,11 @@ button{background:none;border:none;cursor:pointer;font-family:inherit}
 /* ---------- primitives (verbatim from the internal file) ---------- */
 .mono{font-family:var(--mono)}
 .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;white-space:nowrap}
-.pill.amber{color:var(--amber);background:var(--amber-tint);border:1px solid var(--amber-line)}
-.pill.green{color:var(--green);background:var(--green-tint);border:1px solid var(--green-line)}
+/* -deep, not the mid tone. On their own tints the mid tones measure
+   amber 4.34:1 and green 4.42:1, under the 4.5:1 that 11px bold text needs;
+   the deep pair clear 6.3:1. */
+.pill.amber{color:var(--amber-deep);background:var(--amber-tint);border:1px solid var(--amber-line)}
+.pill.green{color:var(--green-deep);background:var(--green-tint);border:1px solid var(--green-line)}
 .pill.blue{color:var(--blue);background:var(--accent-soft);border:1px solid #A8C7FA}
 .pill.grey{color:var(--ink-3);background:var(--fill);border:1px solid var(--line)}
 .dot{width:7px;height:7px;border-radius:50%;flex:none}
@@ -261,6 +264,15 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
    tint, which read as the mockup being dimmed or disabled next to an
    otherwise white board. The phone's own shadow does the separating. */
 .bmock{background:var(--surface);padding:22px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+/* A decision has to be readable on the slide itself, not only as a tick in
+   the rail. The edge does the work at a glance and the badge names it; an
+   undecided slide gets neither and stays clean. */
+.bdoc.okd{box-shadow:inset 3px 0 0 var(--green)}
+.bdoc.decd{box-shadow:inset 3px 0 0 var(--red)}
+.vbadge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 10px 3px 7px;
+  font-size:11px;font-weight:700;letter-spacing:.01em;white-space:nowrap;vertical-align:middle;margin-left:10px}
+.vbadge.ok{color:var(--green-deep);background:var(--green-tint);border:1px solid var(--green-line)}
+.vbadge.no{color:var(--red-deep);background:var(--red-tint);border:1px solid var(--red-line)}
 .phone{width:100%;max-width:214px;border-radius:20px;overflow:hidden;background:#141416;box-shadow:0 10px 28px rgba(0,0,0,.18)}
 .phead{display:flex;align-items:center;gap:9px;padding:11px 13px}
 .phead b{display:block;font-size:12px;color:#fff;font-weight:600}
@@ -442,7 +454,7 @@ main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
   font-size:11.5px;color:var(--ink-2);white-space:nowrap;background:var(--surface)}
 .bchip.angle{background:var(--accent-tint);border-color:#A8C7FA;color:var(--accent-deep);font-weight:600}
 .chiprow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px}
-.pill.red{color:var(--red);background:var(--red-tint);border:1px solid var(--red-line)}
+.pill.red{color:var(--red-deep);background:var(--red-tint);border:1px solid var(--red-line)}
 .railtop{display:flex;align-items:center;gap:6px;padding:0 4px 4px}
 .railtop .kicker{flex:1;padding:0 6px}
 .railhint{font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;color:var(--ink-5);
@@ -1241,7 +1253,10 @@ function vConcepts(){
 
   /* Chips are internal shorthand (angle / duration / lane) - the client reads
      the slide itself, so the row carries only the verdict. */
-  const chips = `<div class="chiprow">
+  /* Only while it is still undecided. Once a verdict exists the badge beside
+     the title says it, and a pill repeating the same word two lines below is
+     the duplication this row was trimmed to avoid. */
+  const chips = (ok || dec || ro) ? '' : `<div class="chiprow">
     <span style="flex:1;min-width:6px"></span>
     <span class="pill ${v.cls}">${v.label}</span>
   </div>`;
@@ -1271,10 +1286,16 @@ function vConcepts(){
     </div>` : ''}
   </div>`;
 
-  const doc = `<div class="bdoc">
+  /* the badge sits with the title, so the answer to "did I decide this one?"
+     is in the same glance as "which one is this?" */
+  const badge = (ok || ro)
+    ? `<span class="vbadge ok">${ico('M4 12l5 5L20 6','var(--green-deep)',12)} Approved</span>`
+    : dec ? `<span class="vbadge no">${ico('M18 6 6 18M6 6l12 12','var(--red-deep)',11)} Rejected</span>` : '';
+
+  const doc = `<div class="bdoc${(ok || ro) ? ' okd' : dec ? ' decd' : ''}">
     <div class="bscroll">
       <span class="blab" style="margin-top:0">${esc(b.name)} &middot; Concept ${i + 1} of ${list.length}</span>
-      <h1 class="btitle">${esc(k.t)}</h1>
+      <h1 class="btitle">${esc(k.t)}${badge}</h1>
       ${chips}
       <span class="blab">Log line</span>
       <p class="bp">${k.hook}</p>
