@@ -18,6 +18,7 @@ const { ask } = require('./llm');
 const brand = require('./dossier');
 const research = require('./research');
 const store = require('./store');
+const { canonNum, numSet } = require('./num');
 
 const SKILL_DIR = process.env.SKILL_DIR ||
   '/srv/repo/.claude/skills/ad-concept-generator';
@@ -667,11 +668,13 @@ replace_these, give the concept number and a one-line brief for its replacement.
 function reconcile(concepts, reviews) {
   const byNum = new Map();
   for (const r of reviews || []) {
-    if (r && r.concept && r.num != null && !byNum.has(String(r.num))) {
-      byNum.set(String(r.num), r.concept);
+    if (r && r.concept && r.num != null && !byNum.has(canonNum(r.num))) {
+      byNum.set(canonNum(r.num), r.concept);
     }
   }
-  return concepts.map((c) => byNum.get(String(c.num)) || c);
+  /* a reviewer that answers "001" for concept 1 used to have its revision
+     silently dropped here, and the original shipped instead. */
+  return concepts.map((c) => byNum.get(canonNum(c.num)) || c);
 }
 
 async function run({ client, count = 5, prior = '', priorMeta = null, startNum = 1, log }) {
@@ -777,7 +780,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
       hard.set(String(f.num), `${f.finding} (source: ${f.source}). Fix: ${f.fix}`);
     }
     for (const c of concepts) {
-      const h = hard.get(String(c.num));
+      const h = hard.get(canonNum(c.num));
       if (h) c.flag = c.flag ? `${c.flag} | ${h}` : h;
     }
   }

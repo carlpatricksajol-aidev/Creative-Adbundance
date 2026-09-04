@@ -9,6 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { canonNum, numSet } = require('./num');
 
 const DATA = process.env.DATA_DIR || '/data';
 const RUNS = path.join(DATA, 'runs');
@@ -191,7 +192,9 @@ function savePush({ batchId, client, by, nums, note, reset }) {
   rec.by = by || rec.by || '';
   rec.note = note != null ? String(note).slice(0, 1000) : rec.note || '';
   /* Which concepts the client is being shown. Absent means all of them. */
-  if (Array.isArray(nums) && nums.length) rec.nums = nums.map(String);
+  /* canonical on the way in, so a scope pushed as ['001'] still selects
+     the concept the generator stored as 1. */
+  if (Array.isArray(nums) && nums.length) rec.nums = nums.map(canonNum);
   rec.pushedAt = new Date().toISOString();
   writeJSON(pushFile(rec.id), rec);
   return rec;
@@ -233,7 +236,9 @@ function decide(pushId, { num, verdict, note, by }) {
   const rec = getPush(pushId);
   if (!rec) return null;
   rec.decisions = rec.decisions || {};
-  rec.decisions[String(num)] = {
+  /* canonical, so the key a client's decision lands under is the same key
+     approvedNums and the internal board look it up by. */
+  rec.decisions[canonNum(num)] = {
     verdict,
     note: note ? String(note).slice(0, 2000) : '',
     by: by ? String(by).slice(0, 120) : 'the client',
@@ -250,7 +255,7 @@ function approvedNums(batchId) {
   if (!p) return null;                       // never pushed: caller decides
   return Object.entries(p.decisions || {})
     .filter(([, d]) => String(d.verdict).toLowerCase() === 'approved')
-    .map(([num]) => String(num));
+    .map(([num]) => canonNum(num));
 }
 
 /* ---------- audience harvests ----------
@@ -447,7 +452,8 @@ function markNotifsRead(to, ids) {
   writeJSON(NOTIFS, list);
 }
 
-module.exports = { newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext,
+module.exports = {
+  canonNum, newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext,
                    saveScripts, getScripts, listScripts,
                    savePush, getPush, getPushByBatch, getPushByToken, decide, approvedNums,
                    saveHarvest, listHarvests, latestHarvest, getHarvest,

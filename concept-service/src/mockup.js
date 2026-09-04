@@ -37,6 +37,7 @@ const fs = require('fs');
 const path = require('path');
 const brand = require('./dossier');
 const store = require('./store');
+const { canonNum, numSet } = require('./num');
 
 /* Where the craft lives. Same shape as SKILL_DIR: a mounted path, read fresh,
    so updating the prompt needs no deploy. */
@@ -213,8 +214,9 @@ function brandInputs(record) {
 async function run({ client, batchId, nums, requestedBy, log }) {
   const batch = store.getBatch(batchId);
   if (!batch) { const e = new Error('that concept batch is not on file'); e.status = 404; throw e; }
-  const want = Array.isArray(nums) && nums.length ? new Set(nums.map(String)) : null;
-  const concepts = (batch.concepts || []).filter((c) => !want || want.has(String(c.num)));
+  /* the board sends the number as the slide shows it, which is padded. */
+  const want = Array.isArray(nums) && nums.length ? numSet(nums) : null;
+  const concepts = (batch.concepts || []).filter((c) => !want || want.has(canonNum(c.num)));
   if (!concepts.length) { const e = new Error('no concepts in scope'); e.status = 400; throw e; }
 
   log('Intake', 'running');

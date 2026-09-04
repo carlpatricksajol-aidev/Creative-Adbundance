@@ -17,6 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const { ask } = require('./llm');
 const brand = require('./dossier');
+const { canonNum, numSet } = require('./num');
 
 const SKILL_DIR = process.env.SCRIPT_SKILL_DIR ||
   '/srv/repo/.claude/skills/ad-script-writer';
@@ -251,10 +252,10 @@ CONCEPTS:\n${JSON.stringify(conceptBrief(concepts), null, 1)}`,
 
 async function stageWrite({ snapshot, concepts, contracts, batchLabel, log, ask }) {
   log('Script Writer pass', 'running');
-  const cmap = new Map((contracts.contracts || []).map((c) => [String(c.num), c]));
+  const cmap = new Map((contracts.contracts || []).map((c) => [canonNum(c.num), c]));
   const withContracts = conceptBrief(concepts).map((c) => ({
-    ...c, contract: (cmap.get(String(c.num)) || {}).contract || '',
-    required_proof: (cmap.get(String(c.num)) || {}).proof || '',
+    ...c, contract: (cmap.get(canonNum(c.num)) || {}).contract || '',
+    required_proof: (cmap.get(canonNum(c.num)) || {}).proof || '',
   }));
 
   const out = await ask({
@@ -340,7 +341,7 @@ SCRIPTS:\n${JSON.stringify(g, null, 1)}`,
 
   const reviews = results.flatMap((r) => r.reviews || []);
   const byNum = new Map();
-  for (const r of reviews) if (r && r.num != null && !byNum.has(String(r.num))) byNum.set(String(r.num), r);
+  for (const r of reviews) if (r && r.num != null && !byNum.has(canonNum(r.num))) byNum.set(canonNum(r.num), r);
 
   const out = scripts.map((s) => {
     const r = byNum.get(String(s.num));

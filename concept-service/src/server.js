@@ -283,7 +283,7 @@ async function startScriptRun({ client, batchId, nums, requestedBy }) {
      because a person overriding on purpose is allowed; otherwise, once a
      batch has been pushed, the approved set is the scope. A batch never
      pushed still scripts whole, which is what an internal-only draft wants. */
-  let scope = Array.isArray(nums) && nums.length ? nums.map(String) : null;
+  let scope = Array.isArray(nums) && nums.length ? nums.map(store.canonNum) : null;
   let scopeReason = scope ? 'asked for explicitly' : null;
   if (!scope) {
     const approved = store.approvedNums(batchId);
@@ -299,8 +299,8 @@ async function startScriptRun({ client, batchId, nums, requestedBy }) {
     }
   }
 
-  const want = scope ? new Set(scope) : null;
-  const concepts = (src.concepts || []).filter((c) => !want || want.has(String(c.num)));
+  const want = scope ? new Set(scope.map(store.canonNum)) : null;
+  const concepts = (src.concepts || []).filter((c) => !want || want.has(store.canonNum(c.num)));
   if (!concepts.length) {
     const e = new Error(want ? 'none of those concept numbers are in that batch' : 'that batch has no concepts');
     e.status = 400; throw e;
@@ -825,12 +825,16 @@ const server = http.createServer(async (req, res) => {
       const batch = store.getBatch(rec.batchId);
       if (!batch) return json(res, 404, { error: 'the work behind that link is no longer on file' });
 
-      const want = rec.nums && rec.nums.length ? new Set(rec.nums) : null;
+      /* canonical, so a scope pushed as ['001'] still selects the concept the
+         generator stored as 1 rather than filtering the batch down to nothing. */
+      const want = rec.nums && rec.nums.length
+        ? new Set(rec.nums.map((n) => store.canonNum(n)))
+        : null;
       /* Only what a client should see. The internal fields stay internal:
          no scores, no strategy triple, no compliance flag, no observation, and
          above all no teammate names. The studio speaks as one voice. */
       const concepts = (batch.concepts || [])
-        .filter((c) => !want || want.has(String(c.num)))
+        .filter((c) => !want || want.has(store.canonNum(c.num)))
         .map((c) => ({
           num: c.num,
           title: c.title,
@@ -841,7 +845,9 @@ const server = http.createServer(async (req, res) => {
           design: c.design,
           dur: c.dur,
           format: c.format,
-          decision: (rec.decisions || {})[String(c.num)] || null,
+          /* the same canonical key decide() writes under, so what the client
+             already answered comes back and a reload is not a blank slate. */
+          decision: (rec.decisions || {})[store.canonNum(c.num)] || null,
         }));
 
       return json(res, 200, {
@@ -873,10 +879,13 @@ const server = http.createServer(async (req, res) => {
         return json(res, 400, { error: 'a rejection carries a reason, so we know what to change' });
       }
       const batch = store.getBatch(rec.batchId);
-      const known = (batch && batch.concepts || []).some((c) => String(c.num) === String(b.num));
+      /* Compare in the canonical form, so the portal's padded '001' finds the
+         concept the generator stored as 1 instead of being turned away. */
+      const num = store.canonNum(b.num);
+      const known = (batch && batch.concepts || []).some((c) => store.canonNum(c.num) === num);
       if (!known) return json(res, 400, { error: 'that concept is not in this batch' });
 
-      const out = store.decide(rec.id, { num: b.num, verdict, note: b.note, by: b.by });
+      const out = store.decide(rec.id, { num, verdict, note: b.note, by: b.by });
       const approved = Object.values(out.decisions || {}).filter((d) => d.verdict === 'approved').length;
       const decided = Object.keys(out.decisions || {}).length;
       const total = (batch.concepts || []).length;
@@ -884,12 +893,12 @@ const server = http.createServer(async (req, res) => {
       /* The studio hears about it without anyone relaying a message. */
       store.notify({
         to: out.by, client: out.client, open: 'concepts',
-        text: `${out.client} ${verdict} concept ${b.num}` +
+        text: `${out.client} ${verdict} concept ${num}` +
           (verdict === 'rejected' && b.note ? `: "${String(b.note).slice(0, 90)}"` : '') +
           `. ${decided} of ${total} decided, ${approved} approved.`,
       });
 
-      return json(res, 200, { ok: true, num: String(b.num), verdict, decided, approved, total });
+      return json(res, 200, { ok: true, num, verdict, decided, approved, total });
     }
 
     /* ---- concept mockups: the 9:16 still for a concept slide ---- */
