@@ -210,7 +210,7 @@ function meanLuminance(buf) {
      above, so there is no shortcut past the decode. Sampling happens after. */
   const prev = Buffer.alloc(stride);
   const cur = Buffer.alloc(stride);
-  let sum = 0, seen = 0;
+  let sum = 0, seen = 0, opaque = 0, total = 0;
   for (let y = 0; y < h; y++) {
     const f = raw[y * (stride + 1)];
     const off = y * (stride + 1) + 1;
@@ -235,14 +235,19 @@ function meanLuminance(buf) {
     if (y % 4 === 0) {
       for (let x = 0; x < w; x += 4) {
         const i = x * ch;
+        total++;
         if ((ch === 4 ? cur[i + 3] : 255) < 24) continue;   // transparent says nothing
+        opaque++;
         sum += (0.2126 * cur[i] + 0.7152 * cur[i + 1] + 0.0722 * cur[i + 2]) / 255;
         seen++;
       }
     }
     cur.copy(prev);
   }
-  return seen ? sum / seen : null;
+  /* cover is what separates a tile from a glyph: a logo that fills its own box
+     brings its own background and can have the circle, a glyph on transparency
+     needs a plate whatever its aspect ratio. */
+  return seen ? { mean: sum / seen, cover: total ? opaque / total : 0 } : null;
 }
 
 /* Above this the logo is light enough that a white plate would swallow it. */
@@ -316,33 +321,42 @@ function avatarFor({ logoBuf, logoMeta, brandName }) {
   }
   const uri = `data:${MIME[logoMeta.kind]};base64,${logoBuf.toString('base64')}`;
   const ar = logoMeta.h > 0 ? logoMeta.w / logoMeta.h : 0;
-  /* the tolerance is deliberately narrow. Anything outside it goes on a plate,
-     because contained-on-white is never wrong, only occasionally less slick
-     than a full bleed square mark. */
-  const square = ar >= 0.9 && ar <= 1.1;
-  if (square) {
+  const shot = meanLuminance(logoBuf);
+  const lum = shot ? shot.mean : null;
+  const cover = shot ? shot.cover : null;
+
+  /* Only a logo that fills its own box earns the circle. Square was never the
+     real test: PackDraw's mark is 180x180 and would have passed it, but it is
+     59% opaque and pure black, so filling the circle would have put a black
+     glyph on the avatar's own near-black and lost it. A tile brings its own
+     background; a glyph needs a plate behind it whatever its shape. */
+  const squareish = ar >= 0.9 && ar <= 1.1;
+  const fillsItsBox = cover == null || cover >= 0.9;
+  if (squareish && fillsItsBox) {
     return {
       cls: '', bg: '',
       content: `<img class="fill" src="${uri}" alt="">`,
       mode: 'square',
-      note: `square logo ${logoMeta.w}x${logoMeta.h}, filling the circle`,
+      note: `square logo ${logoMeta.w}x${logoMeta.h} that fills its own box, so it takes the circle`,
     };
   }
   /* Which plate depends on the logo, not on a guess. A white wordmark on the
      white plate is exactly as invisible as a black one with no plate, and
      PackDraw shipped a blank circle proving it. */
-  const lum = meanLuminance(logoBuf);
   const light = lum != null && lum > LIGHT_LOGO;
   const shade = light ? ' dark' : '';
   const plate = light ? 'a dark plate' : 'a white plate';
   const measured = lum == null ? 'unmeasurable, so the safer light plate' : `luminance ${lum.toFixed(2)}, so ${plate}`;
+  const shape = squareish
+    ? `square logo ${logoMeta.w}x${logoMeta.h}, ${Math.round((cover || 0) * 100)}% opaque so it is a glyph rather than a tile`
+    : ar >= 1.1
+      ? `wide logo ${logoMeta.w}x${logoMeta.h} (${ar.toFixed(1)}:1)`
+      : `tall logo ${logoMeta.w}x${logoMeta.h}`;
   return {
     cls: 'plate' + shade, bg: '',
     content: `<img class="fit" src="${uri}" alt="">`,
     mode: light ? 'plate-dark' : 'plate',
-    note: ar >= 1.1
-      ? `wide logo ${logoMeta.w}x${logoMeta.h} (${ar.toFixed(1)}:1) on ${plate} (${measured})`
-      : `tall logo ${logoMeta.w}x${logoMeta.h} on ${plate} (${measured})`,
+    note: `${shape} on ${plate} (${measured})`,
   };
 }
 
