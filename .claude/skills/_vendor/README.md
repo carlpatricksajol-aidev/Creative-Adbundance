@@ -33,13 +33,33 @@ stack. We ship single-file vanilla HTML, CSS and JS. No Swift, no React Native, 
 library to pick.
 
 **[Panniantong/agent-reach](https://github.com/Panniantong/agent-reach)** (MIT). This is the right
-tool for audience research and it is why `audience-harvest` exists, but the skill file alone is
-useless: it instructs an agent to run an `agent-reach` CLI that has to be installed separately,
-and its most valuable platforms need a signed-in browser session. Vendoring the SKILL.md without
-the CLI would produce an agent confidently running commands that do not exist. Install it properly
-on a desktop instead. `audience-harvest/references/sources.md` explains what it does and does not
-unlock. Its SKILL.md and references are also written mostly in Chinese, which is fine for a model
-and awkward for a person debugging it.
+shape for audience research and it is why `audience-harvest` exists, but it is **one skill, not a
+skill library**, and the skill file alone is useless: it is a routing table for an `agent-reach`
+CLI plus a stack of third-party CLIs it does not ship. Vendoring the SKILL.md without all that
+would produce an agent confidently running commands that do not exist.
+
+Four things to know before anyone installs it:
+
+- Its most valuable platforms for us (Reddit, Twitter, Instagram, Facebook) all route through
+  either a browser extension riding a logged-in desktop Chrome session, or session cookies
+  hand-exported with Cookie-Editor. None of that runs headless on our VPS.
+- The documented install path is "paste a raw.githubusercontent.com URL to your agent and let it
+  run", and `agent-reach install --system` is what writes into your skills directory and
+  pipx-installs third-party CLIs. The default install is check-only and will not write without
+  that flag, which is to their credit, but it is still remote instructions driving local installs.
+- **The skill instructs the agent to phone home for a version check after each substantial task
+  and then prompt you to paste an update URL.** That is vendor marketing embedded in an agent
+  instruction file. Strip it if we ever borrow from this.
+- Roughly a third of its surface is China-market (XiaoHongShu, Bilibili, V2EX, Xueqiu) and its
+  reference files are Chinese prose, which is fine for a model and awkward for a person debugging
+  it at 6pm.
+
+Three genuinely portable, zero-dependency ideas were lifted from it into `audience-harvest`
+instead of taking the package: the page reader as a URL proxy (`https://r.jina.ai/<url>`, which
+we then measured and found DOES clear an IP block), `yt-dlp --write-auto-sub --skip-download` for
+creator and competitor transcripts, and the multi-backend retry-chain discipline with its rule
+that an exit code is not proof of success, non-empty content is.
+`audience-harvest/references/sources.md` carries all of it.
 
 **[dietrichgebert/ponytail](https://github.com/dietrichgebert/ponytail)** (MIT). Six code-review
 and technical-debt skills. Real, but engineering craft rather than the design or research we were
