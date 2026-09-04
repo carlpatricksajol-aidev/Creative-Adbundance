@@ -16,6 +16,7 @@ const pipeline = require('./pipeline');
 const scriptPipeline = require('./scriptPipeline');
 const storyboardPipeline = require('./storyboardPipeline');
 const mockup = require('./mockup');
+const marketingReport = require('./marketingReport');
 const research = require('./research');
 const onboarding = require('./onboarding');
 const auth = require('./auth');
@@ -252,6 +253,32 @@ async function startRun({ client, count, requestedBy }) {
   (async () => {
     active++;
     try {
+      /* Fresh research before anything creative, every batch. See
+         marketingReport.js for why this is not optional any more. */
+      let hadPlanBefore = false;
+      try { hadPlanBefore = Boolean((await brand.resolve(client)).record.plan); } catch { /* resolve fails loudly below */ }
+
+      try {
+        await marketingReport.commission({ client, requestedBy, log });
+      } catch (err) {
+        const why = err && err.message ? err.message : String(err);
+        if (!hadPlanBefore) {
+          /* The PackDraw case. There is nothing brand-specific to write from,
+             so stopping is the honest outcome: a batch generated here is
+             invention, and it costs real money to produce and read. */
+          log('Marketing report', 'error', why.slice(0, 200));
+          const e = new Error(
+            `${why}. There is no marketing plan on file for ${client}, so the concepts would be written ` +
+            'from an empty brand record. Nothing was generated.');
+          e.status = 424;
+          throw e;
+        }
+        /* There is older research to stand on. Say exactly that, rather than
+           letting the batch read as though it was freshly grounded. */
+        log('Marketing report', 'done',
+          `could not refresh the research (${why.slice(0, 90)}), so this batch stands on the plan already on file`);
+      }
+
       const priorCtx = store.priorContext(client);
       const result = await pipeline.run({ client, count, prior: priorCtx.text, priorMeta: priorCtx, log });
       const batch = store.saveBatch(result);
@@ -409,9 +436,35 @@ async function startReframeRun({ client, batchId, nums, requestedBy }) {
   return id;
 }
 
+/* What is already being generated, as `${batchId}:${num}`. A mockup costs a
+   prompt call plus up to two minutes of kie.ai, so asking for one that is
+   already in flight is never what anyone means: it is a second click after a
+   refresh cleared the progress panel. In memory is the right lifetime, because
+   a restart kills the in-flight runs anyway. */
+const mockupsInFlight = new Set();
+
+const mockupKeys = (batchId, nums) => {
+  const b = store.getBatch(batchId);
+  const all = (b && b.concepts || []).map((c) => store.canonNum(c.num));
+  const want = Array.isArray(nums) && nums.length ? nums.map(store.canonNum) : all;
+  return want.map((n) => `${batchId}:${n}`);
+};
+
 async function startMockupRun({ client, batchId, nums, requestedBy }) {
   const src = store.getBatch(batchId);
   if (!src) { const e = new Error('that concept batch is not on file'); e.status = 404; throw e; }
+
+  /* Refuse rather than pay twice for the same picture. */
+  const keys = mockupKeys(batchId, nums);
+  const busy = keys.filter((k) => mockupsInFlight.has(k));
+  if (busy.length) {
+    const which = busy.map((k) => k.split(':').pop()).join(', ');
+    const e = new Error(
+      `concept ${which} ${busy.length === 1 ? 'is' : 'are'} already being rendered for this batch. ` +
+      'Watch that run rather than starting a second one, which would pay for the same image twice.');
+    e.status = 409;
+    throw e;
+  }
 
   const id = 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   store.newRun({ id, client, count: (src.concepts || []).length, requestedBy, kind: 'mockups', from: batchId });
@@ -419,13 +472,21 @@ async function startMockupRun({ client, batchId, nums, requestedBy }) {
 
   (async () => {
     active++;
+    for (const k of keys) mockupsInFlight.add(k);
     try {
       const result = await mockup.run({ client, batchId, nums, requestedBy, log });
       store.finishRun(id, { status: 'done', mockupBatch: result.batchId, made: result.made, cost_usd: result.cost_usd });
       store.notify({
         to: requestedBy, client, open: 'concepts',
+        /* Name the reason. "1 failed and can be run again" on its own left
+           Carl with, in his words, "I don't know the reason behind" when the
+           run record had said "timed out waiting on kie.ai after 180s" all
+           along. */
         text: `${result.made} mockup${result.made === 1 ? '' : 's'} rendered for ${result.client}` +
-          (result.failed ? `, ${result.failed} failed and can be run again` : '') + '. The 9:16 box on each slide is filled.',
+          (result.failed
+            ? `, ${result.failed} failed: ` +
+              (((result.mockups || []).find((m) => m.error) || {}).error || 'no reason recorded')
+            : '. The story frame on each slide is filled.'),
       });
     } catch (err) {
       const msg = err && err.message ? err.message : String(err);
@@ -433,7 +494,10 @@ async function startMockupRun({ client, batchId, nums, requestedBy }) {
       store.finishRun(id, { status: 'error', error: msg.slice(0, 1000) });
       store.notify({ to: requestedBy, client, open: 'concepts', text: `The mockup generator stopped: ${msg.slice(0, 160)}` });
       console.error('[mockups %s] %s', id, msg);
-    } finally { active--; }
+    } finally {
+      active--;
+      for (const k of keys) mockupsInFlight.delete(k);
+    }
   })();
 
   return id;
