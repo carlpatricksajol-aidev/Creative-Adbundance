@@ -553,16 +553,39 @@ const server = http.createServer(async (req, res) => {
       const b = await body(req);
       const emp = auth.lookup(b.email);
       let emailed = false;
+      let why = null;
       if (emp) {
         const code = auth.issueCode(emp.email);
         try { emailed = await auth.sendCode(emp.email, code); }
-        catch (err) { console.error('[auth] mail failed for %s: %s', emp.email, err.message); }
+        catch (err) {
+          why = err.code || 'MAIL_FAILED';
+          /* Loud, because the previous version of this line was the only
+             record that a teammate's code never arrived, and a container
+             rebuild erased it. */
+          console.error('[auth] CODE NOT DELIVERED to %s: %s', emp.email, err.message);
+        }
+        if (!process.env.RESEND_API_KEY) why = 'NO_MAIL_KEY';
       }
+      /* Still says nothing about whether the address is on the roster: an
+         outsider probing addresses learns nothing either way. What changed is
+         that a person who IS on the roster is told why their inbox is empty
+         and what happens next, rather than "mail is not configured" when mail
+         is configured and a DNS record is missing. */
+      const messages = {
+        DOMAIN_UNVERIFIED: 'If that address is on the roster, a code was issued, but this server '
+          + 'can only deliver mail to the account owner until creativeadbundance.com is verified '
+          + 'with the mail provider. Ask Carl to read you the code.',
+        NO_MAIL_KEY: 'If that address is on the roster, a code was issued. Mail is not configured '
+          + 'on this server yet, so ask Carl for the code.',
+        MAIL_FAILED: 'If that address is on the roster, a code was issued, but the mail service '
+          + 'refused to send it. Ask Carl for the code while that is looked at.',
+      };
       return json(res, 200, {
         ok: true, emailed,
+        reason: why,
         message: emailed
           ? 'If that address is on the roster, a code is on its way.'
-          : 'If that address is on the roster, a code was issued. Mail is not configured on this server yet - ask Carl for the code.',
+          : (messages[why] || messages.MAIL_FAILED),
       });
     }
 

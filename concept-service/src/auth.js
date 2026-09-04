@@ -188,7 +188,17 @@ async function sendCode(email, code) {
   });
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error('the mail service answered ' + res.status + ' ' + body.slice(0, 200));
+    /* The one that actually bites: Resend's shared onboarding@resend.dev only
+       delivers to the account owner, so every teammate silently gets nothing
+       until a real domain is verified. Recognise it by name so the message a
+       person sees can say what to do instead of "mail is broken". */
+    const domainUnverified = res.status === 403 && /only send testing emails|verify a domain/i.test(body);
+    const err = new Error(domainUnverified
+      ? 'the sending domain is not verified yet, so the mail service will only deliver to the account owner'
+      : 'the mail service answered ' + res.status + ' ' + body.slice(0, 200));
+    err.code = domainUnverified ? 'DOMAIN_UNVERIFIED' : 'MAIL_FAILED';
+    err.status = res.status;
+    throw err;
   }
   return true;
 }
