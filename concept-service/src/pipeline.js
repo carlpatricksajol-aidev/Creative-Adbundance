@@ -23,24 +23,35 @@ const { canonNum, numSet } = require('./num');
 const SKILL_DIR = process.env.SKILL_DIR ||
   '/srv/repo/.claude/skills/ad-concept-generator';
 
-/* Ricardo's vehicle rule. Batch 5 defaulted to group-chat and text-thread
-   framing, which he suspected was top-of-list anchoring, and the duration
-   drifted to 12-25s where he wants ~30. The curated bank holds 229 vehicles:
-   all of them would drown the prompt and a fixed page would recreate the
-   anchoring, so each run draws a fresh random 30. The researched-vehicles
-   library is separate and stays ranked, because there the order IS the
-   evidence. */
+/* Ricardo's vehicle rule, second cut. The first cut told the writer to
+   "source each concept's vehicle from this sample" and handed the sample to
+   the strategist too, and Batch 6 showed what that buys: concepts built
+   around vehicles, objectives written about the creative itself instead of a
+   commercial outcome, and catalog ids quoted in a client deck. The menu now
+   goes to the WRITER only, explicitly subordinate to the skill's own flow
+   (objective -> persona -> argument -> observation -> vehicle, the vehicle
+   LAST), and the vehicles this client's earlier batches already used come off
+   the menu by id and are banned by name, because the dedup memory carries
+   titles and observations but never the vehicle, which is how the same
+   two-hander kept coming back wearing a different room. */
 const VEHICLE_SAMPLE = 30;
 
-async function vehicleMenu() {
+async function vehicleMenu(usedLines) {
   const u = process.env.SUPABASE_URL, k = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
   if (!u || !k) return null;
   try {
     const res = await fetch(u + '/rest/v1/knowledge_vehicle_bank?select=vehicle_id,name,description,production_path',
       { headers: { apikey: k, authorization: 'Bearer ' + k }, signal: AbortSignal.timeout(12000) });
     if (!res.ok) return null;
-    const rows = await res.json();
+    let rows = await res.json();
     if (!Array.isArray(rows) || !rows.length) return null;
+    /* ids quoted in earlier concepts ("Match Cut (#201)") leave the menu */
+    const used = new Set((String((usedLines || []).join(' ')).match(/#(\d+)/g) || [])
+      .map((m) => Number(m.slice(1))));
+    const total = rows.length;
+    const banned = rows.filter((v) => used.has(Number(v.vehicle_id))).length;
+    rows = rows.filter((v) => !used.has(Number(v.vehicle_id)));
+    if (!rows.length) return null;
     /* Fisher-Yates: a draw, not a page */
     for (let i = rows.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -48,20 +59,33 @@ async function vehicleMenu() {
     }
     const pick = rows.slice(0, VEHICLE_SAMPLE);
     const lines = pick.map(function (v) {
-      return '- [#' + v.vehicle_id + ', ' + v.production_path + '] ' + v.name + ': ' +
+      return '- [' + v.production_path + '] ' + v.name + ': ' +
         String(v.description || '').slice(0, 160);
     }).join('\n');
+    const usedMd = (usedLines || []).length
+      ? '\n- Vehicles and vehicle families this client\'s earlier batches already used are OFF the menu, ' +
+        're-skins included (a two-hander is a two-hander whatever the room it is shot in):\n' +
+        usedLines.map((l) => '    - ' + String(l).slice(0, 100)).join('\n')
+      : '';
     return {
       count: pick.length,
-      total: rows.length,
-      md: 'THE VEHICLE BANK, a fresh random sample of ' + pick.length + ' from the ' + rows.length +
-        ' curated vehicles on file:\n' + lines + '\n\n' +
+      total,
+      banned,
+      md: 'THE VEHICLE BANK, a fresh random sample of ' + pick.length + ' from the ' + total +
+        ' curated vehicles on file' + (banned ? ' (' + banned + ' this client already used are not offered)' : '') +
+        ':\n' + lines + '\n\n' +
         'VEHICLE RULES, from the creative director:\n' +
-        '- Source each concept\'s vehicle from this sample. Do NOT default to group-chat, text-thread or ' +
-        'messaging-screen framing: at most ONE concept in the batch may use any message-thread surface, ' +
-        'and only when the observation genuinely lives there.\n' +
+        '- The skill\'s flow is binding and the vehicle comes LAST: business objective, then persona, then ' +
+        'selling argument, then the human observation, and only then a vehicle chosen to CARRY that argument. ' +
+        'A concept built around a vehicle fails review. The objective must be a commercial outcome in the ' +
+        'brand\'s own terms (deposits, first orders, repeat rate), never a statement about the creative itself.\n' +
+        '- This menu is an offer, not an assignment: pick from it when a vehicle fits the argument, adapt or ' +
+        'depart from it when the observation calls for something better. Describe the execution in plain ' +
+        'production words and never quote a bank id or catalog name in the concept.\n' +
+        '- Do NOT default to group-chat, text-thread or messaging-screen framing: at most ONE concept in the ' +
+        'batch may use any message-thread surface, and only when the observation genuinely lives there.\n' +
         '- No two concepts share a vehicle or an obvious vehicle family. Spread across production paths ' +
-        'where the strategy allows.\n' +
+        'where the strategy allows.' + usedMd + '\n' +
         '- DURATION defaults to about 30 seconds (write 25 to 35). Go shorter only where the brand\'s own ' +
         'marketing report explicitly prescribes it for that funnel slot, name that reason in the concept, ' +
         'and never write under 20 seconds.',
@@ -805,11 +829,16 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   }
 
   /* Ricardo's vehicle rule: a fresh random draw from the curated bank every
-     run, so no vehicle family sits permanently at the top of the menu. */
+     run, minus everything this client's earlier batches already used. */
   log('Vehicle bank', 'running');
-  const vehicles = await vehicleMenu();
+  let usedVeh = [];
+  try { usedVeh = store.usedVehicles(client); } catch {}
+  const vehicles = await vehicleMenu(usedVeh);
   log('Vehicle bank', 'done', vehicles
-    ? vehicles.count + ' vehicles drawn at random from the ' + vehicles.total + ' on file, duration rule ~30s attached'
+    ? vehicles.count + ' vehicles drawn at random from the ' + vehicles.total + ' on file' +
+      (vehicles.banned ? ', ' + vehicles.banned + ' used in earlier batches taken off the menu' : '') +
+      (usedVeh.length ? ', ' + usedVeh.length + ' prior vehicle lines banned by name' : '') +
+      ', duration rule ~30s attached'
     : 'the vehicle bank is unreachable, so the skill\'s own libraries carry the batch alone');
 
   /* The audience harvest, if one has been posted for this client. Absence is
@@ -835,12 +864,15 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     log('Audience harvest', 'done', 'could not read the harvest store (' + err.message.slice(0, 60) + '), generating without it');
   }
 
-  /* the strategist allocates the lanes and the writer picks the vehicles;
-     two different menus would let the plan and the concepts disagree */
+  /* The strategist does NOT see the vehicle menu. Step Zero allocates business
+     objective x persona x selling argument, and when Batch 6's strategist had
+     the menu in front of it the objectives came out as statements about the
+     creative instead of the business. The writer picks vehicles; the
+     strategist picks what the batch is FOR. */
   const snapshotPlus = vehicles ? snapshot + '\n\n' + vehicles.md : snapshot;
 
   const strategy = V6
-    ? await stageStrategy({ snapshot: snapshotPlus, count, log, ask: trackedAsk, researchMd })
+    ? await stageStrategy({ snapshot, count, log, ask: trackedAsk, researchMd })
     : null;
 
   const harvest = await stageHarvest({ snapshot, prior, log, ask: trackedAsk, researchMd, strategy, harvestMd });

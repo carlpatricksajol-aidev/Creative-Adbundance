@@ -482,6 +482,24 @@ function markNotifsRead(to, ids) {
   writeJSON(NOTIFS, list);
 }
 
+/* The vehicle line of every concept in a client's earlier batches, newest
+   first. The concept dedup memory (priorContext) carries titles, families and
+   observations but never the vehicle, which is how the same two-hander kept
+   coming back batch after batch wearing a different room. */
+function usedVehicles(client, cap = 15) {
+  const out = [];
+  for (const meta of listBatches(client)) {
+    const b = getBatch(meta.id);
+    if (!b || b.seeded) continue;
+    for (const c of b.concepts || []) {
+      const v = String(c.vehicle || '').trim();
+      if (v) out.push(v);
+      if (out.length >= cap) return out;
+    }
+  }
+  return out;
+}
+
 /* One row per client for the All-clients grid: what exists here and what state
    it is in, so the page does not have to fetch every batch of every client to
    stop saying "Nothing in flight" over real work. Seeded batches are the
@@ -527,7 +545,7 @@ function overview() {
 }
 
 module.exports = {
-  canonNum, sweepOrphanedRuns, newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext, overview,
+  canonNum, sweepOrphanedRuns, newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext, overview, usedVehicles,
                    saveScripts, getScripts, listScripts,
                    savePush, getPush, getPushByBatch, getPushByToken, decide, approvedNums,
                    saveHarvest, listHarvests, latestHarvest, getHarvest,
