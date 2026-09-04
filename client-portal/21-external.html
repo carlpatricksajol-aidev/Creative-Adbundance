@@ -1226,9 +1226,13 @@ function vConcepts(){
   const k = list[i], key = b.id + k.n;
   const ok = !!S.approved[key], dec = !!S.declined[key];
   const okCount = list.filter(c => S.approved[b.id + c.n]).length;
+  /* ro means the stage has moved on, so nothing here is editable any more. It
+     does NOT mean this concept was approved: pressing Send used to make all
+     five read as approved, rejections included. The verdict is always the
+     concept's own. */
   const ro = ws === 'done';
-  const v = ro ? { label:'Approved', cls:'green' } : verdictOf(key);
-  chrome(`${b.name} · Concepts`, ro ? 'Approved' : `${okCount} of ${list.length} approved`, true);
+  const v = verdictOf(key);
+  chrome(`${b.name} · Concepts`, `${okCount} of ${list.length} approved`, true);
 
   /* batch-level bar above the board, like the internal's */
   const ctrl = `<div class="ctrlbar">
@@ -1251,7 +1255,7 @@ function vConcepts(){
       const ck = b.id + c.n;
       return `<button class="bitem ${ix === i ? 'on' : ''}" data-cidx="${ix}">
         <span class="bnum">${ix + 1}</span><span style="flex:1;min-width:0">${esc(c.t)}</span>
-        ${ro || S.approved[ck] ? `<span class="tick">${ico('M4 12l5 5L20 6','var(--green)',12)}</span>`
+        ${S.approved[ck] ? `<span class="tick">${ico('M4 12l5 5L20 6','var(--green)',12)}</span>`
           : S.declined[ck] ? `<span class="tick">${ico('M18 6 6 18M6 6l12 12','var(--red)',11)}</span>` : ''}
       </button>`;
     }).join('')}</div>
@@ -1269,7 +1273,11 @@ function vConcepts(){
   const foot = `<div class="bfoot">
     ${ro || ok || dec ? '' : `<span class="asks">Needs your call</span>`}
     ${ro
-      ? `<span class="pill green">${ico('M4 12l5 5L20 6','var(--green)',11)} You approved this</span>`
+      ? (ok
+          ? `<span class="pill green">${ico('M4 12l5 5L20 6','var(--green-deep)',11)} You approved this</span>`
+          : dec
+            ? `<span class="pill red">${ico('M18 6 6 18M6 6l12 12','var(--red-deep)',11)} You rejected this</span>`
+            : `<span class="pill grey">Not picked for this batch</span>`)
       : `<button class="btn sm ${ok ? 'ghost' : 'primary'}" data-approve="${key}">
            ${ico('M4 12l5 5L20 6', ok ? 'var(--green)' : '#fff', 13)} ${ok ? 'Approved' : 'Approve concept'}</button>
          <button class="btn sm ghost" data-decline="${key}" ${dec ? 'style="border-color:var(--red-line);color:var(--red)"' : ''}>
@@ -1293,11 +1301,11 @@ function vConcepts(){
 
   /* the badge sits with the title, so the answer to "did I decide this one?"
      is in the same glance as "which one is this?" */
-  const badge = (ok || ro)
+  const badge = ok
     ? `<span class="vbadge ok">${ico('M4 12l5 5L20 6','var(--green-deep)',12)} Approved</span>`
     : dec ? `<span class="vbadge no">${ico('M18 6 6 18M6 6l12 12','var(--red-deep)',11)} Rejected</span>` : '';
 
-  const doc = `<div class="bdoc${(ok || ro) ? ' okd' : dec ? ' decd' : ''}">
+  const doc = `<div class="bdoc${ok ? ' okd' : dec ? ' decd' : ''}">
     <div class="bscroll">
       <span class="blab" style="margin-top:0">${esc(b.name)} &middot; Concept ${i + 1} of ${list.length}</span>
       <h1 class="btitle">${esc(k.t)}${badge}</h1>
@@ -1762,8 +1770,12 @@ document.addEventListener('click', e => {
     /* The handoff rule, honoured even in the demo: the CLIENT's acceptance is
        what advances the batch. Each sign-off moves it to the next studio step. */
     const b = batch(sd.dataset.send), kind = sd.dataset.kind;
-    if (kind === 'concepts'){ b.si = stageIdx('scripting');
-      toast('Sent to the studio', 'Approved concepts went to the copywriters. Scripts land next.'); }
+    if (kind === 'concepts'){
+      const n = (b.concepts || []).filter(c => S.approved[b.id + c.n]).length;
+      const tot = (b.concepts || []).length;
+      b.si = stageIdx('scripting');
+      toast('Sent to the studio',
+        `${n} of ${tot} concept${tot === 1 ? '' : 's'} approved. The studio writes scripts for those ${n === 1 ? 'one' : n} only.`); }
     else if (kind === 'scripts'){ b.si = stageIdx('casting');
       toast('Sent to the studio', 'Scripts locked. The casting shortlist is next.'); }
     else if (kind === 'talent'){ b.si = stageIdx('storyboard');
