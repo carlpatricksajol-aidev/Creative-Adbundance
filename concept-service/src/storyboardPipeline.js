@@ -30,6 +30,22 @@ function ref(name) {
   catch { throw new Error(`missing storyboard skill reference ${name} at ${p}. Is the repo checked out and up to date?`); }
 }
 
+/* The skill itself, whole, exactly as the concept pipeline now does. The model
+   was getting the reference files and a summary of the method; the document
+   that DEFINES the method never reached it, and the difference between the two
+   is the difference Carl saw between a Claude Web session and the ecosystem. */
+function skillDoc() {
+  const p = path.join(SKILL_DIR, 'SKILL.md');
+  try { return fs.readFileSync(p, 'utf8'); }
+  catch { throw new Error(`missing SKILL.md at ${p}. Is the repo checked out and up to date?`); }
+}
+
+const SKILL_PREFACE = `THE SKILL YOU ARE EXECUTING, in full. This is the source of truth for the
+method. The mechanical steps it describes (file output, folder layout, rendering, Notion pages) are
+handled by the service around you, so ignore instructions about producing files; everything about
+METHOD, JUDGMENT, FORMATS and QUALITY is yours to follow exactly. Where these instructions and the
+shorter notes below ever disagree, the skill wins.`;
+
 /* --------------------------------------------------------------- schemas ---- */
 
 /* scene/line/overlay/footage/shot are the five columns, in the field names the
@@ -245,7 +261,7 @@ uploads. These are not style preferences; breaking one mis-sorts a shoot without
 async function stageStoryboard({ snapshot, scripts, batchLabel, log, ask }) {
   log('Storyboards', 'running');
   const out = await ask({
-    system: `You are building Phase 1 of the batch shoot package: the storyboards. Your format spec:\n\n${ref('storyboard-format.md')}\n${CONTRACT_RULES}\n${HOUSE_RULES}`,
+    system: `You are building Phase 1 of the batch shoot package: the storyboards.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour format spec:\n\n${ref('storyboard-format.md')}\n${CONTRACT_RULES}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n\nBuild the storyboard for ${batchLabel} from the approved scripts below.
 
 One section per script, keeping the script's number. Each section carries a Format line naming

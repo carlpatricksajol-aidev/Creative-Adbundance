@@ -28,6 +28,22 @@ function ref(name) {
   catch { throw new Error(`missing script skill reference ${name} at ${p}. Is the repo checked out and up to date?`); }
 }
 
+/* The skill itself, whole, exactly as the concept pipeline now does. The model
+   was getting the reference files and a summary of the method; the document
+   that DEFINES the method never reached it, and the difference between the two
+   is the difference Carl saw between a Claude Web session and the ecosystem. */
+function skillDoc() {
+  const p = path.join(SKILL_DIR, 'SKILL.md');
+  try { return fs.readFileSync(p, 'utf8'); }
+  catch { throw new Error(`missing SKILL.md at ${p}. Is the repo checked out and up to date?`); }
+}
+
+const SKILL_PREFACE = `THE SKILL YOU ARE EXECUTING, in full. This is the source of truth for the
+method. The mechanical steps it describes (file output, folder layout, rendering, Notion pages) are
+handled by the service around you, so ignore instructions about producing files; everything about
+METHOD, JUDGMENT, FORMATS and QUALITY is yours to follow exactly. Where these instructions and the
+shorter notes below ever disagree, the skill wins.`;
+
 /* --------------------------------------------------------------- schemas ---- */
 
 /* hooks[].line/.dir and script[].vo/.dir are the shapes the OS scripts surface
@@ -223,7 +239,7 @@ function conceptBrief(concepts) {
 async function stageContracts({ snapshot, concepts, log, ask }) {
   log('Concept contracts', 'running');
   const out = await ask({
-    system: `You are a senior UGC scriptwriter working to the house format. Your craft rules:\n\n${ref('writing-rules.md')}\n${HOUSE_RULES}`,
+    system: `You are a senior UGC scriptwriter working to the house format.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('writing-rules.md')}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n\nRun step 2 of the skill, the concept contracts. This is the single most important step and it
 happens before a word of script is written.
 
@@ -259,7 +275,7 @@ async function stageWrite({ snapshot, concepts, contracts, batchLabel, log, ask 
   }));
 
   const out = await ask({
-    system: `You are a senior UGC scriptwriter. Your craft rules, with the hook system, offer placement, product-introduction variation, the proof ladder, the overlay system and the CTA rules:\n\n${ref('writing-rules.md')}\n\nThe house output format you are writing into:\n\n${ref('output-format.md')}\n${HOUSE_RULES}`,
+    system: `You are a senior UGC scriptwriter.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules, with the hook system, offer placement, product-introduction variation, the proof ladder, the overlay system and the CTA rules:\n\n${ref('writing-rules.md')}\n\nThe house output format you are writing into:\n\n${ref('output-format.md')}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n\nSubstantiated proof points available for this brand: ${contracts.proof_points.length ? contracts.proof_points.join('; ') : '(none on file, use named placeholders)'}
 The current offer: ${contracts.offer || '(none on file)'}
 Restricted or banned terms: ${contracts.restricted_terms.length ? contracts.restricted_terms.join('; ') : '(none recorded)'}
@@ -320,7 +336,7 @@ async function stageReview({ snapshot, scripts, contracts, cycle, log, ask }) {
   for (let i = 0; i < scripts.length; i += 3) groups.push(scripts.slice(i, i + 3));
 
   const results = await Promise.all(groups.map((g) => ask({
-    system: `You are a senior creative strategist who did NOT write these drafts. You review every script against the 10-parameter direct-response scorecard before anything is delivered. The rubric, with what each score level looks like:\n\n${ref('dr-scorecard.md')}\n\nThe craft rules the scripts were written to:\n\n${ref('writing-rules.md')}\n${HOUSE_RULES}`,
+    system: `You are a senior creative strategist who did NOT write these drafts. You review every script against the 10-parameter direct-response scorecard before anything is delivered.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nThe rubric, with what each score level looks like:\n\n${ref('dr-scorecard.md')}\n\nThe craft rules the scripts were written to:\n\n${ref('writing-rules.md')}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n\nThe contracts these scripts were written against:\n${JSON.stringify(contracts.contracts, null, 1)}\n\nScore every script on all ten parameters, 1 to 10, independently and without mercy. You are not
 the writer defending the work; you are protecting the client relationship and the media budget.
 
@@ -360,7 +376,7 @@ SCRIPTS:\n${JSON.stringify(g, null, 1)}`,
 async function stageSwap({ snapshot, scripts, log, ask }) {
   log('Batch swap test', 'running');
   const out = await ask({
-    system: `You are the same senior creative strategist, now reading the batch as a set. Your craft rules:\n\n${ref('writing-rules.md')}\n${HOUSE_RULES}`,
+    system: `You are the same senior creative strategist, now reading the batch as a set.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('writing-rules.md')}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n\nRun step 5, the batch-level swap test.
 
 For every pair of scripts ask: could these two swap middle sections without anyone noticing? If
