@@ -742,7 +742,7 @@ const server = http.createServer(async (req, res) => {
         .filter(Boolean);
       if (unsourced.length) {
         return json(res, 400, {
-          error: `${unsourced.length} observation${unsourced.length === 1 ? '' : 's'} carry no source_url. A harvest is evidence, so every line needs the link it came from. Drop them or find their sources.`,
+          error: `${unsourced.length} observation${unsourced.length === 1 ? ' carries' : 's carry'} no source_url. A harvest is evidence, so every line needs the link it came from. Drop them or find their sources.`,
           unsourced: unsourced.slice(0, 8),
         });
       }
