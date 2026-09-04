@@ -17,6 +17,7 @@ const { ask } = require('./llm');
    the client's own marketing plan, which brand_brain never carried. */
 const brand = require('./dossier');
 const research = require('./research');
+const store = require('./store');
 
 const SKILL_DIR = process.env.SKILL_DIR ||
   '/srv/repo/.claude/skills/ad-concept-generator';
@@ -317,6 +318,38 @@ gaps names anything a human has to confirm before this batch is safe to build on
   return out;
 }
 
+/* A harvest rendered for the model, coverage note FIRST so a thin harvest
+   reads as thin instead of reading as the whole truth about an audience. The
+   quote travels with every line, because the register is the point: a summary
+   of how someone talks is not how they talk. */
+function harvestBrief(h) {
+  if (!h || !(h.observations || []).length) return '';
+  const age = Math.round((Date.now() - new Date(h.savedAt).getTime()) / 86400000);
+  const cov = h.coverage || {};
+  const byFamily = new Map();
+  for (const o of h.observations) {
+    const k = o.insight_family || 'unfiled';
+    if (!byFamily.has(k)) byFamily.set(k, []);
+    byFamily.get(k).push(o);
+  }
+  const sourced = h.observations.filter((o) => o.source_url).length;
+
+  return `AUDIENCE HARVEST for ${h.client}${h.persona ? ', ' + h.persona : ''}.
+Harvested ${String(h.savedAt).slice(0, 10)}${age > 1 ? ', ' + age + ' days ago' : ', today'}. ${h.observations.length} observations kept${cov.quotes_collected ? ' from ' + cov.quotes_collected + ' collected' : ''}, ${sourced} carrying a source link.
+${cov.sources_searched && cov.sources_searched.length ? 'Searched: ' + cov.sources_searched.join(', ') + '.' : ''}
+${cov.sources_skipped && cov.sources_skipped.length ? 'NOT covered: ' + cov.sources_skipped.map((s) => (s.source || s) + (s.why ? ' (' + s.why + ')' : '')).join('; ') + '.' : ''}
+${cov.thin && cov.thin.length ? 'Thin: ' + cov.thin.join('; ') + '.' : ''}
+
+These are REAL sentences real people wrote in public. Prefer them over anything you would
+otherwise imagine, and keep their nouns and their register when you build on one. Where a family
+is thin it is thin in the EVIDENCE, so do not read its absence as proof the behaviour is rare.
+
+${[...byFamily.entries()].map(([fam, obs]) => `### ${fam} (${obs.length})
+${obs.map((o) => `- ${o.text}` +
+    (o.quote ? `\n  > "${String(o.quote).replace(/\s+/g, ' ').slice(0, 400)}"` : '') +
+    (o.source_url ? `\n  ${o.source_platform || 'source'}${o.source_detail ? ', ' + o.source_detail : ''}${o.written_at ? ', ' + o.written_at : ''}. ${o.source_url}` : '')).join('\n')}`).join('\n\n')}`;
+}
+
 function strategyBrief(strategy) {
   if (!strategy) return '';
   return `THE BATCH STRATEGY MAP, written at Step Zero. Every concept must be written against one
@@ -335,11 +368,17 @@ ${strategy.allocation.map((a) => `- ${a.slots} concept(s): ${a.persona} x ${a.se
 ${strategy.gaps.length ? `\nUnconfirmed, do not build a concept that depends on these: ${strategy.gaps.join('; ')}` : ''}`;
 }
 
-async function stageHarvest({ snapshot, prior, log, ask, researchMd, strategy }) {
+async function stageHarvest({ snapshot, prior, log, ask, researchMd, strategy, harvestMd }) {
   log('Human observation harvest', 'running');
   const out = await ask({
     system: `You are the Creative Director on this account. Your craft rules are below.\n\n${ref('craft-rules.md')}\n\nYour libraries, including the observation harvest bank:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent. The confidence labels are honest, respect them:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}\nALREADY DONE FOR THIS CLIENT, do not reuse these observations:\n${prior || '(nothing on file)'}\n\nRun step 4 of the skill: the human observation harvest, before any concept is written.
+    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}\nALREADY DONE FOR THIS CLIENT, do not reuse these observations:\n${prior || '(nothing on file)'}\n\nRun step 4 of the skill: the human observation harvest, before any concept is written.
+${harvestMd ? `A real harvest is above, gathered from public sources with a link on every line. START FROM IT.
+Carry its observations through in the customer's own words rather than restating them, and spend
+your own invention only on the gaps its coverage note admits to. An observation you can trace to a
+source outranks one you thought of, every time. Do not silently drop a harvested observation
+because a smoother one occurred to you.
+` : ''}
 Mine 18 to 22 specific human observations for this ICP. Each must be a specific behaviour,
 thought, situation, conversation or internet habit someone in this audience would recognise
 in one second. Not a benefit. Not an angle. Not a theme.
@@ -356,12 +395,12 @@ which angles you weighted toward.`,
   return out;
 }
 
-async function stageWrite({ snapshot, prior, observations, count, startNum, log, ask, researchMd, strategy }) {
+async function stageWrite({ snapshot, prior, observations, count, startNum, log, ask, researchMd, strategy, harvestMd }) {
   log('Creative Director pass', 'running');
   const obsList = observations.map((o, i) => `${i + 1}. [${o.insight_family}] ${o.text}`).join('\n');
   const out = await ask({
     system: `You are the Creative Director on this account. Your craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent. Researched vehicles are fair game for the creative leap, and a trend-verified or corroborated one beats a stale guess. Thin entries are leads, not facts:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}\nALREADY DONE, do not repeat these:\n${prior || '(nothing on file)'}\n\nObservations harvested for this client:\n${obsList}\n\nRun step 5. Write ${count} concepts, numbered from ${startNum} upward.
+    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}\nALREADY DONE, do not repeat these:\n${prior || '(nothing on file)'}\n\nObservations harvested for this client:\n${obsList}\n\nRun step 5. Write ${count} concepts, numbered from ${startNum} upward.
 ${strategy ? `Work down the allocation. Take one allocation row, pick an observation from THAT
 persona's world, then write the concept. Every concept must carry the objective, persona and
 selling_argument of the row it was written against, copied exactly as the Strategy Map words
@@ -688,14 +727,37 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
       'could not reach the research library (' + err.message.slice(0, 80) + '), generating from the brand snapshot alone');
   }
 
+  /* The audience harvest, if one has been posted for this client. Absence is
+     reported honestly rather than passed over: a batch built on imagined
+     observations should say so in its own step log. */
+  log('Audience harvest', 'running');
+  let harvestMd = null;
+  let harvestRec = null;
+  try {
+    harvestRec = store.latestHarvest(client);
+    harvestMd = harvestBrief(harvestRec);
+    if (harvestMd) {
+      const age = Math.round((Date.now() - new Date(harvestRec.savedAt).getTime()) / 86400000);
+      const sourced = harvestRec.observations.filter((o) => o.source_url).length;
+      log('Audience harvest', 'done',
+        `${harvestRec.observations.length} real observations read, ${sourced} with a source link, harvested ${age < 1 ? 'today' : age + ' days ago'}` +
+        (age > 90 ? '. Over three months old, the behaviour may have moved on' : ''));
+    } else {
+      log('Audience harvest', 'done',
+        'no harvest on file for this client, so the observations below are the model\'s own rather than sourced from real customers');
+    }
+  } catch (err) {
+    log('Audience harvest', 'done', 'could not read the harvest store (' + err.message.slice(0, 60) + '), generating without it');
+  }
+
   const strategy = V6
     ? await stageStrategy({ snapshot, count, log, ask: trackedAsk, researchMd })
     : null;
 
-  const harvest = await stageHarvest({ snapshot, prior, log, ask: trackedAsk, researchMd, strategy });
+  const harvest = await stageHarvest({ snapshot, prior, log, ask: trackedAsk, researchMd, strategy, harvestMd });
   const drafted = await stageWrite({
     snapshot, prior, observations: harvest.observations, count, startNum,
-    log, ask: trackedAsk, researchMd, strategy,
+    log, ask: trackedAsk, researchMd, strategy, harvestMd,
   });
   const reviews = await stageGate({ snapshot, concepts: drafted.concepts, log, ask: trackedAsk });
   let concepts = reconcile(drafted.concepts, reviews);
@@ -752,6 +814,8 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     used_marketing_plan: Boolean(record.plan),
     cost_usd: Math.round(spend.reduce((a, u) => a + (u && u.cost || 0), 0) * 100) / 100,
     used_research: Boolean(researchMd),
+    used_harvest: Boolean(harvestMd),
+    harvest_id: harvestRec ? harvestRec.id : null,
     has_brand_visuals: record.colors.length > 0 && record.fonts.length > 0,
   };
 }

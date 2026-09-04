@@ -14,10 +14,11 @@ const RUNS = path.join(DATA, 'runs');
 const BATCHES = path.join(DATA, 'batches');
 const STORIES = path.join(DATA, 'storyboards');
 const SCRIPTS = path.join(DATA, 'scripts');
+const HARVESTS = path.join(DATA, 'harvests');
 const FOOTAGE = path.join(DATA, 'footage');
 const NOTIFS = path.join(DATA, 'notifications.json');
 
-for (const d of [DATA, RUNS, BATCHES, STORIES, SCRIPTS, FOOTAGE]) fs.mkdirSync(d, { recursive: true });
+for (const d of [DATA, RUNS, BATCHES, STORIES, SCRIPTS, HARVESTS, FOOTAGE]) fs.mkdirSync(d, { recursive: true });
 
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 /* Ids arrive from the page, so they never reach a path unfiltered. */
@@ -146,6 +147,57 @@ function listStories(client) {
 
 /* Newest first. Used both by the frontend's batch picker and by the library
    check, which needs the titles of everything already shipped for a client. */
+/* ---------- audience harvests ----------
+ * What real customers actually said, found by the audience-harvest skill and
+ * posted here. Research is written by an agent and read by the service, the
+ * same split research.js already documents, so this only ever stores what it
+ * is given and never goes looking itself.
+ *
+ * Newest per client wins. A harvest ages: the behaviour it describes moves on,
+ * so a run reports how old the one it used is rather than treating it as
+ * timeless.
+ */
+function saveHarvest(rec) {
+  const id = `${slug(rec.client)}-${Date.now()}`;
+  const out = {
+    id,
+    savedAt: new Date().toISOString(),
+    client: rec.client,
+    persona: rec.persona || '',
+    observations: Array.isArray(rec.observations) ? rec.observations : [],
+    families: rec.families || [],
+    coverage: rec.coverage || null,
+    notes: rec.notes || '',
+    markdown: rec.markdown || '',
+    harvestedBy: rec.harvestedBy || 'audience-harvest',
+  };
+  writeJSON(path.join(HARVESTS, `${id}.json`), out);
+  return out;
+}
+
+function listHarvests(client) {
+  const want = client ? slug(client) : null;
+  return fs.readdirSync(HARVESTS)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => {
+      try { return JSON.parse(fs.readFileSync(path.join(HARVESTS, f), 'utf8')); }
+      catch { return null; }
+    })
+    .filter(Boolean)
+    .filter((h) => !want || slug(h.client) === want)
+    .sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
+}
+
+/* The one a run should use: newest for this client, or null. */
+function latestHarvest(client) {
+  return listHarvests(client)[0] || null;
+}
+
+function getHarvest(id) {
+  try { return JSON.parse(fs.readFileSync(path.join(HARVESTS, `${safeId(id)}.json`), 'utf8')); }
+  catch { return null; }
+}
+
 /* ---------- generated scripts ----------
  * Produced by a run, unlike storyboards which can also be authored by hand, so
  * a save is an insert keyed on the run that made it. Shape is the one the OS
@@ -291,5 +343,6 @@ function markNotifsRead(to, ids) {
 
 module.exports = { newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext,
                    saveScripts, getScripts, listScripts,
+                   saveHarvest, listHarvests, latestHarvest, getHarvest,
                    saveStory, getStory, listStories, saveFootage, getFootage, listFootage,
                    notify, notifsFor, markNotifsRead, DATA };

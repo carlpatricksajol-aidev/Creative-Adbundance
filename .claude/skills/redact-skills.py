@@ -13,7 +13,7 @@ import io, os, re, sys, shutil
 VAULT = r"c:\Clients\Creative Adbundance\_vault-local\skills"
 REPO  = r"c:\Clients\Creative Adbundance\Creative-Adbundance\.claude\skills"
 
-SKILLS = ['ad-concept-generator', 'ad-script-writer', 'batch-shoot-package']
+SKILLS = ['ad-concept-generator', 'ad-script-writer', 'batch-shoot-package', 'audience-harvest']
 
 # Ordered longest-first so a longer phrase is consumed before its substring.
 # Each entry: (regex, replacement). Case-sensitive by design; the names are proper nouns.

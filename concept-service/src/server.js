@@ -705,6 +705,70 @@ const server = http.createServer(async (req, res) => {
       return j ? json(res, 200, j) : json(res, 404, { error: 'no such footage job' });
     }
 
+    /* ---- audience harvests ----
+     * Written by the audience-harvest skill, read by the concept run. The
+     * service never goes looking for customer voice itself; it stores what an
+     * agent found and hands it to the next run for that client.
+     */
+    if (p === '/harvests' && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const list = store.listHarvests(url.searchParams.get('client') || '');
+      /* the index carries counts, not the observations themselves */
+      return json(res, 200, {
+        harvests: list.map((h) => ({
+          id: h.id, client: h.client, persona: h.persona, savedAt: h.savedAt,
+          observations: (h.observations || []).length,
+          sourced: (h.observations || []).filter((o) => o.source_url).length,
+          families: (h.families || []).length,
+          harvestedBy: h.harvestedBy,
+        })),
+      });
+    }
+
+    if (p === '/harvest' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      if (!b.client) return json(res, 400, { error: 'client is required' });
+      const obs = Array.isArray(b.observations) ? b.observations : [];
+      if (!obs.length) return json(res, 400, { error: 'a harvest with no observations is not a harvest' });
+
+      /* The one rule that makes this worth having: an observation without a
+         source is not harvested, it is imagined, and the whole point of this
+         store is that a human can check any line back to where it came from.
+         Reject rather than quietly keep it, so nobody discovers later that
+         half a "real" harvest was invented. */
+      const unsourced = obs
+        .map((o, i) => (o && o.source_url ? null : (o && o.text ? '"' + String(o.text).slice(0, 60) + '"' : 'entry ' + (i + 1))))
+        .filter(Boolean);
+      if (unsourced.length) {
+        return json(res, 400, {
+          error: `${unsourced.length} observation${unsourced.length === 1 ? '' : 's'} carry no source_url. A harvest is evidence, so every line needs the link it came from. Drop them or find their sources.`,
+          unsourced: unsourced.slice(0, 8),
+        });
+      }
+      const missingText = obs.filter((o) => !o || !o.text || !o.insight_family).length;
+      if (missingText) {
+        return json(res, 400, { error: `${missingText} observation(s) are missing text or insight_family, which the concept pipeline requires` });
+      }
+
+      try { await brand.resolve(b.client); }
+      catch (e) { return json(res, 400, { error: e.message }); }
+
+      const rec = store.saveHarvest(b);
+      store.notify({
+        to: b.harvestedBy || b.requestedBy, client: b.client, open: 'concepts',
+        text: `Audience harvest saved for ${rec.client}: ${rec.observations.length} sourced observations across ${(rec.families || []).length} insight families. The next concept run for this client will build on it.`,
+      });
+      return json(res, 200, { id: rec.id, observations: rec.observations.length, savedAt: rec.savedAt });
+    }
+
+    if (p.startsWith('/harvest/') && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const rec = store.getHarvest(p.slice('/harvest/'.length));
+      if (!rec) return json(res, 404, { error: 'not found' });
+      return json(res, 200, rec);
+    }
+
     /* ---- scripts: generated from an approved concept batch ---- */
     if (p === '/scripts' && req.method === 'GET') {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
