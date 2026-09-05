@@ -109,7 +109,24 @@ function finishRun(id, patch) {
 
 function saveBatch(result) {
   const id = `${slug(result.client)}-${Date.now()}`;
-  const rec = { id, savedAt: new Date().toISOString(), ...result };
+  /* The batch number is stamped at save and never changes. It used to be
+     derived on the page from position in the run history, so removing an old
+     batch renumbered every batch after it - Carl's ask was the opposite:
+     remove 1, 2, 3, 6 and 9 and Batch 7 is still called Batch 7. Archived
+     batches keep their number and keep counting, so the next batch after a
+     removal still gets the next number, not a reused one. */
+  const want = slug(result.client);
+  let maxN = 0;
+  try {
+    for (const f of fs.readdirSync(BATCHES).filter((x) => x.endsWith('.json'))) {
+      try {
+        const b = JSON.parse(fs.readFileSync(path.join(BATCHES, f), 'utf8'));
+        if (slug(b.client || '') !== want || b.seeded || !(b.concepts || []).length) continue;
+        if (Number(b.n) > maxN) maxN = Number(b.n);
+      } catch {}
+    }
+  } catch {}
+  const rec = { id, savedAt: new Date().toISOString(), n: maxN + 1, ...result };
   writeJSON(path.join(BATCHES, `${id}.json`), rec);
   return rec;
 }
@@ -383,7 +400,8 @@ function listBatches(client) {
     .map((f) => {
       try {
         const b = JSON.parse(fs.readFileSync(path.join(BATCHES, f), 'utf8'));
-        return { id: b.id, client: b.client, savedAt: b.savedAt, count: (b.concepts || []).length,
+        return { id: b.id, client: b.client, savedAt: b.savedAt, n: b.n, archived: Boolean(b.archived),
+                 count: (b.concepts || []).length,
                  titles: (b.concepts || []).map((c) => c.title) };
       } catch { return null; }
     })
@@ -537,7 +555,7 @@ function overview() {
   for (const f of fs.readdirSync(BATCHES).filter((x) => x.endsWith('.json'))) {
     try {
       const b = JSON.parse(fs.readFileSync(path.join(BATCHES, f), 'utf8'));
-      if (!b.client || b.seeded || !(b.concepts || []).length) continue;
+      if (!b.client || b.seeded || b.archived || !(b.concepts || []).length) continue;
       const r = row(b.client);
       r.batches += 1; r.concepts += (b.concepts || []).length;
       later(r, b.savedAt);

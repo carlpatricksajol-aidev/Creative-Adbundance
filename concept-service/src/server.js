@@ -617,7 +617,10 @@ const server = http.createServer(async (req, res) => {
 
     if (p === '/batches' && req.method === 'GET') {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
-      return json(res, 200, { batches: store.listBatches(url.searchParams.get('client')) });
+      /* Archived batches leave the board but keep existing on disk: their
+         numbers stay taken, their concepts stay in the dedup memory, and their
+         scripts and mockups stay readable by id. */
+      return json(res, 200, { batches: store.listBatches(url.searchParams.get('client')).filter((b) => !b.archived) });
     }
 
     /* The All-clients grid asks this once instead of fetching every batch of
