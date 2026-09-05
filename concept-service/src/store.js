@@ -500,6 +500,28 @@ function usedVehicles(client, cap = 15) {
   return out;
 }
 
+/* The angle of every concept in a client's earlier batches: title plus the
+   selling argument in one line. Title-level dedup never stopped an angle from
+   returning in a new costume - PackDraw's "show the ordinary pull honestly"
+   shipped four times across four batches as four different titles - and the
+   review gates could not fail the re-run because they were never shown what
+   had already been made. */
+function usedAngles(client, cap = 20) {
+  const out = [];
+  for (const meta of listBatches(client)) {
+    const b = getBatch(meta.id);
+    if (!b || b.seeded) continue;
+    for (const c of b.concepts || []) {
+      const t = String(c.title || '').trim();
+      if (!t) continue;
+      const arg = String(c.selling_argument || c.logline || '').slice(0, 90);
+      out.push('"' + t + '"' + (arg ? ' - ' + arg : ''));
+      if (out.length >= cap) return out;
+    }
+  }
+  return out;
+}
+
 /* One row per client for the All-clients grid: what exists here and what state
    it is in, so the page does not have to fetch every batch of every client to
    stop saying "Nothing in flight" over real work. Seeded batches are the
@@ -545,7 +567,7 @@ function overview() {
 }
 
 module.exports = {
-  canonNum, sweepOrphanedRuns, newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext, overview, usedVehicles,
+  canonNum, sweepOrphanedRuns, newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext, overview, usedVehicles, usedAngles,
                    saveScripts, getScripts, listScripts,
                    savePush, getPush, getPushByBatch, getPushByToken, decide, approvedNums,
                    saveHarvest, listHarvests, latestHarvest, getHarvest,

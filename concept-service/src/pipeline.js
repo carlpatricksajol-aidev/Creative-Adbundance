@@ -36,7 +36,7 @@ const SKILL_DIR = process.env.SKILL_DIR ||
    two-hander kept coming back wearing a different room. */
 const VEHICLE_SAMPLE = 30;
 
-async function vehicleMenu(usedLines) {
+async function vehicleMenu(usedLines, usedAngles) {
   const u = process.env.SUPABASE_URL, k = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
   if (!u || !k) return null;
   try {
@@ -83,6 +83,14 @@ async function vehicleMenu(usedLines) {
       'batch may use any message-thread surface, and only when the observation genuinely lives there.\n' +
       '- No two concepts share a vehicle or an obvious vehicle family. Spread across production paths ' +
       'where the strategy allows.' + usedMd + '\n' +
+      ((usedAngles || []).length
+        ? '- ANGLES this client has already been sold. A new concept that is one of these in a new costume ' +
+          'fails review, whatever the title says. Same argument staged differently is a repeat, not a concept:\n' +
+          usedAngles.map((l) => '    - ' + String(l).slice(0, 130)).join('\n') + '\n'
+        : '') +
+      '- Eric\'s intensity rule from the skill is binding: the content is about 25% MORE intense than real ' +
+      'life. A concept whose whole idea is being deliberately flat or boring for its full runtime fails; the ' +
+      'honesty can be the argument, never the pacing.\n' +
       '- DURATION is MORE THAN 30 seconds, always: write 30 to 40. A concept under 30 seconds fails, ' +
       'whatever the funnel slot.';
     return {
@@ -836,9 +844,9 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   /* Ricardo's vehicle rule: a fresh random draw from the curated bank every
      run, minus everything this client's earlier batches already used. */
   log('Vehicle bank', 'running');
-  let usedVeh = [];
-  try { usedVeh = store.usedVehicles(client); } catch {}
-  const vehicles = await vehicleMenu(usedVeh);
+  let usedVeh = [], usedAng = [];
+  try { usedVeh = store.usedVehicles(client); usedAng = store.usedAngles(client); } catch {}
+  const vehicles = await vehicleMenu(usedVeh, usedAng);
   log('Vehicle bank', 'done', vehicles
     ? vehicles.count + ' vehicles drawn at random from the ' + vehicles.total + ' on file' +
       (vehicles.banned ? ', ' + vehicles.banned + ' used in earlier batches taken off the menu' : '') +
