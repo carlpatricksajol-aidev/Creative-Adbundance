@@ -382,6 +382,7 @@ function listScripts(client) {
         const b = JSON.parse(fs.readFileSync(path.join(SCRIPTS, f), 'utf8'));
         return {
           id: b.id, client: b.client, batch: b.batch, savedAt: b.savedAt,
+          fromBatch: b.fromBatch || null, archived: Boolean(b.archived),
           count: (b.docs || []).length,
           titles: (b.docs || []).map((d) => d.title),
           flagged: (b.docs || []).filter((d) => d.flag).length,

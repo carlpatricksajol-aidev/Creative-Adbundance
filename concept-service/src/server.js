@@ -1244,7 +1244,11 @@ const server = http.createServer(async (req, res) => {
     /* ---- scripts: generated from an approved concept batch ---- */
     if (p === '/scripts' && req.method === 'GET') {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
-      return json(res, 200, { scripts: store.listScripts(url.searchParams.get('client') || '') });
+      /* Scripts follow their source batch off the board: archived (their own
+         flag, or their concept batch's) stays on disk, readable by id. */
+      return json(res, 200, { scripts: store.listScripts(url.searchParams.get('client') || '')
+        .filter((s) => !s.archived)
+        .filter((s) => { const b = s.fromBatch && store.getBatch(s.fromBatch); return !(b && b.archived); }) });
     }
 
     if (p === '/script/run' && req.method === 'POST') {
