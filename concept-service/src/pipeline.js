@@ -36,7 +36,7 @@ const SKILL_DIR = process.env.SKILL_DIR ||
    two-hander kept coming back wearing a different room. */
 const VEHICLE_SAMPLE = 30;
 
-async function vehicleMenu(usedLines, usedAngles) {
+async function vehicleMenu(usedLines) {
   const u = process.env.SUPABASE_URL, k = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
   if (!u || !k) return null;
   try {
@@ -62,46 +62,23 @@ async function vehicleMenu(usedLines, usedAngles) {
       return '- [' + v.production_path + '] ' + v.name + ': ' +
         String(v.description || '').slice(0, 160);
     }).join('\n');
-    const usedMd = (usedLines || []).length
-      ? '\n- Vehicles and vehicle families this client\'s earlier batches already used are OFF the menu, ' +
-        're-skins included (a two-hander is a two-hander whatever the room it is shot in):\n' +
-        usedLines.map((l) => '    - ' + String(l).slice(0, 100)).join('\n')
-      : '';
-    /* The rules travel on their own too, because Batch 7 proved a rule only
-       the writer sees is a suggestion: a banned two-hander and a 20-second
-       concept both sailed through three review gates that had never been shown
-       the rule they were breaking. */
-    const rules = 'VEHICLE RULES, from the creative director. These are FAILABLE CHECKS, not advice: a ' +
-      'concept that breaks one is edited or replaced before the deck ships.\n' +
-      '- The skill\'s flow is binding and the vehicle comes LAST: business objective, then persona, then ' +
-      'selling argument, then the human observation, and only then a vehicle chosen to CARRY that argument. ' +
-      'A concept built around a vehicle fails review. The objective must be a commercial outcome in the ' +
-      'brand\'s own terms (deposits, first orders, repeat rate), never a statement about the creative itself.\n' +
-      '- Describe the execution in plain production words and never quote a bank id or catalog name in the ' +
-      'concept.\n' +
-      '- Do NOT default to group-chat, text-thread or messaging-screen framing: at most ONE concept in the ' +
-      'batch may use any message-thread surface, and only when the observation genuinely lives there.\n' +
-      '- No two concepts share a vehicle or an obvious vehicle family. Spread across production paths ' +
-      'where the strategy allows.' + usedMd + '\n' +
-      ((usedAngles || []).length
-        ? '- ANGLES this client has already been sold. A new concept that is one of these in a new costume ' +
-          'fails review, whatever the title says. Same argument staged differently is a repeat, not a concept:\n' +
-          usedAngles.map((l) => '    - ' + String(l).slice(0, 130)).join('\n') + '\n'
-        : '') +
-      '- Eric\'s intensity rule from the skill is binding: the content is about 25% MORE intense than real ' +
-      'life. A concept whose whole idea is being deliberately flat or boring for its full runtime fails; the ' +
-      'honesty can be the argument, never the pacing.\n' +
-      '- DURATION is MORE THAN 30 seconds, always: write 30 to 40. A concept under 30 seconds fails, ' +
-      'whatever the funnel slot.';
+    /* Carl's ruling (2026-09-05): Batch 4 and 5 were skill + references +
+       Supabase and NOTHING else, and they were good. Every rulebook bolted on
+       after the skill competed with it and visibly bent the output (Batch 6
+       onward). So the menu carries Ricardo's two rules and not one word more;
+       the skill is the only method voice. Vehicles this client already used
+       are filtered out SILENTLY - the model never sees a ban list, the menu
+       simply does not offer them. */
     return {
       count: pick.length,
       total,
       banned,
-      rules,
-      md: 'THE VEHICLE BANK, a fresh random sample of ' + pick.length + ' from the ' + total +
-        ' curated vehicles on file' + (banned ? ' (' + banned + ' this client already used are not offered)' : '') +
-        '. This menu is an offer, not an assignment: pick from it when a vehicle fits the argument, adapt or ' +
-        'depart from it when the observation calls for something better.\n' + lines + '\n\n' + rules,
+      md: 'THE VEHICLE BANK, a fresh random sample of ' + pick.length + ' of the ' + total +
+        ' curated vehicles on file, for when a concept needs a vehicle:\n' + lines + '\n\n' +
+        'Two rules from the creative director:\n' +
+        '- Source vehicles from this random sample rather than defaulting to the same familiar formats; ' +
+        'no two concepts in the batch share a vehicle family.\n' +
+        '- Duration is more than 30 seconds: write 30 to 40.',
     };
   } catch { return null; }
 }
@@ -844,14 +821,13 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   /* Ricardo's vehicle rule: a fresh random draw from the curated bank every
      run, minus everything this client's earlier batches already used. */
   log('Vehicle bank', 'running');
-  let usedVeh = [], usedAng = [];
-  try { usedVeh = store.usedVehicles(client); usedAng = store.usedAngles(client); } catch {}
-  const vehicles = await vehicleMenu(usedVeh, usedAng);
+  let usedVeh = [];
+  try { usedVeh = store.usedVehicles(client); } catch {}
+  const vehicles = await vehicleMenu(usedVeh);
   log('Vehicle bank', 'done', vehicles
     ? vehicles.count + ' vehicles drawn at random from the ' + vehicles.total + ' on file' +
-      (vehicles.banned ? ', ' + vehicles.banned + ' used in earlier batches taken off the menu' : '') +
-      (usedVeh.length ? ', ' + usedVeh.length + ' prior vehicle lines banned by name' : '') +
-      ', duration rule ~30s attached'
+      (vehicles.banned ? ', ' + vehicles.banned + ' used in earlier batches quietly left out' : '') +
+      ', duration rule >30s attached'
     : 'the vehicle bank is unreachable, so the skill\'s own libraries carry the batch alone');
 
   /* The audience harvest, if one has been posted for this client. Absence is
@@ -893,20 +869,18 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     snapshot: snapshotPlus, prior, observations: harvest.observations, count, startNum,
     log, ask: trackedAsk, researchMd, strategy, harvestMd,
   });
-  /* The reviewers judge against the same vehicle and duration rules the writer
-     was given, as failable checks. Batch 7's banned two-hander and 20-second
-     concept got through because no gate had ever been shown the rules. */
-  const snapshotRules = vehicles ? snapshot + '\n\n' + vehicles.rules : snapshot;
-
-  const reviews = await stageGate({ snapshot: snapshotRules, concepts: drafted.concepts, log, ask: trackedAsk });
+  /* Carl's ruling: the gates judge against the skill and the snapshot, the way
+     Batch 4 and 5 were made. No bolted-on rulebook anywhere - a second voice
+     next to the skill bends the output, and the batches proved it. */
+  const reviews = await stageGate({ snapshot, concepts: drafted.concepts, log, ask: trackedAsk });
   let concepts = reconcile(drafted.concepts, reviews);
 
   let feedback = null;
   let compliance = null;
   if (V6) {
-    feedback = await stageFeedback({ snapshot: snapshotRules, concepts, strategy, log, ask: trackedAsk });
+    feedback = await stageFeedback({ snapshot, concepts, strategy, log, ask: trackedAsk });
     concepts = reconcile(concepts, feedback.reviews);
-    compliance = await stageCompliance({ snapshot: snapshotRules, concepts, strategy, log, ask: trackedAsk });
+    compliance = await stageCompliance({ snapshot, concepts, strategy, log, ask: trackedAsk });
     /* A hard compliance fail is not allowed to leave quietly. It rides on the
        concept as a flag, which is what the board already renders as "did not
        clear the batch check", so a human sees it on the slide itself. */
@@ -921,7 +895,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     }
   }
 
-  const composition = await stageComposition({ snapshot: snapshotRules, concepts, log, ask: trackedAsk });
+  const composition = await stageComposition({ snapshot, concepts, log, ask: trackedAsk });
 
   const blocked = concepts.filter((c) => c.flag).length;
   log('Deck ready', 'done',
