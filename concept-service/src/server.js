@@ -623,6 +623,23 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { batches: store.listBatches(url.searchParams.get('client')).filter((b) => !b.archived) });
     }
 
+    /* The client brief: per-client production constraints the harness
+       enforces (duration band, locale, banned words, production notes). The
+       account team's layer; the skill never carries a client-specific rule. */
+    if (p === '/brief' && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const cli = url.searchParams.get('client');
+      if (!cli) return json(res, 400, { error: 'client is required' });
+      return json(res, 200, { brief: store.getBrief(cli) });
+    }
+    if (p === '/brief' && req.method === 'PUT') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      if (!b.client) return json(res, 400, { error: 'client is required' });
+      const { client: cli, ...patch } = b;
+      return json(res, 200, { brief: store.saveBrief(cli, patch) });
+    }
+
     /* The All-clients grid asks this once instead of fetching every batch of
        every client: per client, what exists and what the client has decided. */
     if (p === '/overview' && req.method === 'GET') {

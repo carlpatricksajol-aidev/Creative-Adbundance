@@ -25,6 +25,7 @@
  */
 
 const { Client } = require('pg');
+const store = require('./store');
 
 const KL_URL = process.env.SUPABASE_KNOWLEDGE_LAYER_URL || '';
 
@@ -325,11 +326,25 @@ function toMarkdown(rec) {
      Carl pastes into a working session that the relational tables never
      carried: the do-not list, the hooks that already converted, the brief. */
   if (brain) {
+    /* Source priority. The marketing report's guardrails outrank the brand
+       brain: the brain is onboarding knowledge, the report is the strategy.
+       PackDraw's "provably fair verification" line lived only in the brain and
+       became a concept the guardrails forbid. So brain sentences that use a
+       word the client's brief bans for paid creative are dropped before the
+       model ever sees them, and the section says what it is. */
+    const brief = store.getBrief(brand.brand_name) || store.getBrief(brand.client_name) || {};
+    const banned = (Array.isArray(brief.banned) ? brief.banned : [])
+      .map((w) => new RegExp('\\b' + String(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+') + '\\b', 'i'));
+    const scrub = (text) => !banned.length ? text
+      : text.split(/(?<=[.!?])\s+/).filter((s) => !banned.some((re) => re.test(s))).join(' ');
     out.push('## BRAND BRAIN, the account record');
+    out.push('_Onboarding knowledge, background to the marketing report above. Where the two disagree the report and its guardrails win; a mechanism or claim that appears only here is not confirmed for use in creative._\n');
     for (const [key, title] of BRAIN_FIELDS) {
       const v = brain[key];
       if (v == null || String(v).trim() === '' || String(v) === '[]') continue;
-      const text = typeof v === 'object' ? JSON.stringify(v, null, 1) : String(v);
+      const raw = typeof v === 'object' ? JSON.stringify(v, null, 1) : String(v);
+      const text = scrub(raw);
+      if (!text.trim()) continue;
       out.push(`### ${title}\n${text.length > BRAIN_FIELD_CAP ? text.slice(0, BRAIN_FIELD_CAP) + ' ...' : text}\n`);
     }
   } else {

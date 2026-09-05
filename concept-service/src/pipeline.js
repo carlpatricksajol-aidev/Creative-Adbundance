@@ -18,6 +18,7 @@ const { ask } = require('./llm');
 const brand = require('./dossier');
 const research = require('./research');
 const store = require('./store');
+const harness = require('./harness');
 const { canonNum, numSet } = require('./num');
 
 const SKILL_DIR = process.env.SKILL_DIR ||
@@ -75,10 +76,8 @@ async function vehicleMenu(usedLines) {
       banned,
       md: 'THE VEHICLE BANK, a fresh random sample of ' + pick.length + ' of the ' + total +
         ' curated vehicles on file, for when a concept needs a vehicle:\n' + lines + '\n\n' +
-        'Two rules from the creative director:\n' +
-        '- Source vehicles from this random sample rather than defaulting to the same familiar formats; ' +
-        'no two concepts in the batch share a vehicle family.\n' +
-        '- Duration is more than 30 seconds: write 30 to 40.',
+        'One rule from the creative director: source vehicles from this random sample rather than ' +
+        'defaulting to the same familiar formats; no two concepts in the batch share a vehicle family.',
     };
   } catch { return null; }
 }
@@ -151,11 +150,17 @@ const CONCEPT = {
     performance_ready: { type: 'integer', minimum: 1, maximum: 5 },
     /* v6 softened the solo-creator rule, so production needs the count */
     talent: { type: 'string' },
+    /* which device turns the observation up 25 percent (the skill's intensity
+       rule), and the sound-off visual identity, so the harness can cap a
+       family and a producer can sort piles without reading the copy */
+    intensity_device: { type: 'string' },
+    visual_family: { type: 'string' },
   },
   required: V6
     ? ['num', 'title', 'logline', 'observation', 'insight_family', 'vehicle',
       'persuasion_job', 'awareness', 'lane', 'dur', 'desc', 'hooks', 'narrative', 'design',
-      'objective', 'persona', 'selling_argument', 'thumb_stop', 'performance_ready', 'talent']
+      'objective', 'persona', 'selling_argument', 'thumb_stop', 'performance_ready', 'talent',
+      'intensity_device', 'visual_family']
     : ['num', 'title', 'logline', 'observation', 'insight_family', 'vehicle',
       'persuasion_job', 'awareness', 'lane', 'dur', 'desc', 'hooks', 'narrative', 'design'],
 };
@@ -203,10 +208,12 @@ const GATE_SCHEMA = {
         properties: {
           num: { type: 'string' },
           verdict: { type: 'string' },
+          /* the edits required, as instructions to the Creative Director. The
+             reviewer no longer returns a rewritten concept: reviewers judge, the
+             CD rewrites, which is the skill's own loop. */
           change_log: { type: 'string' },
-          concept: CONCEPT,
         },
-        required: ['num', 'verdict', 'change_log', 'concept'],
+        required: ['num', 'verdict', 'change_log'],
       },
     },
   },
@@ -294,9 +301,8 @@ const FEEDBACK_SCHEMA = {
           verdict: { type: 'string', enum: ['PASS', 'REWORK', 'KILL'] },
           failed_checks: { type: 'array', items: { type: 'string' } },
           note: { type: 'string' },
-          concept: CONCEPT,
         },
-        required: ['num', 'verdict', 'failed_checks', 'note', 'concept'],
+        required: ['num', 'verdict', 'failed_checks', 'note'],
       },
     },
     batch_findings: { type: 'array', items: { type: 'string' } },
@@ -351,9 +357,11 @@ const COMPLIANCE_SCHEMA = {
 const HOUSE_RULES = `
 Hard rules that apply to every stage:
 - NO EM DASHES anywhere. Use a comma or a full stop. This is a product rule, not a preference.
-- Never invent a number. Any figure must come from the brand snapshot. If a proof point
-  would normally go somewhere and the snapshot does not have it, write a placeholder that
-  names what is needed, for example "insert the current Trustpilot rating".
+- Never invent a number. Any figure must come from the brand snapshot. If the snapshot does
+  not have the figure a beat wants, write the beat without a figure. No placeholders, no
+  bracketed notes, no "insert" or "confirm with the account team" on a client-facing card.
+- Platform disclaimers and legal wording (age gates, eligibility, responsible-play lines) are
+  applied at build from the client's production notes. They are never written into a concept.
 - Obey the snapshot's compliance_notes, dos_and_donts and creative_boundaries as hard gates.
 - Plain speech. No "unlock", no "elevate", no "game-changer", no agency register.
 `;
@@ -524,6 +532,11 @@ already appear in the description or the narrative.
 'hooks' is EXACTLY 3 variants that explore meaningfully different angles into the same concept,
 not one sentence reworded three times. Each is a spoken opening line or on-screen overlay, and
 the concept must work with any of them.
+'intensity_device' names the one device that turns the observation up (confrontation, accusation,
+being caught, stakes, a secret exposed, a competition, something happening in the background).
+'visual_family' is the sound-off identity in two or three words (talking head, two-hander skit,
+messaging screen, screen record, animation, POV, product film, static), so a producer can sort
+piles without reading the copy.
 ` : ''}
 'logline' is the one human truth the ad is built on, in the customer's voice, one or two
 sentences. It is not the hook and not a summary of the ad.
@@ -557,8 +570,10 @@ not let a reader picture the ad, a missing creative leap, more than one persuasi
 sibling it would look identical to with the sound off, strategist language in the copy,
 manufactured cleverness, anything not shootable at home, a design component never set up in
 the description or narrative, any compliance breach, or any number not in the snapshot.
-Return a verdict per concept and the concept AFTER your edits, every field populated. On
-reject-and-replace, write a replacement that keeps the slot's job and fixes the failure.
+Return a verdict per concept (PASS, EDIT or REJECT) and, in change_log, the specific edits the
+Creative Director must make, quoting the failing line and prescribing the fix. Do NOT rewrite
+the concept yourself: you judge, the Creative Director rewrites. On REJECT, brief the
+replacement in one paragraph, keeping the slot's job.
 
 CONCEPTS:\n${JSON.stringify(g, null, 1)}`,
     schema: GATE_SCHEMA,
@@ -625,14 +640,14 @@ selling argument must differ from at least half the batch.
 Then a final compliance scan: read the batch as the brand would before production and flag
 unqualified health claims, named competitors, banned language, or unsubstantiated outcomes.
 
-Verdicts: PASS survives all 18. REWORK is fixable without replacing the premise, so return the
-concept WITH your fix already applied. KILL is a premise-level failure, so return a REPLACEMENT
-concept that keeps the allocation slot's objective, persona and selling argument and fixes what
-failed. Either way the concept field comes back complete, every field populated, so the batch
-that leaves this stage is buildable.
+Verdicts: PASS survives all 18. REWORK is fixable without replacing the premise. KILL is a
+premise-level failure. You do NOT rewrite: you judge, and the Creative Director rewrites from
+your note. So the note is the deliverable: for REWORK, quote the failing lines and prescribe the
+fix; for KILL, brief the replacement in one paragraph, keeping the allocation slot's objective,
+persona and selling argument.
 
 In failed_checks list the check numbers that failed for that concept. In batch_findings record
-the batch-level results, including anything you had to fix by editing the weakest offender.
+the batch-level results, naming the weakest offender wherever a batch-level check failed.
 
 THE BATCH:\n${JSON.stringify(concepts, null, 1)}`,
     schema: FEEDBACK_SCHEMA,
@@ -735,6 +750,56 @@ replace_these, give the concept number and a one-line brief for its replacement.
   return out;
 }
 
+/* The Creative Director's rewrite pass: the skill's own loop. Reviewers judge
+   and the code lints; whatever fails comes back HERE, to the persona that wrote
+   it, with the notes as binding instructions. Before this the reviewers
+   rewrote concepts themselves, and the compliance reviewer's register leaked
+   into six of seven end frames. */
+async function stageRewrite({ snapshot, strategy, items, round, log, ask, researchMd, harvestMd }) {
+  const name = `Creative Director rewrite ${round}`;
+  log(name, 'running');
+  const out = await ask({
+    system: `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
+    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}
+You wrote the batch these concepts come from. The reviewers have judged them and the code checks
+have run. The notes under each concept are binding. Rewrite ONLY the concepts below, keeping
+each one's num and its objective, persona and selling_argument (a KILL means the premise failed:
+write a replacement for the same slot). Every field populated, the whole skill method applies,
+and a note about a specific line is fixed at that line, not by rewording around it.
+
+CONCEPTS TO REWRITE, each with its notes:
+${items.map((it) => `--- concept ${it.concept.num} ---\n${JSON.stringify(it.concept, null, 1)}\nNOTES:\n${it.notes.join('\n')}`).join('\n\n')}`,
+    schema: BATCH_SCHEMA,
+    maxTokens: 64000,
+  });
+  log(name, 'done', `${(out.concepts || []).length} of ${items.length} rewritten`);
+  return out.concepts || [];
+}
+
+/* Replace by concept number, never add or drop: the batch keeps its spine. */
+function mergeByNum(concepts, rewritten) {
+  const by = new Map();
+  for (const c of rewritten || []) if (c && c.num != null) by.set(canonNum(c.num), c);
+  return concepts.map((c) => by.get(canonNum(c.num)) || c);
+}
+
+/* The client brief, rendered as data the way the report is: short, factual,
+   and only where the account team has actually set something. */
+function briefMd(brief) {
+  if (!brief || !brief.client) return '';
+  const lines = [];
+  if (brief.duration_min || brief.duration_max) {
+    lines.push(`- Duration: ${brief.duration_min || '?'} to ${brief.duration_max || '?'} seconds. Concepts outside this band are rejected by the build checks.`);
+  }
+  if (brief.locale) lines.push(`- Language: ${brief.locale === 'en-US' ? 'US English, US register' : brief.locale}.`);
+  if (Array.isArray(brief.banned) && brief.banned.length) {
+    lines.push(`- Words that cannot appear anywhere in paid creative: ${brief.banned.join(', ')}.`);
+  }
+  if (brief.production_notes) lines.push(`- Production notes (applied at build, not written into concepts): ${brief.production_notes}`);
+  if (!lines.length) return '';
+  return `\n\n## PRODUCTION CONSTRAINTS for ${brief.client}, from the account team\n${lines.join('\n')}\n`;
+}
+
 /* ------------------------------------------------------------------- run ---- */
 
 /* Merge a reviewer's output back over the batch it reviewed, by concept number.
@@ -767,7 +832,9 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   };
   log('Intake and brand analysis', 'running');
   const { record, matched } = await brand.resolve(client);
-  const snapshot = brand.toMarkdown(record);
+  /* the client's brief rides with the snapshot as data, exactly like the report */
+  const brief = store.getBrief(record.brand.brand_name) || store.getBrief(client) || {};
+  const snapshot = brand.toMarkdown(record) + briefMd(brief);
   /* Say what the snapshot was actually built from. A run grounded in a brand
      with no marketing plan and no compliance rules should say so in the step,
      not read identical to one that had both. */
@@ -782,6 +849,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     record.rules.length ? `${record.rules.length} compliance rule${record.rules.length === 1 ? '' : 's'}` : null,
     record.products.length ? `${record.products.length} product${record.products.length === 1 ? '' : 's'}` : null,
     record.colors.length ? 'colours' : null,
+    brief.client ? `the client brief (${brief.duration_min || '?'} to ${brief.duration_max || '?'}s, ${(brief.banned || []).length} banned words)` : null,
   ].filter(Boolean);
   log('Intake and brand analysis', 'done',
     `snapshot for ${record.brand.brand_name} (matched on ${matched}) from ${built.length ? built.join(', ') : 'a bare brand row'}`);
@@ -869,17 +937,75 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     snapshot: snapshotPlus, prior, observations: harvest.observations, count, startNum,
     log, ask: trackedAsk, researchMd, strategy, harvestMd,
   });
-  /* Carl's ruling: the gates judge against the skill and the snapshot, the way
-     Batch 4 and 5 were made. No bolted-on rulebook anywhere - a second voice
-     next to the skill bends the output, and the batches proved it. */
-  const reviews = await stageGate({ snapshot, concepts: drafted.concepts, log, ask: trackedAsk });
-  let concepts = reconcile(drafted.concepts, reviews);
+  /* THE HARNESS. Three layers, three owners: the skill is the method (Ricardo),
+     the client brief is the constraints (account team), and this is the code
+     (ours). Reviewers judge and never write; the code lints format, compliance
+     and repetition deterministically; everything that fails goes back to the
+     Creative Director with the exact note, twice at most, and whatever still
+     fails ships FLAGGED, never silently. Nothing here adds a paragraph to the
+     prompt, which is what bent Batches 6 to 10. */
+  const lintCtx = harness.context({ brief, snapshot, library: store.libraryConcepts(record.brand.brand_name) });
+  const lintAll = (list) => {
+    const byNum = new Map();
+    const batchIssues = harness.lintBatch(list, lintCtx);
+    for (const c of list) {
+      const issues = harness.lintConcept(c, lintCtx).concat(batchIssues.get(canonNum(c.num)) || []);
+      if (issues.length) byNum.set(canonNum(c.num), issues);
+    }
+    return byNum;
+  };
+  const lintSummary = (m) => {
+    const codes = {};
+    for (const issues of m.values()) for (const i of issues) codes[i.code] = (codes[i.code] || 0) + 1;
+    return Object.entries(codes).map(([k, v]) => `${k} x${v}`).join(', ');
+  };
+  const notes = new Map();
+  const note = (num, text) => { const k = canonNum(num); if (!notes.has(k)) notes.set(k, []); notes.get(k).push(text); };
+
+  let concepts = drafted.concepts;
+  let lint = lintAll(concepts);
+  log('Code checks', 'done', lint.size
+    ? `${lint.size} of ${concepts.length} concepts need a fix: ${lintSummary(lint)}`
+    : 'every concept clears the code checks');
+  for (const [k, issues] of lint) note(k, 'CODE CHECKS FAILED, fix each at the line named:\n' + harness.describe(issues));
+
+  const reviews = await stageGate({ snapshot, concepts, log, ask: trackedAsk });
+  for (const r of reviews) {
+    const v = String(r.verdict || '').toLowerCase();
+    if (v.includes('reject') || v.includes('edit')) note(r.num, `CREATIVE STRATEGIST (${r.verdict}): ${r.change_log}`);
+  }
 
   let feedback = null;
   let compliance = null;
   if (V6) {
     feedback = await stageFeedback({ snapshot, concepts, strategy, log, ask: trackedAsk });
-    concepts = reconcile(concepts, feedback.reviews);
+    for (const r of feedback.reviews || []) {
+      if (r.verdict && r.verdict !== 'PASS') note(r.num, `FEEDBACK REVIEW (${r.verdict}, checks ${(r.failed_checks || []).join(', ') || 'unspecified'}): ${r.note}`);
+    }
+  }
+
+  let rounds = 0;
+  while (notes.size && rounds < 2) {
+    rounds++;
+    const items = concepts.filter((c) => notes.has(canonNum(c.num)))
+      .map((c) => ({ concept: c, notes: notes.get(canonNum(c.num)) }));
+    const rewritten = await stageRewrite({ snapshot, strategy, items, round: rounds, log, ask: trackedAsk, researchMd, harvestMd });
+    concepts = mergeByNum(concepts, rewritten);
+    notes.clear();
+    lint = lintAll(concepts);
+    for (const [k, issues] of lint) note(k, 'CODE CHECKS STILL FAILING after your rewrite, fix each at the line named:\n' + harness.describe(issues));
+    log('Code checks', 'done', lint.size
+      ? `after rewrite ${rounds}: ${lint.size} still failing (${lintSummary(lint)})`
+      : `after rewrite ${rounds}: every concept clears the code checks`);
+  }
+  for (const c of concepts) {
+    const issues = lint.get(canonNum(c.num));
+    if (!issues) continue;
+    const f = 'Did not clear the code checks: ' + issues.map((i) => i.detail).join(' | ');
+    c.flag = c.flag ? `${c.flag} | ${f}` : f;
+  }
+
+  if (V6) {
     compliance = await stageCompliance({ snapshot, concepts, strategy, log, ask: trackedAsk });
     /* A hard compliance fail is not allowed to leave quietly. It rides on the
        concept as a flag, which is what the board already renders as "did not
@@ -928,6 +1054,12 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     cost_usd: Math.round(spend.reduce((a, u) => a + (u && u.cost || 0), 0) * 100) / 100,
     used_research: Boolean(researchMd),
     used_harvest: Boolean(harvestMd),
+    /* the brief's production notes ride on the batch so the board can show
+       them once, instead of every concept carrying the disclaimer text */
+    production_notes: brief.production_notes || null,
+    brief_used: Boolean(brief.client),
+    lint_rounds: rounds,
+    lint_remaining: lint.size,
     harvest_id: harvestRec ? harvestRec.id : null,
     has_brand_visuals: record.colors.length > 0 && record.fonts.length > 0,
   };

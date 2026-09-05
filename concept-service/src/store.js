@@ -19,9 +19,10 @@ const SCRIPTS = path.join(DATA, 'scripts');
 const HARVESTS = path.join(DATA, 'harvests');
 const PUSHES = path.join(DATA, 'pushes');
 const FOOTAGE = path.join(DATA, 'footage');
+const BRIEFS = path.join(DATA, 'briefs');
 const NOTIFS = path.join(DATA, 'notifications.json');
 
-for (const d of [DATA, RUNS, BATCHES, STORIES, SCRIPTS, HARVESTS, PUSHES, FOOTAGE]) fs.mkdirSync(d, { recursive: true });
+for (const d of [DATA, RUNS, BATCHES, STORIES, SCRIPTS, HARVESTS, PUSHES, FOOTAGE, BRIEFS]) fs.mkdirSync(d, { recursive: true });
 
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 /* Ids arrive from the page, so they never reach a path unfiltered. */
@@ -501,6 +502,40 @@ function markNotifsRead(to, ids) {
   writeJSON(NOTIFS, list);
 }
 
+/* ---------- client briefs ----------
+ * Per-client production constraints, owned by the account team, never by the
+ * skill: the duration band, the locale, the words paid creative may not use,
+ * and the production notes (disclaimer handling) that ride on every batch.
+ * This is the layer between the skill (method, Ricardo's) and the harness
+ * (code, ours). A PackDraw rule written here reaches no other client.
+ */
+const briefFile = (client) => path.join(BRIEFS, `${slug(client)}.json`);
+
+function getBrief(client) {
+  if (!client) return null;
+  try { return JSON.parse(fs.readFileSync(briefFile(client), 'utf8')); }
+  catch { return null; }
+}
+
+function saveBrief(client, patch) {
+  const prev = getBrief(client) || { client };
+  const out = { ...prev, ...patch, client: prev.client || client, updatedAt: new Date().toISOString() };
+  writeJSON(briefFile(client), out);
+  return out;
+}
+
+/* Every concept in a client's library, archived batches included (they were
+   made, so they still count for repetition), seeded ones excluded. */
+function libraryConcepts(client) {
+  const out = [];
+  for (const meta of listBatches(client)) {
+    const b = getBatch(meta.id);
+    if (!b || b.seeded) continue;
+    for (const c of b.concepts || []) out.push({ batchId: b.id, concept: c });
+  }
+  return out;
+}
+
 /* The vehicle line of every concept in a client's earlier batches, newest
    first. The concept dedup memory (priorContext) carries titles, families and
    observations but never the vehicle, which is how the same two-hander kept
@@ -587,6 +622,7 @@ function overview() {
 
 module.exports = {
   canonNum, sweepOrphanedRuns, newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext, overview, usedVehicles, usedAngles,
+                   getBrief, saveBrief, libraryConcepts,
                    saveScripts, getScripts, listScripts,
                    savePush, getPush, getPushByBatch, getPushByToken, decide, approvedNums,
                    saveHarvest, listHarvests, latestHarvest, getHarvest,
