@@ -38,7 +38,14 @@ const FIGURE = /\$\s?\d[\d,]*(\.\d+)?|\b\d[\d,]*(\.\d+)?\s?%|\b\d{3,}[\d,]*\b/g;
    producer starts stacking. */
 const MESSAGING_UI = /\bgroup chat|chat thread|text thread|text (message|reply)|imessage|whatsapp|\bdms?\b|message thread|messaging (ui|screen|app)|screenshots? of (a|the) (chat|thread|texts?)/i;
 
+/* The register the engine drifts to when it is being careful: flat, one take,
+   no cuts, no music. The skill wants 25 percent MORE intense than real life,
+   so at most one concept per batch gets to be the quiet one. */
+const FLAT_REGISTER = /\bdeadpan\b|\bflat (delivery|read|voice|tone)\b|\bone[- ]take\b|\bno cuts\b|\bstatic (camera|frame|shot)\b|\blocked[- ]off\b|\bno music\b|\bcamera static\b/i;
+
 const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const tokens = (s) => new Set(norm(s).split(' ').filter((w) => w.length > 3));
+const jaccard = (a, b) => { let n = 0; for (const w of a) if (b.has(w)) n++; return n / (a.size + b.size - n || 1); };
 const normBullet = (s) => norm(s).slice(0, 80);
 
 function clientText(c) {
@@ -164,6 +171,26 @@ function lintBatch(concepts, ctx) {
   if (msg.length > 1) {
     const keep = msg.slice().sort((a, b) => score(b) - score(a))[0];
     for (const c of msg) if (c !== keep) add(c, 'messaging_ui_cap', `a second concept whose visual is a messaging screen; "${keep.title}" already holds that identity in this batch. Pick a different sound-off visual.`);
+  }
+
+  /* one quiet concept per batch, the rest have to move */
+  const flat = concepts.filter((c) => FLAT_REGISTER.test([c.desc, ...(c.design || [])].join(' ')));
+  if (flat.length > 1) {
+    const keep = flat.slice().sort((a, b) => score(b) - score(a))[0];
+    for (const c of flat) if (c !== keep) add(c, 'flat_register_cap', `a second concept built on a flat, one-take, no-cuts register; "${keep.title}" already holds the quiet slot in this batch. The skill wants content 25 percent more intense than real life: give this one a device that moves (confrontation, being caught, stakes, something happening in the background), and cuts.`);
+  }
+
+  /* design bullets that are the same sentence in a different coat, across
+     concepts: the v7.5 style rule moving into the slot the disclaimer left */
+  for (let i = 0; i < concepts.length; i++) {
+    for (const bullet of concepts[i].design || []) {
+      const ta = tokens(bullet);
+      if (ta.size < 5) continue;
+      for (let j = 0; j < i; j++) {
+        const hit = (concepts[j].design || []).find((other) => jaccard(ta, tokens(other)) >= 0.5);
+        if (hit) { add(concepts[i], 'repeated_design', `a design bullet is a near-copy of one in "${concepts[j].title}": "${String(bullet).slice(0, 90)}". Say something only this concept needs.`); break; }
+      }
+    }
   }
 
   const seen = new Map();

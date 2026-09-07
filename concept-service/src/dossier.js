@@ -337,9 +337,25 @@ function toMarkdown(rec) {
       .map((w) => new RegExp('\\b' + String(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+') + '\\b', 'i'));
     const scrub = (text) => !banned.length ? text
       : text.split(/(?<=[.!?])\s+/).filter((s) => !banned.some((re) => re.test(s))).join(' ');
-    out.push('## BRAND BRAIN, the account record');
-    out.push('_Onboarding knowledge, background to the marketing report above. Where the two disagree the report and its guardrails win; a mechanism or claim that appears only here is not confirmed for use in creative._\n');
-    for (const [key, title] of BRAIN_FIELDS) {
+    /* Which fields the brain may contribute. PackDraw's row says in its own
+       notes "created by AI web research", and its product_benefits carried
+       an EOS server-seed line and a Trustpilot score, its compliance_notes a
+       category disclaimer, its personas the Battles feature: every recurring
+       defect in five batches traced back to this one row being obeyed. When a
+       marketing report exists it owns audience, claims and guardrails, and
+       the brain contributes tone and appetite only. */
+    const webOnly = /AI web research/i.test(String(brain.notes || ''));
+    const TONE_ONLY = new Set(['key_offer', 'brand_tone', 'brand_personality', 'creative_brief',
+      'dos_and_donts', 'creative_boundaries', 'winning_hooks', 'winning_concepts', 'losing_patterns']);
+    const fields = report
+      ? BRAIN_FIELDS.filter(([key]) => TONE_ONLY.has(key))
+      : BRAIN_FIELDS;
+    out.push('## BRAND BRAIN, the account record' + (report ? ' (tone and appetite only)' : ''));
+    out.push(report
+      ? '_Background to the marketing report above, which owns the audience, the claims and the compliance guardrails. Nothing here is a claim to use, a persona to write for, or a rule to enforce._' +
+        (webOnly ? ' _This row was assembled by web research, not from the client\'s own documents, so treat even its tone notes as a lead._' : '') + '\n'
+      : '_Onboarding knowledge. No marketing report is on file for this brand, so this is the fullest record available._\n');
+    for (const [key, title] of fields) {
       const v = brain[key];
       if (v == null || String(v).trim() === '' || String(v) === '[]') continue;
       const raw = typeof v === 'object' ? JSON.stringify(v, null, 1) : String(v);

@@ -399,7 +399,8 @@ Hard rules that apply to every stage:
   bracketed notes, no "insert" or "confirm with the account team" on a client-facing card.
 - Platform disclaimers and legal wording (age gates, eligibility, responsible-play lines) are
   applied at build from the client's production notes. They are never written into a concept.
-- Obey the snapshot's compliance_notes, dos_and_donts and creative_boundaries as hard gates.
+- The marketing report's compliance guardrails and the client's PRODUCTION CONSTRAINTS are the
+  hard gates. Brand-brain notes are background for tone, never a gate and never a claim.
 - Plain speech. No "unlock", no "elevate", no "game-changer", no agency register.
 `;
 
@@ -543,67 +544,15 @@ async function stageWrite({ snapshot, prior, observations, count, startNum, log,
   const out = await ask({
     system: `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent. Researched vehicles are fair game for the creative leap, and a trend-verified or corroborated one beats a stale guess. Thin entries are leads, not facts:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}${categoryMd ? '\n' + categoryMd + '\n' : ''}\nALREADY DONE, do not repeat these:\n${prior || '(nothing on file)'}\n\nObservations harvested for this client:\n${obsList}${viralMd}\n\nRun step 6, the Creative Director pass. Write ${count} concepts, numbered from ${startNum} upward.
-${strategy ? `Work down the allocation. Take one allocation row, pick an observation from THAT
-persona's world, then write the concept. Every concept must carry the objective, persona and
-selling_argument of the row it was written against, copied exactly as the Strategy Map words
-them. A concept that cannot name all three does not exist yet.
-
-The DR spine is mandatory. A creative device is not a concept by itself. The vehicle owns the
-first three to five seconds as the HOOK; the spine owns the rest: hook or pattern interrupt,
-then the problem or misconception, then the product introduced FAST, then how it works, then
-proof or benefit, then price or value where the brand allows it, then the CTA. The three
-narrative bullets must show the whole spine, not just the setup. If the interesting setup would
-take 70 to 90 percent of the ad and the product gets one line at the end, the concept fails.
-Ask per concept: how much useful selling information does the viewer get in 20 to 30 seconds?
-
-Intensity: content must be about 25 percent more intense than real life. A compliment is not a
-story, an accusation is. Turn observations up through confrontation, being caught, stakes, a
-secret exposed, a competition, or something happening in the background. Every concept must
-answer "what about this grabs your interest?" and if the honest answer is "nothing really",
-write a different one.
-
-Lead with what the viewer gains, never with the absence of a negative. Never write a hook that
-argues against trial. Check that the vehicle's structure matches what is actually being sold
-before you assign it: a choose-between mechanic needs something to choose between.
-
-Score every concept on two axes, 1 to 5 and honestly: thumb_stop is whether it stops a scroll in
-two seconds, performance_ready is whether it converts. Anything you would score 2 or below on
-either axis should not be in the batch, so rewrite it before you return it.
-
-Tag talent as "solo", "2-talent" or "location shoot" so production can plan. Solo at home is the
-default, not a law.
-
-` : ''}Per concept, in this order: pick an observation, make ONE creative leap into a specific
-vehicle, assign ONE persuasion job, then write it up. Do not dramatise an observation
-directly; the vehicle IS the ad.
-${V6 ? `The slide format is the skill's, v7.5: Title, Description, Narrative of EXACTLY 5 beats, Design
-Components of EXACTLY 5 bullets. 'desc' is the description: two or three sentences naming the
-creative vehicle and how the brand is woven into it, structure not story, no hooks, no dialogue,
-no metaphor, no strategy note. 'narrative' is EXACTLY 5 beats in the skill's order (the opening
-moment, how the product enters, the key message or transformation, the supporting moment, the
-payoff or CTA), each a clean prose sentence of what happens on screen with no production-label
-prefix, sentence structure varied across the five. 'design' is EXACTLY 5 bullets in the skill's
-order (content style, editing pace and transitions, captioning format, platform overlay style,
-duration and aspect ratio), printed without label prefixes; every device named must already
-appear in the description or the narrative. No overlay copy, no disclaimer wording and no URL
-strings anywhere in desc, narrative or design: those are script-phase and compliance-phase.
-'hooks' is 3 candidate opening lines for the script phase and the mockup caption, meaningfully
-different angles into the same concept; they are internal and never printed on the slide.
-'intensity_device' names the one device that turns the observation up (confrontation, accusation,
-being caught, stakes, a secret exposed, a competition, something happening in the background).
-'visual_family' is the sound-off identity in two or three words (talking head, two-hander skit,
-messaging screen, screen record, animation, POV, product film, static), so a producer can sort
-piles without reading the copy.
-` : ''}
-'logline' is the one human truth the ad is built on, in the customer's voice, one or two
-sentences. It is not the hook and not a summary of the ad.
-'desc' is what we are making, not why it works: the creator format, the scene, the one core
-message, how the brand fits. Plain fifth-grade language, no strategist register.
-Batch rules: the Strategy Map's format mix and duration mix are the composition targets for this
-batch, scaled to ${count} concepts; the skill's Fit-Check gate (a vehicle at most twice) and the
-insight-family cap of two hold at every size, and every prior concept fed in above counts toward
-its family. Run the sound-off test between every pair. Vary how the product enters and how each
-concept ends.`,
+${strategy ? `Work down the allocation: one allocation row per concept, an observation from THAT persona's
+world, and the row's objective, persona and selling_argument copied exactly as the Strategy Map
+words them, in the lane the Strategy Map assigned it.
+` : ''}Field map onto the skill's slide format: 'desc' is the Description, 'narrative' the five beats,
+'design' the five design components, 'logline' the one human truth in the customer's voice (not
+the hook, not a summary), 'hooks' three candidate opening lines kept internal for the script phase
+and the mockup caption, 'intensity_device' the one device that turns the observation up,
+'visual_family' the sound-off identity in two or three words. Score thumb_stop and
+performance_ready 1 to 5 honestly; tag talent as solo, 2-talent or location shoot.`,
     schema: BATCH_SCHEMA,
     maxTokens: 64000,
   });
