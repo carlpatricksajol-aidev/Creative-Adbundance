@@ -612,7 +612,11 @@ ${obsList}
 ${formats ? `\nViral formats harvested for these personas:\n${formats}\n` : ''}
 Build exactly ${poolCount} concept SLOTS from the Strategy Map. Spread the slots across the allocation
 rows in proportion to their slot counts (every row gets at least one) and across the format mix
-lanes. Each slot takes a DIFFERENT observation from the list above; never reuse one. ${band}
+lanes. Each slot takes a DIFFERENT observation from the list above; never reuse one. Where a row
+gets more than one slot, those slots are ALTERNATES and must not resemble each other: a different
+persuasion job (a different objection or question), a different kind of situation (not three
+variations of a person at a desk with product pages) and a different lane where the mix allows.
+${band}
 
 For each slot: name the ONE persuasion job (the single objection or question this ad answers, one
 per concept, never a list of benefits). Then write 5 to 7 visualizations: each is a specific human
@@ -805,14 +809,32 @@ ${CD_FORMAT}`,
   return out;
 }
 
-async function stageGate({ snapshot, concepts, log, ask }) {
+/* What the judges are told when they read a candidate pool rather than a
+   finished batch. Without this, Batch 20's nine drafts for three slots all
+   failed the allocation and collision checks by construction. */
+function poolNote(pool) {
+  if (!pool) return '';
+  return `
+WHAT YOU ARE READING: a CANDIDATE POOL of ${pool.size} drafts written for ${pool.slots} slots. A
+selection step after you keeps the strongest ${pool.slots}, so several drafts here are alternates
+for the same allocation row and share persona, objective and selling argument BY DESIGN. Do not
+fail a concept for colliding with an alternate, for the pool exceeding an allocation quota, or
+for the pool's lane mix; the selection handles those. Judge each concept on its own merits, as
+if it were the only draft for its row, and use the batch-level findings to say which alternate
+you would keep for each row and why. Where an approved concept library appears above, it is the
+client's own standard: a draft at that level passes, and the kill verdict is for drafts the
+client's approved library would not have shipped.
+`;
+}
+
+async function stageGate({ snapshot, concepts, log, ask, pool }) {
   log('Creative Strategist gate', 'running');
   const groups = [];
   for (let i = 0; i < concepts.length; i += 4) groups.push(concepts.slice(i, i + 4));
 
   const results = await Promise.all(groups.map((g) => ask({
     system: `You are the Creative Strategist, the last gate before a client sees this work. Your reviewer role and scorecard:\n\n${ref('creative-strategist.md')}\n\nThe craft rules you are checking against:\n\n${ref('craft-rules.md')}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n\n${skillSection('### 7. Five-audit gate', '### 7.5.')}\n\nBefore anything else, put every concept through these five tests. A NO on any one of them is a
+    prompt: `${snapshot}\n${poolNote(pool)}\n${skillSection('### 7. Five-audit gate', '### 7.5.')}\n\nBefore anything else, put every concept through these five tests. A NO on any one of them is a
 KILL-level verdict, not a note:
 1. Deletable brand: remove the brand; would anyone still watch this scenario?
 2. Stealable: swap in another mystery-box brand; does the concept survive unchanged? (yes = fail)
@@ -849,11 +871,11 @@ CONCEPTS:\n${JSON.stringify(g, null, 1)}`,
 /* v6 Feedback Review Agent. The strategist catches craft; this catches what
    only shows up when a producer sits with the whole batch. Sent the batch
    whole, because 12 of the 22 checks are batch-level. */
-async function stageFeedback({ snapshot, concepts, strategy, log, ask }) {
+async function stageFeedback({ snapshot, concepts, strategy, log, ask, pool }) {
   log('Feedback review, 22 checks', 'running');
   const out = await ask({
     system: `You are the Feedback Review Agent, the fourth agent in the pipeline. You run AFTER the Creative Strategist and BEFORE anything is built. You replay revision patterns learned from real producer feedback across every client batch. Your craft rules:\n\n${ref('craft-rules.md')}\n\nThe strategist scorecard you are layered on top of:\n\n${ref('creative-strategist.md')}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}\n${skillSection('### 7.5. Feedback Review Agent', '### 7.6.')}
+    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${poolNote(pool)}\n${skillSection('### 7.5. Feedback Review Agent', '### 7.6.')}
 
 Run every check above over this batch, in order, judging the batch-level ones by reading the
 whole batch as a set, the way a producer would. You do NOT rewrite: you judge, and the Creative
@@ -880,8 +902,9 @@ THE BATCH:\n${JSON.stringify(concepts, null, 1)}`,
 /* v6.2 Compliance and Alignment Reviewer, the last gate before a client sees
    anything. It reads the snapshot as the source of truth and is told to say
    what it could NOT check rather than guess. */
-async function stageCompliance({ snapshot, concepts, strategy, log, ask }) {
-  log('Compliance and alignment review', 'running');
+async function stageCompliance({ snapshot, concepts, strategy, log, ask, label }) {
+  const name = label || 'Compliance and alignment review';
+  log(name, 'running');
   const out = await ask({
     system: `You are the Compliance and Alignment Reviewer, the fifth and final agent before a deck is built. The Feedback Review Agent catches craft problems. You catch FACTUAL, STRATEGIC and COMPLIANCE problems that only surface when the batch is checked against the client's own source of truth. Your craft rules:\n\n${ref('craft-rules.md')}\n${HOUSE_RULES}`,
     prompt: `THE CLIENT'S SOURCE OF TRUTH. This is the brand record, its compliance rows, its products
@@ -937,7 +960,7 @@ THE BATCH:\n${JSON.stringify(concepts.map((c) => ({
   });
   const hard = (out.findings || []).filter((f) => f.severity === 'HARD FAIL').length;
   const soft = (out.findings || []).length - hard;
-  log('Compliance and alignment review', 'done',
+  log(name, 'done',
     (out.findings || []).length
       ? `${hard} hard, ${soft} soft` +
         ((out.strategic_gaps || []).length ? `, ${out.strategic_gaps.length} strategic gap${out.strategic_gaps.length === 1 ? '' : 's'}` : '') +
@@ -975,11 +998,12 @@ const FINAL_SCHEMA = {
   required: ['reviews', 'batch_verdict', 'batch_note'],
 };
 
-async function stageFinalReview({ snapshot, concepts, strategy, log, ask }) {
-  log('Final creative strategy review', 'running');
+async function stageFinalReview({ snapshot, concepts, strategy, log, ask, pool, label }) {
+  const name = label || 'Final creative strategy review';
+  log(name, 'running');
   const out = await ask({
     system: `You are the senior social media creative strategist who runs the last gate, Step 7.6 of the skill. You read finished concepts as written creative about to go to a client, not as inputs to a rubric.\n\n${skillSection('### 7.6. Final Creative Strategy Review', '### 8.')}\n\nThe craft rules the concepts were written to:\n\n${ref('craft-rules.md')}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}\nBefore anything else, put every concept through these five tests. A NO on any one of them is a
+    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${poolNote(pool)}\nBefore anything else, put every concept through these five tests. A NO on any one of them is a
 KILL-level verdict, not a note:
 1. Deletable brand: remove the brand; would anyone still watch this scenario?
 2. Stealable: swap in another mystery-box brand; does the concept survive unchanged? (yes = fail)
@@ -1002,7 +1026,7 @@ THE BATCH:\n${JSON.stringify(concepts.map((c) => ({
     maxTokens: 32000,
   });
   const t = (out.reviews || []).reduce((a, r) => { a[r.verdict] = (a[r.verdict] || 0) + 1; return a; }, {});
-  log('Final creative strategy review', 'done',
+  log(name, 'done',
     `${t.SHIP || 0} ship, ${t.REWRITE || 0} rewrite, ${t.KILL || 0} kill, batch ${out.batch_verdict}`);
   return out;
 }
@@ -1296,10 +1320,11 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     ? `${lint.size} of ${pool.length} in the pool need a fix: ${lintSummary(lint)}`
     : `every concept in the pool of ${pool.length} clears the code checks`);
 
-  const reviews = await stageGate({ snapshot, concepts: pool, log, ask: trackedAsk });
-  const feedback = await stageFeedback({ snapshot, concepts: pool, strategy, log, ask: trackedAsk });
+  const poolInfo = { size: pool.length, slots: count };
+  const reviews = await stageGate({ snapshot, concepts: pool, log, ask: trackedAsk, pool: poolInfo });
+  const feedback = await stageFeedback({ snapshot, concepts: pool, strategy, log, ask: trackedAsk, pool: poolInfo });
   let compliance = await stageCompliance({ snapshot, concepts: pool, strategy, log, ask: trackedAsk });
-  let finalReview = await stageFinalReview({ snapshot, concepts: pool, strategy, log, ask: trackedAsk });
+  let finalReview = await stageFinalReview({ snapshot, concepts: pool, strategy, log, ask: trackedAsk, pool: poolInfo });
 
   /* ---- selection: code, not a model ---- */
   const V = new Map();   // num -> { gate, feedback, final, hard, soft, notes[] }
@@ -1393,8 +1418,12 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     : `every survivor clears the code checks`);
 
   /* ---- compliance and final review again, on what will actually ship ---- */
-  compliance = await stageCompliance({ snapshot, concepts, strategy, log, ask: trackedAsk });
-  finalReview = await stageFinalReview({ snapshot, concepts, strategy, log, ask: trackedAsk });
+  if (concepts.length) {
+    compliance = await stageCompliance({ snapshot, concepts, strategy, log, ask: trackedAsk, label: 'Compliance and alignment review, survivors' });
+    finalReview = await stageFinalReview({ snapshot, concepts, strategy, log, ask: trackedAsk, label: 'Final creative strategy review, survivors' });
+  } else {
+    log('Final creative strategy review, survivors', 'done', 'nothing survived the pool, so there is nothing to review');
+  }
   const hardNow = new Map();
   for (const f of compliance.findings || []) if (f.severity === 'HARD FAIL') hardNow.set(canonNum(f.num), `${f.finding} (source: ${f.source}). Fix: ${f.fix}`);
   const killNow = new Map();
@@ -1423,7 +1452,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     if (notes.length) c.review_notes = notes;
   }
 
-  const composition = await stageComposition({ snapshot, concepts, log, ask: trackedAsk });
+  const composition = concepts.length ? await stageComposition({ snapshot, concepts, log, ask: trackedAsk }) : null;
 
   const flagged = concepts.filter((c) => c.flag).length;
   log('Deck ready', 'done',
@@ -1477,4 +1506,4 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   };
 }
 
-module.exports = { run };
+module.exports = { run, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote };
