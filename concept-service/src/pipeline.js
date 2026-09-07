@@ -1119,7 +1119,7 @@ function briefMd(brief) {
   }
   if (brief.locale) lines.push(`- Language: ${brief.locale === 'en-US' ? 'US English, US register' : brief.locale}.`);
   if (Array.isArray(brief.banned) && brief.banned.length) {
-    lines.push(`- Words that cannot appear anywhere in paid creative: ${brief.banned.join(', ')}.`);
+    lines.push(`- Words that cannot appear anywhere in paid creative: ${brief.banned.join(', ')}. This list is the whole banned-term list for this client. A word outside it is allowed, including the category's own name when a character says it as an objection; the report's guardrails govern how the brand FRAMES itself, not what a skeptical character is allowed to say.`);
   }
   if (brief.production_notes) lines.push(`- Production notes (applied at build, not written into concepts): ${brief.production_notes}`);
   if (!lines.length) return '';
