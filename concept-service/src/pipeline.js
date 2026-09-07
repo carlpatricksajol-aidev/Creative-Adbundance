@@ -1139,7 +1139,8 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     const hard = new Map();
     for (const f of compliance.findings || []) {
       if (f.severity !== 'HARD FAIL') continue;
-      hard.set(String(f.num), `${f.finding} (source: ${f.source}). Fix: ${f.fix}`);
+      /* canonical on both sides: the reviewer writes "001", the concept may say "1" */
+      hard.set(canonNum(f.num), `${f.finding} (source: ${f.source}). Fix: ${f.fix}`);
     }
     for (const c of concepts) {
       const h = hard.get(canonNum(c.num));
