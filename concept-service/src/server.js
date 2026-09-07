@@ -1422,8 +1422,8 @@ const server = http.createServer(async (req, res) => {
 store.sweepOrphanedRuns();
 
 server.listen(PORT, () => {
-  console.log('concept-service on :%d  model=%s  key=%s  data=%s',
-    PORT, require('./llm').MODEL,
+  console.log('concept-service on :%d  model=%s  review=%s  key=%s  data=%s',
+    PORT, require('./llm').MODEL, require('./llm').REVIEW_MODEL,
     process.env.OPENROUTER_API_KEY ? 'set' : 'MISSING', store.DATA);
   if (!TOKEN) console.warn('RUN_TOKEN is not set: every authenticated route will refuse.');
 });

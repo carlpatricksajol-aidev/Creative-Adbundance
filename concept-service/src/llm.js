@@ -16,6 +16,11 @@
  */
 
 const MODEL = process.env.CONCEPT_MODEL || 'anthropic/claude-opus-5';
+/* The judging stages can run on a cheaper model than the writing stages: a
+   reviewer grades against a checklist that is fully in its context, which a
+   small model does well, while the ideation needs the strongest model we can
+   afford. Unset, everything runs on MODEL. */
+const REVIEW_MODEL = process.env.REVIEW_MODEL || MODEL;
 const API = 'https://openrouter.ai/api/v1/chat/completions';
 
 function keyOrThrow() {
@@ -105,9 +110,10 @@ async function stream(body) {
  *   2. schema written into the prompt, plain messages — for any provider quirk
  *      the first path hits
  */
-async function ask({ system, prompt, schema, maxTokens = 32000 }) {
+async function ask({ system, prompt, schema, maxTokens = 32000, model }) {
+  const useModel = model || MODEL;
   const strictBody = {
-    model: MODEL,
+    model: useModel,
     max_tokens: maxTokens,
     messages: [
       { role: 'system', content: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }] },
@@ -130,7 +136,7 @@ async function ask({ system, prompt, schema, maxTokens = 32000 }) {
   }
 
   const loose = {
-    model: MODEL,
+    model: useModel,
     max_tokens: maxTokens,
     messages: [
       { role: 'system', content: system },
@@ -148,4 +154,4 @@ async function ask({ system, prompt, schema, maxTokens = 32000 }) {
   return obj;
 }
 
-module.exports = { ask, MODEL };
+module.exports = { ask, MODEL, REVIEW_MODEL };

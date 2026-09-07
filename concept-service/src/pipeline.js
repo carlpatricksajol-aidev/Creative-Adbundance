@@ -11,7 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { ask } = require('./llm');
+const { ask, REVIEW_MODEL } = require('./llm');
 /* The snapshot now comes from the Knowledge Layer, not a flat brand_brain
    row: the same knowledge in the shapes the skill actually asks for, plus
    the client's own marketing plan, which brand_brain never carried. */
@@ -579,6 +579,7 @@ replacement in one paragraph, keeping the slot's job.
 
 CONCEPTS:\n${JSON.stringify(g, null, 1)}`,
     schema: GATE_SCHEMA,
+    model: REVIEW_MODEL,
     maxTokens: 48000,
   })));
 
@@ -613,6 +614,7 @@ the batch-level results, naming the weakest offender wherever a batch-level chec
 
 THE BATCH:\n${JSON.stringify(concepts, null, 1)}`,
     schema: FEEDBACK_SCHEMA,
+    model: REVIEW_MODEL,
     maxTokens: 64000,
   });
   const reviews = out.reviews || [];
@@ -674,6 +676,7 @@ THE BATCH:\n${JSON.stringify(concepts.map((c) => ({
       persuasion_job: c.persuasion_job, awareness: c.awareness, lane: c.lane, talent: c.talent,
     })), null, 1)}`,
     schema: COMPLIANCE_SCHEMA,
+    model: REVIEW_MODEL,
     maxTokens: 32000,
   });
   const hard = (out.findings || []).filter((f) => f.severity === 'HARD FAIL').length;
@@ -732,6 +735,7 @@ THE BATCH:\n${JSON.stringify(concepts.map((c) => ({
       awareness: c.awareness, lane: c.lane, dur: c.dur, visual_family: c.visual_family,
     })), null, 1)}`,
     schema: FINAL_SCHEMA,
+    model: REVIEW_MODEL,
     maxTokens: 32000,
   });
   const t = (out.reviews || []).reduce((a, r) => { a[r.verdict] = (a[r.verdict] || 0) + 1; return a; }, {});
@@ -758,6 +762,7 @@ that only a batch of 16 can hold. Name which concepts satisfy each target. Where
 is genuinely short, name the WEAKEST offenders to replace, never the strongest. In
 replace_these, give the concept number and a one-line brief for its replacement.`,
     schema: COMP_SCHEMA,
+    model: REVIEW_MODEL,
     maxTokens: 16000,
   });
   log('Batch composition check', 'done', out.verdict.slice(0, 90));
