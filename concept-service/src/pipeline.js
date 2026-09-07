@@ -545,6 +545,7 @@ Description (two or three sentences, structure and brand fit, no hooks, no dialo
 Narrative: five bullets
 Design Components: five bullets
 Hooks: three candidate opening lines (internal, for the script phase and the mockup caption)
+Beats and design bullets are one plain sentence each, said the way you would say it to a producer.
 Tags (internal, one per line): objective | persona | selling argument | awareness stage | lane |
 duration in seconds | vehicle | intensity device | visual family (two or three words) |
 talent (solo, 2-talent or location shoot) | thumb_stop (1 to 5) | performance_ready (1 to 5) |
@@ -968,8 +969,11 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   let approved = null;
   try {
     approved = await knowledge.fetchApproved(nameSet);
+    /* the view has nothing for a brand until its decks are catalogued; the
+       brief can carry the client's approved concepts in the meantime */
+    if (!approved) approved = knowledge.approvedFromBrief(brief);
     log('Approved library', 'done', approved
-      ? `${approved.count} approved concepts on file for ${approved.clients.join(', ')}, read for tone and dedup`
+      ? `${approved.count} approved concepts ${approved.clients.join(', ') === brief.client ? 'from the client brief' : 'on file for ' + approved.clients.join(', ')}, read for tone and dedup`
       : 'no approved concepts in the library for this client yet, tone comes from the brand record alone');
   } catch (err) {
     log('Approved library', 'done', 'could not read the approved-concept view (' + err.message.slice(0, 60) + ')');

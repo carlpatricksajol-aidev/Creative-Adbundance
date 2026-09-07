@@ -97,4 +97,30 @@ ${lines.join('\n')}`,
   };
 }
 
-module.exports = { fetchApproved, fetchCategoryAds };
+/* A client-approved deck kept on the brief, rendered the way the view's rows
+   are, for a brand the view does not have yet. Same slot, same heading, same
+   job: the tone the client has already said yes to, and the library the new
+   batch must differ from. */
+function approvedFromBrief(brief) {
+  const ex = brief && Array.isArray(brief.approved_examples) ? brief.approved_examples.filter((c) => c && c.title) : [];
+  if (!ex.length) return null;
+  const lines = ex.map((c) => {
+    const beats = Array.isArray(c.narrative) ? c.narrative : [];
+    const design = Array.isArray(c.design) ? c.design : [];
+    return `### ${c.num ? c.num + ' · ' : ''}${c.title}\n${c.desc || ''}\n` +
+      (beats.length ? 'Narrative:\n' + beats.map((b) => '- ' + b).join('\n') + '\n' : '') +
+      (design.length ? 'Design components:\n' + design.map((d) => '- ' + d).join('\n') + '\n' : '');
+  });
+  return {
+    count: ex.length,
+    clients: [brief.client],
+    md: `## APPROVED CONCEPT LIBRARY for ${brief.client} (${ex.length} concepts the client's strategist has approved, from the ${brief.approved_source || 'approved deck'})
+The skill's Step 1 and Step 2 read this. It is the creative brief for TONE and for FORM: this is what
+approved looks like for this client, in register, length and how much of the spot the product is on
+screen for. New concepts must differ from these at the level of observation and sound-off visual
+identity; they should read as if the same person wrote them.
+${lines.join('\n')}`,
+  };
+}
+
+module.exports = { fetchApproved, fetchCategoryAds, approvedFromBrief };
