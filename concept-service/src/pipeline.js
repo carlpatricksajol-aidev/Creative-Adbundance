@@ -400,7 +400,9 @@ Hard rules that apply to every stage:
 - Platform disclaimers and legal wording (age gates, eligibility, responsible-play lines) are
   applied at build from the client's production notes. They are never written into a concept.
 - The marketing report's compliance guardrails and the client's PRODUCTION CONSTRAINTS are the
-  hard gates. Brand-brain notes are background for tone, never a gate and never a claim.
+  hard gates. Where the two disagree on a word, the PRODUCTION CONSTRAINTS win: they are the
+  account team's later ruling, taken from what the client has already approved. Brand-brain
+  notes are background for tone, never a gate and never a claim.
 - Plain speech. No "unlock", no "elevate", no "game-changer", no agency register.
 `;
 
@@ -1364,11 +1366,16 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   }
   for (const [k, issues] of lint) vOf(k).notes.push('CODE CHECKS FAILED, fix each at the line named:\n' + harness.describe(issues));
 
-  /* one judge's kill is a binding note; two judges' kill removes the draft */
+  /* A draft leaves the pool only when every judge kills it. Calibrated on
+     Ricardo's five approved PackDraw concepts: two of three judges still
+     killed one of them (a competitor could run the story, a character says
+     "gambling"), and the client's approved work is the standard. A kill from
+     one or two judges is a binding note and costs rank, so it rarely ships
+     ahead of a clean draft; it just does not disappear on one opinion. */
   const eliminated = (c) => {
     const v = vOf(c.num);
     const kills = (v.gate === 'REJECT' ? 1 : 0) + (v.feedback === 'KILL' ? 1 : 0) + (v.final === 'KILL' ? 1 : 0);
-    return kills >= 2;
+    return kills >= 3;
   };
   const score = (c) => {
     const v = vOf(c.num);
