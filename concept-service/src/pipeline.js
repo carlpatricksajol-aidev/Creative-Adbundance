@@ -538,6 +538,218 @@ which angles you weighted toward.`,
    plus one internal tag block per concept so the parse can fill the fields the
    board and the harness need. This is format, not method; the method is the
    skill, which the writer holds in full. */
+/* v7.5 Message Visualization, as its own stage. The skill says: before
+   locking a vehicle, produce five or more ways to visualize the message, then
+   choose. Inside one overloaded Creative Director call that step was invisible
+   and usually skipped, and the path of least resistance is "a creator explains
+   the benefit to camera". Here every pool slot gets one observation, one
+   persuasion job, 5 to 7 human situations that pass the deletable-brand test,
+   and a chosen one with a trigger. */
+const VIS_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    slots: {
+      type: 'array', minItems: 1,
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          slot: { type: 'integer' },
+          objective: { type: 'string' },
+          persona: { type: 'string' },
+          selling_argument: { type: 'string' },
+          lane: { type: 'string' },
+          awareness: { type: 'string' },
+          duration_s: { type: 'integer' },
+          observation: { type: 'string' },
+          insight_family: { type: 'string' },
+          persuasion_job: { type: 'string' },
+          visualizations: {
+            type: 'array', minItems: 5, maxItems: 7,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                label: { type: 'string' },
+                situation: { type: 'string' },
+                trigger: { type: 'string' },
+                deletable_brand_pass: { type: 'boolean' },
+              },
+              required: ['label', 'situation', 'trigger', 'deletable_brand_pass'],
+            },
+          },
+          chosen: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              label: { type: 'string' },
+              situation: { type: 'string' },
+              trigger: { type: 'string' },
+              why: { type: 'string' },
+            },
+            required: ['label', 'situation', 'trigger', 'why'],
+          },
+        },
+        required: ['slot', 'objective', 'persona', 'selling_argument', 'lane', 'awareness', 'duration_s',
+          'observation', 'insight_family', 'persuasion_job', 'visualizations', 'chosen'],
+      },
+    },
+  },
+  required: ['slots'],
+};
+
+async function stageVisualize({ snapshot, strategy, observations, viralFormats, poolCount, brief, log, ask }) {
+  log('Message visualization', 'running');
+  const obsList = observations.map((o, i) => `${i + 1}. [${o.insight_family}] ${o.text}`).join('\n');
+  const formats = (viralFormats || []).map((f, i) => `${i + 1}. ${f.name} (${f.capture_style}): ${f.why_it_fits}`).join('\n');
+  const band = brief && brief.duration_min ? `Durations must sit between ${brief.duration_min} and ${brief.duration_max || brief.duration_min + 15} seconds (the client brief).` : 'Follow the Strategy Map duration mix.';
+  const out = await ask({
+    system: `You are the Creative Director on this account, running the skill's Message Visualization step before any concept is written.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n${HOUSE_RULES}`,
+    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}
+Observations harvested for this client:
+${obsList}
+${formats ? `\nViral formats harvested for these personas:\n${formats}\n` : ''}
+Build exactly ${poolCount} concept SLOTS from the Strategy Map. Spread the slots across the allocation
+rows in proportion to their slot counts (every row gets at least one) and across the format mix
+lanes. Each slot takes a DIFFERENT observation from the list above; never reuse one. ${band}
+
+For each slot: name the ONE persuasion job (the single objection or question this ad answers, one
+per concept, never a list of benefits). Then write 5 to 7 visualizations: each is a specific human
+situation from that persona's daily life described WITHOUT the product, with a trigger (why this
+person is showing us this today: a friend asked, a package arrived, a coworker accused, a comment
+landed). Mark deletable_brand_pass true only if someone would watch the situation with the brand
+removed. Then choose the strongest visualization and say why. Do not choose a vehicle or write a
+concept here.`,
+    schema: VIS_SCHEMA,
+    maxTokens: 48000,
+  });
+  const slots = out.slots || [];
+  const vis = slots.reduce((a, sl) => a + (sl.visualizations || []).length, 0);
+  log('Message visualization', 'done', `${slots.length} slots, ${vis} visualizations, one chosen per slot`);
+  return slots;
+}
+
+/* Vehicle Selector. The vehicle menu used to sit inside the writer's prompt,
+   so the writer chose shape and story at once and defaulted to a person
+   sitting somewhere talking. Now each chosen situation gets scored candidates
+   from the three pools the skill names (bank, researched library, harvested
+   formats) and a winner with a family, a trigger and a proof object. */
+const VEH_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    slots: {
+      type: 'array', minItems: 1,
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          slot: { type: 'integer' },
+          candidates: {
+            type: 'array', minItems: 3, maxItems: 5,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                vehicle: { type: 'string' },
+                family: { type: 'string' },
+                source: { type: 'string' },
+                message_fit: { type: 'integer', minimum: 1, maximum: 5 },
+                persona_fit: { type: 'integer', minimum: 1, maximum: 5 },
+                freshness: { type: 'integer', minimum: 1, maximum: 5 },
+                producibility: { type: 'integer', minimum: 1, maximum: 5 },
+              },
+              required: ['vehicle', 'family', 'source', 'message_fit', 'persona_fit', 'freshness', 'producibility'],
+            },
+          },
+          winner: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              vehicle: { type: 'string' },
+              family: { type: 'string' },
+              why: { type: 'string' },
+              trigger: { type: 'string' },
+              proof_object: { type: 'string' },
+              talent: { type: 'string' },
+            },
+            required: ['vehicle', 'family', 'why', 'trigger', 'proof_object', 'talent'],
+          },
+        },
+        required: ['slot', 'candidates', 'winner'],
+      },
+    },
+  },
+  required: ['slots'],
+};
+
+async function stageVehicles({ snapshot, visSlots, vehicles, researchMd, viralFormats, log, ask }) {
+  log('Vehicle selection', 'running');
+  const slotsMd = visSlots.map((sl) =>
+    `Slot ${sl.slot}: persona ${sl.persona}. Lane ${sl.lane}. Persuasion job: ${sl.persuasion_job}.\n  Situation: ${sl.chosen.situation}\n  Trigger: ${sl.chosen.trigger}`).join('\n');
+  const formats = (viralFormats || []).map((f) => `- ${f.name} (${f.capture_style}): ${f.why_it_fits}`).join('\n');
+  const out = await ask({
+    system: `You are the Creative Director on this account, running the skill's Vehicle Candidate Search and Fit-Check.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour libraries:\n\n${ref('libraries.md')}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n${HOUSE_RULES}`,
+    prompt: `${snapshot}
+
+THE SLOTS, each with its chosen situation:
+${slotsMd}
+
+THE THREE VEHICLE POOLS.
+${vehicles ? vehicles.md : '(the curated bank is unreachable this run)'}
+${researchMd ? '\n' + researchMd : ''}
+${formats ? '\nHarvested viral formats:\n' + formats : ''}
+
+For every slot, list 3 to 5 candidate vehicles drawn from the pools (or an original one, marked
+source "original", where the situation genuinely calls for it) and score each 1 to 5 on message
+fit, persona fit, freshness and producibility (solo at home scores highest). Pick the winner. The
+vehicle is the SHAPE of the video; the situation is the story: the winner must carry the chosen
+situation, not replace it. No two slots may share a vehicle family. Name the proof object (the one
+physical or on-screen thing that carries the proof) and the talent needed (solo, 2-talent or
+location shoot).`,
+    schema: VEH_SCHEMA,
+    maxTokens: 32000,
+  });
+  const slots = out.slots || [];
+  const fams = [...new Set(slots.map((x) => (x.winner && x.winner.family || '').toLowerCase()).filter(Boolean))];
+  log('Vehicle selection', 'done', `${slots.length} winners across ${fams.length} vehicle families`);
+  return slots;
+}
+
+/* One package per slot: everything the writer is allowed to build from. */
+function buildPackages({ visSlots, vehSlots, startNum }) {
+  const byVeh = new Map(vehSlots.map((v) => [Number(v.slot), v]));
+  return visSlots.map((sl, i) => {
+    const v = byVeh.get(Number(sl.slot)) || {};
+    const w = v.winner || {};
+    return {
+      num: String(Number(startNum) + i).padStart(3, '0'),
+      objective: sl.objective, persona: sl.persona, selling_argument: sl.selling_argument,
+      persuasion_job: sl.persuasion_job, lane: sl.lane, awareness: sl.awareness, duration_s: sl.duration_s,
+      observation: sl.observation, insight_family: sl.insight_family,
+      situation: sl.chosen.situation, trigger: w.trigger || sl.chosen.trigger, why_situation: sl.chosen.why,
+      vehicle: w.vehicle || '', family: w.family || '', why_vehicle: w.why || '',
+      proof_object: w.proof_object || '', talent: w.talent || 'solo',
+    };
+  });
+}
+
+const packageMd = (p) => `--- Concept ${p.num} ---
+Persona: ${p.persona}
+Objective: ${p.objective}
+Selling argument: ${p.selling_argument}
+Persuasion job (the ONE thing this ad answers): ${p.persuasion_job}
+Lane: ${p.lane} · Awareness: ${p.awareness} · Duration: ${p.duration_s} seconds · Talent: ${p.talent}
+Observation: ${p.observation} [${p.insight_family}]
+The situation: ${p.situation}
+Trigger (why this person is showing us this today): ${p.trigger}
+Vehicle (the shape of the video): ${p.vehicle} (family: ${p.family}). ${p.why_vehicle}
+Proof object: ${p.proof_object}`;
+
+/* What the writer produces: the slide, nothing else. Strategy tags travel on
+   the package and are stitched in by the parse, so the writer never writes
+   toward a label. */
 const CD_FORMAT = `Deliver the batch as text, in the skill's slide format, exactly as you would in a working
 session. For each concept, in this order:
 NNN · Title
@@ -546,49 +758,50 @@ Narrative: five bullets
 Design Components: five bullets
 Hooks: three candidate opening lines (internal, for the script phase and the mockup caption)
 Beats and design bullets are one plain sentence each, said the way you would say it to a producer.
-Tags (internal, one per line): objective | persona | selling argument | awareness stage | lane |
-duration in seconds | vehicle | intensity device | visual family (two or three words) |
-talent (solo, 2-talent or location shoot) | thumb_stop (1 to 5) | performance_ready (1 to 5) |
-observation (the human observation it was built on) | insight family | persuasion job |
-logline (the one human truth, in the customer's voice)
-End with one line: Composition note: ...`;
+Nothing else: no tags, no strategy notes, no composition note.`;
 
-/* Lift the Creative Director's text into the fields, word for word. A cheap
-   model does this well and must not improve anything on the way through. */
-async function parseBatch({ text, count, startNum, log, ask, label }) {
+/* Lift the Creative Director's text into the fields, word for word, with the
+   strategy tags taken from the packages rather than from the writer. */
+async function parseBatch({ text, packages, log, ask, label }) {
+  const tags = (packages || []).map((p) => `${p.num}: objective="${p.objective}" | persona="${p.persona}" | selling_argument="${p.selling_argument}" | awareness="${p.awareness}" | lane="${p.lane}" | dur="${p.duration_s}s" | vehicle="${p.vehicle}" | visual_family="${p.family}" | observation="${p.observation}" | insight_family="${p.insight_family}" | persuasion_job="${p.persuasion_job}" | intensity_device="${p.trigger}" | talent="${p.talent}"`).join('\n');
   const out = await ask({
-    system: `You convert a Creative Director's concept batch, written as text in a fixed slide format, into JSON. You copy; you never rewrite. Title, description, every narrative bullet, every design bullet and every hook are reproduced VERBATIM, character for character. Tag lines fill the matching fields. If a tag is missing, derive it from the text as plainly as possible rather than inventing. Numbers like "35s" become the dur field as written.`,
-    prompt: `Convert every concept in this batch. There should be ${count} concepts numbered from ${startNum}; keep the numbers as written (NNN). 'desc' is the Description paragraph. 'narrative' and 'design' are the five bullets each, in order. 'hooks' are the three hook lines. composition_note is the Composition note line, or "none".\n\nTHE BATCH TEXT:\n${text}`,
+    system: `You convert a Creative Director's concept batch, written as text in a fixed slide format, into JSON. You copy; you never rewrite. Title, description, every narrative bullet, every design bullet and every hook are reproduced VERBATIM, character for character. The tag fields for each concept number are GIVEN to you below and are copied exactly as given. logline is the observation restated in the customer's own voice in one sentence; thumb_stop and performance_ready are your honest 1 to 5 read of the text.`,
+    prompt: `Convert every concept in this batch, keeping the numbers as written (NNN). 'desc' is the Description paragraph. 'narrative' and 'design' are the five bullets each, in order. 'hooks' are the three hook lines. composition_note is "none".\n\nTAG FIELDS PER CONCEPT (copy exactly):\n${tags}\n\nTHE BATCH TEXT:\n${text}`,
     schema: BATCH_SCHEMA,
-    maxTokens: 32000,
+    maxTokens: 48000,
     model: REVIEW_MODEL,
   });
   log(label, 'done', `${(out.concepts || []).length} concepts parsed from ${text.length} characters of the Creative Director's text`);
   return out;
 }
 
-async function stageWrite({ snapshot, prior, observations, count, startNum, log, ask, researchMd, strategy, harvestMd, viralFormats, categoryMd }) {
-  const viralMd = (viralFormats || []).length
-    ? '\n\nViral formats harvested for these personas (Step 4B), the third vehicle pool alongside the bank and the researched library:\n' +
-      viralFormats.map((f, i) => `${i + 1}. ${f.name} (${f.capture_style}): ${f.why_it_fits}`).join('\n')
-    : '';
+/* The Creative Director gets less freedom, not more: one package per slot,
+   and the job is to make that combination brilliant. The vehicle menu, the
+   observation list and the viral formats no longer appear here; they were
+   decided upstream. */
+async function stageWrite({ snapshot, prior, packages, log, ask, researchMd, strategy, harvestMd, categoryMd }) {
   log('Creative Director pass', 'running');
-  const obsList = observations.map((o, i) => `${i + 1}. [${o.insight_family}] ${o.text}`).join('\n');
   const draft = await askText({
-    system: `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent. Researched vehicles are fair game for the creative leap, and a trend-verified or corroborated one beats a stale guess. Thin entries are leads, not facts:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}${categoryMd ? '\n' + categoryMd + '\n' : ''}\nALREADY DONE, do not repeat these:\n${prior || '(nothing on file)'}\n\nObservations harvested for this client:\n${obsList}${viralMd}\n\nRun step 6, the Creative Director pass. Write ${count} concepts, numbered from ${startNum} upward.
-${strategy ? `Work down the allocation: one allocation row per concept, an observation from THAT persona's
-world, and the row's objective, persona and selling argument carried exactly as the Strategy Map
-words them, in the lane the Strategy Map assigned it.
-` : ''}
+    system: `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n${HOUSE_RULES}`,
+    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}${categoryMd ? '\n' + categoryMd + '\n' : ''}\nALREADY DONE, do not repeat these:\n${prior || '(nothing on file)'}
+
+Run step 6, the Creative Director pass. Write exactly ${packages.length} concepts, one per package
+below, numbered as each package says. Each concept is built from ITS package only: that
+observation, that persuasion job, that situation, that trigger, that vehicle, that proof object.
+Do not swap in a different situation or vehicle, do not add other benefits or products, and do
+not let a second persuasion job in. Every brand fact comes from the snapshot above and nowhere
+else. Your job is to make the chosen combination brilliant.
+
+THE PACKAGES:
+${packages.map(packageMd).join('\n\n')}
+
 ${CD_FORMAT}`,
     maxTokens: 64000,
   });
-  const usage = draft.__usage;
-  log('Creative Director pass', 'done', `${count} concepts written, ${draft.text.length} characters`);
-  const out = await parseBatch({ text: draft.text, count, startNum, log, ask, label: 'Creative Director pass, parsed' });
+  log('Creative Director pass', 'done', `${packages.length} concepts written, ${draft.text.length} characters`);
+  const out = await parseBatch({ text: draft.text, packages, log, ask, label: 'Creative Director pass, parsed' });
   out.markdown = draft.text;
-  if (usage) out.__usage = usage;
+  if (draft.__usage) out.__usage = draft.__usage;
   return out;
 }
 
@@ -599,7 +812,14 @@ async function stageGate({ snapshot, concepts, log, ask }) {
 
   const results = await Promise.all(groups.map((g) => ask({
     system: `You are the Creative Strategist, the last gate before a client sees this work. Your reviewer role and scorecard:\n\n${ref('creative-strategist.md')}\n\nThe craft rules you are checking against:\n\n${ref('craft-rules.md')}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n\n${skillSection('### 7. Five-audit gate', '### 7.5.')}\n\nRun the five audits above in order, then your full scorecard on each concept below. Be hard: reject or edit on a title that does
+    prompt: `${snapshot}\n\n${skillSection('### 7. Five-audit gate', '### 7.5.')}\n\nBefore anything else, put every concept through these five tests. A NO on any one of them is a
+KILL-level verdict, not a note:
+1. Deletable brand: remove the brand; would anyone still watch this scenario?
+2. Stealable: swap in another mystery-box brand; does the concept survive unchanged? (yes = fail)
+3. Human situation: can the situation be described without mentioning the product?
+4. Creative leap: is it more than a literal visualization of the selling argument?
+5. Trigger: why is this person showing us this today?
+Then run the five audits above in order, then your full scorecard on each concept below. Be hard: reject or edit on a title that does
 not let a reader picture the ad, a missing creative leap, more than one persuasion job, a
 sibling it would look identical to with the sound off, strategist language in the copy,
 manufactured cleverness, anything not shootable at home, a design component never set up in
@@ -759,7 +979,14 @@ async function stageFinalReview({ snapshot, concepts, strategy, log, ask }) {
   log('Final creative strategy review', 'running');
   const out = await ask({
     system: `You are the senior social media creative strategist who runs the last gate, Step 7.6 of the skill. You read finished concepts as written creative about to go to a client, not as inputs to a rubric.\n\n${skillSection('### 7.6. Final Creative Strategy Review', '### 8.')}\n\nThe craft rules the concepts were written to:\n\n${ref('craft-rules.md')}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}\nReview each concept with the 8 questions and the batch with the batch questions. Every REWRITE or
+    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}\nBefore anything else, put every concept through these five tests. A NO on any one of them is a
+KILL-level verdict, not a note:
+1. Deletable brand: remove the brand; would anyone still watch this scenario?
+2. Stealable: swap in another mystery-box brand; does the concept survive unchanged? (yes = fail)
+3. Human situation: can the situation be described without mentioning the product?
+4. Creative leap: is it more than a literal visualization of the selling argument?
+5. Trigger: why is this person showing us this today?
+Then review each concept with the 8 questions and the batch with the batch questions. Every REWRITE or
 KILL cites its source: a brand_brain field, a marketing_report line, an approved-library concept or
 a compliance rule, quoted where you can. You do NOT rewrite: for REWRITE, quote what fails and
 prescribe the fix; for KILL, brief the replacement in one paragraph keeping the slot's objective,
@@ -811,26 +1038,26 @@ replace_these, give the concept number and a one-line brief for its replacement.
    rewrote concepts themselves, and the compliance reviewer's register leaked
    into six of seven end frames. */
 async function stageRewrite({ snapshot, strategy, items, round, log, ask, researchMd, harvestMd }) {
-  const name = `Creative Director rewrite ${round}`;
+  const name = `Creative Director rewrite${round > 1 ? ' ' + round : ''}`;
   log(name, 'running');
   const draft = await askText({
-    system: `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
+    system: `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}
 You wrote the batch these concepts come from. The reviewers have judged them and the code checks
 have run. The notes under each concept are binding. Rewrite ONLY the concepts below, keeping each
-one's number and its objective, persona and selling argument (a KILL means the premise failed:
-write a replacement for the same slot). Fix a note about a specific line at that line; do not
-reword around it, and do not add hedges, caveats or production disclaimers while you are in
-there. Plain speech, the way you would say it to a producer.
+one's number and its package (same observation, persuasion job, situation and vehicle). Fix a note
+about a specific line at that line; do not reword around it, do not add hedges, caveats or
+production disclaimers, and do not add benefits or products to compensate. Plain speech, the way
+you would say it to a producer.
 
-CONCEPTS TO REWRITE, each with its notes:
-${items.map((it) => `--- concept ${it.concept.num} ---\n${JSON.stringify(it.concept, null, 1)}\nNOTES:\n${it.notes.join('\n')}`).join('\n\n')}
+CONCEPTS TO REWRITE, each with its package and its notes:
+${items.map((it) => `${packageMd(it.pkg)}\n\nCURRENT DRAFT:\n${JSON.stringify({ title: it.concept.title, desc: it.concept.desc, narrative: it.concept.narrative, design: it.concept.design, hooks: it.concept.hooks }, null, 1)}\nNOTES:\n${it.notes.join('\n')}`).join('\n\n=====\n\n')}
 
 ${CD_FORMAT}`,
     maxTokens: 64000,
   });
   log(name, 'done', `${items.length} rewritten, ${draft.text.length} characters`);
-  const out = await parseBatch({ text: draft.text, count: items.length, startNum: items[0] ? items[0].concept.num : 1, log, ask, label: name + ', parsed' });
+  const out = await parseBatch({ text: draft.text, packages: items.map((it) => it.pkg), log, ask, label: name + ', parsed' });
   const rewritten = out.concepts || [];
   if (draft.__usage) rewritten.__usage = draft.__usage;
   return rewritten;
@@ -1022,26 +1249,33 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
      the menu in front of it the objectives came out as statements about the
      creative instead of the business. The writer picks vehicles; the
      strategist picks what the batch is FOR. */
-  const snapshotPlus = vehicles ? snapshot + '\n\n' + vehicles.md : snapshot;
 
   const strategy = V6
     ? await stageStrategy({ snapshot, count, log, ask: trackedAsk, researchMd })
     : null;
 
   const harvest = await stageHarvest({ snapshot, prior, log, ask: trackedAsk, researchMd, strategy, harvestMd, categoryMd });
+
+  /* ---- decide before writing: one package per pool slot ---- */
+  const poolCount = Math.min(15, Math.max(count * 3, count + 3));
+  const visSlots = await stageVisualize({
+    snapshot, strategy, observations: harvest.observations, viralFormats: harvest.viral_formats,
+    poolCount, brief, log, ask: trackedAsk,
+  });
+  const vehSlots = await stageVehicles({
+    snapshot, visSlots, vehicles, researchMd, viralFormats: harvest.viral_formats, log, ask: trackedAsk,
+  });
+  const packages = buildPackages({ visSlots, vehSlots, startNum });
+  const pkgOf = new Map(packages.map((p) => [canonNum(p.num), p]));
+
+  /* ---- the pool ---- */
   const drafted = await stageWrite({
-    snapshot: snapshotPlus, prior, observations: harvest.observations, count, startNum,
-    log, ask: trackedAsk, researchMd, strategy, harvestMd,
-    viralFormats: harvest.viral_formats, categoryMd,
+    snapshot, prior, packages, log, ask: trackedAsk, researchMd, strategy, harvestMd, categoryMd,
   });
   if (drafted.__usage) { spend.push(drafted.__usage); delete drafted.__usage; }
-  /* THE HARNESS. Three layers, three owners: the skill is the method (Ricardo),
-     the client brief is the constraints (account team), and this is the code
-     (ours). Reviewers judge and never write; the code lints format, compliance
-     and repetition deterministically; everything that fails goes back to the
-     Creative Director with the exact note, twice at most, and whatever still
-     fails ships FLAGGED, never silently. Nothing here adds a paragraph to the
-     prompt, which is what bent Batches 6 to 10. */
+  let pool = drafted.concepts;
+
+  /* ---- judge the pool: code first, then every reviewer, compliance included ---- */
   const lintCtx = harness.context({ brief, snapshot, library: store.libraryConcepts(record.brand.brand_name) });
   const lintAll = (list) => {
     const byNum = new Map();
@@ -1057,103 +1291,145 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     for (const issues of m.values()) for (const i of issues) codes[i.code] = (codes[i.code] || 0) + 1;
     return Object.entries(codes).map(([k, v]) => `${k} x${v}`).join(', ');
   };
-  /* Two kinds of reviewer output. `notes` send a concept back to the writer:
-     a KILL from any gate, or a failed code check. `advice` is everything else
-     a reviewer said (EDIT, REWORK, REWRITE): kept on the concept for the human,
-     never acted on by the machine. Batches 16 and 17 showed why: the writer's
-     first draft was the closest thing to the client's approved register we
-     produce, and each review pass dragged it toward product-on-screen
-     mechanics. The client's strategist writes once; so does this. */
-  const notes = new Map();
-  const note = (num, text) => { const k = canonNum(num); if (!notes.has(k)) notes.set(k, []); notes.get(k).push(text); };
-  const advice = new Map();
-  const advise = (num, text) => { const k = canonNum(num); if (!advice.has(k)) advice.set(k, []); advice.get(k).push(text); };
-
-  let concepts = drafted.concepts;
-  let lint = lintAll(concepts);
+  let lint = lintAll(pool);
   log('Code checks', 'done', lint.size
-    ? `${lint.size} of ${concepts.length} concepts need a fix: ${lintSummary(lint)}`
-    : 'every concept clears the code checks');
-  for (const [k, issues] of lint) note(k, 'CODE CHECKS FAILED, fix each at the line named:\n' + harness.describe(issues));
+    ? `${lint.size} of ${pool.length} in the pool need a fix: ${lintSummary(lint)}`
+    : `every concept in the pool of ${pool.length} clears the code checks`);
 
-  const reviews = await stageGate({ snapshot, concepts, log, ask: trackedAsk });
+  const reviews = await stageGate({ snapshot, concepts: pool, log, ask: trackedAsk });
+  const feedback = await stageFeedback({ snapshot, concepts: pool, strategy, log, ask: trackedAsk });
+  let compliance = await stageCompliance({ snapshot, concepts: pool, strategy, log, ask: trackedAsk });
+  let finalReview = await stageFinalReview({ snapshot, concepts: pool, strategy, log, ask: trackedAsk });
+
+  /* ---- selection: code, not a model ---- */
+  const V = new Map();   // num -> { gate, feedback, final, hard, soft, notes[] }
+  const vOf = (num) => { const k = canonNum(num); if (!V.has(k)) V.set(k, { notes: [], hard: 0, soft: 0 }); return V.get(k); };
   for (const r of reviews) {
-    const v = String(r.verdict || '').toLowerCase();
-    if (v.includes('reject')) note(r.num, `CREATIVE STRATEGIST (${r.verdict}): ${r.change_log}`);
-    else if (v.includes('edit')) advise(r.num, `Creative Strategist: ${r.change_log}`);
+    const v = vOf(r.num); const t = String(r.verdict || '').toLowerCase();
+    v.gate = t.includes('reject') ? 'REJECT' : t.includes('edit') ? 'EDIT' : 'PASS';
+    if (v.gate !== 'PASS') v.notes.push(`CREATIVE STRATEGIST (${v.gate}): ${r.change_log}`);
   }
+  for (const r of feedback.reviews || []) {
+    const v = vOf(r.num); v.feedback = r.verdict || 'PASS';
+    if (v.feedback !== 'PASS') v.notes.push(`FEEDBACK REVIEW (${v.feedback}, checks ${(r.failed_checks || []).join(', ') || 'unspecified'}): ${r.note}`);
+  }
+  for (const f of compliance.findings || []) {
+    const v = vOf(f.num);
+    if (f.severity === 'HARD FAIL') { v.hard++; v.notes.push(`COMPLIANCE (HARD FAIL, must be fixed or the concept is dropped): ${f.finding} Source: ${f.source}. Fix: ${f.fix}`); }
+    else { v.soft++; v.notes.push(`COMPLIANCE (soft): ${f.finding} Fix: ${f.fix}`); }
+  }
+  for (const r of finalReview.reviews || []) {
+    const v = vOf(r.num); v.final = r.verdict || 'SHIP';
+    if (v.final !== 'SHIP') v.notes.push(`FINAL CREATIVE STRATEGY REVIEW (${v.final}, source: ${r.source}): ${r.note}`);
+  }
+  for (const [k, issues] of lint) vOf(k).notes.push('CODE CHECKS FAILED, fix each at the line named:\n' + harness.describe(issues));
 
-  let feedback = null;
-  let compliance = null;
-  if (V6) {
-    feedback = await stageFeedback({ snapshot, concepts, strategy, log, ask: trackedAsk });
-    for (const r of feedback.reviews || []) {
-      if (r.verdict === 'KILL') note(r.num, `FEEDBACK REVIEW (KILL, checks ${(r.failed_checks || []).join(', ') || 'unspecified'}): ${r.note}`);
-      else if (r.verdict === 'REWORK') advise(r.num, `Feedback review (checks ${(r.failed_checks || []).join(', ') || 'unspecified'}): ${r.note}`);
-    }
+  const eliminated = (c) => {
+    const v = vOf(c.num);
+    return v.gate === 'REJECT' || v.feedback === 'KILL' || v.final === 'KILL';
+  };
+  const score = (c) => {
+    const v = vOf(c.num);
+    let sc = 0;
+    sc += v.gate === 'PASS' ? 2 : v.gate === 'EDIT' ? 1 : 0;
+    sc += v.feedback === 'PASS' ? 2 : v.feedback === 'REWORK' ? 1 : 0;
+    sc += v.final === 'SHIP' ? 3 : v.final === 'REWRITE' ? 1 : 0;
+    sc -= v.hard * 1.5 + v.soft * 0.25;
+    sc -= (lint.get(canonNum(c.num)) || []).length * 0.5;
+    sc += ((Number(c.thumb_stop) || 0) + (Number(c.performance_ready) || 0)) / 10;
+    return sc;
+  };
+  const ranked = pool.filter((c) => !eliminated(c)).sort((a, b) => score(b) - score(a));
+  const famOf = (c) => String((pkgOf.get(canonNum(c.num)) || {}).family || c.visual_family || '').toLowerCase().trim();
+  const survivors = [];
+  const usedFam = new Set();
+  for (const c of ranked) {                      // best first, distinct vehicle families
+    if (survivors.length >= count) break;
+    const f = famOf(c);
+    if (f && usedFam.has(f)) continue;
+    survivors.push(c); if (f) usedFam.add(f);
   }
+  for (const c of ranked) {                      // relax the family rule only if short
+    if (survivors.length >= count) break;
+    if (!survivors.includes(c)) survivors.push(c);
+  }
+  let reserve = ranked.filter((c) => !survivors.includes(c));
+  const killed = pool.filter(eliminated);
+  log('Selection', 'done',
+    `${pool.length} in the pool: ${killed.length} killed by the reviewers, ${survivors.length} kept as the strongest, ${reserve.length} in reserve` +
+    (survivors.length < count ? `. Only ${survivors.length} of the ${count} asked for survived` : ''));
 
-  /* v7.5 Step 7.6 reads the draft alongside the mechanical gates, so all
-     three reviewers' notes reach the Creative Director in ONE rewrite. Two
-     rounds sanded every concept toward caution; Ricardo's session writes
-     once. Whatever still fails the code checks after that ships flagged. */
-  let finalReview = null;
-  if (V6) {
-    finalReview = await stageFinalReview({ snapshot, concepts, strategy, log, ask: trackedAsk });
-    for (const r of finalReview.reviews || []) {
-      if (r.verdict === 'KILL') note(r.num, `FINAL CREATIVE STRATEGY REVIEW (KILL, source: ${r.source}): ${r.note}`);
-      else if (r.verdict === 'REWRITE') advise(r.num, `Final creative strategy review (source: ${r.source}): ${r.note}`);
-    }
-  }
+  /* ---- one rewrite, for survivors that carry notes ---- */
+  let concepts = survivors;
+  const needs = concepts.filter((c) => vOf(c.num).notes.length);
   let rounds = 0;
-  if (notes.size) {
+  if (needs.length) {
     rounds = 1;
-    const items = concepts.filter((c) => notes.has(canonNum(c.num)))
-      .map((c) => ({ concept: c, notes: notes.get(canonNum(c.num)) }));
+    const items = needs.map((c) => ({ concept: c, notes: vOf(c.num).notes, pkg: pkgOf.get(canonNum(c.num)) || {} }));
     const rewritten = await stageRewrite({ snapshot, strategy, items, round: 1, log, ask: trackedAsk, researchMd, harvestMd });
     if (rewritten.__usage) spend.push(rewritten.__usage);
     concepts = mergeByNum(concepts, rewritten);
-    notes.clear();
-    lint = lintAll(concepts);
-    log('Code checks', 'done', lint.size
-      ? `after the rewrite: ${lint.size} still failing (${lintSummary(lint)})`
-      : 'after the rewrite: every concept clears the code checks');
-  }
-  /* what the reviewers said, on the concept, for the person deciding */
-  for (const c of concepts) {
-    const a = advice.get(canonNum(c.num));
-    if (a && a.length) c.review_notes = a;
-  }
-  for (const c of concepts) {
-    const issues = lint.get(canonNum(c.num));
-    if (!issues) continue;
-    const f = 'Did not clear the code checks: ' + issues.map((i) => i.detail).join(' | ');
-    c.flag = c.flag ? `${c.flag} | ${f}` : f;
   }
 
-  if (V6) {
-    compliance = await stageCompliance({ snapshot, concepts, strategy, log, ask: trackedAsk });
-    /* A hard compliance fail is not allowed to leave quietly. It rides on the
-       concept as a flag, which is what the board already renders as "did not
-       clear the batch check", so a human sees it on the slide itself. */
-    const hard = new Map();
-    for (const f of compliance.findings || []) {
-      if (f.severity !== 'HARD FAIL') continue;
-      /* canonical on both sides: the reviewer writes "001", the concept may say "1" */
-      hard.set(canonNum(f.num), `${f.finding} (source: ${f.source}). Fix: ${f.fix}`);
-    }
+  /* ---- code checks again: a survivor that still fails is replaced, not flagged ---- */
+  lint = lintAll(concepts);
+  const promote = (why) => {
+    const next = reserve.shift();
+    if (next) log('Selection', 'done', `${why}; "${next.title}" promoted from the reserve`);
+    return next;
+  };
+  if (lint.size) {
+    const kept = [];
     for (const c of concepts) {
-      const h = hard.get(canonNum(c.num));
-      if (h) c.flag = c.flag ? `${c.flag} | ${h}` : h;
+      if (!lint.has(canonNum(c.num))) { kept.push(c); continue; }
+      const next = promote(`"${c.title}" still fails the code checks after the rewrite (${lint.get(canonNum(c.num)).map((i) => i.code).join(', ')})`);
+      if (next) kept.push(next);
     }
+    concepts = kept;
+    lint = lintAll(concepts);
+  }
+  log('Code checks, survivors', 'done', lint.size
+    ? `${lint.size} still failing with the reserve exhausted (${lintSummary(lint)})`
+    : `every survivor clears the code checks`);
+
+  /* ---- compliance and final review again, on what will actually ship ---- */
+  compliance = await stageCompliance({ snapshot, concepts, strategy, log, ask: trackedAsk });
+  finalReview = await stageFinalReview({ snapshot, concepts, strategy, log, ask: trackedAsk });
+  const hardNow = new Map();
+  for (const f of compliance.findings || []) if (f.severity === 'HARD FAIL') hardNow.set(canonNum(f.num), `${f.finding} (source: ${f.source}). Fix: ${f.fix}`);
+  const killNow = new Map();
+  for (const r of finalReview.reviews || []) if (r.verdict === 'KILL') killNow.set(canonNum(r.num), `${r.note} (source: ${r.source})`);
+  {
+    const kept = [];
+    for (const c of concepts) {
+      const k = canonNum(c.num);
+      if (!hardNow.has(k) && !killNow.has(k)) { kept.push(c); continue; }
+      const next = promote(`"${c.title}" ${killNow.has(k) ? 'killed by the final review' : 'still carries a hard compliance fail'} after the rewrite`);
+      if (next) kept.push(next);
+      else {                                       // reserve exhausted: ship it flagged, never silently
+        const f = killNow.get(k) || hardNow.get(k);
+        c.flag = c.flag ? `${c.flag} | ${f}` : f;
+        kept.push(c);
+      }
+    }
+    concepts = kept;
+  }
+  /* reviewer opinions that did not kill ride on the concept for the person deciding */
+  for (const c of concepts) {
+    const r = (finalReview.reviews || []).find((x) => canonNum(x.num) === canonNum(c.num));
+    const notes = [];
+    if (r && r.verdict === 'REWRITE') notes.push(`Final creative strategy review: ${r.note}`);
+    for (const f of compliance.findings || []) if (canonNum(f.num) === canonNum(c.num) && f.severity !== 'HARD FAIL') notes.push(`Compliance (soft): ${f.finding} Fix: ${f.fix}`);
+    if (notes.length) c.review_notes = notes;
   }
 
   const composition = await stageComposition({ snapshot, concepts, log, ask: trackedAsk });
 
-  const blocked = concepts.filter((c) => c.flag).length;
+  const flagged = concepts.filter((c) => c.flag).length;
   log('Deck ready', 'done',
     `${concepts.length} concepts, 9:16 space reserved` +
-    (blocked ? `, ${blocked} carrying a compliance flag for a human` : ''));
+    (concepts.length < count ? `, ${count - concepts.length} slot${count - concepts.length === 1 ? '' : 's'} unfilled because the pool ran out of survivors` : '') +
+    (flagged ? `, ${flagged} carrying a flag for a human` : ''));
 
   return {
     client: record.brand.brand_name,
@@ -1163,41 +1439,41 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     composition_note: drafted.composition_note,
     change_log: reviews.map((r) => ({ num: r.num, verdict: r.verdict, note: r.change_log })),
     composition,
-    pipeline_version: V6 ? 'v6.2' : 'v4',
+    pipeline_version: V6 ? 'v7.5-select' : 'v4',
     strategy,
-    feedback: feedback && {
+    /* the decisions made before writing, one per pool slot */
+    packages,
+    visualizations: visSlots.map((sl) => ({ slot: sl.slot, persuasion_job: sl.persuasion_job, chosen: sl.chosen, options: (sl.visualizations || []).map((v) => v.label) })),
+    /* the whole pool with every verdict, so the selection can be audited */
+    pool: pool.map((c) => {
+      const v = vOf(c.num);
+      return { num: c.num, title: c.title, gate: v.gate, feedback: v.feedback, final: v.final, hard: v.hard, soft: v.soft,
+        lint: (lintAll([c]).get(canonNum(c.num)) || []).map((i) => i.code),
+        outcome: killed.includes(c) ? 'killed' : concepts.some((k) => canonNum(k.num) === canonNum(c.num)) ? 'shipped' : 'reserve' };
+    }),
+    feedback: {
       batch_findings: feedback.batch_findings,
-      reviews: (feedback.reviews || []).map((r) => ({
-        num: r.num, verdict: r.verdict, failed_checks: r.failed_checks, note: r.note,
-      })),
+      reviews: (feedback.reviews || []).map((r) => ({ num: r.num, verdict: r.verdict, failed_checks: r.failed_checks, note: r.note })),
     },
     compliance,
-    /* brand_brain carried a single self-reported confidence for the whole
-       row. The Knowledge Layer records it per colour and per font instead, so
-       what a batch can honestly report is how much of the snapshot was
-       actually filled. */
+    final_review: {
+      batch_verdict: finalReview.batch_verdict, batch_note: finalReview.batch_note,
+      reviews: (finalReview.reviews || []).map((r) => ({ num: r.num, verdict: r.verdict, source: r.source, note: r.note })),
+    },
     brand_fields: [record.snap, record.plan, record.rules.length, record.products.length].filter(Boolean).length,
     used_marketing_plan: Boolean(record.plan),
     cost_usd: Math.round(spend.reduce((a, u) => a + (u && u.cost || 0), 0) * 100) / 100,
     used_research: Boolean(researchMd),
     used_harvest: Boolean(harvestMd),
-    /* the brief's production notes ride on the batch so the board can show
-       them once, instead of every concept carrying the disclaimer text */
-    production_notes: brief.production_notes || null,
-    final_review: finalReview && {
-      batch_verdict: finalReview.batch_verdict, batch_note: finalReview.batch_note,
-      reviews: (finalReview.reviews || []).map((r) => ({ num: r.num, verdict: r.verdict, source: r.source, note: r.note })),
-    },
-    used_approved_library: Boolean(approved),
-    used_category_ads: Boolean(categoryMd),
-    /* the Creative Director's own text, before parsing, so register can be
-       judged against what the model actually wrote */
-    cd_markdown: (drafted.markdown || '').slice(0, 60000),
-    brief_used: Boolean(brief.client),
-    lint_rounds: rounds,
-    lint_remaining: lint.size,
     harvest_id: harvestRec ? harvestRec.id : null,
     has_brand_visuals: record.colors.length > 0 && record.fonts.length > 0,
+    production_notes: brief.production_notes || null,
+    used_approved_library: Boolean(approved),
+    used_category_ads: Boolean(categoryMd),
+    pool_size: pool.length,
+    lint_rounds: rounds,
+    lint_remaining: lint.size,
+    cd_markdown: (drafted.markdown || '').slice(0, 120000),
   };
 }
 
