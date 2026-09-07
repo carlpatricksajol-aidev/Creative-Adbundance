@@ -567,6 +567,7 @@ const VIS_SCHEMA = {
           observation: { type: 'string' },
           insight_family: { type: 'string' },
           persuasion_job: { type: 'string' },
+          chronology: { type: 'string', enum: ['before', 'during', 'after', 'split'] },
           visualizations: {
             type: 'array', minItems: 5, maxItems: 7,
             items: {
@@ -594,7 +595,7 @@ const VIS_SCHEMA = {
           },
         },
         required: ['slot', 'objective', 'persona', 'selling_argument', 'lane', 'awareness', 'duration_s',
-          'observation', 'insight_family', 'persuasion_job', 'visualizations', 'chosen'],
+          'observation', 'insight_family', 'persuasion_job', 'chronology', 'visualizations', 'chosen'],
       },
     },
   },
@@ -612,21 +613,26 @@ async function stageVisualize({ snapshot, strategy, observations, viralFormats, 
 Observations harvested for this client:
 ${obsList}
 ${formats ? `\nViral formats harvested for these personas:\n${formats}\n` : ''}
-Build exactly ${poolCount} concept SLOTS from the Strategy Map. Spread the slots across the allocation
-rows in proportion to their slot counts (every row gets at least one) and across the format mix
-lanes. Each slot takes a DIFFERENT observation from the list above; never reuse one. Where a row
-gets more than one slot, those slots are ALTERNATES and must not resemble each other: a different
-persuasion job (a different objection or question), a different kind of situation (not three
-variations of a person at a desk with product pages) and a different lane where the mix allows.
-${band}
+${skillSection('**Sub-procedure 1: Message Visualization', '**Sub-procedure 3: Vehicle Candidate Search')}
 
-For each slot: name the ONE persuasion job (the single objection or question this ad answers, one
-per concept, never a list of benefits). Then write 5 to 7 visualizations: each is a specific human
-situation from that persona's daily life described WITHOUT the product, with a trigger (why this
-person is showing us this today: a friend asked, a package arrived, a coworker accused, a comment
-landed). Mark deletable_brand_pass true only if someone would watch the situation with the brand
-removed. Then choose the strongest visualization and say why. Do not choose a vehicle or write a
-concept here.`,
+Run Sub-procedures 1 and 2 above for ${poolCount} concept SLOTS, before any vehicle is chosen and
+before any concept is written. Take the slots from the Strategy Map: spread them across the
+allocation rows in proportion to their slot counts (every row gets at least one) and across the
+format-mix lanes. Each slot takes a DIFFERENT observation from the list above, from that persona's
+world; never reuse one. Where a row gets more than one slot, those slots are alternates and must
+not resemble each other: a different persuasion job, a different kind of scene, a different lane
+where the mix allows. ${band}
+
+For each slot: the ONE persuasion job (the single objection or question this ad answers). Then
+5 to 7 visualizations of the selling argument, in the spirit of the skill's own list: different
+scenes, different capture styles, different angles into the same message, each a moment from the
+persona's real life that passes the deletable-brand test and sits 25 percent above real life (a
+compliment is not a story, an accusation is). Each carries its trigger, the skill's check 7: why
+is this person showing us this right now (accusation, discovery, comparison, challenge,
+confession, reaction, social moment). Then choose the strongest for THIS persona's world, say
+why, and state the chronology tag (before, during, after or split). Where an approved concept
+library appears above, it shows what this client's chosen visualizations look like. Do not pick
+a vehicle and do not write a concept here.`,
     schema: VIS_SCHEMA,
     maxTokens: 48000,
   });
@@ -652,6 +658,7 @@ const VEH_SCHEMA = {
         additionalProperties: false,
         properties: {
           slot: { type: 'integer' },
+          keywords: { type: 'array', minItems: 3, maxItems: 5, items: { type: 'string' } },
           candidates: {
             type: 'array', minItems: 3, maxItems: 5,
             items: {
@@ -683,7 +690,7 @@ const VEH_SCHEMA = {
             required: ['vehicle', 'family', 'why', 'trigger', 'proof_object', 'talent'],
           },
         },
-        required: ['slot', 'candidates', 'winner'],
+        required: ['slot', 'keywords', 'candidates', 'winner'],
       },
     },
   },
@@ -707,13 +714,17 @@ ${vehicles ? vehicles.md : '(the curated bank is unreachable this run)'}
 ${researchMd ? '\n' + researchMd : ''}
 ${formats ? '\nHarvested viral formats:\n' + formats : ''}
 
-For every slot, list 3 to 5 candidate vehicles drawn from the pools (or an original one, marked
-source "original", where the situation genuinely calls for it) and score each 1 to 5 on message
-fit, persona fit, freshness and producibility (solo at home scores highest). Pick the winner. The
-vehicle is the SHAPE of the video; the situation is the story: the winner must carry the chosen
-situation, not replace it. No two slots may share a vehicle family. Name the proof object (the one
-physical or on-screen thing that carries the proof) and the talent needed (solo, 2-talent or
-location shoot).`,
+${skillSection('**Sub-procedure 3: Vehicle Candidate Search', '**All v6 rules apply, plus:**')}
+
+Run Sub-procedure 3 above for every slot: the 3 to 5 shape keywords from its chosen
+visualization, the candidate table (3 to 5 candidates across the three pools, at least one
+wild, captured or parody candidate, scored 1 to 5 on the four axes), the winner, and the
+Fit-Check. The vehicle is the SHAPE of the video and the visualization is the story: the winner
+must carry the chosen situation, not replace it. Apply rule 5 across the slots: if the pattern
+default (talking head, sitting in a car, at a desk with a phone) wins more than half of them,
+the search has failed; go back and force wild-pool candidates in. No two slots may share a
+vehicle family. Name the proof object (the one physical or on-screen thing that carries the
+proof) and the talent needed (solo, 2-talent or location shoot).`,
     schema: VEH_SCHEMA,
     maxTokens: 32000,
   });
@@ -733,7 +744,7 @@ function buildPackages({ visSlots, vehSlots, startNum }) {
       num: String(Number(startNum) + i).padStart(3, '0'),
       objective: sl.objective, persona: sl.persona, selling_argument: sl.selling_argument,
       persuasion_job: sl.persuasion_job, lane: sl.lane, awareness: sl.awareness, duration_s: sl.duration_s,
-      observation: sl.observation, insight_family: sl.insight_family,
+      observation: sl.observation, insight_family: sl.insight_family, chronology: sl.chronology || '',
       situation: sl.chosen.situation, trigger: w.trigger || sl.chosen.trigger, why_situation: sl.chosen.why,
       vehicle: w.vehicle || '', family: w.family || '', why_vehicle: w.why || '',
       proof_object: w.proof_object || '', talent: w.talent || 'solo',
@@ -749,6 +760,7 @@ Persuasion job (the ONE thing this ad answers): ${p.persuasion_job}
 Lane: ${p.lane} · Awareness: ${p.awareness} · Duration: ${p.duration_s} seconds · Talent: ${p.talent}
 Observation: ${p.observation} [${p.insight_family}]
 The situation: ${p.situation}
+Chronology (internal, never on the slide): ${p.chronology || 'unstated'} the pain point
 Trigger (why this person is showing us this today): ${p.trigger}
 Vehicle (the shape of the video): ${p.vehicle} (family: ${p.family}). ${p.why_vehicle}
 Proof object: ${p.proof_object}`;
@@ -1393,10 +1405,19 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   };
   const ranked = pool.filter((c) => !eliminated(c)).sort((a, b) => score(b) - score(a));
   const famOf = (c) => String((pkgOf.get(canonNum(c.num)) || {}).family || c.visual_family || '').toLowerCase().trim();
+  const laneOf = (c) => String((pkgOf.get(canonNum(c.num)) || {}).lane || c.lane || '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 5);
   const survivors = [];
   const usedFam = new Set();
-  for (const c of ranked) {                      // best first, distinct vehicle families
+  const usedLane = new Set();
+  for (const c of ranked) {                      // the Strategy Map's lanes first: the best of each
     if (survivors.length >= count) break;
+    const l = laneOf(c); const f = famOf(c);
+    if (!l || usedLane.has(l) || (f && usedFam.has(f))) continue;
+    survivors.push(c); usedLane.add(l); if (f) usedFam.add(f);
+  }
+  for (const c of ranked) {                      // then best first, distinct vehicle families
+    if (survivors.length >= count) break;
+    if (survivors.includes(c)) continue;
     const f = famOf(c);
     if (f && usedFam.has(f)) continue;
     survivors.push(c); if (f) usedFam.add(f);

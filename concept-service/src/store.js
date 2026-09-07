@@ -127,7 +127,11 @@ function saveBatch(result) {
       } catch {}
     }
   } catch {}
-  const rec = { id, savedAt: new Date().toISOString(), n: maxN + 1, ...result };
+  /* A batch with nothing in it has nothing to review: it keeps its record for
+     the audit trail (the pool and every verdict are on it) but never reaches
+     the board, and it takes no number. */
+  const empty = !(result.concepts || []).length;
+  const rec = { id, savedAt: new Date().toISOString(), n: empty ? null : maxN + 1, ...(empty ? { archived: true, archived_reason: 'empty: no concept survived the pool' } : {}), ...result };
   writeJSON(path.join(BATCHES, `${id}.json`), rec);
   return rec;
 }
