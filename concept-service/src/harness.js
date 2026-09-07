@@ -22,7 +22,7 @@ const INTERNAL_NOTE = /\[[^\]]*\]|\binsert (the|an?|current|account|exact|live)\
 
 /* Platform disclaimers are applied at build from the client's stored text.
    Written into a concept they eat a design slot and repeat across the deck. */
-const BOILERPLATE = /\b18\+|responsible[- ]play|eligibility varies|do not spend more than|afford to lose|\bno (odds|probability)\b|probability (meter|display)|multiplier control|persistent (18|lower)/i;
+const BOILERPLATE = /\b18\+|responsible[- ]play|eligibility varies|do not spend more than|afford to lose|\bno (odds|probability)\b|probability (meter|display)|multiplier control|persistent (18|lower)|per-item percentage|percentage listing|ladder graphic|\bno meter\b|other product tabs/i;
 
 /* US English for US clients. The model drifts British without a locale. */
 const BRITISH = /\b(mates?|programme|whilst|colours?|coloured|favourite|bloke|quid|telly|rubbish|tidied|fortnight|mum|cheers)\b/i;
@@ -41,7 +41,7 @@ const MESSAGING_UI = /\bgroup chat|chat thread|text thread|text (message|reply)|
 /* The register the engine drifts to when it is being careful: flat, one take,
    no cuts, no music. The skill wants 25 percent MORE intense than real life,
    so at most one concept per batch gets to be the quiet one. */
-const FLAT_REGISTER = /\bdeadpan\b|\bflat (delivery|read|voice|tone)\b|\bone[- ]take\b|\bno cuts\b|\bstatic (camera|frame|shot)\b|\blocked[- ]off\b|\bno music\b|\bcamera static\b/i;
+const FLAT_REGISTER = /\bdeadpan\b|\bflat (delivery|read|voice|tone)\b|\bone[- ]take\b|\bno cuts\b|\bstatic (camera|frame|shot)\b|\blocked[- ]off\b|\bcamera static\b/i;
 
 const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 const tokens = (s) => new Set(norm(s).split(' ').filter((w) => w.length > 3));
