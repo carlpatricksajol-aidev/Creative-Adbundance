@@ -1,141 +1,183 @@
 ---
 name: ad-concept-generator
 description: >-
-  Send a brand (URL, snapshot, docs, or just a name) and this skill generates a client-ready deck of
-  paid-social ad concepts (UGC-first, native to Meta/TikTok) as a validated .pptx. v6 adds Step Zero
-  (strategic analysis: business objectives × personas × selling arguments BEFORE ideation), a DR spine
-  requirement (vehicle = hook only, never the whole ad), the 25%-intensity rule (confrontation, stakes,
-  drama), dual scoring (thumb-stopping + performance-ready), positive-benefit-first messaging, a North
-  Star intro slide, and question-led brainstorming. v6.2 adds the Compliance & Alignment Reviewer as
-  the final gate before build — it re-reads the client's actual source-of-truth (onboarding docs,
-  batch critical info, meeting notes, brand_brain in Supabase) and cross-checks every concept for
-  factual accuracy (product names, offers, prices), strategic coverage (audiences and selling
-  arguments named in critical info), and compliance (banned language, unauthorized claims). Failed
-  concepts loop back to the Creative Director for rewrite. Five-agent pipeline: Strategic Analyst →
-  Creative Director → Creative Strategist → Feedback Review Agent → Compliance & Alignment Reviewer.
-  Use when the user asks for ad concepts, a concept deck, UGC concepts, loglines, a creative batch,
-  or "concepts for [brand]." Also use to revise an existing concept deck.
+  Send a brand (URL, snapshot, docs, or a name) and this skill generates client-ready
+  paid-social ad concepts (UGC-first, native to Meta/TikTok). v7.5 refines Format Mix into
+  3 lanes: 40% story-testimonial UGC (person on camera telling an anecdote where the
+  product mattered) / 30% wild-organic-viral / 30% traditional DR — kills the
+  safe-UGC-default and the all-captured-formats overcorrection. Inherits Message
+  Visualization (5+ ways to visualize before locking a vehicle), Narrative Chronology,
+  Vehicle Candidate Search across 3 pools. Runs silent (loading line + concepts), delivers
+  text by default (.pptx only on request), pulls marketing_report + brand_brain from Supabase
+  in Step 0 (hard-stop if missing), outputs 5-beat Narrative + 5-detail Design Components
+  with no overlay copy or disclaimer text, descriptions as natural storytelling. Five agents:
+  Strategic Analyst → Creative Director → Creative Strategist → Feedback Review (22 checks)
+  → Final Creative Strategy Review. Use for ad concepts, UGC, or loglines.
 ---
 
-# Ad Concept Generator (v6)
+# Ad Concept Generator (v7.5)
 
-Turn a brand into a distinct, executable, client-ready deck of paid-social ad concepts. v6
-restructures the pipeline around the agency principal's Aug 2026 review and the the meal-service account DR feedback:
-**the system was over-indexing on creative vehicles and under-indexing on strategy and direct-response
-selling.** The vehicle is the HOOK into a DR structure — never the whole ad. And no concept exists
-until a business objective and target persona have been chosen for it.
+Turn a brand into a distinct, executable, client-ready deck of paid-social ad concepts.
 
-## The core shift (why this exists)
+## Core principles
 
-Three generations of feedback converged:
+- **Strategy first, vehicle second.** Every concept starts from a business objective × persona ×
+  selling argument. The vehicle is the HOOK into a DR structure — never the whole ad.
+- **Relatable frame.** The scenario is real content from the persona's actual daily life. Deletable-
+  brand test: if you remove the brand mention, would this still be a video someone would watch?
+  If no, rewrite the frame.
+- **25%-intensity rule.** Content must be ~25% more intense than real life. A compliment isn't a
+  story; an accusation is. Every concept must answer: **what about this grabs your interest?**
+- **DR spine underneath.** Hook → problem → product FAST → mechanism → proof → price/value → CTA.
+  Don't end when the selling should start.
+- **Positive-benefit-first.** Lead with what the viewer GAINS, never the absence of a negative.
+- **Never counterintuitive brand messaging.** "I tried this so you don't have to" fails — no
+  brand tells people not to try it.
 
-1. **v4 lesson (the telehealth account):** ads that communicate information ≠ concepts a CD selects. Start from human
-   observations, make a creative leap into a vehicle.
-2. **v5 lesson (the colostrum brand's Batch 5):** the edge is in the SUBJECT MATTER, not elaborate format gimmicks.
-   Standard formats, bold hooks.
-3. **v6 lesson (the agency principal review + the meal-service account):** a creative device is not a concept by
-   itself. "Voice note," "tier list," "drawer reveal" are formats — the concept still needs a clear
-   sales argument underneath, a business objective above, and a target persona it's speaking to.
-   The observation harvest was generating "relatable moments" unmoored from strategy. **Step Zero
-   comes first: WHO is this for, WHAT are we selling them, WHY this angle.** Then the observation,
-   then the vehicle, then the DR spine.
+## Live knowledge base
 
-- **Bad flow (v4 failure):** *insight → ad.* Benefit wrapped in a UGC vehicle.
-- **Bad flow (v5 failure):** *format gimmick → brand plugged in.* Clever format, generic insight.
-- **Bad flow (v6 failure):** *relatable moment → vehicle → done.* Interesting setup takes 70–90% of
-  the ad, the product gets one line at the end, no price, no mechanism, no CTA. Cute, doesn't convert.
-- **Good flow (v6):** *business objective → target persona → selling argument → human observation
-  (from that persona's world) → creative leap → vehicle AS THE HOOK → DR spine carries the rest.*
+Four Postgres tables back this skill. Primary transport is the Supabase MCP: call
+`Supabase:execute_sql` with `project_id="xakngjsybyytldyqfsmi"` and the SQL inlined at each step.
+Legacy secondary transport is `scripts/fetch-*.js` for local runs with `KNOWLEDGE_DATABASE_URL`.
 
-**The intensity lesson (Eric):** content must be ~25% more intense than real life. "My nail tech said
-my nails look healthier" is not worth pulling out a phone for. "My nail tech accused me of cheating
-on her because my nails look too good" is. Confrontation, accusation, stakes, drama — the same
-observation, turned up. The a home-security brand benchmark: a first-person POV where the creator talks while his
-house is being robbed behind him. Every concept must answer: **what about this grabs your interest?**
+| Step | Table |
+|---|---|
+| 0 | `marketing_report`, `brand_brain` |
+| 1, 2 | `knowledge_v_concept_approved` (view) |
+| 4 | `knowledge_scraped_ad` |
+| 6 | `knowledge_vehicle_bank`, `knowledge_researched_vehicles` |
 
-## Live knowledge base (v6.1)
+**Confidence vocab must not be conflated.** Researched-vehicles uses two scales:
+brand-observed (`thin`/`reported`/`strong`, has advertiser count) vs trend-sourced
+(`trend-thin`/`trend-reported`/`trend-verified`, no count). Every row carries `evidence_basis`.
+Never claim performance from either.
 
-Four Postgres tables in the adbundance Knowledge Layer back this skill. They are queried **live at
-specific pipeline steps** — no cached snapshots, no stale data.
-
-**Primary transport: the Supabase MCP.** Call `Supabase:execute_sql` with
-`project_id="xakngjsybyytldyqfsmi"` and the SQL for the step you're on (SQL is inlined at each
-step below). This works in every Claude session where the Supabase connector is enabled — no env
-var, no network setup.
-
-**Secondary transport: node scripts (local runs only).** When running the skill from a local
-Claude Code / desktop setup with network access to Supabase and `KNOWLEDGE_DATABASE_URL` exported,
-`scripts/fetch-*.js` runs the same queries and prints markdown ready for the next agent. See the
-table below for the mapping.
-
-| Step | Table | MCP call (primary) | Local script (secondary) |
-|---|---|---|---|
-| 1, 2 | `knowledge_v_concept_approved` (view) | inlined SQL at those steps | `fetch-approved-concepts.js` |
-| 4 | `knowledge_scraped_ad` | inlined SQL at that step | `fetch-scraped-ads.js` |
-| 6 | `knowledge_vehicle_bank` | inlined SQL at that step | `fetch-vehicles.js` |
-| 6 | `knowledge_researched_vehicles` | inlined SQL at that step | `fetch-trend-vehicles.js` |
-
-**Confidence vocabulary must not be conflated.** The researched-vehicles table uses TWO scales that
-cannot be mixed: brand-observed (`thin`/`reported`/`strong`, has an advertiser count) vs
-trend-sourced (`trend-thin`/`trend-reported`/`trend-verified`, no advertiser count). Every row
-carries `evidence_basis` so the CD can preserve the caveat. Never claim performance from either.
-
-**Scraped-ad buckets are category-wide, not brand-specific.** `query` groups rows into buckets like
-`skincare`, `collagen`, `medicare`, `credit card` — plus a large `client-ad-history` bucket. Don't
-expect the brand's own ads there; use it for what real ads in the adjacent category are saying.
+**Scraped-ad buckets are category-wide.** `query` groups rows into buckets (`skincare`,
+`collagen`, `credit card`, `client-ad-history`). Not for the brand's own ads — for what real
+ads in the adjacent category are saying. To see buckets:
+`SELECT query, COUNT(*) FROM public.knowledge_scraped_ad WHERE excluded_reason IS NULL GROUP BY query ORDER BY 2 DESC LIMIT 20;`
 
 ## Pipeline
 
-### 0. Step Zero — Strategic Analysis (Strategic Analyst agent, NEW in v6)
-**Before any observation harvest or ideation**, a Strategic Analyst reads the marketing report and
-onboarding docs and produces the **Batch Strategy Map**:
+**Execution mode — silent by default.** The pipeline runs internally without narrating each
+step. During execution, output ONLY a single status line:
 
-1. **Business objectives for this batch.** What is the brand trying to accomplish RIGHT NOW? (Lower
-   CAC on a specific product line, break into a new persona, scale a proven angle, test a new
-   category entry.) Pull from client meeting notes, the marketing report objectives section, and any
-   explicit direction. If unclear, ask the user — this is the one thing worth stalling for.
-2. **Target personas for this batch.** Pick the 2–4 specific personas this batch speaks to (e.g.,
-   "bodybuilding men 25–40," "exhausted moms 32–42," "menopausal women 50+"). Each concept will be
-   assigned to exactly ONE persona. Persona-first ideation: knowing the persona generates the
-   scenarios (gym guy → leg-day prep, what he drinks pre-workout, locker-room talk).
-3. **Selling arguments to test.** List the distinct sales arguments the batch should cover — price,
-   time savings, mechanism, specific benefit (hair/gut/skin), social proof, category comparison,
-   convenience. Concepts test DIFFERENT selling arguments, not merely different formats. "Voice note
-   vs. skit vs. talking head" with the same argument is one test, not three.
-4. **Concept allocation.** Distribute the batch across objective × persona × selling argument BEFORE
-   writing anything. E.g., "8 concepts: bodybuilder persona × mechanism argument. 10 concepts:
-   exhausted mom × multi-benefit simplicity. 6 concepts: soda × flavor/occasion."
+> Building your concepts... This might take a few minutes.
 
-The Batch Strategy Map prints as the deck's **North Star intro slide**: "Over the course of this
-deck you'll see ideas that hit these business objectives, for these audiences, testing these selling
-arguments." A reviewer opening the deck cold must understand the strategy before slide 3.
+Do NOT print during the run: the Batch Strategy Map, Vehicle Candidate Tables, Vehicle Ledger,
+Fit-Check gate results, compliance sweep notes, Feedback Review verdicts, scorecards, tag
+metadata, or any pipeline commentary. All live in **internal working notes only**.
 
-**Question-led brainstorming (the principal's method).** The Strategic Analyst reaches its outputs by asking
-guiding questions, not "what if" jumps: Who is this for? What is the goal? What do we want those
-people to know? How are we entering their world properly? Where do they wake up, what do they carry,
-what do they drink on the way to the gym? The questions generate the scenarios.
+The ONLY user-facing output is the finished concepts, formatted per the slide format section
+below. Print working notes only when the user explicitly asks.
+
+### 0. Strategic Analysis — Batch Strategy Map
+
+**Mandatory Supabase pull FIRST.** Nothing runs until both queries return.
+
+Query 1 — `marketing_report`:
+```sql
+SELECT brand, brand_brain_id, overview, what_is_working, audience,
+       objectives_and_messaging, channel_strategy, content_strategy,
+       competitive_landscape, compliance_guardrails, sources_and_open_items
+FROM public.marketing_report
+WHERE brand ILIKE '%<brand>%';
+```
+
+Query 2 — `brand_brain`:
+```sql
+SELECT id, client_name, brand_name, aliases, website, industry, status,
+       brand_tone, brand_personality, target_personas, core_pain_points,
+       key_offer, products, product_benefits, brand_guidelines,
+       creative_boundaries, dos_and_donts, competitors,
+       winning_concepts, losing_patterns, winning_hooks, winning_ads,
+       compliance_notes, compliance_disclaimer, disclaimer_text,
+       creative_brief, primary_color_hex, secondary_color_hex,
+       accent_color_hex, brand_fonts, notes, confidence, updated_at
+FROM public.brand_brain
+WHERE brand_name ILIKE '%<brand>%' OR client_name ILIKE '%<brand>%'
+   OR aliases ILIKE '%<brand>%';
+```
+
+If Query 1 returned `brand_brain_id`, prefer `SELECT ... FROM brand_brain WHERE id = <id>`.
+
+**Not-found hard stop.** If EITHER query returns zero rows, output this and wait:
+
+> **Brand not found in the Knowledge Layer.**
+> `marketing_report`: `<found | NOT FOUND>` for `%<brand>%`.
+> `brand_brain`: `<found | NOT FOUND>` for `%<brand>%`.
+>
+> Options:
+> 1. Confirm the canonical brand name (run `SELECT DISTINCT ...`) and re-run.
+> 2. Provide the brand brief inline (concepts still ship but lose the audit trail).
+> 3. Create the records first, then re-run.
+
+**Batch Strategy Map** (once both queries return, produce these five outputs):
+
+1. **Business objectives.** What's the brand trying to accomplish RIGHT NOW? Pull from the
+   marketing report + client notes. If unclear, ask the user — this is the one thing worth
+   stalling for.
+2. **Target personas.** 2–4 specific personas (e.g., "bodybuilding men 25–40", "menopausal women
+   50+"). Each concept assigned to ONE persona. The persona generates the scenarios.
+3. **Selling arguments to test.** Price, time savings, mechanism, specific benefit, social proof,
+   category comparison, convenience. Concepts test DIFFERENT arguments — same argument in three
+   different vehicles is one test, not three.
+4. **Concept allocation.** Distribute across objective × persona × selling argument.
+5. **Duration mix.** Assigned by story needs, not house default:
+   - **15s ≤ 25%** of batch — single-beat pattern interrupts only. Setup → payoff needs more.
+   - **30s ≥ 50%** — default for scenario UGC with DR spine intact.
+   - **45s ≈ 20%** — scenario-driven narratives that need to breathe.
+   - **60s** sparingly for day-in-life or multi-beat testimonials.
+
+6. **Format mix (v7.5 — the agency principal rule, refined into three lanes).** Every batch specifies a
+   mix across three concept families, dependent on the client's creative appetite:
+   - **Story-testimonial UGC (v7.5 — the missing lane)** — a real person on camera
+     recounting a specific personal anecdote where the product changed something in their
+     life. Character-first, situation-first. Anchored on real social friction, emotional
+     beats, or unexpected outcomes ("my girlfriend thought I was cheating because of this
+     watch — I got it on PackDraw," "my friend keeps trying to trade me for these sneakers
+     and doesn't believe I paid $30"). The phone is optional and often absent from frame.
+     Human voice carrying a lived moment. This is the "wow, this happened to me too" lane
+     that carries paid-social relatability harder than any other format.
+   - **Traditional DR vehicles** — established UGC templates for demo-heavy concepts
+     (screen-record walkthroughs, product close-ups + VO, before/afters, unboxing).
+     Phone-anchored, DR-optimized. Safe, reliable, converts well but rarely surprises.
+   - **Wild/organic/viral formats** — captured moments (ring cam, security cam, baby
+     monitor, dash cam, doorbell, drone, gym cam), character-driven parody (sports
+     commentary of daily life, news-anchor mockumentary, postgame conference of a mundane
+     moment), meme formats currently working in this persona's feed, environmental
+     storytelling, absurdist product involvement, screen-capture-as-story.
+
+   **Default: 40% story-testimonial / 30% wild / 30% traditional DR.** Adjust per client —
+   the story-testimonial lane is the anchor of the batch and should never drop below 30%.
+   The traditional DR lane should never exceed 40%. Never 100% traditional (the principal's flag).
+   Never 100% captured/environmental with no human voice (the correction to v7.4's
+   overcorrection).
+
+   **Anti-default note for the CD:** "person on camera showing his phone" is NOT story-
+   testimonial — it's traditional DR wearing a story mask. Real story-testimonial has the
+   product OFF-SCREEN for most of the spot and the character's voice/face doing the
+   selling. If the phone is in frame more than 20% of the runtime, it's a traditional DR
+   concept, not a story-testimonial one.
+
+The Batch Strategy Map prints as the deck's North Star intro slide.
 
 ### 1. Intake & brand analysis
-The user may send anything from a full onboarding pack to just a URL or name. Build a working snapshot:
-product + USPs, personas, voice, real proof points, compliance rules, and font preference.
-If only a URL/name was given, web-search + fetch to fill the snapshot; confirm font or default
-(Poppins). Ask only for what genuinely blocks writing (hard compliance rules, offer language).
-Don't stall.
 
-**Deck accent color is ALWAYS `7A3FF2` (agency purple).** This is a Creative AdBundance house
-standard — it does NOT change per brand, regardless of the brand's own palette. Never substitute the
-brand's colors for the deck accent. The purple is locked.
+Build a working snapshot from Step 0's pulled data + any provided docs: product + USPs,
+personas, voice, real proof points, compliance rules, font preference. If only a URL was given,
+web-search + fetch to fill gaps. Confirm font or default to Poppins. Ask only what genuinely
+blocks writing (hard compliance rules, offer language).
 
-**Brand creative appetite (v5).** Study the brand's approved concepts — not just their topics but
-their actual TONE RANGE. Some brands want edge in subject matter (the colostrum brand: white powder jokes, breast
-milk confusion). Some want edge in format (a mobile-games app: Pixar-style animation). Some want warmth
-(the parenting app: mom confessionals). The approved deck IS the creative brief for tone — match it, don't
-overcorrect toward either safe or unhinged.
+**Deck accent color is ALWAYS `7A3FF2` (agency purple).** House standard — does NOT change per
+brand, regardless of the brand's own palette.
 
-**Pull it live via the Supabase MCP.** Call `Supabase:execute_sql`,
-`project_id="xakngjsybyytldyqfsmi"`, with this SQL (parameterise or inline the brand name — the
-view uses the canonical spelling, so `ILIKE '%<brand>%'` is safe):
+**Brand creative appetite.** Study the brand's approved concepts — not just their topics but
+their actual tone range. Some brands want edge in subject matter (the colostrum brand: white powder jokes),
+some in format (a mobile-games app: Pixar-style animation), some warmth (the parenting app: mom confessionals).
+The approved deck IS the creative brief for tone.
 
+**Sample brand tone via SQL:**
 ```sql
 SELECT client, product, batch, concept_no, title, funnel_stage,
        motivators, messaging_angle, hook_tactic, message,
@@ -146,21 +188,13 @@ ORDER BY batch_seq NULLS LAST, concept_no NULLS LAST
 LIMIT 200;
 ```
 
-If nothing comes back, the brand name doesn't match — run
-`SELECT DISTINCT client FROM public.knowledge_v_concept_approved ORDER BY client` and try the
-canonical name. Sample tone from what's in the result before writing anything.
+If nothing returns, brand name doesn't match. Run
+`SELECT DISTINCT client FROM public.knowledge_v_concept_approved ORDER BY client`.
 
-_Local alternative_: `node scripts/fetch-approved-concepts.js --client "<Brand>" --format md`.
+### 2. Library dedup — FULL audit
 
-### 2. Library check — FULL dedup audit (v5 — expanded, v6.1 DB-backed)
-If the brand has prior concepts (deck, Drive file, list), read the **ENTIRE existing library** —
-every batch, every section, every supplementary concept. Extract title + description for each. This
-is not optional for large libraries. the colostrum brand's Batch 5 required dedup against 117 existing concepts across
-4 batches + supplementary sections; surface-level title matching missed insight-family overlaps that
-only showed up in the descriptions.
-
-**Primary source: the Knowledge Layer via the Supabase MCP.** Same view as Step 1, richer
-projection for dedup analysis:
+Read the ENTIRE existing library — every batch, every section. Not optional. the colostrum brand's Batch 5
+required dedup against 117 existing concepts.
 
 ```sql
 SELECT concept_id, client, product, section, batch, batch_seq, concept_no,
@@ -169,788 +203,684 @@ SELECT concept_id, client, product, section, batch, batch_seq, concept_no,
        script_title, script_hooks, script_body
 FROM public.knowledge_v_concept_approved
 WHERE client ILIKE '%<brand>%'
-  -- optional narrowing:
-  -- AND product ILIKE '%<product line>%'
-  -- AND batch   ILIKE '%<batch label>%'
 ORDER BY batch_seq NULLS LAST, concept_no NULLS LAST
 LIMIT 500;
 ```
 
-Cluster the result by insight family (the underlying observation), vehicle/format, and visual
-identity — that's the dedup surface. Drive-hosted decks stay as a fallback for the rare pre-DB
-batch that hasn't been ingested yet.
-
-_Local alternative_: `node scripts/fetch-approved-concepts.js --client "<Brand>" [--product X]
-[--batch Y] --format md`.
-
-For each existing concept, catalog:
-- The **insight family** it belongs to (not just the topic — the underlying observation)
-- The **vehicle/format** used (talking head, b-roll + text, skit, greenscreen, trend-native, etc.)
-- The **visual identity** with audio off (what does it look like?)
-
-New concepts must bring a different **observation AND a different visual identity**. Changing the
-hook on the same vehicle is not a new concept.
+For each existing concept, catalog: **insight family** (the underlying observation, not just the
+topic), **vehicle/format**, and **visual identity with audio off**. New concepts must bring
+different observation AND different visual identity. Changing hooks on the same vehicle isn't
+new.
 
 ### 3. Performance filter
-If performance data exists (CPA by hook/angle/format, client notes), build the **allowed set** first:
-winning angles/formats to weight toward; losers to exclude; gaps worth a controlled test. Data weights
-the mix but never becomes a template. If no data: default to Pain Point + Transformation angles,
-Talking Head/Lifestyle-led formats, and say you're defaulting.
 
-### 4. Human observation harvest (before ideation)
-Before writing any concept, mine **15-20 specific human observations** for the ICP. Not benefits, not
-angles — observations. See `references/libraries.md` for prompts. Rules:
-- Each observation must be a **specific behavior, thought, situation, conversation, or internet habit**
-  someone in the ICP would recognize instantly — not a broad theme.
-- Weight the harvest toward the performance-filtered angles, but sourced from behavior, not from
-  strategy documents.
-- **Cross-check against existing library (v5).** If an observation is already expressed in the existing
-  deck, it's spent. Find fresh territory.
+If performance data exists (CPA by hook/angle/format), build the **allowed set**: winners to
+weight toward, losers to exclude, gaps worth a controlled test. Data weights the mix but never
+becomes a template. If no data: default to Pain Point + Transformation angles, Talking Head /
+Lifestyle formats, and say you're defaulting.
 
-**Optional category-context pull via the Supabase MCP.** When the brand plays in a well-covered
-space, pull long-running ads in the adjacent category to see what observations competitors lean on:
+### 4. Observation + Viral Format harvest
 
+Mine BOTH before writing:
+
+**A. 10–15 specific human observations** for the ICP. Not benefits, not angles — observations.
+Each must be a **specific behavior, thought, situation, conversation, or internet habit**
+someone in the ICP would recognize instantly. Weight toward the performance-filtered angles.
+
+If an observation is already expressed in the existing deck, it's spent — find fresh territory.
+
+**B. 5–10 viral format examples** for the persona (v7.4 — the agency principal rule). Not talking-head
+templates — actual ways of CAPTURING scenes that already work on the platform for this
+audience:
+
+- **Captured moments** — ring cam, security cam, baby monitor, dash cam, doorbell, drone,
+  gym cam, kitchen cam, retail cam
+- **Character-driven parody** — sports commentary of daily life, news-anchor mockumentary,
+  postgame conference of a mundane moment, weather report of an emotional state, ESPN
+  breakdown of a small win
+- **Environmental storytelling** — a specific scene tells the whole story with no
+  presenter (a kitchen at 3am, an empty crib, a bathroom mirror with a note on it, a
+  wrist glancing at a watch during a boring meeting, an untouched drink on a nightstand)
+- **Meme formats currently working** in this persona's feed (rapid-cut trends, POV format,
+  green-screen stitches, split-screen reactions, "how it started / how it's going")
+- **Absurdist product involvement** — talking to the product, product as character,
+  product commercial invading a scene, product answering a question
+- **Screen-capture-as-story** — a text thread, a browser history, a camera roll swipe, a
+  Notes app entry, a group chat with no faces at all
+
+Source the wild formats by:
+```sql
+SELECT vehicle_id, name, description, mechanic_summary, hook_strategy,
+       evidence_basis, advertiser_count
+FROM public.knowledge_researched_vehicles
+WHERE evidence_basis IN ('strong', 'reported', 'trend-verified', 'trend-reported')
+ORDER BY
+  CASE evidence_basis
+    WHEN 'strong' THEN 1 WHEN 'trend-verified' THEN 2
+    WHEN 'reported' THEN 3 ELSE 4
+  END,
+  COALESCE(advertiser_count, 0) DESC;
+```
+
+Plus context-scan the persona's actual TikTok/Reels world for what's landing right now if
+current cultural formats aren't yet in the researched-vehicles table.
+
+**Optional category-context pull:**
 ```sql
 SELECT advertiser, platform, run_days, headline, description, cta,
        transcript, drivers, persona, foreplay_url
 FROM public.knowledge_scraped_ad
 WHERE excluded_reason IS NULL
-  AND query ILIKE '%<bucket>%'   -- e.g. 'skincare', 'collagen', 'medicare', 'credit card'
+  AND query ILIKE '%<bucket>%'
   AND COALESCE(run_days, 0) >= 30
 ORDER BY run_days DESC NULLS LAST, fetched_at DESC
 LIMIT 20;
 ```
 
-Rows sort by `run_days DESC` — longevity is a weak positive that the format is landing somewhere.
-This is NOT dedup and NOT performance data; it's inspiration + tension surface. Not useful for
-pulling the brand's own past ads — the buckets are category-tagged, not brand-tagged. To see what
-buckets exist:
-`SELECT query, COUNT(*) FROM public.knowledge_scraped_ad WHERE excluded_reason IS NULL GROUP BY query ORDER BY 2 DESC LIMIT 20;`
+Rows sort by `run_days DESC` — longevity is a weak positive. Not dedup, not performance data —
+inspiration + tension surface.
 
-_Local alternative_: `node scripts/fetch-scraped-ads.js --query "<bucket>" --min-run-days 30 --limit 20 --format md`.
+### 5. Loglines-first checkpoint
 
-### 5. Loglines-first checkpoint (v5 — new step)
-Before writing full concepts, present **short loglines** (1–3 sentences each) with: title, one-line
-description, vehicle, tone, product line, awareness stage, and production lane. The user selects
-which to build. This prevents wasted full-concept writing on ideas that will be killed.
+Before writing full concepts, present **short loglines** (1–3 sentences each) with: title,
+one-line description, vehicle, tone, product line, awareness stage, production lane. User
+selects which to build. Prevents wasted writing on ideas that'll get killed.
 
-For large batches (20+ concepts), present ALL loglines at once, grouped by product line or theme.
-The user may:
-- Select all
-- Kill specific ones and ask for replacements
-- Give feedback that reshapes the batch direction
+For large batches (20+), present ALL loglines grouped by product line or theme. User may select
+all, kill specific ones and ask for replacements, or reshape the batch direction.
 
 ### 6. Ideation — Creative Director pass
 
-**Before ideating, load both vehicle libraries live via the Supabase MCP.**
+**The relatable frame (core principle).** Every concept is a real relatable UGC scenario
+from the target persona's actual daily life, wrapped around the product. The frame is not
+invented for the ad — it's borrowed from what that persona already does, watches, argues
+about, sends in group chats, or films for fun.
 
-Proven bank (`knowledge_vehicle_bank`) — prefer these for the DR spine:
+- The **vehicle/format** is the SHAPE of the video (same-person skit, screen record, POV,
+  drawer reveal, ring cam, sports commentary, environmental scene).
+- The **frame** is the SCENARIO (the real-life situation being depicted).
+- The **product** sits inside the frame naturally, wearing the frame like clothes.
 
+The test: **if you deleted the brand mention, would this scenario still be a video someone
+would watch in their feed?** If yes, the frame is real. If no, rewrite.
+
+**Anti-default warning (v7.4 — the agency principal critique).** The pattern this pipeline keeps
+falling into is stamping the same 3–4 "safe traditional UGC" vehicles onto every concept:
+- Guy on couch talking to camera
+- Sitting-in-car UGC
+- At-my-desk-with-phone
+- Talking-head bookends around a screen record
+
+If the batch is ≥50% these formats, it has collapsed into the failure mode Eric flagged:
+hits pain points via templated UGC, misses "wow, these ideas are really changing everything."
+Force the wild-format allocation from the Batch Strategy Map — half the batch must draw from
+captured moments, character parody, environmental storytelling, meme formats, or absurdist
+product involvement. Not optional.
+
+**Load both vehicle libraries first:**
 ```sql
-SELECT vehicle_id, name, description, mechanic_summary, hook_strategy,
-       production_path, narrative_beats, design_components, duration,
-       example_script_text, example_script_hooks, origin,
-       COALESCE(jsonb_array_length(proven_by), 0) AS proven_count
+SELECT vehicle_id, name, description, mechanic_summary, hook_strategy
 FROM public.knowledge_vehicle_bank
-WHERE needs_review IS NOT TRUE
-ORDER BY proven_count DESC, name ASC;
-```
+ORDER BY name;
 
-Trend layer (`knowledge_researched_vehicles`) — borrow when the batch needs freshness, and carry
-the `confidence` + `evidence_basis` forward so nothing borrowed here gets presented as proven:
-
-```sql
-SELECT researched_id, name, platform, channel_type, structure, mechanic,
-       why_it_works, ad_adaptability, cohort, advertiser_count,
-       confidence, evidence_basis, archetype, engine,
-       viewer_behaviors, product_integration, remixability,
-       duration_range, source_title, source_url, blurb
+SELECT vehicle_id, name, description, mechanic_summary, hook_strategy,
+       evidence_basis, advertiser_count
 FROM public.knowledge_researched_vehicles
-WHERE status = 'active'
-  -- optional: AND platform = 'meta' AND cohort = 'rising'
 ORDER BY
-  CASE cohort WHEN 'rising' THEN 0 WHEN 'established' THEN 1 ELSE 2 END,
-  CASE confidence
-    WHEN 'strong' THEN 0 WHEN 'reported' THEN 1 WHEN 'thin' THEN 2
-    WHEN 'trend-verified' THEN 0 WHEN 'trend-reported' THEN 1 WHEN 'trend-thin' THEN 2
+  CASE evidence_basis
+    WHEN 'strong' THEN 1
+    WHEN 'reported' THEN 2
     ELSE 3
   END,
   COALESCE(advertiser_count, 0) DESC,
   name ASC;
 ```
 
-_Local alternative_: `node scripts/fetch-vehicles.js --format md` and
-`node scripts/fetch-trend-vehicles.js --format md`.
+For each concept: take its assigned **objective × persona × selling argument × duration ×
+format-family (traditional or wild)** from the Batch Strategy Map, pick an observation FROM
+THAT PERSONA'S WORLD, then run the three sub-procedures below IN ORDER before locking anything.
 
-For each concept: take its assigned **objective × persona × selling argument** from the Batch
-Strategy Map, pick an observation FROM THAT PERSONA'S WORLD, make **one creative leap**, assign
-**one vehicle as the HOOK**, then build the DR spine underneath. Prefer proven vehicles for the DR
-spine; borrow trend vehicles when the batch needs freshness and mark them internally as such.
+**Sub-procedure 1: Message Visualization (v7.4 — the agency principal rule).** Before touching a vehicle,
+brainstorm **at least 5 different ways to visualize the selling argument.** Not vehicle picks
+— visualizations. Different scenes, different capture styles, different angles into the same
+message. Then choose the strongest visualization, THEN pick the vehicle/format that carries it.
 
-All v4 rules apply (see `references/craft-rules.md`), plus:
+the principal's framing: *"There's a million different ways to visualize what the regressions look
+like. Sweet spot helps stop sleep regressions. What are different ways to get across that
+messaging?"*
 
-- **The DR spine (v6 — mandatory).** A creative device is not a concept by itself. Every concept
-  needs: **hook/pattern interrupt → problem or misconception → introduce the product FAST → how it
-  works (mechanism) → proof/benefit → price/value where relevant → CTA.** The vehicle owns the first
-  3–5 seconds; the DR spine owns the rest. The viewer should understand the problem and why the
-  brand is relevant within the first few seconds. **Don't end right when the selling should start** —
-  if the interesting setup takes 70–90% of the ad and the product gets one line at the end, the
-  concept fails. The narrative beats on the slide must show the full spine, not just the setup.
-- **Conversion density (v6).** Ask per concept: "How much useful selling information does the viewer
-  get in 20–30 seconds?" Novelty never comes at the expense of explaining the offer. Make the
-  product mechanism explicit — what it is, how it works, what it costs (when the brand allows
-  price), what to do next.
-- **The 25%-intensity rule (v6).** Content must be ~25% more intense than real life. A compliment is
-  not a story; an ACCUSATION is. "My nail tech said my nails look healthy" → lame. "My nail tech
-  accused me of cheating on her because my nails look too good" → concept. Turn observations up via:
-  confrontation, accusation, being caught, stakes, a secret exposed, a competition, something
-  happening in the background (a home-security brand's house-robbery POV). Every concept must pass: **"What about
-  this grabs your interest?"** If the honest answer is "nothing really," kill it.
-- **Positive-benefit-first messaging (v6).** Never sell the absence of a negative as the main
-  argument. "No chalky aftertaste" is not a selling point — "I just added 400 bioactives to my water
-  and I taste literally nothing" is. "Adding healthy skin to your water is as easy as one scoop" is.
-  Lead with what the viewer GAINS; ease/taste/texture is the supporting clause, never the headline.
-- **Never counterintuitive brand messaging (v6).** The brand never says anything that argues against
-  trial. "I tried this so you don't have to" fails — why would a brand tell people not to try it?
-  Adjust to enthusiasm framing: "After I tried colostrum, I can't stop talking about it." Read every
-  hook literally from the brand's perspective before approving it.
-- **Mechanic-to-product match (v6).** The vehicle's structure must match what's being sold. "Choose
-  Your Fighter" implies multiple options to choose between — that fits a 4-flavor soda line ("Choose
-  Your Flavor"), not a single-SKU powder. Before assigning a vehicle, ask: does this mechanic
-  naturally showcase THIS product's actual structure (flavors, tiers, use cases, occasions)?
-- **Product-specificity check (v5).** Every concept must be anchored in something ONLY THIS BRAND'S
-  PRODUCT can own. Ask: **could a competitor run this concept unchanged?** If yes, anchor it in the
-  brand's unique story.
-- **Creator count — soft default, not hardline (v6, replaces the v5 hard rule).** DEFAULT to one
-  solo creator filming at home — it keeps production simple and cheap. But this is a production
-  preference, not a creative law: **if a second person makes the concept meaningfully stronger
-  (two-person podcast, partner caught sneaking the product, confrontation skits), allow up to two
-  people when the brand's production setup supports it.** Check the brand's production notes; the colostrum brand
-  and most DTC clients can cast a creator + one partner/friend. Same-person skits remain the
-  fallback when casting is constrained. Tag each concept with its talent count so production can
-  plan. The at-home filming preference also softens: a dash-cam car POV or gym-adjacent shot is
-  allowed IF the client's creators can realistically capture it — flag anything needing a real
-  external location as "location shoot" in the production lane.
-- **Anti-format-gimmick rule (v5).** The format should be standard UGC. Elaborate format parodies
-  pass ONLY when the product's own story creates the comedy inside the parody.
-- **Anti-supplement-bashing rule (v5).** Max 2 concepts built on "other products failed." The bulk
-  is built on what makes THIS product's story unique.
-- **Vehicle diversity from libraries (v5).** Pull from `references/libraries.md` and any provided
-  viral catalog. Kill vehicle saturation (5+ same vehicle).
-- **Seasonality check (v5).** No holidays/events far from the current date.
+Example — PackDraw's "cash out instantly" selling argument:
+1. Guy pulls a card he doesn't want, screen record of cash-out (safe UGC)
+2. Ring cam captures him receiving a package he decided to ship instead
+3. Sports commentary voiceover of him "making the trade" mid-open
+4. Split-screen: him vs a friend stuck with a card he doesn't want on another app
+5. Voice-note style: him sending a friend a message explaining why cash-out changed things
+6. Environmental — his phone on a nightstand at 2am, screen glowing with the balance update
 
-### 7. Five-audit gate (v5 — replaces the single strategist gate)
-After generating loglines or full concepts, run these five audits IN ORDER. Kill and replace concepts
-that fail any audit — do not patch.
+Pick the strongest for THIS persona's world. The visualization list stays in working notes;
+the winner ships. This is what breaks the default-vehicle reflex.
 
-**Audit 1: Full dedup vs. existing library.**
-Compare every concept against the full existing library at the INSIGHT-FAMILY level (not just title).
-If a concept expresses the same underlying observation as an existing concept — even with a different
-vehicle — kill it. Example: "Supplement Cabinet Graveyard" dupes "Everything I tried to de-bloat and
-failed" even though the vehicles differ — same insight family (failed supplement history).
+**Sub-procedure 2: Narrative Chronology check (v7.4 — the agency principal critique).** Every concept
+must explicitly answer: **WHEN is this happening on the pain-point timeline?**
+- **Before** the pain point (setup, foreshadowing, we-had-no-idea)
+- **During** the pain point (real-time capture, live confessional, in-the-thick-of-it)
+- **After** the pain point (retrospective, "that used to be me," resolution)
+- **Split** — a stitch or before/after showing the transition explicitly
 
-**Audit 2: Solo-creator + UGC feasibility.**
-Flag every concept that requires a second person on camera (partner, friend, stranger, hairdresser).
-Rework as solo-creator executions or kill.
+Ambiguous chronology = KILL and rebuild. the principal's critique: *"Is it after they had the pain
+point? Is it during the pain point? There's a lot of confusion because it's like a couple
+different things are kind of all in here."* The concept's timeline must be unambiguous in
+the description AND the narrative beats. State the chronology tag in working notes.
 
-**Audit 3: Product-specificity.**
-Flag every concept that any brand could run unchanged. "The subscription I don't cancel" → generic.
-"I drink powdered cow colostrum every morning and people think I'm insane" → only colostrum. Kill
-generics and replace with product-ownable concepts.
+**Chronology tag is INTERNAL — do NOT print it on the concept slide.** The tag lives in
+working notes for the audit trail. The concept's client-facing output stays strictly to
+the slide-format spec: Title · Description · Narrative (5 beats) · Design Components (5
+details). No "Chronology:" section on the slide, no "The whole spot lives inside..." or
+"Product enters through..." extra prose after the description. If the chronology and
+product involvement aren't obvious from the description + beats as written, the concept
+isn't clear enough — rewrite the description and beats, don't paper over it with
+explanatory prose.
 
-**Audit 4: Brand-alignment.**
-Run every concept against the brand's actual rules and creative appetite:
-- Compliance (medical claims, language restrictions, disclaimers)
-- Tone (does this match the brand's approved creative range — not too safe, not too unhinged?)
-- Distribution channel (DTC vs. retail — don't write grocery-aisle concepts for a DTC brand)
-- Competitive framing (don't name competitors or identifying ingredients)
-- Production notes (styling, glassware, caption style, talent direction)
+**Sub-procedure 3: Vehicle Candidate Search + Fit-Check Gate.**
+The failure this replaces: the CD reaches for what it already knows (group-chat screen record,
+POV, talking head) and stamps it on. The result is a batch that keeps returning to 3–4 formats.
 
-**Audit 5: Vehicle saturation + sound-off test.**
-With audio off, can you sort all concepts into distinct visual piles? If 5+ concepts look the same
-(creator at kitchen counter explaining), kill the weakest and replace with visually distinct vehicles
-from the libraries.
+Before locking any vehicle, produce a **Vehicle Candidate Table** for that concept. Candidates
+draw from THREE pools (v7.4):
+- `knowledge_vehicle_bank` (traditional DR vehicles)
+- `knowledge_researched_vehicles` (trend/wild vehicles)
+- The viral formats mined in Step 4 for this specific persona
 
-Then run the **Creative Strategist scorecard** (see `references/creative-strategist.md`) on the
-surviving batch — all v4 checks plus the v5 audits above.
+1. Extract 3–5 keywords from the concept's selected visualization (from Sub-procedure 1) that
+   describe the SHAPE of the video (e.g., "captured moment," "before/after transition,"
+   "third-party voiceover parody," "environmental scene at unusual hour").
+2. Search all three pools for vehicles matching those keywords. Return top 5 across all pools.
+   The table MUST include at least one wild/captured/parody candidate — not exclusively bank
+   picks.
+3. Score each 1–5 on four axes (max 20):
+   - **Message fit** — does this format serve THIS specific visualization?
+   - **Persona fit** — does this format sit natively in this persona's feed?
+   - **Freshness** — used ≥2 times in current batch OR in last 2 approved batches for this
+     client? –2 penalty.
+   - **Producibility** — solo creator, phone, everyday props? –2 penalty otherwise.
+4. Highest scorer wins. Ties break to the wild-format candidate over the traditional one when
+   the batch's wild-format allocation is under-filled.
+5. If the pattern-default (talking head, sitting-in-car, at-my-desk-with-phone) wins for more
+   than half the batch, the search has failed — restart with narrower keywords and force at
+   least three wild-pool candidates into the table.
 
-### 7.5. Feedback Review Agent (v5 — new agent, mandatory)
-
-The **Feedback Review Agent** is a third agent that runs AFTER the Creative Strategist gate and
-BEFORE building the deck. It replays every revision pattern learned from real producer feedback
-across all client batches. The strategist catches craft problems; this agent catches the patterns
-that only surface when a producer sits with the batch and says "these all feel the same" or
-"this isn't us."
-
-The agent runs **seven checks** in order. Each check produces a **PASS / FAIL + kill list**.
-Failed concepts are killed and replaced from fresh observation territory before the next check runs.
-This is sequential — a concept that survives Check 1 can still die at Check 4.
-
-**Check 1 — Batch sameness scan.**
-Read all concept titles and descriptions as a batch. Ask: "If I showed these 40 thumbnails to a
-producer, would she sort them into 40 distinct piles — or would she start stacking?" Look for:
-- 5+ concepts that are all "creator at kitchen counter explaining the product"
-- 5+ concepts that are all "creator to camera listing reasons"
-- 3+ concepts built around the same prop interaction (all drawer reveals, all bag dumps)
-- 3+ concepts that are structurally identical (all "here's what happened when I..." confessionals)
-If the batch has visible clusters of 3+ same-looking concepts, kill the weakest per cluster until
-each visual identity appears at most twice. Pull replacements from underused vehicles in the vehicle
-library and viral format catalog.
-
-**Check 1b — Copy repetition / "same ad in different outfits" scan.**
-Read all concept descriptions and narratives back-to-back as continuous text. Flag any product
-claim, descriptor, or proof phrase that appears in more than 3 concepts. Common offenders:
-- The same stat repeated everywhere ("400+ bioactives" in 8 of 10 concepts)
-- The same credential everywhere ("physician-developed" / "a neurologist made it" in every concept)
-- The same ingredient story everywhere ("bovine colostrum" as the punchline every time)
-- The same product feature everywhere ("no added sugar" / "mixes clear" in every soda concept)
-- The same closing argument ("gut barrier support, immune function, hair, skin, energy")
-
-If the batch reads like one ad wearing different outfits — different vehicles but identical copy
-inside — it fails. Fix by distributing claims across the batch:
-- **3–4 concepts lead with the stat** (400+ bioactives, one ingredient)
-- **2–3 concepts lead with the founder/credential story** (neurologist left her practice)
-- **2–3 concepts lead with the personal experience** (what the creator noticed, no claims listed)
-- **1–2 concepts lead with the product experience** (tastes like nothing, mixes clear, the ritual)
-- **1–2 concepts never explain at all** — the product is shown, not described; the concept's
-  comedy or emotion does the selling
-
-The rule: each concept picks ONE primary selling message from the brand's toolkit. The other
-messages sit down for that concept. If the viewer reads three concepts and sees the same five
-bullet points in each, the batch is monotone regardless of how different the vehicles are.
-
-**Check 2 — Vehicle library + viral catalog cross-check.**
-Confirm that at least 30% of concepts actively use a vehicle from the libraries
-(`references/libraries.md`) or from the user-provided viral format catalog. If the batch is
-dominated by standard talking heads and b-roll + text overlays, force 5–8 replacements pulled
-directly from unused vehicles/formats: drawer reveal, wall calendar, post-it wall, whiteboard math,
-napkin drawing, countdown timer, wardrobe reveal, same-person skit, speed-run, "Of Course I'm Going
-To...", "That's Not My Name", "Everything Hallelujah", "Put A Finger Down", "Expose Your Addiction",
-"How To Summon Me" transition, on-off toggle, stretched word carousel, etc.
-
-**Check 3 — "Could any brand run this?" ownability test.**
-Read each concept and ask: "If I removed the brand name and product, could I plug in any
-competitor's product and the concept would still work unchanged?" If yes — the concept is generic.
-Kill it and replace with something anchored in THIS product's unique story:
-- The origin / sourcing / processing story only this brand owns
-- The social friction or surprise reaction only this product triggers
-- The founder's specific credential or decision that no competitor shares
-- The specific ingredient count, mechanism, or format (powder vs. soda) that differentiates
-Generic vehicles that fail this test: "The subscription I don't cancel," "Name a product you'd
-never go back from," "Moving day: which box does this go in," "I've become my mother," "Things on
-my counter ranked by how long they lasted." These could be any DTC brand.
-
-**Check 4 — Brand-tone calibration.**
-Pull the client's approved concept deck and compare the TONE RANGE of the new batch against what
-the client actually selected in prior batches. The approved deck IS the creative brief for tone.
-- If the client's approved concepts use edgy subject matter in standard formats (the colostrum brand: white
-  powder comedy in a talking head), DON'T write standard subject matter in elaborate format parodies
-  (courtroom skit, art gallery, fashion runway). The edge lives in the WHAT, not the HOW.
-- If the client's approved concepts are warm and confessional (the parenting app: bathroom confessionals),
-  DON'T write sarcastic deadpan comedy. Match the emotional register.
-- If the client leans DTC digital, DON'T write grocery-aisle or retail-floor scenarios.
-- If prior batches don't include format parodies (mock infomercials, cooking shows, award
-  ceremonies), that's a signal — the client doesn't want them. Don't introduce them unless the
-  brief explicitly asks for experimentation.
-
-**Check 5 — Multi-talent audit.**
-Every concept must be shootable by ONE solo creator unless the brief explicitly permits multi-talent.
-For each concept, ask: "Does this require a second person to be on camera for the concept to work?"
-- Partner/spouse reacting → FAIL (rework as post-event storytelling or same-person skit)
-- Friend on FaceTime → FAIL (rework as voice-note or text-thread recap)
-- Hairdresser/trainer/doctor → FAIL (rework as "they said" retelling from creator alone)
-- Stranger on the street → FAIL (this is a street interview, needs casting)
-- Same-person playing two characters → PASS
-- Creator alone telling a story about someone else → PASS
-- Creator's dog/cat → PASS (animals are props, not actors)
-
-Then ask: **"Can this be filmed at home with a phone and the product?"** Every concept must be
-shootable in a normal residential setting — kitchen, bathroom, bedroom, living room, home office,
-doorstep, mirror, couch, desk. NO concepts that require the creator to go to a specific external
-location to film the ad:
-- Movie theater → FAIL
-- Gas station → FAIL
-- Gym / gym parking lot → FAIL
-- Grocery store aisle → FLAG as location shoot
-- Yoga studio → FLAG as location shoot
-- Uber / rideshare → dash-cam POV allowed IF creators can capture it; otherwise FLAG
-- Coffee shop → FLAG as location shoot
-- Office with coworkers → FLAG as location shoot + multi-talent
-- Restaurant / brunch → FLAG as location shoot + multi-talent
-- Airport / TSA → FLAG as location shoot
-
-**v6 softening:** at-home solo is the DEFAULT, not a law. A concept needing one extra person or one
-realistic external capture (car dash-cam, gym-adjacent) PASSES if the client's production setup
-supports it — tag it "location shoot" or "2-talent" in the production lane so production can plan
-and the client can veto. A concept still FAILS this check when it needs a cast (3+ people), a
-commercial location requiring permission (movie theater, TSA), or staging the client can't
-realistically produce. When production constraints are unknown, default to solo + at-home.
-
-If a location-dependent concept can't be produced, rework it: the creator can TELL THE STORY from
-home (e.g., "Let me tell you what happened at the gym") — the location lives in the narration.
-
-**Check 6 — Seasonal + contextual audit.**
-Flag any concept tied to a specific holiday, event, or cultural moment that is more than 6 weeks
-from the current date. "POV: Thanksgiving dinner" in August → FAIL. Rework with season-agnostic
-framing ("POV: family dinner" → PASS). Also flag:
-- Concepts referencing trends that may have already peaked or expired
-- Concepts dependent on a specific platform feature that may change
-- Concepts requiring specific weather or setting (snow, beach) unless the brief calls for it
-
-**Check 7 — Believable trigger (from a social-growth tool feedback).**
-Every concept must answer: **"Why is this person showing me this right now?"** If there's no
-believable trigger — no friend asking, no product running out, no comment to respond to, no before/
-after moment, no discovery event — the concept is a dressed-up testimonial. Reject the premise and
-rebuild with a specific trigger: accusation, discovery, comparison, challenge, confession, reaction,
-or social moment that makes the viewer believe this is organic. The trigger makes the concept feel
-found, not placed.
-
-**Check 8 — Product introduction variety (from a social-growth tool feedback).**
-Scan the batch for how the brand enters each concept. If 3+ concepts use the same introduction
-mechanic — "That's where [brand] came in," "So I started using [brand]," "Then I found [brand]" —
-the batch is templated. The product should enter differently based on the concept: friend
-recommendation, comment response, research discovery, accidental find, partner mention, label
-reading, someone else using it, social media scroll, gift from a friend, etc. Each concept's
-product intro must feel native to THAT concept's story, not copy-pasted.
-
-**Check 9 — Proof closes the narrative argument (from a social-growth tool scripts feedback).**
-The proof/outcome in each concept must specifically close the argument that the concept opened.
-If the concept is about gut issues, the proof can't be generic "I feel great." If the concept is
-about hair, the proof can't be "my energy is better." The proof must match the promise:
-- Gut concept → gut-specific personal experience
-- Hair concept → hair-specific observation
-- Immune concept → immune-specific anecdote
-- Soda replacing another drink → the specific drink it replaced and why
-Generic proof ("I love it," "it works," "10/10") fails this check. Every concept's payoff must
-close the SPECIFIC loop its hook opened.
-
-**Check 10 — Outcome ladder spread (from a social-growth tool feedback).**
-Scan the batch for outcome repetition. If 5+ concepts all end with the same type of result (all
-"my gut feels amazing," all "I look younger," all "I never get sick"), the batch is monotone.
-Build an outcome ladder for the brand and distribute endings across it:
-- Physical feeling change (energy, bloating, digestion)
-- Visual change (skin, hair, nails — observed by self)
-- Third-party validation (someone else noticing/commenting)
-- Behavioral change (stopped buying other things, changed routine)
-- Social consequence (became an evangelist, friends ordered)
-- Identity shift (became "the colostrum person")
-- Specific metric (months on auto-ship, jars finished)
-Each concept's ending should feel distinct from its neighbors.
-
-**Check 11 — Specificity rule (from a social-growth tool feedback).**
-Every concept needs at least ONE concrete detail: a number, a timeframe, a social detail, or a
-tangible object. Prefer two when credible. Concepts that stay abstract ("it works," "I feel
-better," "changed my life") without a single anchoring detail fail this check.
-- PASS: "5 months," "400+ bioactives," "my third jar," "3 people asked me," "$2/day"
-- FAIL: "it works," "I love it," "changed everything," "totally different now"
-
-**Check 12 — Unpaid-post filter (from a social-growth tool feedback).**
-For each concept, ask: **"Would a real person post this on their own feed without being paid?"**
-If the answer is clearly no — if the concept reads like something only a brand would commission —
-rewrite the hook/vehicle until it passes. The strongest UGC concepts are indistinguishable from
-organic content a creator would post because it's genuinely interesting, funny, or relatable to
-them personally. If the concept only makes sense as an ad, it will perform like an ad.
-
-**Check 13 — Pain depth (from a social-growth tool feedback).**
-Scan for shallow pain framing. If the concept starts with a broad category ("gut health," "immune
-support," "hair growth," "convenience") instead of a specific human moment, push one level deeper:
-- Shallow: "I wanted better gut health" → Deep: "I was unbuttoning my jeans under the table at
-  every dinner"
-- Shallow: "I wanted immune support" → Deep: "My kid brought home 6 colds this year and I caught 4"
-- Shallow: "I wanted convenience" → Deep: "My morning supplement routine took longer than making
-  breakfast"
-The observation should be specific enough that the viewer says "that's me" — not just "that's a
-category I care about."
-
-**Check 14 — "Select, don't rescue" final gate (from telehealth-account feedback).**
-Read each concept one final time and ask: **"Would a creative director put a check beside this
-and move directly into refinement — or would she think 'there's something here I could rewrite'?"**
-If the concept needs rewriting to become good, it's not ready. Kill it and generate something a
-CD checks off immediately. The benchmark is selection-ready, not ideation-stage-with-potential.
-Also verify:
-- Can the client understand the first 3 seconds after reading the slide?
-- Can a producer shoot it tomorrow with the information on this slide?
-- Can you identify what makes this concept different from every other concept in the batch?
-If any answer is no, the concept fails.
-
-**Check 15 — DR spine completeness (v6, from the meal-service account feedback).**
-Read each concept's narrative beats and verify the full spine is present: hook → problem →
-product introduced FAST → mechanism explained → proof/benefit → price/value (when the brand
-allows) → CTA. Failures:
-- The setup takes 70–90% of the beats and the product gets one line at the end → FAIL
-- The product's mechanism is never made explicit (what it is, how it works) → FAIL
-- The ad ends on a clever brand-identity line instead of a payoff/CTA ("At some point you stop
-  apologizing for it" is not a conversion argument) → REWORK the ending
-- The viewer can't say what the offer is after 30 seconds → FAIL
-Fix pattern: keep the vehicle as the HOOK (first 3–5s), then transition quickly into the service/
-product: what it is, how it works, what it costs, what to do.
-
-**Check 16 — Dual scoring: thumb-stopping vs. performance-ready (v6).**
-Score each concept SEPARATELY on two axes, 1–5 each:
-- **Thumb-stop score:** would this stop a scroll in the first 2 seconds? (Intensity, pattern
-  interrupt, curiosity gap, visual surprise.)
-- **Performance-ready score:** does this convert? (DR spine complete, mechanism explicit,
-  conversion density, clear CTA.)
-A concept can be highly creative and still weak as a Meta DR ad. Anything scoring ≤2 on either
-axis gets killed or reworked. The batch average on BOTH axes must be ≥4. Print both scores per
-concept in the review table.
-
-**Check 17 — Intensity check (v6, the principal's 25% rule).**
-For each concept ask: **"What about this grabs your interest?"** and **"Is this worth pulling out
-a phone to capture?"** A compliment, a quiet observation, a calm moment — not worth a video. An
-accusation, a confrontation, being caught, a secret exposed, something surprising happening in
-frame — worth a video. If the honest answer to "what grabs interest" is weak, turn the observation
-up 25%: compliment → accusation ("my nail tech thought I was cheating on her"), quiet mirror moment
-→ comedy sketch (the mirror talks back: "who has the healthiest skin of them all... not you"),
-solo sneaking a drink → partner caught red-handed ("all guys drink this, we just don't talk about
-it"). Same observation, higher voltage.
-
-**Check 18 — Strategy alignment (v6, the Creative Strategist check the principal requested).**
-For every concept, verify against the Batch Strategy Map from Step Zero:
-- Which business objective does this serve? (Must name one.)
-- Which persona is this speaking to? (Must name one — and the scenario must come from that
-  persona's actual world: gym guy → gym-adjacent scenario, not a generic kitchen.)
-- Which selling argument is this testing? (Must name one — and it must differ from at least
-  half the batch.)
-If a concept can't answer all three, it was generated from a "relatable moment" unmoored from
-strategy — kill it and regenerate from the Strategy Map. This check also verifies the deck's
-North Star intro slide exists and accurately lists the objectives/personas/arguments covered.
-
-**After all 18 checks, run a final compliance scan:**
-Read the full batch as if you are the BRAND reviewing before production. Flag anything that makes
-unqualified medical/health claims, names competitors, uses banned language, shows the product in
-unapproved contexts, implies unsubstantiated outcomes, or uses house-style banned words.
-
-**Output format for the Feedback Review Agent:**
-After running all checks, produce a summary table:
+Example (working notes only):
 
 ```
-| # | Title | 1-Same | 2-Veh | 3-Own | 4-Tone | 5-Prod | 6-Seas | 7-Trig | 8-Intro | 9-Proof | 10-Out | 11-Spec | 12-Org | 13-Pain | 14-Sel | 15-DR | 16-Scores | 17-Int | 18-Strat | Verdict |
+Concept 003 · P4 Deal-Hunter · SA2 Exit mechanic · 30s
+Keywords: [silent reveal, screen-record proof, confession, before/after, disbelief]
+
+Candidate                       Msg  Per  Fresh  Prod  Total
+─────────────────────────────  ────  ────  ────  ────  ─────
+Group chat screen record          3    3     1    5     12
+Confession-to-camera              4    5     5    5     19
+Screen record + narration         5    4     5    5     19
+Same-person skit                  2    3     5    5     15
+Wall countdown                    1    3     5    5     14
+
+Winner: Screen record + narration (tiebreak on message fit)
 ```
 
-Verdicts: **PASS** (survives all 18) · **KILL** (failed 1+ checks, replacement needed) ·
-**REWORK** (fixable without full replacement — adjust tone, fix ending, add DR beats, fix
-seasonality).
+**Fit-Check Gate (on the winner):**
+- **Q1 — Fit:** Does this vehicle serve THIS message and persona's world?
+- **Q2 — Variety:** Already used ≥2 times in this batch? Cap at 2 uses.
 
-Kill list → generate replacements from the Batch Strategy Map, then run replacements
-through all 18 checks again. Only a fully-passed batch goes to build.
+If either fails, return to the table for the next-best. Maintain a **vehicle_ledger** across
+the batch.
 
-### 7.6. Compliance & Alignment Review Agent (v6.2 — new, mandatory final gate)
+Once locked, build the DR spine underneath. Prefer proven vehicles (`knowledge_vehicle_bank`);
+borrow trend vehicles when the batch needs freshness, mark them internally.
 
-The **Compliance & Alignment Reviewer** is the fifth agent. It runs AFTER the Feedback Review Agent
-(the 18 checks) and BEFORE deck build. Where the Feedback Review Agent catches CRAFT problems
-(sameness, ownability, feasibility), this agent catches FACTUAL, STRATEGIC, and COMPLIANCE problems
-that only surface when the concept batch is checked against the client's actual source-of-truth
-documents. It is the pass that catches "the client explicitly asked for Spanish-language testing but
-zero concepts do that" and "concept 11 names a 40% discount that isn't the real offer."
+**All v6 rules apply, plus:**
 
-**Why this exists.** Real revision pattern from the snack brand's Batch 2 alignment prep (Sept 2026): the
-first-pass review deck had five concept names paraphrased incorrectly, mis-counted GLP-1 concepts
-(said 0, actually 2), mis-counted college concepts (said 3, actually 1), and recommended adding
-things already present. The one gap it caught correctly (Spanish-language / Black-audience testing)
-was the ONLY item the client actually needed to hear about. The lesson: concept reviews must be
-grounded in the actual source documents, not a paraphrase from memory. The Compliance & Alignment
-Reviewer bakes that discipline in — it reads the sources fresh every run.
+- **DR spine (mandatory).** Hook → problem → product FAST → mechanism → proof → price → CTA.
+  Viewer understands the problem and why the brand is relevant in first few seconds. If setup
+  takes 70–90% and product gets one line at end, the concept fails.
+- **Conversion density.** How much useful selling information does the viewer get in 20–30
+  seconds? Novelty never comes at the expense of explaining the offer.
+- **25%-intensity rule.** Turn observations up via confrontation, accusation, being caught,
+  stakes, secret exposed, competition, background action.
+- **Positive-benefit-first messaging.** "No chalky aftertaste" isn't a selling point. "I just
+  added 400 bioactives to my water and I taste literally nothing" is.
+- **Never counterintuitive brand messaging.** Read every hook literally from the brand's
+  perspective before approving.
+- **Mechanic-to-product match.** "Choose Your Fighter" implies multiple options — fits a
+  4-flavor soda line, not a single-SKU powder. Ask: does this mechanic naturally showcase THIS
+  product's actual structure?
+- **Product-specificity.** Ask: could a competitor run this concept unchanged? If yes, anchor
+  in the brand's unique story.
+- **Creator count — soft default.** Default: one solo creator filming at home. Allow up to two
+  when the concept is meaningfully stronger for it (two-person podcast, partner confrontation,
+  etc.) AND the client's setup supports it. Tag talent count for production planning.
+- **Prop simplicity (hard rule).** BANNED as concept anchors:
+  - Branded merch from a third-party IP the brand hasn't confirmed shipping
+  - A prop stack of 2+ specific-category items the creator wouldn't have at home (a sneaker
+    box AND a specific watch AND a graded card slab = three shipments per creator per concept —
+    fail)
+  - A single specific-category prop requiring sourcing (graded card, designer bag, specific
+    watch, car) unless brand-supplied and tagged `requires brand-supplied product`
+  - Specialty rentals, wardrobe changes across take, multi-take setups, anything requiring the
+    creator to purchase
+  
+  ALLOWED: phone/laptop/tablet, own home, own car, everyday clothes, ONE product sample
+  (brand-supplied), basic household items.
+  
+  Concepts genuinely needing branded merch or specific product get tagged and confirmed with
+  ops before shipping. Never assume creators have graded cards, luxury items, or specific
+  product samples.
+- **Third-party IP naming ban (hard rule).** Even if the brand's catalog includes licensed
+  IPs, DO NOT name them in concept text. Banned: Pokemon, MTG, specific sports leagues, movie/
+  TV franchises, luxury brand names (Rolex, LV, Ferrari), team names, artist names. Use
+  category descriptors:
+  - "a graded card" NOT "a Charizard" or "a Pokemon card"
+  - "a designer watch" NOT "a Rolex"
+  - "a luxury handbag" NOT "a Louis Vuitton"
+  - "a supercar" NOT "a Ferrari"
+  - "the collab pack" NOT "the [named IP] pack"
+  
+  Production can source at shoot time if client confirms IP rights; the concept text must not
+  commit.
+- **Anti-format-gimmick.** Format should be standard UGC. Elaborate format parodies pass ONLY
+  when the product's own story creates the comedy inside the parody.
+- **Anti-supplement-bashing.** Max 2 concepts built on "other products failed." Bulk is built
+  on what makes THIS product's story unique.
+- **Vehicle diversity from libraries.** Pull from libraries + provided viral catalog. Kill
+  vehicle saturation (5+ same vehicle).
+- **Seasonality check.** No holidays/events far from current date.
 
-**Source-of-truth priority order.** The agent reads these in this order and treats later sources
-as overriding earlier ones when they conflict:
+### 7. Five-audit gate
 
-1. **Brand brain (Supabase `jarvis_brand_brain.brand_brain`).** Living compliance record. Products,
-   confirmed offers, dos/don'ts, unauthorized claims, banned language, compliance disclaimers.
-   Query: `SELECT client_name, fields FROM jarvis_brand_brain.brand_brain WHERE client_name ILIKE
-   '%<brand>%'`. Never skip — this is the highest-authority source for compliance.
-2. **Client onboarding deck.** The section titled "Critical information for Batch N" is the direct
-   client brief for THIS batch. Casting rules, audiences to test, design rules (AI imagery yes/no,
-   product image requirements), scripting rules, format restrictions. This is where the Spanish-
-   language and Black-audience testing requirement lives for the snack brand, for example.
-3. **Latest meeting notes.** Kickoff notes, bi-weekly meeting transcripts, latest client Slack
-   feedback. These carry the client's actual stated priorities — the "GLP-1 is the strongest
-   audience" from the client's growth lead on the the snack brand kickoff, or the "swap the generic tubes for the telehealth account's branded
-   imagery" note from the the telehealth account's bi-weekly. Query `public.meeting_transcripts WHERE brand_id = ...`
-   for what's ingested; supplement from the client's Slack channel and any recent emails the user
-   provides.
-4. **Previous batch feedback.** What the client said about the last batch shipped. Look for
-   direction that carries into this batch: "we need more X," "we've over-indexed on Y," "let's
-   test Z next time."
+Run these five audits in order. Kill and replace failures — do not patch.
 
-If any of these sources is unavailable (brand brain empty, meeting notes not ingested), the agent
-must state that up front — it doesn't fabricate a review from thin air, and it doesn't skip the
-step. A shorter, honest review beats a longer, guessed one.
+1. **Full dedup vs. existing library** at insight-family level (not just title). "Supplement
+   Cabinet Graveyard" dupes "Everything I tried to de-bloat and failed" — same insight family.
+2. **Solo-creator + UGC feasibility.** Flag concepts needing a second person.
+3. **Product-specificity.** "The subscription I don't cancel" is generic; kill and replace with
+   product-ownable concepts.
+4. **Brand-alignment.** Compliance, tone, distribution channel, competitive framing, production
+   notes.
+5. **Vehicle saturation + sound-off test.** With audio off, can you sort concepts into distinct
+   visual piles? If 5+ concepts look the same (creator at kitchen counter explaining), kill the
+   weakest.
 
-**The five reviews the agent runs.**
+Then run the Creative Strategist scorecard (`references/creative-strategist.md`).
 
-**Review 1 — Concept name accuracy audit.**
-For every concept in the batch, verify the title and one-line description match the actual concept
-as written. If the review is being run on a batch inherited from a previous session (or from a
-different agent's memory), re-read the source concept file, don't paraphrase from context. Common
-failure mode this catches: a review deck refers to "Bringing My Roommate The Ultimate Girl Dinner
-Because It's Crunch Time For Midterms" when the actual concept is "Bringing My Work Bestie The
-Ultimate Girl Dinner Because It's Crunch Time At The Office" (the snack brand B2). Every concept name and
-one-line summary in the reviewer's output MUST be the exact wording from the source.
+### 7.5. Feedback Review Agent
 
-**Review 2 — Factual accuracy against brand brain.**
-For each concept, extract every factual claim it makes and cross-check against the brand brain:
-- Product names: does the concept reference a product that is CONFIRMED in the brand brain, or a
-  product marked pending clearance (like "an unreleased product line" or "a pending-clearance cream" — both flagged in
-  brand brain as unauthorized)?
-- Offer language: does the concept name a discount, price, or bundle mechanic that matches the
-  confirmed offer? Is "40% off" authorized for THIS product line, or only for another (the telehealth account: 40%
-  off is HRT-confirmed, anti-aging TBD)?
-- Compliance disclaimers: does the concept require a disclaimer per brand brain (clinician
-  consultation, "Individual results may vary," FTC endorsement)?
-- Banned language: does the concept use words the brand has explicitly banned?
-- Unauthorized claims: does the concept promise something the brand cannot substantiate?
+Runs AFTER the strategist gate. Replays revision patterns from real producer feedback across
+the parenting app, a social-growth tool, a social-growth tool, the telehealth account, the colostrum brand, the meal-service account, the agency principal, and the PackDraw
+Batch 1 review. Each check produces PASS / FAIL + kill list. Sequential — a concept surviving
+Check 1 can still die at Check 4.
 
-Every finding is tagged as **HARD FAIL** (concept cannot ship until fixed — e.g., unauthorized
-product name, unsubstantiated medical claim) or **SOFT FAIL** (concept needs a caveat added — e.g.,
-missing "Individual results may vary" disclaimer).
+1. **Batch sameness scan.** 5+ concepts same visual identity → kill weakest until each appears
+   ≤2×. Pull replacements from underused vehicles.
+1b. **Copy repetition scan.** Any product claim/descriptor/proof phrase in more than 3 concepts
+   → distribute across the batch:
+   - 3–4 lead with the stat
+   - 2–3 lead with founder/credential
+   - 2–3 lead with personal experience
+   - 1–2 lead with product experience
+   - 1–2 never explain (concept's comedy/emotion does the selling)
+2. **Vehicle library + viral catalog cross-check.** ≥30% must actively use library/catalog
+   vehicles. If dominated by talking heads, force 5–8 replacements from unused vehicles.
+3. **"Could any brand run this?" ownability test.** Remove brand name — does concept still
+   work with a competitor? If yes, generic — kill.
+4. **Brand-tone calibration.** Compare tone range against the client's approved deck. Edgy
+   subject in standard formats ≠ standard subject in elaborate parodies. Match the emotional
+   register of what the client actually selected.
+5. **Multi-talent + prop simplicity audit.**
+   - Talent: partner reacting = FAIL. Friend on FaceTime = FAIL. Same-person 2 roles = PASS.
+     Creator's pet = PASS.
+   - Location: shootable at home with phone. External location = FLAG or FAIL. Movie theater /
+     TSA / commercial location requiring permission = FAIL.
+   - Prop audit: branded third-party IP not confirmed = FAIL. Stack of 2+ specific-category
+     props = FAIL. Named third-party IP (Pokemon, Rolex, LV, Ferrari, etc.) in concept text =
+     FAIL. Specialty prop / wardrobe changes / purchase required = FAIL. Phone + everyday +
+     one brand-supplied item = PASS.
+6. **Seasonal + contextual audit.** No holidays >6 weeks from current date. No expired trends.
+7. **Believable trigger.** Every concept must answer: "Why is this person showing me this right
+   now?" No trigger → dressed-up testimonial → reject and rebuild with accusation, discovery,
+   comparison, challenge, confession, reaction, or social moment.
+8. **Product introduction variety.** 3+ concepts using same intro mechanic ("That's where [X]
+   came in") → batch is templated. Vary: friend rec, comment response, research, accidental
+   find, partner mention, label reading, gift, social scroll.
+9. **Proof closes the argument.** Gut concept → gut-specific proof. Hair concept → hair-
+   specific proof. Not generic "I feel great."
+10. **Outcome ladder spread.** Don't end every concept with the same result.
+11. **Specificity rule.** One number, timeframe, or tangible detail per concept minimum. FAIL:
+    "it works," "changed everything." PASS: "5 months," "400+ bioactives," "$2/day."
+12. **Unpaid-post filter.** Would a real person post this without being paid? If no, rewrite.
+13. **Pain depth.** Push one level deeper. "I wanted better gut health" → "I was unbuttoning
+    my jeans under the table at every dinner."
+14. **"Select, don't rescue" gate.** Would a CD check this off immediately, or think "there's
+    something here I could rewrite"? If needs rewriting to be good, kill.
+15. **DR spine completeness.** Setup 70–90% and product one line at end = FAIL. Mechanism
+    never explicit = FAIL. Ends on clever brand line instead of payoff/CTA = REWORK.
+16. **Dual scoring.** Thumb-stop (1–5) and Performance-ready (1–5) scored separately. ≤2 on
+    either → kill or rework. Batch average ≥4 on both.
+17. **Intensity check.** "What about this grabs your interest?" If weak, turn observation up
+    25%: compliment → accusation; quiet mirror → talking mirror; solo drink → partner caught.
+18. **Strategy alignment.** Every concept names its objective, persona, and selling argument
+    from the Strategy Map. If it can't, it was generated from a "relatable moment" unmoored
+    from strategy — kill.
+19. **Duration mix audit.** Batch matches Strategy Map distribution (15s ≤ 25%, 30s ≥ 50%,
+    45s ≈ 20%). Skew toward 15s = CD over-defaulted → reassign to match beat counts.
+20. **TikTok Feed Test.** Delete the brand mention — would a real scroller watch to the end?
+    - PASS: scenario inherently interesting without the product
+    - FAIL: scenario only exists to introduce the product — commercial cosplaying as content
+    - Fix: rebuild frame from a real persona scenario, weave product IN
 
-**Review 3 — Strategic coverage against critical info.**
-Read the "Critical information for Batch N" section of the onboarding deck. Enumerate every
-audience, persona, product, and testing goal the client named for THIS batch. Then check the
-concept batch as a whole:
-- If critical info names an audience (e.g., "For Batch 2: Spanish-language and Black-audience
-  testing"), how many concepts address it? If zero, that's a **STRATEGIC GAP**.
-- If critical info names a product mix requirement (e.g., "don't over-index on waffles"), how does
-  the batch distribute?
-- If critical info names design rules (e.g., "avoid AI-generated imagery"), scan every concept's
-  design components for compliance.
+21. **Narrative Chronology check (v7.4 — the agency principal critique).** Every concept explicitly
+    states WHEN it happens on the pain-point timeline (before / during / after / split).
+    Concepts with ambiguous chronology — where a reviewer would ask "is this before, during,
+    or after the pain point?" — FAIL. Rebuild with an explicit timeline the description AND
+    beats commit to.
 
-Strategic gaps are reported at the BATCH level, not per concept — the fix is usually to swap one or
-two existing concepts for concepts that address the gap, not to fix each concept individually.
+22. **Format Mix audit (v7.5 — the agency principal critique, three lanes).** Batch matches the Format
+    Mix from the Strategy Map (default 40% story-testimonial / 30% wild / 30% traditional
+    DR).
+    - If ≥50% is traditional DR (screen record + talking head + sitting in car + at desk
+      with phone), the batch has collapsed into the safe-UGC failure mode.
+    - If story-testimonial drops below 30%, the batch has lost its most relatable lane —
+      the "wow this happened to me" anchor is missing.
+    - If the batch is 100% captured/environmental with no human voice, it has overcorrected
+      into gimmick territory (v7.4 failure mode).
+    - "Person on camera showing his phone" counts as traditional DR, NOT story-testimonial.
+      Story-testimonial has the product off-screen for most of the spot and the character's
+      voice/face doing the selling.
+    Kill the weakest concepts in the overrepresented lane and replace with concepts from
+    the underrepresented lane until the target mix is hit. Veto power over the batch — a
+    batch failing 22 does not ship regardless of every other check passing.
 
-**Review 4 — Meeting-notes alignment.**
-Read the latest meeting notes. Extract the client's stated priorities — what did they say the
-strongest audience is, what did they say converts best, what did they say NOT to do? Then check the
-batch coverage:
-- Are the strongest audiences named in meetings represented in the batch? (the client's growth lead on the the snack brand kickoff:
-  GLP-1 is the strongest audience. If the batch has zero explicit GLP-1 concepts, that's a
-  meeting-alignment gap.)
-- Is the highest-converting mechanic named in meetings represented? (the client's growth lead on the the snack brand kickoff:
-  build-a-bundle is the highest-converting landing page. If only 1 of 22 concepts uses the bundle
-  mechanic, that's underweighted.)
-- Does the batch avoid what the client said NOT to do? (the client's brand lead on the the snack brand kickoff: don't frame
-  as performance nutrition or diet.)
+**Final compliance scan.** Read as if you're the BRAND reviewing before production. Flag
+unqualified medical/health claims, competitor names, banned language, unapproved contexts,
+unsubstantiated outcomes, house-style banned words.
 
-**Review 5 — Previous-batch continuity.**
-If a previous batch shipped, check that the client's feedback on it is reflected in this batch. If
-the client said "Batch 1 statics used generic AI imagery — use branded imagery in Batch 2," verify
-every static concept in this batch respects that. If the client picked 5 of 16 concepts from Batch
-1 and all 5 were the tightest-scripted, verify the loglines in this batch are similarly tight.
+**Verdicts:** PASS (survives all 20) · KILL (failed 1+, replacement needed) · REWORK (fixable —
+adjust tone, fix ending, add DR beats, fix seasonality).
 
-**Output format for the Compliance & Alignment Reviewer.**
+Kill list → generate replacements from Strategy Map, re-run through all 20. Only a fully-passed
+batch goes to the Final Creative Strategy Review.
 
-The agent produces a review report with THREE sections:
+### 7.6. Final Creative Strategy Review (v7.3 — senior social media creative strategist)
 
-```
-## Section 1 — Factual & Compliance Findings (per concept)
+The last gate. Runs AFTER all 20 Feedback Review checks pass. A senior social media creative
+strategist reads the finished concepts as **written creative** — not as inputs to be checked
+against a rubric, but as work about to go to a client. The 20-check gate catches mechanical
+failures; this gate catches concepts that pass every rule but still don't actually work.
 
-| # | Title (exact) | Finding | Source | Severity | Fix |
-|---|---|---|---|---|---|
-| 011 | What's In My the snack brand Snack Bundle | Discount stack (15%+10%+15%) not confirmed | brand_brain | HARD FAIL | Verify with client before ship or generalize to "stackable savings" |
-| 019 | Family Road Trips Have Never Been More Peaceful | "40% off retail" — is this the real number? | brand_brain | HARD FAIL | Confirm exact discount or reframe |
+This reviewer is different from Steps 7 and 7.5. Steps 7/7.5 answer "does this obey the
+rules." Step 7.6 answers **"is this any good, and would I ship it."**
 
-## Section 2 — Strategic Gaps (batch level)
+Grounded in the agency principal's real qualitative feedback patterns across produced batches — the notes
+that don't fit into checkboxes: "this feels like an ad," "the story doesn't land," "the
+product intro is forced," "the description reads like a strategy note," "this one I'd
+actually make."
 
-- **Spanish-language / Black-audience testing** — critical info B2 explicitly names this. Batch has
-  0 concepts. Recommend reframing 1–2 existing concepts as Spanish-language variants OR adding a
-  new concept before Sept 3 alignment.
+**Sourcing rule (borrowed from `concept-alignment-review`).** Every REWRITE or KILL verdict
+cites a specific brand source — a `brand_brain` field (`brand_tone`, `winning_concepts`,
+`losing_patterns`, `dos_and_donts`, `creative_boundaries`, `compliance_notes`), a
+`marketing_report` field, an approved-deck concept from `knowledge_v_concept_approved`, or a
+compliance rule from the brief. No unsourced verdicts. Sourcing forces the reviewer to name
+what the concept violates or misses, not just say "I don't like it." Verbatim quotes from the
+brand's own material are the strongest sources — if `winning_ads` shows a specific pattern the
+concept ignores, cite it.
 
-## Section 3 — Verdicts
+**Review each concept individually (8 questions — v7.4 adds chronology check):**
 
-| # | Title | Verdict | Notes |
-|---|---|---|---|
-| 001 | One Thing That Never Changed While I'm On GLP | PASS | GLP-1 explicit ✓ |
-| 011 | What's In My the snack brand Snack Bundle | REWORK | Confirm discount stack before ship |
-| ... | | | |
-```
+1. **Would you actually ship this to a client tomorrow?** Not "is it clever" — is it a real
+   ad the client would nod at. "Fine," "kind of," "with some work" all fail.
+2. **Does the story make sense end-to-end?** Do the five beats connect naturally? Does beat 2
+   logically follow beat 1? Or does the concept jump between disconnected moments held
+   together only by the description sentence?
+3. **Is the chronology clear (v7.4 — Eric)?** Would Eric ask "is this before, during, or
+   after the pain point?" If yes, the concept is ambiguous. Every concept must commit to a
+   timeline the description and beats both hold.
+4. **Does it fit THIS brand's voice?** Compare against `brand_brain.brand_tone`,
+   `winning_concepts`, `winning_ads`. Would this concept feel at home in their existing
+   library, or does it read like it was written for a different client?
+5. **Is the product actually IN the story, doing something believable?** Or is it mentioned
+   and then bypassed? The product's role has to be load-bearing, not decorative.
+6. **Is it genuinely interesting (v7.4 — the principal's "wow factor" check)?** If you saw this
+   concept in a competitor's deck, would you steal it? Is there a "wow, this idea is really
+   changing everything" moment — or is it just another safe pain-point UGC?
+7. **What is this concept UNIQUELY doing?** Say it in one sentence. Concepts don't have to
+   thematically connect to others in the batch, but each individual concept must have a clear
+   reason to exist on its own terms.
+8. **Is the description well-written?** Read it out loud. Natural cadence, real sentences,
+   product visible in the story. Not choppy childish sentences, not copywriter voice, not a
+   list of things happening in sequence with no rhythm.
 
-Verdicts: **PASS** (no findings) · **REWORK** (SOFT FAIL — fix disclaimer, softening, or specific
-copy line) · **KILL** (HARD FAIL — factual/compliance error the concept can't ship with, needs
-regeneration from Creative Director).
+**Review the batch as a whole (5 questions — v7.4 adds format-mix check).** Note: concepts do
+NOT need to be thematically coherent as a set — they're independent tests. The batch-level
+questions check operational soundness, not thematic unity.
 
-**Loop back to the Creative Director.**
+1. **Format Mix (v7.5 — Eric).** Does the batch hit the Strategy Map's three-lane split
+   (default 40% story-testimonial / 30% wild / 30% traditional DR)? the principal's original test:
+   *"these are 30 pretty strong ideas for things that we know are tried and true... but we
+   need also those elements of 'wow, these ideas are really changing everything.'"* The
+   v7.5 corollary: also need the "wow, this happened to me too" lane — human voice
+   carrying a real story where the product is the cause. If any lane is missing or
+   over-represented, the batch is unbalanced.
+2. **Is there real range across the batch?** Different scenarios, tones, emotional registers
+   — not the same setup five times with different topics. Range doesn't mean coherence; it
+   means the batch actually tests different things.
+3. **Does the batch cover the Strategy Map's personas and selling arguments in balance?** Not
+   "we picked whichever were easiest" — proportional to what the client actually needs to
+   test.
+4. **Would a producer AND a solo creator shooting at home both look at every concept and say
+   "yes, this is shootable"?** A producer checks feasibility (talent count, location,
+   permits, editing lift). A home creator checks the day-of reality — do they own the props,
+   have the space, own the wardrobe, need help holding the camera. Both filters must pass on
+   every concept. If a concept works for the producer but the creator would need a second
+   person or a prop they don't own, it fails.
+5. **Reading in order, is there a clear best 2–3?** If they're all equally-strong (or
+   equally-mediocre), the batch has flattened — some concepts got polished up to match the
+   average instead of the best ones being pushed harder. Sharpen the top; kill the bottom.
 
-Every KILL verdict returns to the Creative Director with:
-1. The exact concept as it was
-2. The finding and its source (brand brain quote, meeting note excerpt, critical info line)
-3. The severity
-4. The fix direction
+**Verdicts, per concept:**
+- **SHIP** — works as-is, goes to delivery.
+- **REWRITE** — fixable with specific notes AND a cited source explaining what's off (a beat
+  that doesn't connect, a description that reads like a strategy note, a product intro that
+  feels bolted-on, an ending that peters out, tone that misses `brand_brain.brand_tone`).
+  Rewrite once and re-review. Max one rewrite cycle here.
+- **KILL** — cited source shows the concept fundamentally violates brand voice, misses the
+  Strategy Map, fails the ship test, or has no reason to exist even after rewrite. Replace
+  from Strategy Map, run replacement through Steps 6 → 7 → 7.5 → 7.6.
 
-The Creative Director regenerates the concept respecting the finding, then the regenerated concept
-returns to the Compliance & Alignment Reviewer for a fresh pass. This loop runs until every concept
-is PASS or REWORK — no KILL verdicts survive into the deck build.
+**Verdict, batch-level:**
+- **SHIP the batch** — individually all SHIP and all 4 batch questions pass.
+- **RESHAPE the batch** — one or more batch-level questions fail. Rework distribution,
+  kill weakest, add missing angles or personas. Do NOT just rewrite descriptions to fake
+  diversity — the underlying concepts have to differ.
 
-REWORK verdicts do NOT loop through the CD — the Creative Strategist applies the specific fix
-(add disclaimer, adjust copy) and the batch proceeds to build. The distinction matters: KILL means
-the concept's premise is wrong; REWORK means the concept's premise is right but a detail needs a
-caveat.
+Only a batch that passes both individual and holistic review goes to Step 8.
 
-**Honest reporting rules.**
+### 8. Deliver (text by default, deck only on request)
 
-The agent must operate under the same discipline that its own creation was born from:
-- Every concept name in the report is copy-pasted from the source, never paraphrased.
-- Every count (of concepts addressing an audience, using a mechanic, featuring a product) is
-  verified by naming the concept numbers, not asserted from memory.
-- Every claim the report makes about the source ("brand brain says X," "critical info says Y") is
-  quoted, not summarized.
-- When a source is unavailable, the report states which review it couldn't run, and why, before
-  presenting findings from the reviews it could run.
-- When a review turns up nothing, the report says so — "Review 2 (factual accuracy) surfaced no
-  findings; brand brain and concept claims align" is a valid and honest section.
+**Default: deliver concepts as plain text in-chat.** Title, description, narrative bullets,
+design components bullets — nothing else. No .pptx unless the user explicitly asks ("build the
+deck," "make it a pptx," "put it in a deck," "send me the file").
 
-The Compliance & Alignment Reviewer is the last gate before a deck goes to a client. If it does
-its job, factual errors, compliance violations, and named strategic gaps never reach the client's
-inbox. If it hallucinates, the whole skill loses credibility. Honesty over completeness.
+**When the user asks for the deck:** write the config JSON (`references/config-example.json`)
+and run `scripts/build_deck.js`. Numbering continues the brand's library. Accent is always
+`7A3FF2`.
 
-### 8. Build the deck
-Write the config JSON (`references/config-example.json` for shape) and run `scripts/build_deck.js`.
-Numbering continues the brand's library. **Accent is always `7A3FF2` — never the brand's own hex.**
+**North Star intro slide (mandatory when deck is built).** Deck's second slide (after cover) is
+the Batch Strategy Map. A reviewer opening the deck cold must understand the strategy before
+slide 3.
 
-**North Star intro slide (v6 — mandatory).** The deck's second slide (after the cover) is the
-Batch Strategy Map: the business objectives this batch serves, the target personas it speaks to,
-and the selling arguments it tests — with the concept number ranges mapped to each. A reviewer
-opening the deck cold must understand the strategy before seeing a single concept. Sections of the
-deck are organized by objective/persona, not thrown together.
+**Per-slide strategy tags — internal only, not printed on the concept.** Persona, selling
+argument, awareness, production lane, duration, vehicle ID live in the config JSON / internal
+working notes only. Do NOT print a `Brand · Persona · SA · Awareness · Lane · Vehicle #NNN`
+line on the client-facing concept.
 
-**Per-slide strategy tags (v6).** Every concept slide carries its persona and selling argument in
-the footer tags alongside awareness stage and production lane (e.g., "Bodybuilder · Mechanism ·
-Problem Aware · Creator UGC · 2-talent").
+### 9. QA render & present (deck path only)
 
-### 9. QA render & present
+Runs only when a .pptx was built:
+
 ```
 python /mnt/skills/public/pptx/scripts/office/validate.py <out.pptx>
 python /mnt/skills/public/pptx/scripts/office/soffice.py --headless --convert-to pdf <out.pptx>
 pdftoppm -jpeg -r 95 <out.pdf> q
 ```
-View the longest slides for overflow. Present with `present_files`; delivery note: open in Google
+
+View longest slides for overflow. Present with `present_files`. Delivery note: open in Google
 Slides or File → Import slides into the client deck. Offer add-ons: 9:16 image-gen prompts
 (`references/image-prompts.md`), trend-reference notes doc (never on slides).
 
-## The slide format (house standard)
+## Slide format (house standard, v7.2)
 
-Each concept is ONE slide — left ~63%, reserved 9:16 box right:
+Each concept is ONE slide — left ~63%, reserved 9:16 box right. Structure locked: **Title ·
+Description · Narrative (5 beats) · Design Components (5 details)**. Hooks live in the script
+phase (`ad-script-writer`), not on the concept slide.
 
-- **Title** — `NNN_Title`, brand accent color. **Must name or strongly imply the creative vehicle.**
-  "HRT Dating Profile" ✓ · "Bank Account Is Confused" ✓ · "Vacation Countdown" ✓ ·
-  "I Became My Own Doctor" ✗ (it's a line, not a vehicle).
-- **Description — what we're making, not why it works.** 2-3 sentences of plain, 5th-grade language.
-  Say: **the creator format, the at-home situation/scene, the one core message, and how the brand
-  fits in.** Do NOT explain the strategy ("positions...", "reframes...", "dramatises..."). The client
-  should understand the whole idea after reading it once.
+- **Title** — punchy concept-level name reflecting the creative idea or format — NOT the hook.
+  `NNN_Title`, brand accent color. "HRT Dating Profile" ✅ · "Bank Account Is Confused" ✅ ·
+  "I Became My Own Doctor" ❌ (a line, not a vehicle).
 
-  **Casual pitch tone (v5).** Descriptions and loglines should read like you're telling a friend
-  about the ad over coffee — not like you're analyzing it in a strategy deck. Tell the STORY of
-  what happens on screen. Ban any sentence that explains WHY the concept works or names the
-  persuasion device:
-  - ✗ "The simplicity of the label IS the ad."
-  - ✗ "The social friction of explaining colostrum IS the content."
-  - ✗ "The reorder compulsion IS the proof."
-  - ✗ "The visual reduction is the argument."
-  - ✗ "The [X] IS the [Y]" — any sentence with this construction.
-  - ✗ "The concept sells..." / "The concept never mentions..." / "The concept vends..."
-  - ✗ "Primary message:" tags or explicit selling-message labels.
-  - ✓ "She flips the jar around, reads the back — one ingredient. That's it. She puts it down."
-  - ✓ "She tries to explain colostrum to her Uber driver and it goes exactly how you'd expect."
-  - ✓ "Quick cuts through 4 months of one scoop a day — she doesn't explain anything, just shows
-    what changed."
+- **Description** — a 2–3 sentence summary describing the creative vehicle (UGC, sketch,
+  trend, interview, b-roll montage, ring cam, mockumentary, etc.) and how the brand/product
+  is woven into it. Avoid any specific hooks or dialogue — this is about STRUCTURE, not
+  scripting.
 
-  The rule: if the sentence is about the CONCEPT rather than about what HAPPENS ON SCREEN, delete
-  it. A good description is a mini-story. A bad description is a strategy note.
-- **Narrative — EXACTLY 3 action-based bullets (v6).** Short, visual, producer-ready. Compress
-  multiple beats into each bullet when needed. The three bullets accomplish: (1) establish the
-  situation/problem/curiosity/premise, (2) introduce the product/mechanism/proof/benefit, (3)
-  deliver the payoff and transition toward the CTA. Use action verbs: "Open with...", "Cut to...",
-  "Show...", "Close with...". Vary how the product enters and how the concept ends across the
-  batch — no template. **The narrative must be hook-independent** — it works with any of the three
-  hook variants.
-- **Design Components — EXACTLY 3 bullets (v6).** The three most important production/editing
-  choices for THIS concept: one visual/editing direction, one caption/design direction, one style/
-  production/duration direction. Skip UGC boilerplate. Every device listed must already appear in
-  the description or narrative — never parachute in.
-- **Hooks — EXACTLY 3 variants (v6, new section on every slide).** Each hook is a spoken opening
-  line and/or on-screen overlay. The three variants explore meaningfully different angles into the
-  same concept — not the same sentence reworded. Hooks are interchangeable: the concept works with
-  any of them. They must sound natural, be understood immediately, and make the target persona
-  want to keep watching. Hooks live on the slide now (this supersedes the old hooks-only-on-image-
-  prompts rule).
+  The description tells the reader WHAT KIND of ad this is, not WHAT HAPPENS in it. The
+  story specifics live in the narrative bullets, not here. If the description reads as a
+  full story synopsis, it's too long — cut it back to format + brand fit.
+
+  **Length target: 2–3 sentences. Never more than 3.** If the third sentence doesn't
+  describe the vehicle or the brand's role, cut it.
+
+  **What belongs in the description:**
+  - Creator format (talking-head UGC, walking selfie, sitting-in-car, kitchen-counter,
+    ring cam, screen record, mockumentary, sports parody, b-roll montage)
+  - Setting/scene in one phrase (at his kitchen counter, walking to work, on his mom's
+    couch, front porch)
+  - How the brand/product fits into the vehicle (anchor, punchline, cause of the story,
+    demo on screen, corner overlay)
+
+  **What does NOT belong in the description:**
+  - The full anecdote or story beats — those live in the narrative
+  - Specific dialogue or hooks
+  - What each individual beat looks like
+  - The ending or payoff
+  - Product mechanics explained ("cash out to crypto in 4 seconds...")
+
+  **Ban all copy-writer voice in the description:**
+  - Metaphors and figurative language: "the numbers do the talking," "the interface carries
+    itself" → replace with what literally is on screen
+  - Hook lines and taglines dropped into narration: "Not the watch. The pack." → those
+    live in the script phase, not the concept description
+  - Conclusion sentences: "That's the whole thing." → the description ends when the format
+    + brand fit are named, not with a wrap-up line
+  - "The [X] IS the [Y]" construction — any variant of it
+  - "The concept sells/vends/never mentions/positions/reframes..." → strategy notes, not
+    story
+  - "Primary message:" tags or explicit selling-message labels
+
+  A good description is a short structural summary a producer could staff and a strategist
+  could tag by format at a glance. A bad description is a mini-story, a strategy note, or
+  an ad script fragment.
+
+- **Narrative — EXACTLY 5 bullet beats.** Flexible for any format. The five beats accomplish,
+  IN ORDER:
+  1. Opening moment or visual cue that grabs attention.
+  2. How the brand or product is introduced contextually.
+  3. What key message or transformation is communicated.
+  4. Any supporting moment (testimonial, demo, reaction, unboxing, screen record).
+  5. How it wraps with a payoff or CTA.
+  
+  **Write each bullet as clean prose describing what happens on screen. DO NOT prefix beats**
+  with production labels ("Open with...", "Cut to...", "Match cut:", "POV:", "Overlay:", "Back
+  to..."). The category is implicit from the beat's position; the bullet reads like a mini-
+  story sentence.
+  
+  **Vary sentence structure across the five beats.** Never open more than one beat with the
+  same phrase (repeating "Back to the phone" three times = fail).
+
+- **Design Components — EXACTLY 5 bullets.** Visual + editing style. IN ORDER, cover:
+  1. Content style (lo-fi UGC, polished b-roll, sketch, talking head, split screen)
+  2. Editing pace and transitions (jump cuts, wipes, slo-mo, snap zooms)
+  3. Captioning format (raw native subs, bold branded text, meme-style overlays)
+  4. Platform-optimized overlays (CTA banners, URL tags, emojis, product pins)
+  5. Recommended duration + aspect ratio (matched to Strategy Map's duration mix)
+  
+  **Print the descriptive text directly WITHOUT the label prefix.** No "Content style:",
+  "Editing pace:", "Captioning format:", "Recommended duration:". Category is implicit from
+  position. Each bullet is a plain-language sentence.
+  
+  Every device listed must already appear in description or narrative — never parachute in.
+
+- **No overlay copy or disclaimer text in the concept output (hard rule).** The concept
+  describes what HAPPENS. It does NOT include specific overlay copy or compliance disclaimer
+  wording. Banned from description, narrative, and design components:
+  - Specific overlay text in quotes ('Overlay: "$12 PACK · $400 WATCH"', 'Overlay: "One
+    app."')
+  - Compliance/eligibility disclaimer copy ("18+ · Eligibility varies by country · Don't
+    spend more than you can afford to lose", "Results not typical")
+  - Specific URL strings as copy (`packdraw.com`) — the DESIGN COMPONENTS bullet can say
+    "sticky URL end card" as a style choice, but never the URL string as copy
+  
+  Overlay wording and disclaimer copy are **script-phase and compliance-phase decisions**, not
+  concept-phase. `ad-script-writer` writes overlay copy; compliance QA confirms disclaimer
+  language. Concept slide describes the STYLE of captioning/overlays (bullets 3 and 4 of
+  Design Components) without committing to specific words.
+  
+  If the concept truly hinges on a specific line of on-screen copy (a question that IS the
+  visual), name that ONE line inline in the description prose without formatting it as an
+  "Overlay:" callout. Full overlay set gets written downstream.
+
 - **9:16 mockup space** — reserved (the generator draws it).
 
 CTA copy and full scripts stay in the script phase.
 
-## Revising / reformatting an existing deck
-Apply feedback as a craft pass using the **keep / adjust / replace** lens in craft-rules, then run
-the strategist gate on the full revised set (survivors included) before rebuilding. Change the
-thinking underneath, not just the words. If revising against client feedback, cite the feedback in
-the change log so it's clear what shifted.
+## Revising an existing deck
 
-**After the client finalizes a batch:** ask for (or fetch) the final deck and run a **survival
-diff** — what survived, what was retitled, what was replaced, and what the replacements have in
-common. Replacement patterns become new composition targets or craft rules. The v4 composition
-targets came from exactly this exercise on the telehealth account's Batch 3 (3 of 16 survived; the replacements were
-differentiator-built, stat-led, second-character, trend-templated, funnier, and awareness-tagged).
+Apply feedback as a craft pass using **keep / adjust / replace** in craft-rules. Run the
+strategist gate on the full revised set (survivors included) before rebuilding. Change the
+thinking underneath, not just the words. Cite the feedback in the change log.
+
+**After the client finalizes a batch:** run a **survival diff** — what survived, what was
+retitled, what was replaced, and what the replacements have in common. Replacement patterns
+become new composition targets or craft rules.
 
 ## Five-agent pipeline summary
 
-The skill runs five agents in sequence. Nothing is built until all five pass.
-
-1. **Strategic Analyst (v6, the agency principal's "Step Zero")** — reads the marketing report BEFORE any
-   ideation and produces the Batch Strategy Map: business objectives × target personas × selling
-   arguments, with concept allocation across them. Prints as the deck's North Star intro slide.
-   Uses question-led brainstorming: Who is this for? What's the goal? What do we want them to know?
-   How do we enter their world?
-2. **Creative Director** — takes each assigned objective × persona × selling argument, harvests
-   observations from that persona's world, makes creative leaps into vehicles-as-hooks, builds the
-   DR spine underneath. Applies the 25%-intensity rule.
-3. **Creative Strategist** — reviews every concept against the craft scorecard. Kills bad craft.
-4. **Feedback Review Agent** — replays **18 revision checks** distilled from real producer feedback
-   across the parenting app, a social-growth tool, a social-growth tool, the telehealth account, the colostrum brand, the meal-service account, and the agency principal's reviews:
-   1. Batch sameness scan (the colostrum brand: "these all feel the same")
-   1b. Copy repetition scan (the colostrum brand: same claims in every concept = one ad in different outfits)
-   2. Vehicle library cross-check (the colostrum brand: "look into the vehicle library")
-   3. Ownability test (a social-growth tool: "could a competitor run this?")
-   4. Brand-tone calibration (the colostrum brand: "review the concept deck and see the examples")
-   5. Production feasibility (solo/at-home DEFAULT, 2-talent and location shoots allowed with tags)
-   6. Seasonal + contextual audit (the colostrum brand: "thanksgiving is far from today")
-   7. Believable trigger (a social-growth tool: "why is this person showing me this right now?")
-   8. Product introduction variety (a social-growth tool: don't repeat "That's where X came in")
-   9. Proof closes the argument (a social-growth tool: proof must match the narrative promise)
-   10. Outcome ladder spread (a social-growth tool: don't end every concept with the same result)
-   11. Specificity rule (a social-growth tool: one number, timeframe, or tangible detail per concept)
-   12. Unpaid-post filter (a social-growth tool: "would someone post this without being paid?")
-   13. Pain depth (a social-growth tool: push one level deeper than the broad benefit)
-   14. "Select, don't rescue" gate (the telehealth account: "would a CD check this off immediately?")
-   15. DR spine completeness (the meal-service account: hook → problem → product FAST → mechanism →
-       proof → price → CTA; don't end when the selling should start)
-   16. Dual scoring (the meal-service account: thumb-stopping and performance-ready scored separately)
-   17. Intensity check (the principal: 25% more intense than real life; "what grabs your interest?")
-   18. Strategy alignment (the principal: every concept names its objective, persona, and selling argument
-       from the Batch Strategy Map)
-
-   Sources: the `AI Concepting Engine Feedback` Notion page, the the meal-service account Deck 1 DR
-   feedback, and the Eric × Ricardo AI Connect meeting (Aug 25, 2026) — real revision patterns
-   from produced batches, not theoretical rules.
-5. **Compliance & Alignment Reviewer (v6.2, new)** — the final gate before build. Re-reads the
-   client's actual source-of-truth documents in priority order (brand brain in Supabase, batch
-   critical info from onboarding, latest meeting notes, previous batch feedback) and runs five
-   reviews against the concept batch: (1) concept name accuracy — every title copy-pasted from
-   source, never paraphrased; (2) factual accuracy against brand brain — product names, offers,
-   prices, banned language, unauthorized claims; (3) strategic coverage against critical info —
-   audiences named for testing, product-mix requirements, design rules; (4) meeting-notes alignment
-   — strongest audiences, highest-converting mechanics, "do not do" list; (5) previous-batch
-   continuity — client feedback from last batch reflected in this one. Every finding cites its
-   source. KILL verdicts loop back to the Creative Director for regeneration; REWORK verdicts get a
-   copy fix from the Creative Strategist; PASS verdicts proceed to build. Born from the the snack brand
-   Batch 2 alignment prep, where the first-pass review had 5 concept names paraphrased incorrectly
-   and mis-counted the strategic mix — the correct gap it caught (Spanish-language / Black-audience
-   testing) was overshadowed by errors that would have broken the deck's credibility.
+1. **Strategic Analyst** — reads `marketing_report` + `brand_brain` from Supabase (hard stop if
+   missing), produces Batch Strategy Map: objectives × personas × selling arguments × concept
+   allocation × duration mix. Prints as North Star intro slide.
+2. **Creative Director** — builds the Relatable Frame (deletable-brand test), runs Message
+   Visualization (5+ ways to visualize the message before touching a vehicle — v7.4), checks
+   Narrative Chronology (before/during/after/split — v7.4), runs Vehicle Candidate Search
+   across THREE pools (bank + researched + Step 4 viral formats — v7.4), applies Fit-Check
+   Gate (cap 2 per batch), audits Prop Simplicity + IP Naming ban, enforces the Batch Format
+   Mix (traditional vs wild — v7.4). Applies 25%-intensity throughout.
+3. **Creative Strategist** — reviews every concept against the craft scorecard. Kills bad
+   craft.
+4. **Feedback Review Agent** — runs 22 sequential mechanical checks distilled from real
+   producer feedback (dedup, vehicle diversity, DR spine, TikTok Feed Test, Chronology,
+   Format Mix). Kill list generates replacements from the Strategy Map.
+5. **Final Creative Strategy Reviewer** — senior social media creative strategist reads the
+   finished concepts as written creative and judges quality holistically. Sourcing rule from
+   `concept-alignment-review`: every REWRITE or KILL verdict cites a specific
+   `brand_brain` / `marketing_report` / `winning_concepts` / compliance-rule source — no
+   unsourced verdicts. 8 questions per concept (ship-worthy, story coherence, chronology
+   clarity, brand fit, product involvement, wow factor, unique reason to exist, description
+   quality). 5 questions on the batch (Format Mix, real range, persona/SA balance, producer +
+   home-creator shootability, clear best 2–3). Concepts do NOT need to be thematically
+   coherent as a set. Verdicts: SHIP / REWRITE / KILL per concept, SHIP / RESHAPE at batch
+   level. Only a fully-passed batch goes to delivery.
 
 ## Reference files
-- `references/craft-rules.md` — the full craft: title rules, description rules, narrative rules,
-  design rules, one-persuasion-job, five-dimension diversity, sound-off test, worked examples.
+
+- `references/craft-rules.md` — title/description/narrative/design rules, worked examples.
 - `references/creative-strategist.md` — reviewer role, scorecard, verdicts, change log.
-- `references/libraries.md` — living libraries: **human observation prompts (the harvest bank),
-  vehicles, tensions, native formats, proof behaviors, hook modes, outcome ladder.** Extend when
-  research surfaces new patterns.
-- `references/image-prompts.md` — UGC image-gen prompts for the 9:16 stills.
+- `references/libraries.md` — observation prompts, vehicles, tensions, native formats, proof
+  behaviors, hook modes, outcome ladder.
+- `references/image-prompts.md` — UGC image-gen prompts for 9:16 stills.
 - `references/config-example.json` — minimal valid config.

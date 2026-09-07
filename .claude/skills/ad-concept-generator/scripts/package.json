@@ -1,8 +1,9 @@
 {
   "name": "ad-concept-generator-scripts",
   "private": true,
-  "description": "Deck builder deps. Installed here on purpose: Node resolves require() from the script's directory, so putting pptxgenjs beside build_deck.js removes any need for NODE_PATH.",
+  "version": "1.0.0",
+  "description": "Query helpers for the ad-concept-generator skill's knowledge-base integration.",
   "dependencies": {
-    "pptxgenjs": "^4.0.1"
+    "pg": "^8.23.0"
   }
 }

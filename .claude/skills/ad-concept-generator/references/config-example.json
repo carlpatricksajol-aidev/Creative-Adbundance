@@ -1,52 +1,45 @@
 {
   "brand": {
-    "name": "Brand Name",
+    "name": "the colostrum brand",
     "agency": "Creative AdBundance",
     "accent": "7A3FF2",
     "font": "Poppins",
-    "coverTitle": "Ad Concepts \u2014 Batch 1",
-    "coverSubtitle": "10 concepts \u00b7 UGC-first, native to Meta \u00b7 one specific moment each"
+    "coverTitle": "Ad Concepts — Test v6",
+    "coverSubtitle": "Testing 3-hook layout + North Star slide"
+  },
+  "northStar": {
+    "objectives": ["Lower blended CAC on the powder line", "Test the bodybuilder persona entry"],
+    "personas": ["Bodybuilding men 25–40 (concepts 001)", "Exhausted moms 32–42 (concepts 002)"],
+    "arguments": ["Mechanism (gut barrier)", "Multi-benefit simplicity", "Founder credibility"]
   },
   "sections": [
     {
-      "title": "Theme A \u00b7 USP",
-      "sub": "Concepts 001\u2013002",
+      "title": "Test Section",
+      "sub": "Concept 001",
       "concepts": [
         {
           "num": "001",
-          "title": "Example Concept Title",
-          "desc": "Two to three sentences: the creative vehicle, the scene, the emotional arc, and how the product fits. Concrete enough that a producer knows what to shoot.",
+          "title": "The Powder Bodybuilders Don't Talk About",
+          "desc": "A locker-room-energy talking head where a gym guy reveals the one powder serious lifters take but never post about. He walks through why it's different from his protein stack — one ingredient, gut-level recovery — and dares the viewer to look it up.",
           "narrative": [
-            "Open on the customer in a recognizable moment, stating the specific problem.",
-            "Cut through quick b-roll of the pain/build.",
-            "Cut to a screen recording of the product in use as the turn.",
-            "Voiceover names the USP/benefit plainly.",
-            "Cut to the improved outcome playing out.",
-            "Close on the payoff line and a soft CTA."
+            "Open with him mid-reveal, holding the jar low like it's contraband — he checks over his shoulder, then leans in.",
+            "Cut to him mixing one scoop into water while he explains the mechanism: gut barrier first, everything else follows — recovery, energy, fewer sick days.",
+            "Close with the empty glass, the jar face-up to camera, and the line 'Now you know. 30% off your first order — link below.'"
           ],
           "design": [
-            "The one signature device unique to this concept.",
-            "The editing rhythm or overlay treatment that matters here.",
-            "Duration: 20\u201330 seconds."
+            "Talking head with punch-ins on the jar and the mix — locker-room confessional energy, natural light",
+            "Static native subtitles, 1–2 words max per line, bold keyword highlights on 'one ingredient' and 'gut barrier'",
+            "Duration: 20–25s · the colostrum brand Partner badge + FDA disclaimer on close"
+          ],
+          "hooks": [
+            "The strongest guys at my gym all take this and none of them post about it.",
+            "My protein shake has 6 ingredients. My recovery has one.",
+            "A pediatric neurologist made the one supplement bodybuilders actually gatekeep."
           ],
           "awareness": "Problem Aware",
-          "lane": "Creator UGC"
-        },
-        {
-          "num": "002",
-          "title": "A Different-Vehicle Concept",
-          "desc": "Use a different creative vehicle so it doesn't read like the previous slide.",
-          "narrative": [
-            "Open in a distinctly different structure (e.g. listicle, parody, before/after).",
-            "Build the bit.",
-            "Introduce the product beat.",
-            "Land the single USP.",
-            "Close with payoff + soft CTA."
-          ],
-          "design": [
-            "Only what's unique to this concept.",
-            "Duration: 15\u201325 seconds."
-          ]
+          "lane": "Creator UGC",
+          "persona": "Bodybuilder",
+          "argument": "Mechanism"
         }
       ]
     }

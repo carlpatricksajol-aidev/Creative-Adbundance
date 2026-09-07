@@ -125,7 +125,7 @@ Score each check pass/fail with a one-line reason. A concept ships only when ALL
 ### The heavy new checks (v3 — most concepts fail here first)
 
 1. **Title shows the execution.** Can a reader picture the ad from the title alone? "HRT Dating
-   Profile" ✓ · "I Became My Own Doctor" ✗ (it's a line, not a vehicle). If the title is a
+   Profile" ✅ · "I Became My Own Doctor" ❌ (it's a line, not a vehicle). If the title is a
    headline or an emotional line rather than a vehicle, reject the title.
 2. **One creative leap present.** Is this insight → cultural behavior → vehicle → brand? Or is it
    insight → directly-into-ad? If direct, reject the concept — a creative leap can't be patched in.
@@ -162,7 +162,7 @@ Score each check pass/fail with a one-line reason. A concept ships only when ALL
    writing pretty around a thin insight.
 9. **UGC feasibility.** Shootable by one creator at home with a phone, the product, and normal
    household objects (+ one partner for a two-hander). Elaborate sets / cast / drone / hired
-   locations / custom props — reject.
+   locations / custom props → reject.
 10. **Consistency across sections.** Every device in Design Components must already appear in the
     description or narrative. If it was parachuted in at the end, either add it to those sections
     or cut it from design.

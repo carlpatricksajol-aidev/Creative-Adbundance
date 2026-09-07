@@ -19,6 +19,7 @@ const brand = require('./dossier');
 const research = require('./research');
 const store = require('./store');
 const harness = require('./harness');
+const knowledge = require('./knowledge');
 const { canonNum, numSet } = require('./num');
 
 const SKILL_DIR = process.env.SKILL_DIR ||
@@ -41,7 +42,7 @@ async function vehicleMenu(usedLines) {
   const u = process.env.SUPABASE_URL, k = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
   if (!u || !k) return null;
   try {
-    const res = await fetch(u + '/rest/v1/knowledge_vehicle_bank?select=vehicle_id,name,description,production_path',
+    const res = await fetch(u + '/rest/v1/knowledge_vehicle_bank?select=vehicle_id,name,description,production_path,mechanic_summary,hook_strategy,proven_by,needs_review,duration&needs_review=not.is.true',
       { headers: { apikey: k, authorization: 'Bearer ' + k }, signal: AbortSignal.timeout(12000) });
     if (!res.ok) return null;
     let rows = await res.json();
@@ -59,9 +60,14 @@ async function vehicleMenu(usedLines) {
       const t = rows[i]; rows[i] = rows[j]; rows[j] = t;
     }
     const pick = rows.slice(0, VEHICLE_SAMPLE);
+    /* the fields the skill's own fetch-vehicles.js renders: mechanic, hook
+       strategy, and how many approved concepts have backed the vehicle */
     const lines = pick.map(function (v) {
-      return '- [' + v.production_path + '] ' + v.name + ': ' +
-        String(v.description || '').slice(0, 160);
+      const proven = Array.isArray(v.proven_by) ? v.proven_by.length : 0;
+      return '- ' + v.name + (proven ? ' (proven ' + proven + 'x)' : '') + ' [' + (v.production_path || 'any path') +
+        (v.duration ? ', ' + v.duration : '') + ']: ' + String(v.description || '').slice(0, 140) +
+        (v.mechanic_summary ? ' Mechanic: ' + String(v.mechanic_summary).slice(0, 120) : '') +
+        (v.hook_strategy ? ' Hook strategy: ' + String(v.hook_strategy).slice(0, 100) : '');
     }).join('\n');
     /* Carl's ruling (2026-09-05): Batch 4 and 5 were skill + references +
        Supabase and NOTHING else, and they were good. Every rulebook bolted on
@@ -101,6 +107,18 @@ function skillDoc() {
   catch { throw new Error(`missing SKILL.md at ${p}. Is the repo checked out and up to date?`); }
 }
 
+/* One section of the skill by its heading, so a reviewer stage can be handed
+   the skill's own checklist (Step 7's audits, Step 7.5's 22 checks, Step 7.6's
+   questions) verbatim, and Ricardo's edits to those lists reach the reviewers
+   on the next run with no deploy. Empty when the heading is not found. */
+function skillSection(startHeading, endHeading) {
+  const doc = skillDoc();
+  const i = doc.indexOf(startHeading);
+  if (i < 0) return '';
+  const j = endHeading ? doc.indexOf(endHeading, i + startHeading.length) : -1;
+  return doc.slice(i, j > i ? j : undefined).trim();
+}
+
 const SKILL_PREFACE = `THE SKILL YOU ARE EXECUTING, in full. This is the source of truth for what a
 concept is and how one is written. The mechanical steps it describes (deck building, file output,
 rendering scripts) are handled by the service around you, so ignore instructions about producing
@@ -134,11 +152,12 @@ const CONCEPT = {
     dur: { type: 'string' },
     desc: { type: 'string' },
     hooks: { type: 'array', items: { type: 'string' }, minItems: 3, maxItems: 3 },
+    /* v7.5 slide format: EXACTLY 5 narrative beats and 5 design components */
     narrative: V6
-      ? { type: 'array', items: { type: 'string' }, minItems: 3, maxItems: 3 }
+      ? { type: 'array', items: { type: 'string' }, minItems: 5, maxItems: 5 }
       : { type: 'array', items: { type: 'string' }, minItems: 5, maxItems: 6 },
     design: V6
-      ? { type: 'array', items: { type: 'string' }, minItems: 3, maxItems: 3 }
+      ? { type: 'array', items: { type: 'string' }, minItems: 5, maxItems: 5 }
       : { type: 'array', items: { type: 'string' }, minItems: 2, maxItems: 4 },
     /* v6 Step Zero triple, one each, named not invented */
     objective: { type: 'string' },
@@ -182,8 +201,23 @@ const OBS_SCHEMA = {
       },
     },
     notes: { type: 'string' },
+    /* v7.5 Step 4B: the third vehicle pool, ways of capturing a scene that
+       already work on the platform for this persona */
+    viral_formats: {
+      type: 'array', minItems: 5, maxItems: 10,
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          name: { type: 'string' },
+          capture_style: { type: 'string' },
+          why_it_fits: { type: 'string' },
+        },
+        required: ['name', 'capture_style', 'why_it_fits'],
+      },
+    },
   },
-  required: ['observations', 'notes'],
+  required: ['observations', 'notes', 'viral_formats'],
 };
 
 const BATCH_SCHEMA = {
@@ -280,11 +314,14 @@ const STRATEGY_SCHEMA = {
     },
     north_star: { type: 'string' },
     gaps: { type: 'array', items: { type: 'string' } },
+    /* v7.5 Step 0 outputs 5 and 6 */
+    duration_mix: { type: 'string' },
+    format_mix: { type: 'string' },
   },
-  required: ['objectives', 'personas', 'selling_arguments', 'allocation', 'north_star', 'gaps'],
+  required: ['objectives', 'personas', 'selling_arguments', 'allocation', 'north_star', 'gaps', 'duration_mix', 'format_mix'],
 };
 
-/* v6 Feedback Review Agent. 18 checks, distilled from real producer feedback.
+/* v6 Feedback Review Agent. 22 checks, distilled from real producer feedback.
    Per concept it returns a verdict and, when it edited, the concept AFTER the
    edit, same as the strategist gate. */
 const FEEDBACK_SCHEMA = {
@@ -390,6 +427,13 @@ sentences, because the scenarios come from the world, not from the product.
 formats carrying the same argument is one test, not three.
 4. Allocation. Distribute all ${count} slots across objective by persona by selling argument.
 The slots must sum to exactly ${count}.
+5. Duration mix, in duration_mix: assigned by story needs per the skill's Step 0, scaled to
+${count} concepts. Where the snapshot carries PRODUCTION CONSTRAINTS with a duration band from the
+account team, that band is the whole mix and overrides the skill's default split.
+6. Format mix, in format_mix: the skill's three lanes (story-testimonial UGC, wild/organic/viral,
+traditional DR) with the count per lane for this batch, adjusted to this client's creative
+appetite from the approved library where one is on file. Name the lane each allocation row
+belongs to.
 
 north_star is the deck's intro slide in two or three plain sentences: over the course of this
 deck you will see ideas that hit these objectives, for these audiences, testing these arguments.
@@ -453,14 +497,15 @@ Selling arguments to test: ${strategy.selling_arguments.join('; ')}
 
 Allocation:
 ${strategy.allocation.map((a) => `- ${a.slots} concept(s): ${a.persona} x ${a.selling_argument} (objective: ${a.objective})`).join('\n')}
+${strategy.duration_mix ? '\nDuration mix: ' + strategy.duration_mix : ''}${strategy.format_mix ? '\nFormat mix: ' + strategy.format_mix : ''}
 ${strategy.gaps.length ? `\nUnconfirmed, do not build a concept that depends on these: ${strategy.gaps.join('; ')}` : ''}`;
 }
 
-async function stageHarvest({ snapshot, prior, log, ask, researchMd, strategy, harvestMd }) {
+async function stageHarvest({ snapshot, prior, log, ask, researchMd, strategy, harvestMd, categoryMd }) {
   log('Human observation harvest', 'running');
   const out = await ask({
     system: `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules are below.\n\n${ref('craft-rules.md')}\n\nYour libraries, including the observation harvest bank:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent. The confidence labels are honest, respect them:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}\nALREADY DONE FOR THIS CLIENT, do not reuse these observations:\n${prior || '(nothing on file)'}\n\nRun step 4 of the skill: the human observation harvest, before any concept is written.
+    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}${categoryMd ? '\n' + categoryMd + '\n' : ''}\nALREADY DONE FOR THIS CLIENT, do not reuse these observations:\n${prior || '(nothing on file)'}\n\nRun step 4 of the skill, both halves: A, the human observation harvest, and B, the viral format harvest, before any concept is written.
 ${harvestMd ? `A real harvest is above, gathered from public sources with a link on every line. START FROM IT.
 Carry its observations through in the customer's own words rather than restating them, and spend
 your own invention only on the gaps its coverage note admits to. An observation you can trace to a
@@ -470,6 +515,11 @@ because a smoother one occurred to you.
 Mine 18 to 22 specific human observations for this ICP. Each must be a specific behaviour,
 thought, situation, conversation or internet habit someone in this audience would recognise
 in one second. Not a benefit. Not an angle. Not a theme.
+Then part B, in viral_formats: 5 to 10 viral formats for these personas. Not talking-head
+templates: actual ways of capturing a scene that already work on the platform for this audience
+(captured moments, character-driven parody, environmental storytelling, meme formats in this
+persona's feed, absurdist product involvement, screen-capture-as-story). Name the format, its
+capture style, and why it fits this persona's world.
 ${strategy ? `Harvest from the WORLD OF THE PERSONAS named in the Strategy Map above, persona by
 persona. An observation set in a generic kitchen when the persona lives at the gym is the
 failure this step exists to prevent. Cover every persona.\n` : ''}Weight the harvest toward the winner set in winning_concepts, but source every observation
@@ -479,16 +529,20 @@ which angles you weighted toward.`,
     schema: OBS_SCHEMA,
     maxTokens: 16000,
   });
-  log('Human observation harvest', 'done', `${out.observations.length} observations harvested`);
+  log('Human observation harvest', 'done', `${out.observations.length} observations and ${(out.viral_formats || []).length} viral formats harvested`);
   return out;
 }
 
-async function stageWrite({ snapshot, prior, observations, count, startNum, log, ask, researchMd, strategy, harvestMd }) {
+async function stageWrite({ snapshot, prior, observations, count, startNum, log, ask, researchMd, strategy, harvestMd, viralFormats, categoryMd }) {
+  const viralMd = (viralFormats || []).length
+    ? '\n\nViral formats harvested for these personas (Step 4B), the third vehicle pool alongside the bank and the researched library:\n' +
+      viralFormats.map((f, i) => `${i + 1}. ${f.name} (${f.capture_style}): ${f.why_it_fits}`).join('\n')
+    : '';
   log('Creative Director pass', 'running');
   const obsList = observations.map((o, i) => `${i + 1}. [${o.insight_family}] ${o.text}`).join('\n');
   const out = await ask({
     system: `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent. Researched vehicles are fair game for the creative leap, and a trend-verified or corroborated one beats a stale guess. Thin entries are leads, not facts:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}\nALREADY DONE, do not repeat these:\n${prior || '(nothing on file)'}\n\nObservations harvested for this client:\n${obsList}\n\nRun step 5. Write ${count} concepts, numbered from ${startNum} upward.
+    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}${categoryMd ? '\n' + categoryMd + '\n' : ''}\nALREADY DONE, do not repeat these:\n${prior || '(nothing on file)'}\n\nObservations harvested for this client:\n${obsList}${viralMd}\n\nRun step 6, the Creative Director pass. Write ${count} concepts, numbered from ${startNum} upward.
 ${strategy ? `Work down the allocation. Take one allocation row, pick an observation from THAT
 persona's world, then write the concept. Every concept must carry the objective, persona and
 selling_argument of the row it was written against, copied exactly as the Strategy Map words
@@ -522,16 +576,19 @@ default, not a law.
 ` : ''}Per concept, in this order: pick an observation, make ONE creative leap into a specific
 vehicle, assign ONE persuasion job, then write it up. Do not dramatise an observation
 directly; the vehicle IS the ad.
-${V6 ? `'narrative' is EXACTLY 3 action-based bullets: establish the situation, introduce the
-product or mechanism or proof, deliver the payoff and turn toward the CTA. Compress several
-beats into one bullet where the concept needs it. The narrative must be hook-independent, so it
-reads correctly with any of the three hooks.
-'design' is EXACTLY 3 bullets: one visual or editing direction, one caption or design direction,
-one style or production or duration direction. No UGC boilerplate. Every device named here must
-already appear in the description or the narrative.
-'hooks' is EXACTLY 3 variants that explore meaningfully different angles into the same concept,
-not one sentence reworded three times. Each is a spoken opening line or on-screen overlay, and
-the concept must work with any of them.
+${V6 ? `The slide format is the skill's, v7.5: Title, Description, Narrative of EXACTLY 5 beats, Design
+Components of EXACTLY 5 bullets. 'desc' is the description: two or three sentences naming the
+creative vehicle and how the brand is woven into it, structure not story, no hooks, no dialogue,
+no metaphor, no strategy note. 'narrative' is EXACTLY 5 beats in the skill's order (the opening
+moment, how the product enters, the key message or transformation, the supporting moment, the
+payoff or CTA), each a clean prose sentence of what happens on screen with no production-label
+prefix, sentence structure varied across the five. 'design' is EXACTLY 5 bullets in the skill's
+order (content style, editing pace and transitions, captioning format, platform overlay style,
+duration and aspect ratio), printed without label prefixes; every device named must already
+appear in the description or the narrative. No overlay copy, no disclaimer wording and no URL
+strings anywhere in desc, narrative or design: those are script-phase and compliance-phase.
+'hooks' is 3 candidate opening lines for the script phase and the mockup caption, meaningfully
+different angles into the same concept; they are internal and never printed on the slide.
 'intensity_device' names the one device that turns the observation up (confrontation, accusation,
 being caught, stakes, a secret exposed, a competition, something happening in the background).
 'visual_family' is the sound-off identity in two or three words (talking head, two-hander skit,
@@ -542,15 +599,11 @@ piles without reading the copy.
 sentences. It is not the hook and not a summary of the ad.
 'desc' is what we are making, not why it works: the creator format, the scene, the one core
 message, how the brand fits. Plain fifth-grade language, no strategist register.
-Batch rules: at most two concepts per insight family, and every prior concept fed in above
-counts toward its family's cap, so a family a past batch already used twice is CLOSED;
-the sound-off test between every pair.
-Composition targets: the v4 quotas in craft-rules assume a 16-concept batch. This batch is
-${count}, so scale them proportionally. At 5 that means: at least 1 stat-led using only the
-snapshot's own numbers, at least 1 with a second character, at least 1 in a graphic or
-animated lane, at most 1 where a trend format is the delivery system, no two concepts in
-the same register, and at least two awareness stages represented.
-Vary how the product enters and how each concept ends.`,
+Batch rules: the Strategy Map's format mix and duration mix are the composition targets for this
+batch, scaled to ${count} concepts; the skill's Fit-Check gate (a vehicle at most twice) and the
+insight-family cap of two hold at every size, and every prior concept fed in above counts toward
+its family. Run the sound-off test between every pair. Vary how the product enters and how each
+concept ends.`,
     schema: BATCH_SCHEMA,
     maxTokens: 64000,
   });
@@ -565,7 +618,7 @@ async function stageGate({ snapshot, concepts, log, ask }) {
 
   const results = await Promise.all(groups.map((g) => ask({
     system: `You are the Creative Strategist, the last gate before a client sees this work. Your reviewer role and scorecard:\n\n${ref('creative-strategist.md')}\n\nThe craft rules you are checking against:\n\n${ref('craft-rules.md')}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n\nRun your full scorecard on each concept below. Be hard: reject or edit on a title that does
+    prompt: `${snapshot}\n\n${skillSection('### 7. Five-audit gate', '### 7.5.')}\n\nRun the five audits above in order, then your full scorecard on each concept below. Be hard: reject or edit on a title that does
 not let a reader picture the ad, a missing creative leap, more than one persuasion job, a
 sibling it would look identical to with the sound off, strategist language in the copy,
 manufactured cleverness, anything not shootable at home, a design component never set up in
@@ -593,58 +646,18 @@ CONCEPTS:\n${JSON.stringify(g, null, 1)}`,
 
 /* v6 Feedback Review Agent. The strategist catches craft; this catches what
    only shows up when a producer sits with the whole batch. Sent the batch
-   whole, because 12 of the 18 checks are batch-level. */
+   whole, because 12 of the 22 checks are batch-level. */
 async function stageFeedback({ snapshot, concepts, strategy, log, ask }) {
-  log('Feedback review, 18 checks', 'running');
+  log('Feedback review, 22 checks', 'running');
   const out = await ask({
     system: `You are the Feedback Review Agent, the fourth agent in the pipeline. You run AFTER the Creative Strategist and BEFORE anything is built. You replay revision patterns learned from real producer feedback across every client batch. Your craft rules:\n\n${ref('craft-rules.md')}\n\nThe strategist scorecard you are layered on top of:\n\n${ref('creative-strategist.md')}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}\nRun all 18 checks over this batch, in order. Checks 1, 1b, 2, 7c, 10 and the quota checks are
-BATCH-LEVEL: judge them by reading the whole batch as a set, the way a producer would.
+    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}\n${skillSection('### 7.5. Feedback Review Agent', '### 7.6.')}
 
-1. Batch sameness. Would a producer sort these into distinct piles, or start stacking? Clusters
-of 3 or more same-looking concepts fail; the weakest per cluster is the one that goes.
-1b. Copy repetition. Read every description and narrative back to back as continuous text. Any
-product claim, stat, credential or proof phrase appearing in more than 3 concepts fails. Each
-concept leads with ONE primary selling message; the others sit down for that concept.
-2. Vehicle library cross-check. At least 30 percent of the batch actively uses a real vehicle,
-not a standard talking head with a different topic.
-3. Ownability. Strip the brand name out. If a competitor's product drops in unchanged, it fails.
-4. Brand-tone calibration. Match the tone range this brand has actually approved. Do not answer
-edgy subject matter with elaborate format parody, or warm confessional with deadpan sarcasm.
-5. Production feasibility. Solo at home is the default. 2-talent and a realistic external
-capture PASS when tagged. A cast of 3 or more, or a location needing permission, FAILS.
-6. Seasonal and contextual. Anything tied to a holiday or moment more than 6 weeks out fails.
-7. Believable trigger. Why is this person showing me this right now? No trigger, no concept.
-7c. Stock beats and skeletons. A beat type recurring across most concepts is a template even
-when everything around it varies.
-8. Product introduction variety. Three or more concepts entering the product the same way fails.
-9. Proof closes the argument the hook opened. Generic proof fails.
-10. Outcome ladder spread. Five or more concepts ending on the same kind of result fails.
-11. Specificity. At least one number, timeframe, social detail or tangible object per concept.
-12. Unpaid-post filter. Would a real person post this without being paid?
-13. Pain depth. A broad category instead of a specific human moment fails; push one level deeper.
-14. Select, don't rescue. Would a creative director check this off and move into refinement, or
-think "there is something here I could rewrite"? The second is a fail.
-15. DR spine completeness. Hook, problem, product FAST, mechanism, proof, price where allowed,
-CTA. Setup eating 70 to 90 percent of the beats fails. An ending on a clever brand line instead
-of a payoff is a REWORK.
-16. Dual scoring. Re-score thumb_stop and performance_ready yourself, 1 to 5. Anything at 2 or
-below on either axis is a KILL or a REWORK. Report in batch_findings whether the batch average
-clears 4 on both axes.
-17. Intensity. What about this grabs your interest? Is it worth pulling out a phone for? Weak
-answers get the observation turned up 25 percent, not deleted.
-18. Strategy alignment. Every concept must name one objective, one persona and one selling
-argument from the Strategy Map, the scenario must come from that persona's world, and the
-selling argument must differ from at least half the batch.
-
-Then a final compliance scan: read the batch as the brand would before production and flag
-unqualified health claims, named competitors, banned language, or unsubstantiated outcomes.
-
-Verdicts: PASS survives all 18. REWORK is fixable without replacing the premise. KILL is a
-premise-level failure. You do NOT rewrite: you judge, and the Creative Director rewrites from
-your note. So the note is the deliverable: for REWORK, quote the failing lines and prescribe the
-fix; for KILL, brief the replacement in one paragraph, keeping the allocation slot's objective,
-persona and selling argument.
+Run every check above over this batch, in order, judging the batch-level ones by reading the
+whole batch as a set, the way a producer would. You do NOT rewrite: you judge, and the Creative
+Director rewrites from your note. So the note is the deliverable: for REWORK, quote the failing
+lines and prescribe the fix; for KILL, brief the replacement in one paragraph, keeping the
+allocation slot's objective, persona and selling argument.
 
 In failed_checks list the check numbers that failed for that concept. In batch_findings record
 the batch-level results, naming the weakest offender wherever a batch-level check failed.
@@ -655,7 +668,7 @@ THE BATCH:\n${JSON.stringify(concepts, null, 1)}`,
   });
   const reviews = out.reviews || [];
   const t = reviews.reduce((a, r) => { a[r.verdict] = (a[r.verdict] || 0) + 1; return a; }, {});
-  log('Feedback review, 18 checks', 'done',
+  log('Feedback review, 22 checks', 'done',
     `${t.PASS || 0} pass, ${t.REWORK || 0} reworked, ${t.KILL || 0} replaced` +
     (out.batch_findings && out.batch_findings.length ? `, ${out.batch_findings.length} batch finding${out.batch_findings.length === 1 ? '' : 's'}` : ''));
   return out;
@@ -723,6 +736,58 @@ THE BATCH:\n${JSON.stringify(concepts.map((c) => ({
         ((out.sources_missing || []).length ? `, ${out.sources_missing.length} source${out.sources_missing.length === 1 ? '' : 's'} unavailable` : '')
       : 'no findings, the batch and the brand record agree' +
         ((out.sources_missing || []).length ? `, though ${out.sources_missing.length} source${out.sources_missing.length === 1 ? ' was' : 's were'} unavailable` : ''));
+  return out;
+}
+
+/* v7.5 Step 7.6, the last gate: a senior social media creative strategist
+   reads the finished concepts as written creative and asks "is this any good,
+   would I ship it". Verdicts only, every REWRITE or KILL sourced to the brand's
+   own material; the Creative Director does the rewriting. */
+const FINAL_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    reviews: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          num: { type: 'string' },
+          verdict: { type: 'string', enum: ['SHIP', 'REWRITE', 'KILL'] },
+          source: { type: 'string' },
+          note: { type: 'string' },
+        },
+        required: ['num', 'verdict', 'source', 'note'],
+      },
+    },
+    batch_verdict: { type: 'string', enum: ['SHIP', 'RESHAPE'] },
+    batch_note: { type: 'string' },
+  },
+  required: ['reviews', 'batch_verdict', 'batch_note'],
+};
+
+async function stageFinalReview({ snapshot, concepts, strategy, log, ask }) {
+  log('Final creative strategy review', 'running');
+  const out = await ask({
+    system: `You are the senior social media creative strategist who runs the last gate, Step 7.6 of the skill. You read finished concepts as written creative about to go to a client, not as inputs to a rubric.\n\n${skillSection('### 7.6. Final Creative Strategy Review', '### 8.')}\n\nThe craft rules the concepts were written to:\n\n${ref('craft-rules.md')}\n${HOUSE_RULES}`,
+    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}\nReview each concept with the 8 questions and the batch with the batch questions. Every REWRITE or
+KILL cites its source: a brand_brain field, a marketing_report line, an approved-library concept or
+a compliance rule, quoted where you can. You do NOT rewrite: for REWRITE, quote what fails and
+prescribe the fix; for KILL, brief the replacement in one paragraph keeping the slot's objective,
+persona and selling argument. Only what you would ship tomorrow is SHIP.
+
+THE BATCH:\n${JSON.stringify(concepts.map((c) => ({
+      num: c.num, title: c.title, desc: c.desc, narrative: c.narrative, design: c.design,
+      objective: c.objective, persona: c.persona, selling_argument: c.selling_argument,
+      awareness: c.awareness, lane: c.lane, dur: c.dur, visual_family: c.visual_family,
+    })), null, 1)}`,
+    schema: FINAL_SCHEMA,
+    maxTokens: 32000,
+  });
+  const t = (out.reviews || []).reduce((a, r) => { a[r.verdict] = (a[r.verdict] || 0) + 1; return a; }, {});
+  log('Final creative strategy review', 'done',
+    `${t.SHIP || 0} ship, ${t.REWRITE || 0} rewrite, ${t.KILL || 0} kill, batch ${out.batch_verdict}`);
   return out;
 }
 
@@ -834,7 +899,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   const { record, matched } = await brand.resolve(client);
   /* the client's brief rides with the snapshot as data, exactly like the report */
   const brief = store.getBrief(record.brand.brand_name) || store.getBrief(client) || {};
-  const snapshot = brand.toMarkdown(record) + briefMd(brief);
+  let snapshot = brand.toMarkdown(record) + briefMd(brief);
   /* Say what the snapshot was actually built from. A run grounded in a brand
      with no marketing plan and no compliance rules should say so in the step,
      not read identical to one that had both. */
@@ -898,6 +963,33 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
       ', duration rule >30s attached'
     : 'the vehicle bank is unreachable, so the skill\'s own libraries carry the batch alone');
 
+  /* The skill's other two knowledge pools, which the ecosystem never fed:
+     the client's approved concepts (Step 1 tone appetite, Step 2 full dedup)
+     and the adjacent category's real ads (Step 4 context). Ricardo's "not
+     pulling all information correctly" was these. */
+  const nameSet = [record.brand.brand_name, record.brand.client_name, client].filter(Boolean);
+  log('Approved library', 'running');
+  let approved = null;
+  try {
+    approved = await knowledge.fetchApproved(nameSet);
+    log('Approved library', 'done', approved
+      ? `${approved.count} approved concepts on file for ${approved.clients.join(', ')}, read for tone and dedup`
+      : 'no approved concepts in the library for this client yet, tone comes from the brand record alone');
+  } catch (err) {
+    log('Approved library', 'done', 'could not read the approved-concept view (' + err.message.slice(0, 60) + ')');
+  }
+  if (approved) snapshot += '\n\n' + approved.md;
+
+  log('Category ads', 'running');
+  let categoryMd = null;
+  try {
+    const cat = await knowledge.fetchCategoryAds({ names: nameSet, category: record.snap && record.snap.category });
+    if (cat) { categoryMd = cat.md; log('Category ads', 'done', `${cat.count} adjacent-category ads read (bucket: ${cat.bucket}), adoption signal only`); }
+    else log('Category ads', 'done', 'no adjacent-category ads on file for this brand or its category');
+  } catch (err) {
+    log('Category ads', 'done', 'could not read the scraped-ad table (' + err.message.slice(0, 60) + ')');
+  }
+
   /* The audience harvest, if one has been posted for this client. Absence is
      reported honestly rather than passed over: a batch built on imagined
      observations should say so in its own step log. */
@@ -932,10 +1024,11 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     ? await stageStrategy({ snapshot, count, log, ask: trackedAsk, researchMd })
     : null;
 
-  const harvest = await stageHarvest({ snapshot, prior, log, ask: trackedAsk, researchMd, strategy, harvestMd });
+  const harvest = await stageHarvest({ snapshot, prior, log, ask: trackedAsk, researchMd, strategy, harvestMd, categoryMd });
   const drafted = await stageWrite({
     snapshot: snapshotPlus, prior, observations: harvest.observations, count, startNum,
     log, ask: trackedAsk, researchMd, strategy, harvestMd,
+    viralFormats: harvest.viral_formats, categoryMd,
   });
   /* THE HARNESS. Three layers, three owners: the skill is the method (Ricardo),
      the client brief is the constraints (account team), and this is the code
@@ -985,7 +1078,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   }
 
   let rounds = 0;
-  while (notes.size && rounds < 2) {
+  const rewriteRound = async () => {
     rounds++;
     const items = concepts.filter((c) => notes.has(canonNum(c.num)))
       .map((c) => ({ concept: c, notes: notes.get(canonNum(c.num)) }));
@@ -997,7 +1090,19 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     log('Code checks', 'done', lint.size
       ? `after rewrite ${rounds}: ${lint.size} still failing (${lintSummary(lint)})`
       : `after rewrite ${rounds}: every concept clears the code checks`);
+  };
+  if (notes.size) await rewriteRound();
+
+  /* v7.5 Step 7.6 runs on the batch that passed the mechanical gates. Its
+     REWRITE and KILL verdicts get the one rewrite cycle the skill allows. */
+  let finalReview = null;
+  if (V6) {
+    finalReview = await stageFinalReview({ snapshot, concepts, strategy, log, ask: trackedAsk });
+    for (const r of finalReview.reviews || []) {
+      if (r.verdict && r.verdict !== 'SHIP') note(r.num, `FINAL CREATIVE STRATEGY REVIEW (${r.verdict}, source: ${r.source}): ${r.note}`);
+    }
   }
+  if (notes.size && rounds < 2) await rewriteRound();
   for (const c of concepts) {
     const issues = lint.get(canonNum(c.num));
     if (!issues) continue;
@@ -1057,6 +1162,12 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     /* the brief's production notes ride on the batch so the board can show
        them once, instead of every concept carrying the disclaimer text */
     production_notes: brief.production_notes || null,
+    final_review: finalReview && {
+      batch_verdict: finalReview.batch_verdict, batch_note: finalReview.batch_note,
+      reviews: (finalReview.reviews || []).map((r) => ({ num: r.num, verdict: r.verdict, source: r.source, note: r.note })),
+    },
+    used_approved_library: Boolean(approved),
+    used_category_ads: Boolean(categoryMd),
     brief_used: Boolean(brief.client),
     lint_rounds: rounds,
     lint_remaining: lint.size,
