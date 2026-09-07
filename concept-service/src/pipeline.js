@@ -602,7 +602,21 @@ const VIS_SCHEMA = {
   required: ['slots'],
 };
 
-async function stageVisualize({ snapshot, strategy, observations, viralFormats, poolCount, brief, log, ask }) {
+/* The skill's human-situation test, in code: the chosen visualization is a
+   scene from the persona's life and must read without the product. Brand
+   name, app, account, pack, page, screen, browsing: any of these in the
+   situation means the product is the scene, and Batches 21 and 22 shipped
+   exactly that. */
+const PRODUCT_SCENE = /\b(apps?|accounts?|balance|browsers?|tabs?|pages?|screens?|screen[- ]?record(ing)?|sessions?|packs?|catalogu?e|categor(y|ies)|checkout|records?|withdraw(al|s)?|deposit|notifications?|listing|product (page|detail)s?|platform|website|site)\b/i;
+function humanSituation(text, brandName) {
+  const t = String(text || '');
+  if (!t.trim()) return 'empty';
+  if (brandName && new RegExp(brandName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(t)) return `names the brand`;
+  const m = t.match(PRODUCT_SCENE);
+  return m ? `the product is the scene ("${m[0]}")` : null;
+}
+
+async function stageVisualize({ snapshot, strategy, observations, viralFormats, poolCount, brief, brandName, log, ask }) {
   log('Message visualization', 'running');
   const obsList = observations.map((o, i) => `${i + 1}. [${o.insight_family}] ${o.text}`).join('\n');
   const formats = (viralFormats || []).map((f, i) => `${i + 1}. ${f.name} (${f.capture_style}): ${f.why_it_fits}`).join('\n');
@@ -636,9 +650,45 @@ a vehicle and do not write a concept here.`,
     schema: VIS_SCHEMA,
     maxTokens: 48000,
   });
-  const slots = out.slots || [];
+  let slots = out.slots || [];
   const vis = slots.reduce((a, sl) => a + (sl.visualizations || []).length, 0);
-  log('Message visualization', 'done', `${slots.length} slots, ${vis} visualizations, one chosen per slot`);
+
+  /* the human-situation test on every choice; swap, then ask again once */
+  let swapped = 0;
+  const failing = () => slots.filter((sl) => humanSituation(sl.chosen && sl.chosen.situation, brandName));
+  for (const sl of failing()) {
+    const alt = (sl.visualizations || []).find((v) => v.deletable_brand_pass && !humanSituation(v.situation, brandName));
+    if (alt) {
+      sl.chosen = { label: alt.label, situation: alt.situation, trigger: alt.trigger, why: `Chosen by the code check: the first choice ${humanSituation(sl.chosen.situation, brandName)}, and a situation must read without the product.` };
+      swapped++;
+    }
+  }
+  let redone = 0;
+  const still = failing();
+  if (still.length) {
+    const again = await ask({
+      system: `You are the Creative Director on this account, redoing the skill's Message Visualization step for a few slots.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n${HOUSE_RULES}`,
+      prompt: `${snapshot}\n\nThese slots failed the skill's human-situation test: every visualization named the product, the app, an account, a pack, a page or a screen, so the product was the scene. A visualization is a moment from the persona's LIFE, the kind of thing that happens whether or not the product exists, and the product enters later as the thing that resolves it. Redo Sub-procedures 1 and 2 for exactly these slots, keeping each slot's objective, persona, selling argument, lane, awareness, duration, observation, insight family and persuasion job as given, and choose a visualization that passes.\n\n${still.map((sl) => `Slot ${sl.slot}: ${JSON.stringify({ objective: sl.objective, persona: sl.persona, selling_argument: sl.selling_argument, lane: sl.lane, awareness: sl.awareness, duration_s: sl.duration_s, observation: sl.observation, insight_family: sl.insight_family, persuasion_job: sl.persuasion_job })}\nFailed because: ${humanSituation(sl.chosen && sl.chosen.situation, brandName)}`).join('\n\n')}`,
+      schema: VIS_SCHEMA,
+      maxTokens: 24000,
+    });
+    for (const nu of again.slots || []) {
+      const i = slots.findIndex((sl) => Number(sl.slot) === Number(nu.slot));
+      if (i < 0) continue;
+      if (humanSituation(nu.chosen && nu.chosen.situation, brandName)) {
+        const alt = (nu.visualizations || []).find((v) => v.deletable_brand_pass && !humanSituation(v.situation, brandName));
+        if (alt) nu.chosen = { label: alt.label, situation: alt.situation, trigger: alt.trigger, why: 'Chosen by the code check on the second pass: the first choice named the product.' };
+      }
+      slots[i] = { ...slots[i], ...nu, slot: slots[i].slot };
+      redone++;
+    }
+  }
+  const left = failing().length;
+  log('Message visualization', 'done',
+    `${slots.length} slots, ${vis} visualizations, one chosen per slot` +
+    (swapped ? `; ${swapped} choice${swapped === 1 ? '' : 's'} swapped by the human-situation check` : '') +
+    (redone ? `; ${redone} slot${redone === 1 ? '' : 's'} redone` : '') +
+    (left ? `; ${left} still name the product` : ''));
   return slots;
 }
 
@@ -1316,7 +1366,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   const poolCount = Math.min(15, Math.max(count * 3, count + 3));
   const visSlots = await stageVisualize({
     snapshot, strategy, observations: harvest.observations, viralFormats: harvest.viral_formats,
-    poolCount, brief, log, ask: trackedAsk,
+    poolCount, brief, brandName: record.brand.brand_name, log, ask: trackedAsk,
   });
   const vehSlots = await stageVehicles({
     snapshot, visSlots, vehicles, researchMd, viralFormats: harvest.viral_formats, log, ask: trackedAsk,
