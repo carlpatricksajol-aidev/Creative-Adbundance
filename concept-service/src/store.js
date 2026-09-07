@@ -426,11 +426,13 @@ function priorContext(client, capChars = 9000) {
   for (const meta of prev) {
     const b = getBatch(meta.id);
     if (!b) continue;
+    /* Title and family only. With the observation text included, thirty
+       prior concepts were nine thousand characters of "already done" pushing
+       the writer away from every natural human story toward contrivance;
+       Ricardo dedupes against titles. */
     const lines = (b.concepts || []).map((c) => {
       let l = `- "${c.title}"`;
-      if (c.insight_family) l += ` [family: ${c.insight_family}]`;
-      if (c.observation) l += ` observation: ${String(c.observation).slice(0, 160)}`;
-      else if (c.logline || c.hook) l += ` logline: ${String(c.logline || c.hook).slice(0, 120)}`;
+      if (c.insight_family) l += ` [${c.insight_family}]`;
       return l;
     });
     const block = `${b.client}, batch of ${String(b.savedAt).slice(0, 10)} (${lines.length} concepts):\n` + lines.join('\n');

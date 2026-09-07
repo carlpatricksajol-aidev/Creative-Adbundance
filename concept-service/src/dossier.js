@@ -129,6 +129,25 @@ async function fetchMarketingReport(brandName, clientName) {
 
 const configured = () => Boolean(KL_URL);
 
+/* Delete the duplicate compliance rows the report extraction appends on every
+   run, keeping the earliest of each. Same key as the render-time dedupe, so
+   what the model sees and what the table holds agree. Returns rows removed. */
+async function dedupeRules(brandId) {
+  if (!brandId || !configured()) return 0;
+  return withDb(async (c) => {
+    const { rowCount } = await c.query(
+      `delete from compliance_rules r
+        using compliance_rules keep
+        where r.brand_snapshot_id in (select id from brand_snapshots where brand_id = $1)
+          and keep.brand_snapshot_id = r.brand_snapshot_id
+          and left(regexp_replace(lower(keep.rule), '[^a-z0-9 ]+', ' ', 'g'), 60)
+            = left(regexp_replace(lower(r.rule), '[^a-z0-9 ]+', ' ', 'g'), 60)
+          and keep.created_at < r.created_at`,
+      [brandId]);
+    return rowCount || 0;
+  });
+}
+
 async function withDb(fn) {
   if (!configured()) {
     const e = new Error('the Knowledge Layer is not configured on this server');
@@ -344,17 +363,23 @@ function toMarkdown(rec) {
        defect in five batches traced back to this one row being obeyed. When a
        marketing report exists it owns audience, claims and guardrails, and
        the brain contributes tone and appetite only. */
+    /* Ricardo's gold run reads the brain in full: his North Star's selling
+       arguments (provably-fair trust, crypto cash-out, "$500M+ paid, 7K+
+       shipped, 71M+ opens") come straight from product_benefits. So the brain
+       stays a full source. The two fields that are disclaimer COPY are left
+       out when the report is on file, because the skill's own slide rule is
+       that disclaimer wording never appears in a concept, and those two
+       fields were exactly where the strips came from. */
     const webOnly = /AI web research/i.test(String(brain.notes || ''));
-    const TONE_ONLY = new Set(['key_offer', 'brand_tone', 'brand_personality', 'creative_brief',
-      'dos_and_donts', 'creative_boundaries', 'winning_hooks', 'winning_concepts', 'losing_patterns']);
+    const DISCLAIMER_COPY = new Set(['compliance_notes', 'disclaimer_text']);
     const fields = report
-      ? BRAIN_FIELDS.filter(([key]) => TONE_ONLY.has(key))
+      ? BRAIN_FIELDS.filter(([key]) => !DISCLAIMER_COPY.has(key))
       : BRAIN_FIELDS;
-    out.push('## BRAND BRAIN, the account record' + (report ? ' (tone and appetite only)' : ''));
-    out.push(report
-      ? '_Background to the marketing report above, which owns the audience, the claims and the compliance guardrails. Nothing here is a claim to use, a persona to write for, or a rule to enforce._' +
-        (webOnly ? ' _This row was assembled by web research, not from the client\'s own documents, so treat even its tone notes as a lead._' : '') + '\n'
-      : '_Onboarding knowledge. No marketing report is on file for this brand, so this is the fullest record available._\n');
+    out.push('## BRAND BRAIN, the account record');
+    out.push((report
+      ? '_The account record. Where it and the marketing report above disagree, the report and its compliance guardrails win._'
+      : '_Onboarding knowledge. No marketing report is on file for this brand, so this is the fullest record available._') +
+      (webOnly ? ' _This row was assembled by web research rather than from the client\'s own documents; a specific figure or mechanism that appears only here is a lead to confirm, not a claim to print._' : '') + '\n');
     for (const [key, title] of fields) {
       const v = brain[key];
       if (v == null || String(v).trim() === '' || String(v) === '[]') continue;
@@ -396,11 +421,30 @@ function toMarkdown(rec) {
 
   /* Compliance is the one section where being wrong is expensive, so it is
      rendered rule by rule with its severity rather than summarised. */
-  S('COMPLIANCE RULES', rules.length
-    ? rules.map((r) => `- ${r.rule}` +
-        `${r.severity ? ` _[${r.severity}]_` : ''}` +
-        `${r.safe_alternative ? `\n  - say instead: ${r.safe_alternative}` : ''}` +
-        `${r.required_disclaimer ? `\n  - disclaimer required: ${r.required_disclaimer}` : ''}`).join('\n')
+  /* The rules table is an extraction of the report's own guardrails, and the
+     extraction APPENDS on every run: PackDraw went from 15 rows to 98 in three
+     days, with "include responsible-play framing" eleven times over, which is
+     how responsible-play strips ended up written into design components. So
+     the rows are made distinct here, and when the report is on file (its
+     guardrails already render verbatim above) they are kept short and capped,
+     hard severities first. Without a report they are the only compliance
+     source and render in full. */
+  const seenRule = new Set();
+  const distinctRules = rules.filter((r) => {
+    const k = String(r.rule || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+    if (!k || seenRule.has(k)) return false;
+    seenRule.add(k); return true;
+  });
+  const hardFirst = distinctRules.slice().sort((a, b) =>
+    (/hard|block|must/i.test(b.severity || '') ? 1 : 0) - (/hard|block|must/i.test(a.severity || '') ? 1 : 0));
+  const shown = report ? hardFirst.slice(0, 25) : hardFirst;
+  S('COMPLIANCE RULES' + (report ? ` (${shown.length} distinct of ${rules.length} on file; the report's guardrails above are the authority)` : ''), shown.length
+    ? shown.map((r) => report
+        ? `- ${String(r.rule).slice(0, 160)}${r.severity ? ` _[${r.severity}]_` : ''}`
+        : `- ${r.rule}` +
+          `${r.severity ? ` _[${r.severity}]_` : ''}` +
+          `${r.safe_alternative ? `\n  - say instead: ${r.safe_alternative}` : ''}` +
+          `${r.required_disclaimer ? `\n  - disclaimer required: ${r.required_disclaimer}` : ''}`).join('\n')
     : null);
   S('CREATIVE BOUNDARIES', snap && has(snap.watch_outs) ? list(snap.watch_outs) : null);
 
@@ -411,7 +455,11 @@ function toMarkdown(rec) {
   /* The marketing plan goes last and loudest: it is the most recent, most
      client-specific instruction in the whole snapshot, and it is the piece
      that was missing entirely until now. */
-  if (plan) {
+  /* The Knowledge Layer plan is extracted FROM the marketing report, so with
+     the report on file it is the same strategy a second time (CONTENT STRATEGY
+     and the competitive section each rendered twice). Ricardo's Web session
+     reads the report alone; so does this, when there is one. */
+  if (plan && !report) {
     out.push('## THE CLIENT\'S CURRENT MARKETING PLAN\n');
     const P = (t, b) => { if (has(b)) out.push(`### ${t}\n${b}\n`); };
     P('AUDIENCE', kv(plan.audience_summary));
@@ -438,4 +486,4 @@ function toMarkdown(rec) {
   return out.join('\n');
 }
 
-module.exports = { configured, listBrands, resolve, toMarkdown };
+module.exports = { configured, listBrands, resolve, toMarkdown, dedupeRules };

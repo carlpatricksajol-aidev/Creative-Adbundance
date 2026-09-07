@@ -11,7 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { ask, REVIEW_MODEL } = require('./llm');
+const { ask, askText, REVIEW_MODEL } = require('./llm');
 /* The snapshot now comes from the Knowledge Layer, not a flat brand_brain
    row: the same knowledge in the shapes the skill actually asks for, plus
    the client's own marketing plan, which brand_brain never carried. */
@@ -534,6 +534,38 @@ which angles you weighted toward.`,
   return out;
 }
 
+/* The format the Creative Director writes in: the skill's own slide format,
+   plus one internal tag block per concept so the parse can fill the fields the
+   board and the harness need. This is format, not method; the method is the
+   skill, which the writer holds in full. */
+const CD_FORMAT = `Deliver the batch as text, in the skill's slide format, exactly as you would in a working
+session. For each concept, in this order:
+NNN · Title
+Description (two or three sentences, structure and brand fit, no hooks, no dialogue)
+Narrative: five bullets
+Design Components: five bullets
+Hooks: three candidate opening lines (internal, for the script phase and the mockup caption)
+Tags (internal, one per line): objective | persona | selling argument | awareness stage | lane |
+duration in seconds | vehicle | intensity device | visual family (two or three words) |
+talent (solo, 2-talent or location shoot) | thumb_stop (1 to 5) | performance_ready (1 to 5) |
+observation (the human observation it was built on) | insight family | persuasion job |
+logline (the one human truth, in the customer's voice)
+End with one line: Composition note: ...`;
+
+/* Lift the Creative Director's text into the fields, word for word. A cheap
+   model does this well and must not improve anything on the way through. */
+async function parseBatch({ text, count, startNum, log, ask, label }) {
+  const out = await ask({
+    system: `You convert a Creative Director's concept batch, written as text in a fixed slide format, into JSON. You copy; you never rewrite. Title, description, every narrative bullet, every design bullet and every hook are reproduced VERBATIM, character for character. Tag lines fill the matching fields. If a tag is missing, derive it from the text as plainly as possible rather than inventing. Numbers like "35s" become the dur field as written.`,
+    prompt: `Convert every concept in this batch. There should be ${count} concepts numbered from ${startNum}; keep the numbers as written (NNN). 'desc' is the Description paragraph. 'narrative' and 'design' are the five bullets each, in order. 'hooks' are the three hook lines. composition_note is the Composition note line, or "none".\n\nTHE BATCH TEXT:\n${text}`,
+    schema: BATCH_SCHEMA,
+    maxTokens: 32000,
+    model: REVIEW_MODEL,
+  });
+  log(label, 'done', `${(out.concepts || []).length} concepts parsed from ${text.length} characters of the Creative Director's text`);
+  return out;
+}
+
 async function stageWrite({ snapshot, prior, observations, count, startNum, log, ask, researchMd, strategy, harvestMd, viralFormats, categoryMd }) {
   const viralMd = (viralFormats || []).length
     ? '\n\nViral formats harvested for these personas (Step 4B), the third vehicle pool alongside the bank and the researched library:\n' +
@@ -541,22 +573,21 @@ async function stageWrite({ snapshot, prior, observations, count, startNum, log,
     : '';
   log('Creative Director pass', 'running');
   const obsList = observations.map((o, i) => `${i + 1}. [${o.insight_family}] ${o.text}`).join('\n');
-  const out = await ask({
+  const draft = await askText({
     system: `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent. Researched vehicles are fair game for the creative leap, and a trend-verified or corroborated one beats a stale guess. Thin entries are leads, not facts:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}${categoryMd ? '\n' + categoryMd + '\n' : ''}\nALREADY DONE, do not repeat these:\n${prior || '(nothing on file)'}\n\nObservations harvested for this client:\n${obsList}${viralMd}\n\nRun step 6, the Creative Director pass. Write ${count} concepts, numbered from ${startNum} upward.
 ${strategy ? `Work down the allocation: one allocation row per concept, an observation from THAT persona's
-world, and the row's objective, persona and selling_argument copied exactly as the Strategy Map
+world, and the row's objective, persona and selling argument carried exactly as the Strategy Map
 words them, in the lane the Strategy Map assigned it.
-` : ''}Field map onto the skill's slide format: 'desc' is the Description, 'narrative' the five beats,
-'design' the five design components, 'logline' the one human truth in the customer's voice (not
-the hook, not a summary), 'hooks' three candidate opening lines kept internal for the script phase
-and the mockup caption, 'intensity_device' the one device that turns the observation up,
-'visual_family' the sound-off identity in two or three words. Score thumb_stop and
-performance_ready 1 to 5 honestly; tag talent as solo, 2-talent or location shoot.`,
-    schema: BATCH_SCHEMA,
+` : ''}
+${CD_FORMAT}`,
     maxTokens: 64000,
   });
-  log('Creative Director pass', 'done', `${out.concepts.length} concepts drafted`);
+  const usage = draft.__usage;
+  log('Creative Director pass', 'done', `${count} concepts written, ${draft.text.length} characters`);
+  const out = await parseBatch({ text: draft.text, count, startNum, log, ask, label: 'Creative Director pass, parsed' });
+  out.markdown = draft.text;
+  if (usage) out.__usage = usage;
   return out;
 }
 
@@ -777,22 +808,27 @@ replace_these, give the concept number and a one-line brief for its replacement.
 async function stageRewrite({ snapshot, strategy, items, round, log, ask, researchMd, harvestMd }) {
   const name = `Creative Director rewrite ${round}`;
   log(name, 'running');
-  const out = await ask({
+  const draft = await askText({
     system: `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n${researchMd ? '\nLive market research from the Research Agent:\n\n' + researchMd : ''}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}
 You wrote the batch these concepts come from. The reviewers have judged them and the code checks
-have run. The notes under each concept are binding. Rewrite ONLY the concepts below, keeping
-each one's num and its objective, persona and selling_argument (a KILL means the premise failed:
-write a replacement for the same slot). Every field populated, the whole skill method applies,
-and a note about a specific line is fixed at that line, not by rewording around it.
+have run. The notes under each concept are binding. Rewrite ONLY the concepts below, keeping each
+one's number and its objective, persona and selling argument (a KILL means the premise failed:
+write a replacement for the same slot). Fix a note about a specific line at that line; do not
+reword around it, and do not add hedges, caveats or production disclaimers while you are in
+there. Plain speech, the way you would say it to a producer.
 
 CONCEPTS TO REWRITE, each with its notes:
-${items.map((it) => `--- concept ${it.concept.num} ---\n${JSON.stringify(it.concept, null, 1)}\nNOTES:\n${it.notes.join('\n')}`).join('\n\n')}`,
-    schema: BATCH_SCHEMA,
+${items.map((it) => `--- concept ${it.concept.num} ---\n${JSON.stringify(it.concept, null, 1)}\nNOTES:\n${it.notes.join('\n')}`).join('\n\n')}
+
+${CD_FORMAT}`,
     maxTokens: 64000,
   });
-  log(name, 'done', `${(out.concepts || []).length} of ${items.length} rewritten`);
-  return out.concepts || [];
+  log(name, 'done', `${items.length} rewritten, ${draft.text.length} characters`);
+  const out = await parseBatch({ text: draft.text, count: items.length, startNum: items[0] ? items[0].concept.num : 1, log, ask, label: name + ', parsed' });
+  const rewritten = out.concepts || [];
+  if (draft.__usage) rewritten.__usage = draft.__usage;
+  return rewritten;
 }
 
 /* Replace by concept number, never add or drop: the batch keeps its spine. */
@@ -850,7 +886,13 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     return out;
   };
   log('Intake and brand analysis', 'running');
-  const { record, matched } = await brand.resolve(client);
+  let { record, matched } = await brand.resolve(client);
+  /* the report extraction appends compliance rows on every run; take the
+     duplicates out of the table before the snapshot is built from it */
+  try {
+    const removed = await brand.dedupeRules(record.brand && record.brand.id);
+    if (removed) { log('Compliance rules', 'done', `${removed} duplicate rule rows removed`); ({ record, matched } = await brand.resolve(client)); }
+  } catch (err) { log('Compliance rules', 'done', 'could not dedupe the rules table (' + err.message.slice(0, 60) + ')'); }
   /* the client's brief rides with the snapshot as data, exactly like the report */
   const brief = store.getBrief(record.brand.brand_name) || store.getBrief(client) || {};
   let snapshot = brand.toMarkdown(record) + briefMd(brief);
@@ -894,7 +936,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   let researchMd = null;
   try {
     const brief = await research.fetchBrief();
-    researchMd = research.toMarkdown(brief);
+    researchMd = research.toMarkdown(brief, { compact: true });
     log('Market research library', 'done', brief
       ? `${brief.vehicles.length} researched vehicles read` +
         (brief.edition ? `, catalog edition of ${String(brief.edition.ran_at).slice(0, 10)}` : '') +
@@ -984,6 +1026,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     log, ask: trackedAsk, researchMd, strategy, harvestMd,
     viralFormats: harvest.viral_formats, categoryMd,
   });
+  if (drafted.__usage) { spend.push(drafted.__usage); delete drafted.__usage; }
   /* THE HARNESS. Three layers, three owners: the skill is the method (Ricardo),
      the client brief is the constraints (account team), and this is the code
      (ours). Reviewers judge and never write; the code lints format, compliance
@@ -1031,24 +1074,10 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     }
   }
 
-  let rounds = 0;
-  const rewriteRound = async () => {
-    rounds++;
-    const items = concepts.filter((c) => notes.has(canonNum(c.num)))
-      .map((c) => ({ concept: c, notes: notes.get(canonNum(c.num)) }));
-    const rewritten = await stageRewrite({ snapshot, strategy, items, round: rounds, log, ask: trackedAsk, researchMd, harvestMd });
-    concepts = mergeByNum(concepts, rewritten);
-    notes.clear();
-    lint = lintAll(concepts);
-    for (const [k, issues] of lint) note(k, 'CODE CHECKS STILL FAILING after your rewrite, fix each at the line named:\n' + harness.describe(issues));
-    log('Code checks', 'done', lint.size
-      ? `after rewrite ${rounds}: ${lint.size} still failing (${lintSummary(lint)})`
-      : `after rewrite ${rounds}: every concept clears the code checks`);
-  };
-  if (notes.size) await rewriteRound();
-
-  /* v7.5 Step 7.6 runs on the batch that passed the mechanical gates. Its
-     REWRITE and KILL verdicts get the one rewrite cycle the skill allows. */
+  /* v7.5 Step 7.6 reads the draft alongside the mechanical gates, so all
+     three reviewers' notes reach the Creative Director in ONE rewrite. Two
+     rounds sanded every concept toward caution; Ricardo's session writes
+     once. Whatever still fails the code checks after that ships flagged. */
   let finalReview = null;
   if (V6) {
     finalReview = await stageFinalReview({ snapshot, concepts, strategy, log, ask: trackedAsk });
@@ -1056,7 +1085,20 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
       if (r.verdict && r.verdict !== 'SHIP') note(r.num, `FINAL CREATIVE STRATEGY REVIEW (${r.verdict}, source: ${r.source}): ${r.note}`);
     }
   }
-  if (notes.size && rounds < 2) await rewriteRound();
+  let rounds = 0;
+  if (notes.size) {
+    rounds = 1;
+    const items = concepts.filter((c) => notes.has(canonNum(c.num)))
+      .map((c) => ({ concept: c, notes: notes.get(canonNum(c.num)) }));
+    const rewritten = await stageRewrite({ snapshot, strategy, items, round: 1, log, ask: trackedAsk, researchMd, harvestMd });
+    if (rewritten.__usage) spend.push(rewritten.__usage);
+    concepts = mergeByNum(concepts, rewritten);
+    notes.clear();
+    lint = lintAll(concepts);
+    log('Code checks', 'done', lint.size
+      ? `after the rewrite: ${lint.size} still failing (${lintSummary(lint)})`
+      : 'after the rewrite: every concept clears the code checks');
+  }
   for (const c of concepts) {
     const issues = lint.get(canonNum(c.num));
     if (!issues) continue;
@@ -1122,6 +1164,9 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     },
     used_approved_library: Boolean(approved),
     used_category_ads: Boolean(categoryMd),
+    /* the Creative Director's own text, before parsing, so register can be
+       judged against what the model actually wrote */
+    cd_markdown: (drafted.markdown || '').slice(0, 60000),
     brief_used: Boolean(brief.client),
     lint_rounds: rounds,
     lint_remaining: lint.size,

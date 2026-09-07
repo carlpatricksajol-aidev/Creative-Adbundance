@@ -74,14 +74,11 @@ async function fetchCategoryAds({ names, category, cap = 15 }) {
     const v = encodeURIComponent(String(n).replace(/[%*,()]/g, ''));
     return `advertiser.ilike.*${v}*,query.ilike.*${v}*`;
   }).join(',')})&limit=${cap}`) : [];
-  let bucket = list.join(' / ');
-  if (!Array.isArray(rows) || !rows.length) {
-    const words = String(category || '').toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3);
-    if (!words.length) return null;
-    rows = await rest(`${base}&${orIlike('query', words)}&limit=${cap}`);
-    bucket = words.join(', ');
-    if (!Array.isArray(rows) || !rows.length) return null;
-  }
+  const bucket = list.join(' / ');
+  /* No category-word fallback: for PackDraw it matched two unrelated ads on
+     words like "entertainment" and "online" and fed them as context. A brand
+     with no bucket in the table gets none, and the log says so. */
+  if (!Array.isArray(rows) || !rows.length) return null;
   const lines = rows.map((a) => {
     const meta = [a.advertiser || 'unknown advertiser', a.platform, a.run_days ? `${a.run_days} days live` : null].filter(Boolean).join(', ');
     return `- ${meta}: ${clip(a.headline, 110) || '(no headline)'}` +

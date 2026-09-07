@@ -154,4 +154,20 @@ async function ask({ system, prompt, schema, maxTokens = 32000, model }) {
   return obj;
 }
 
-module.exports = { ask, MODEL, REVIEW_MODEL };
+/* Free text, no schema. The Creative Director writes the skill's slide format
+   the way it does in a Claude Web session; forcing that call into a strict
+   twenty-field JSON object pulled the prose into a spec register. A separate
+   parse call lifts the text into fields afterwards. */
+async function askText({ system, prompt, maxTokens = 32000, model }) {
+  const { text, usage } = await stream({
+    model: model || MODEL,
+    max_tokens: maxTokens,
+    messages: [
+      { role: 'system', content: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }] },
+      { role: 'user', content: prompt },
+    ],
+  });
+  return { text, __usage: usage };
+}
+
+module.exports = { ask, askText, MODEL, REVIEW_MODEL };

@@ -43,6 +43,12 @@ const MESSAGING_UI = /\bgroup chat|chat thread|text thread|text (message|reply)|
    so at most one concept per batch gets to be the quiet one. */
 const FLAT_REGISTER = /\bdeadpan\b|\bflat (delivery|read|voice|tone)\b|\bone[- ]take\b|\bno cuts\b|\bstatic (camera|frame|shot)\b|\blocked[- ]off\b|\bcamera static\b/i;
 
+/* House-standard design lines repeat on purpose across a deck (Ricardo's
+   gold set carries "Raw native subs, no other captioning" and "Sticky URL end
+   card and the compliance disclaimer strip" on all five). They are format,
+   not copy, and never count as repetition. */
+const HOUSE_LINE = /native (subs|captions)|no other captioning|end card|disclaimer strip|\b9:16\b|vertical|\b\d{2}s\b/i;
+
 const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 const tokens = (s) => new Set(norm(s).split(' ').filter((w) => w.length > 3));
 const jaccard = (a, b) => { let n = 0; for (const w of a) if (b.has(w)) n++; return n / (a.size + b.size - n || 1); };
@@ -173,21 +179,24 @@ function lintBatch(concepts, ctx) {
     for (const c of msg) if (c !== keep) add(c, 'messaging_ui_cap', `a second concept whose visual is a messaging screen; "${keep.title}" already holds that identity in this batch. Pick a different sound-off visual.`);
   }
 
-  /* one quiet concept per batch, the rest have to move */
+  /* two quiet concepts per batch: the story-testimonial lane is a talking
+     head by nature and the skill wants 40 percent of the batch in it. From
+     the third, the rest have to move. */
   const flat = concepts.filter((c) => FLAT_REGISTER.test([c.desc, ...(c.design || [])].join(' ')));
-  if (flat.length > 1) {
-    const keep = flat.slice().sort((a, b) => score(b) - score(a))[0];
-    for (const c of flat) if (c !== keep) add(c, 'flat_register_cap', `a second concept built on a flat, one-take, no-cuts register; "${keep.title}" already holds the quiet slot in this batch. The skill wants content 25 percent more intense than real life: give this one a device that moves (confrontation, being caught, stakes, something happening in the background), and cuts.`);
+  if (flat.length > 2) {
+    const keep = flat.slice().sort((a, b) => score(b) - score(a)).slice(0, 2);
+    for (const c of flat) if (!keep.includes(c)) add(c, 'flat_register_cap', `a third concept built on a flat, one-take, no-cuts register; "${keep.map((k) => k.title).join('" and "')}" already hold the quiet slots in this batch. The skill wants content 25 percent more intense than real life: give this one a device that moves (confrontation, being caught, stakes, something happening in the background), and cuts.`);
   }
 
   /* design bullets that are the same sentence in a different coat, across
      concepts: the v7.5 style rule moving into the slot the disclaimer left */
   for (let i = 0; i < concepts.length; i++) {
     for (const bullet of concepts[i].design || []) {
+      if (HOUSE_LINE.test(bullet)) continue;
       const ta = tokens(bullet);
-      if (ta.size < 5) continue;
+      if (ta.size < 6) continue;
       for (let j = 0; j < i; j++) {
-        const hit = (concepts[j].design || []).find((other) => jaccard(ta, tokens(other)) >= 0.5);
+        const hit = (concepts[j].design || []).find((other) => !HOUSE_LINE.test(other) && jaccard(ta, tokens(other)) >= 0.6);
         if (hit) { add(concepts[i], 'repeated_design', `a design bullet is a near-copy of one in "${concepts[j].title}": "${String(bullet).slice(0, 90)}". Say something only this concept needs.`); break; }
       }
     }

@@ -95,8 +95,23 @@ async function fetchBrief() {
   };
 }
 
-function toMarkdown(brief) {
+function toMarkdown(brief, opts = {}) {
   if (!brief) return null;
+  /* Compact is what the concept stages read: the writer's call was 63k tokens
+     against ~30k in a Claude Web session, and this brief alone was 84k
+     characters of it. The skill's own Step 4 query keeps strong, reported and
+     trend-verified rows; so does this, one line each, capped. */
+  if (opts.compact) {
+    const keep = (brief.vehicles || []).filter((v) => /^(strong|reported|trend-verified)$/i.test(String(v.confidence || '')) || v.corroborated).slice(0, 15);
+    let md = `# Researched vehicles, ${keep.length} of ${brief.totalVehicles} active (strong, reported or trend-verified only)\n`
+      + 'OBSERVED rows carry an advertiser count; RESEARCHED rows are leads from published reporting and make no claim about adoption. Never present either as performance.\n';
+    for (const v of keep) {
+      const observed = String(v.evidence_basis || '').toLowerCase() === 'observed';
+      md += `- ${v.name} [${v.platform || '?'}, ${observed ? 'observed in ' + (v.advertiser_count || '?') + ' advertisers' : 'researched'}, ${v.confidence || 'unlabelled'}]: `
+        + String(v.blurb || v.mechanic || v.structure || '').replace(/\s+/g, ' ').slice(0, 180) + '\n';
+    }
+    return md;
+  }
   let md = '# Marketing research brief, from the Research Agent\'s knowledge library\n\n';
 
   if (brief.edition) {
