@@ -1453,7 +1453,21 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     sc += ((Number(c.thumb_stop) || 0) + (Number(c.performance_ready) || 0)) / 10;
     return sc;
   };
-  const ranked = pool.filter((c) => !eliminated(c)).sort((a, b) => score(b) - score(a));
+  /* The judges are not stable run to run: the same approved concept came
+     back 3-of-3 killed on one run and SHIP / REWORK / EDIT on the next. So a
+     kill is confirmed before it removes a draft: the final reviewer reads the
+     killed drafts once more, and only a second KILL takes one out. */
+  let confirmedKill = new Set();
+  {
+    const candidates = pool.filter(eliminated);
+    if (candidates.length) {
+      const again = await stageFinalReview({ snapshot, concepts: candidates, strategy, log, ask: trackedAsk, pool: poolInfo, label: 'Final creative strategy review, kill confirmation' });
+      for (const r of again.reviews || []) if (r.verdict === 'KILL') confirmedKill.add(canonNum(r.num));
+      const spared = candidates.length - confirmedKill.size;
+      if (spared) log('Final creative strategy review, kill confirmation', 'done', `${confirmedKill.size} of ${candidates.length} kills confirmed, ${spared} spared and kept in the ranking with the notes`);
+    }
+  }
+  const ranked = pool.filter((c) => !confirmedKill.has(canonNum(c.num))).sort((a, b) => score(b) - score(a));
   const famOf = (c) => String((pkgOf.get(canonNum(c.num)) || {}).family || c.visual_family || '').toLowerCase().trim();
   const laneOf = (c) => String((pkgOf.get(canonNum(c.num)) || {}).lane || c.lane || '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 5);
   const survivors = [];
@@ -1477,7 +1491,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     if (!survivors.includes(c)) survivors.push(c);
   }
   let reserve = ranked.filter((c) => !survivors.includes(c));
-  const killed = pool.filter(eliminated);
+  const killed = pool.filter((c) => confirmedKill.has(canonNum(c.num)));
   log('Selection', 'done',
     `${pool.length} in the pool: ${killed.length} killed by the reviewers, ${survivors.length} kept as the strongest, ${reserve.length} in reserve` +
     (survivors.length < count ? `. Only ${survivors.length} of the ${count} asked for survived` : ''));
