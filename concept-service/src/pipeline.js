@@ -812,6 +812,21 @@ ${CD_FORMAT}`,
 /* What the judges are told when they read a candidate pool rather than a
    finished batch. Without this, Batch 20's nine drafts for three slots all
    failed the allocation and collision checks by construction. */
+function standardNote(snapshot) {
+  if (!/APPROVED CONCEPT LIBRARY/.test(snapshot || '')) return '';
+  return `
+THE CLIENT'S STANDARD. The APPROVED CONCEPT LIBRARY above is work this client approved and shot.
+It is the bar for every verdict here, not the skill's ideal. Before you fail a concept, find the
+approved concept nearest to it and ask whether the client would have failed that one for the same
+reason. A trait the approved library also has is never a reason to fail: a story title rather
+than a format title, an objection spoken in a character's mouth, an everyday number a person
+would say out loud, household gear, a parody of a familiar format, a talking head in a kitchen.
+The failing verdict is for a draft clearly below that library: no human situation, a second
+persuasion job, a claim the brand record contradicts, a banned term from the brief, or a shoot
+the creator could not do at home.
+`;
+}
+
 function poolNote(pool) {
   if (!pool) return '';
   return `
@@ -821,9 +836,7 @@ for the same allocation row and share persona, objective and selling argument BY
 fail a concept for colliding with an alternate, for the pool exceeding an allocation quota, or
 for the pool's lane mix; the selection handles those. Judge each concept on its own merits, as
 if it were the only draft for its row, and use the batch-level findings to say which alternate
-you would keep for each row and why. Where an approved concept library appears above, it is the
-client's own standard: a draft at that level passes, and the kill verdict is for drafts the
-client's approved library would not have shipped.
+you would keep for each row and why.
 `;
 }
 
@@ -834,13 +847,14 @@ async function stageGate({ snapshot, concepts, log, ask, pool }) {
 
   const results = await Promise.all(groups.map((g) => ask({
     system: `You are the Creative Strategist, the last gate before a client sees this work. Your reviewer role and scorecard:\n\n${ref('creative-strategist.md')}\n\nThe craft rules you are checking against:\n\n${ref('craft-rules.md')}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n${poolNote(pool)}\n${skillSection('### 7. Five-audit gate', '### 7.5.')}\n\nBefore anything else, put every concept through these five tests. A NO on any one of them is a
-KILL-level verdict, not a note:
+    prompt: `${snapshot}\n${standardNote(snapshot)}${poolNote(pool)}\n${skillSection('### 7. Five-audit gate', '### 7.5.')}\n\nBefore anything else, put every concept through these five tests and answer each in your note:
 1. Deletable brand: remove the brand; would anyone still watch this scenario?
-2. Stealable: swap in another mystery-box brand; does the concept survive unchanged? (yes = fail)
+2. Stealable: swap in a competitor; does the concept survive unchanged?
 3. Human situation: can the situation be described without mentioning the product?
 4. Creative leap: is it more than a literal visualization of the selling argument?
 5. Trigger: why is this person showing us this today?
+No trigger at all is the kill-level failure. A NO on tests 1 to 4 is a fix the Creative Director
+must make, quoted and prescribed, unless the client's approved library shows the same trait.
 Then run the five audits above in order, then your full scorecard on each concept below. Be hard: reject or edit on a title that does
 not let a reader picture the ad, a missing creative leap, more than one persuasion job, a
 sibling it would look identical to with the sound off, strategist language in the copy,
@@ -875,7 +889,7 @@ async function stageFeedback({ snapshot, concepts, strategy, log, ask, pool }) {
   log('Feedback review, 22 checks', 'running');
   const out = await ask({
     system: `You are the Feedback Review Agent, the fourth agent in the pipeline. You run AFTER the Creative Strategist and BEFORE anything is built. You replay revision patterns learned from real producer feedback across every client batch. Your craft rules:\n\n${ref('craft-rules.md')}\n\nThe strategist scorecard you are layered on top of:\n\n${ref('creative-strategist.md')}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${poolNote(pool)}\n${skillSection('### 7.5. Feedback Review Agent', '### 7.6.')}
+    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${standardNote(snapshot)}${poolNote(pool)}\n${skillSection('### 7.5. Feedback Review Agent', '### 7.6.')}
 
 Run every check above over this batch, in order, judging the batch-level ones by reading the
 whole batch as a set, the way a producer would. You do NOT rewrite: you judge, and the Creative
@@ -912,7 +926,7 @@ and its marketing plan. It is the highest authority here and it is all you have;
 open the onboarding deck, the meeting notes or the previous batch's client feedback.
 
 ${snapshot}
-${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}
+${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${standardNote(snapshot)}
 Run your five reviews over the batch below.
 
 1. Concept name accuracy. Every title and number you write in your output is copy-pasted from
@@ -1003,13 +1017,14 @@ async function stageFinalReview({ snapshot, concepts, strategy, log, ask, pool, 
   log(name, 'running');
   const out = await ask({
     system: `You are the senior social media creative strategist who runs the last gate, Step 7.6 of the skill. You read finished concepts as written creative about to go to a client, not as inputs to a rubric.\n\n${skillSection('### 7.6. Final Creative Strategy Review', '### 8.')}\n\nThe craft rules the concepts were written to:\n\n${ref('craft-rules.md')}\n${HOUSE_RULES}`,
-    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${poolNote(pool)}\nBefore anything else, put every concept through these five tests. A NO on any one of them is a
-KILL-level verdict, not a note:
+    prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${standardNote(snapshot)}${poolNote(pool)}\nBefore anything else, put every concept through these five tests and answer each in your note:
 1. Deletable brand: remove the brand; would anyone still watch this scenario?
-2. Stealable: swap in another mystery-box brand; does the concept survive unchanged? (yes = fail)
+2. Stealable: swap in a competitor; does the concept survive unchanged?
 3. Human situation: can the situation be described without mentioning the product?
 4. Creative leap: is it more than a literal visualization of the selling argument?
 5. Trigger: why is this person showing us this today?
+No trigger at all is the kill-level failure. A NO on tests 1 to 4 is a fix the Creative Director
+must make, quoted and prescribed, unless the client's approved library shows the same trait.
 Then review each concept with the 8 questions and the batch with the batch questions. Every REWRITE or
 KILL cites its source: a brand_brain field, a marketing_report line, an approved-library concept or
 a compliance rule, quoted where you can. You do NOT rewrite: for REWRITE, quote what fails and
@@ -1349,9 +1364,11 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   }
   for (const [k, issues] of lint) vOf(k).notes.push('CODE CHECKS FAILED, fix each at the line named:\n' + harness.describe(issues));
 
+  /* one judge's kill is a binding note; two judges' kill removes the draft */
   const eliminated = (c) => {
     const v = vOf(c.num);
-    return v.gate === 'REJECT' || v.feedback === 'KILL' || v.final === 'KILL';
+    const kills = (v.gate === 'REJECT' ? 1 : 0) + (v.feedback === 'KILL' ? 1 : 0) + (v.final === 'KILL' ? 1 : 0);
+    return kills >= 2;
   };
   const score = (c) => {
     const v = vOf(c.num);
@@ -1506,4 +1523,4 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   };
 }
 
-module.exports = { run, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote };
+module.exports = { run, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote, standardNote };
