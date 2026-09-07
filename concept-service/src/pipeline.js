@@ -1123,6 +1123,9 @@ function briefMd(brief) {
   if (Array.isArray(brief.banned) && brief.banned.length) {
     lines.push(`- Words that cannot appear anywhere in paid creative: ${brief.banned.join(', ')}. This list is the whole banned-term list for this client. A word outside it is allowed, including the category's own name when a character says it as an objection; the report's guardrails govern how the brand FRAMES itself, not what a skeptical character is allowed to say.`);
   }
+  if (Array.isArray(brief.allowed_spoken) && brief.allowed_spoken.length) {
+    lines.push(`- Cleared words: ${brief.allowed_spoken.join(', ')}. The account team has cleared these for a CHARACTER to say as an objection or a misunderstanding, because the client approved concepts that do exactly that, whatever the report's guardrails say about the brand's own language. They are never the brand's framing and never in on-screen copy.`);
+  }
   if (brief.production_notes) lines.push(`- Production notes (applied at build, not written into concepts): ${brief.production_notes}`);
   if (!lines.length) return '';
   return `\n\n## PRODUCTION CONSTRAINTS for ${brief.client}, from the account team\n${lines.join('\n')}\n`;
