@@ -689,8 +689,12 @@ do-not-do, checked against the batch.
 5. Continuity. Any direction in the record that carries forward from previous work, checked
 against this batch.
 
-Severity: HARD FAIL is a factual or compliance error the concept cannot ship with. SOFT FAIL
-needs a caveat or a copy fix but the premise is sound.
+Severity: HARD FAIL is reserved for a FACTUAL or COMPLIANCE error: an invented or unsupported
+claim, a product or offer the record does not confirm, banned language, or a missing required
+disclaimer. Whether a concept fits the batch objective, the persona or the funnel stage is NOT a
+compliance matter: put it in strategic_gaps at batch level. The client's own approved concepts
+include existing customers telling their stories under a first-deposit objective, and those are
+correct. SOFT FAIL needs a caveat or a copy fix but the premise is sound.
 Verdicts: KILL for a HARD FAIL, REWORK for a SOFT FAIL, PASS for no findings.
 
 Honesty rules, which matter more than completeness here. Every finding quotes or names its
@@ -1053,8 +1057,17 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     for (const issues of m.values()) for (const i of issues) codes[i.code] = (codes[i.code] || 0) + 1;
     return Object.entries(codes).map(([k, v]) => `${k} x${v}`).join(', ');
   };
+  /* Two kinds of reviewer output. `notes` send a concept back to the writer:
+     a KILL from any gate, or a failed code check. `advice` is everything else
+     a reviewer said (EDIT, REWORK, REWRITE): kept on the concept for the human,
+     never acted on by the machine. Batches 16 and 17 showed why: the writer's
+     first draft was the closest thing to the client's approved register we
+     produce, and each review pass dragged it toward product-on-screen
+     mechanics. The client's strategist writes once; so does this. */
   const notes = new Map();
   const note = (num, text) => { const k = canonNum(num); if (!notes.has(k)) notes.set(k, []); notes.get(k).push(text); };
+  const advice = new Map();
+  const advise = (num, text) => { const k = canonNum(num); if (!advice.has(k)) advice.set(k, []); advice.get(k).push(text); };
 
   let concepts = drafted.concepts;
   let lint = lintAll(concepts);
@@ -1066,7 +1079,8 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   const reviews = await stageGate({ snapshot, concepts, log, ask: trackedAsk });
   for (const r of reviews) {
     const v = String(r.verdict || '').toLowerCase();
-    if (v.includes('reject') || v.includes('edit')) note(r.num, `CREATIVE STRATEGIST (${r.verdict}): ${r.change_log}`);
+    if (v.includes('reject')) note(r.num, `CREATIVE STRATEGIST (${r.verdict}): ${r.change_log}`);
+    else if (v.includes('edit')) advise(r.num, `Creative Strategist: ${r.change_log}`);
   }
 
   let feedback = null;
@@ -1074,7 +1088,8 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   if (V6) {
     feedback = await stageFeedback({ snapshot, concepts, strategy, log, ask: trackedAsk });
     for (const r of feedback.reviews || []) {
-      if (r.verdict && r.verdict !== 'PASS') note(r.num, `FEEDBACK REVIEW (${r.verdict}, checks ${(r.failed_checks || []).join(', ') || 'unspecified'}): ${r.note}`);
+      if (r.verdict === 'KILL') note(r.num, `FEEDBACK REVIEW (KILL, checks ${(r.failed_checks || []).join(', ') || 'unspecified'}): ${r.note}`);
+      else if (r.verdict === 'REWORK') advise(r.num, `Feedback review (checks ${(r.failed_checks || []).join(', ') || 'unspecified'}): ${r.note}`);
     }
   }
 
@@ -1086,7 +1101,8 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   if (V6) {
     finalReview = await stageFinalReview({ snapshot, concepts, strategy, log, ask: trackedAsk });
     for (const r of finalReview.reviews || []) {
-      if (r.verdict && r.verdict !== 'SHIP') note(r.num, `FINAL CREATIVE STRATEGY REVIEW (${r.verdict}, source: ${r.source}): ${r.note}`);
+      if (r.verdict === 'KILL') note(r.num, `FINAL CREATIVE STRATEGY REVIEW (KILL, source: ${r.source}): ${r.note}`);
+      else if (r.verdict === 'REWRITE') advise(r.num, `Final creative strategy review (source: ${r.source}): ${r.note}`);
     }
   }
   let rounds = 0;
@@ -1102,6 +1118,11 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     log('Code checks', 'done', lint.size
       ? `after the rewrite: ${lint.size} still failing (${lintSummary(lint)})`
       : 'after the rewrite: every concept clears the code checks');
+  }
+  /* what the reviewers said, on the concept, for the person deciding */
+  for (const c of concepts) {
+    const a = advice.get(canonNum(c.num));
+    if (a && a.length) c.review_notes = a;
   }
   for (const c of concepts) {
     const issues = lint.get(canonNum(c.num));
