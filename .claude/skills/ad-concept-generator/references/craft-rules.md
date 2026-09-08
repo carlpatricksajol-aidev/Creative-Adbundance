@@ -88,23 +88,27 @@ batch against ALL of them before the strategist gate:
    arrives as discovery. Solution Aware: viewer knows solutions exist; the ad differentiates or
    handles an objection. Most Aware: offer/proof-led. The tag prints with the concept.
 
-## Title — must name or imply the vehicle
+## Title — says why you'd watch, not how it's made
 
-The title is the fastest test of whether a concept is a concept.
+The title is the fastest test of whether a concept is a concept. It names the situation or the
+line a person says; it never names the production mechanic. The mechanic (green screen, split
+screen, voice memo, stitch, evidence board) belongs in Design Components.
 
-- **Passes:** "HRT Dating Profile" · "Vacation Countdown" · "My Bank Account Is Confused" · "Put A
-  Finger Down: Hormone Edition" · "Birth Control Side Quest" · "My Mom's HRT Advice vs. My
-  Provider's" · "Group Chat Blowing Up About the telehealth account" · "Toxic Trait: I Forget My Pills" · "Did You
-  Know: Skipping Periods" · "Search History: 3 A.M."
-- **Fails:** "I Became My Own Doctor. Then I Hired One." (line, not vehicle) · "The 2.4-Year
-  Reckoning" (headline, not vehicle) · "Same Diet, Different Middle" (message, no vehicle) · "The
-  Reason I Actually Clicked" (angle, not vehicle).
+- **Passes:** "Break Room: They Called My Shoes Fake" · "My Friend Felt Bad For Me" · "He Asked
+  How Much I Paid" · "My Friend Wanted to Know What I Did With It" · "My Bank Account Is
+  Confused" · "Toxic Trait: I Forget My Pills" · "Search History: 3 A.M." · "Group Chat Blowing
+  Up About the telehealth account"
+- **Fails:** "Voice Memo Object Handoff" · "Desk Evidence Board" · "Green-Screen Category Reply" ·
+  "The Category Menu Test" · "Comment Stitch: Did It Arrive?" (all formats: they say how the ad
+  is made, and delete the brand and nothing is left to watch) · "The 2.4-Year Reckoning"
+  (headline, no situation) · "Same Diet, Different Middle" (message, no situation).
 
-Test: can a reader picture the ad from the title alone? If not, the title is wrong. A strong line
-that isn't a vehicle can move to the description as the emotional hook — it doesn't belong in the
-title.
+Test: delete the brand from the title. If a story is still there ("a coworker calling someone's
+shoes fake"), it passes. If what is left is a device ("a menu test", "an evidence board"), it
+fails. A title that names a vehicle is fine only when the vehicle IS the situation ("HRT Dating
+Profile", "Put A Finger Down: Hormone Edition"), never when it is a camera or editing choice.
 
-Three title patterns the client's final decks favor, beyond naming the vehicle:
+Three title patterns the client's final decks favor, beyond naming the situation:
 - **Stat/price in the title** when the number is the hook: "Watch My Wrinkles Transform in 3
   Months for Under $40/Month" · "100 Women Tried It."
 - **Question titles** that qualify the viewer: "Are You Using a Retinoid at Night?" ·

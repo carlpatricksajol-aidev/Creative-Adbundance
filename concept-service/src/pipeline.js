@@ -242,12 +242,15 @@ const GATE_SCHEMA = {
         properties: {
           num: { type: 'string' },
           verdict: { type: 'string' },
+          /* ChatGPT's classifier (Sept 2026): a format with no situation under
+             it is the failure mode Batches 20-22 shipped nine times. */
+          kind: { type: 'string', enum: ['CONCEPT', 'FORMAT', 'DEMO', 'PRODUCT_WALKTHROUGH'] },
           /* the edits required, as instructions to the Creative Director. The
              reviewer no longer returns a rewritten concept: reviewers judge, the
              CD rewrites, which is the skill's own loop. */
           change_log: { type: 'string' },
         },
-        required: ['num', 'verdict', 'change_log'],
+        required: ['num', 'verdict', 'kind', 'change_log'],
       },
     },
   },
@@ -568,6 +571,16 @@ const VIS_SCHEMA = {
           insight_family: { type: 'string' },
           persuasion_job: { type: 'string' },
           chronology: { type: 'string', enum: ['before', 'during', 'after', 'split'] },
+          /* The premise, established here before a vehicle is chosen or a word
+             of the concept is written, so the writer receives it rather than
+             inventing it mid-sentence. From ChatGPT's read of Batches 20-22
+             (Sept 2026): the concepts had mechanics and no premise. */
+          creative_engine: { type: 'string', enum: ['social_tension', 'behavioral', 'visual_structural'] },
+          tension: { type: 'string' },
+          open_loop: { type: 'string' },
+          creative_leap: { type: 'string' },
+          product_role: { type: 'string' },
+          payoff: { type: 'string' },
           visualizations: {
             type: 'array', minItems: 5, maxItems: 7,
             items: {
@@ -595,7 +608,8 @@ const VIS_SCHEMA = {
           },
         },
         required: ['slot', 'objective', 'persona', 'selling_argument', 'lane', 'awareness', 'duration_s',
-          'observation', 'insight_family', 'persuasion_job', 'chronology', 'visualizations', 'chosen'],
+          'observation', 'insight_family', 'persuasion_job', 'chronology', 'visualizations', 'chosen',
+          'creative_engine', 'tension', 'open_loop', 'creative_leap', 'product_role', 'payoff'],
       },
     },
   },
@@ -608,12 +622,48 @@ const VIS_SCHEMA = {
    situation means the product is the scene, and Batches 21 and 22 shipped
    exactly that. */
 const PRODUCT_SCENE = /\b(apps?|accounts?|balance|browsers?|tabs?|pages?|screens?|screen[- ]?record(ing)?|sessions?|packs?|catalogu?e|categor(y|ies)|checkout|records?|withdraw(al|s)?|deposit|notifications?|listing|product (page|detail)s?|platform|website|site)\b/i;
+/* A shot is not a situation. Batch 22's chosen "situations" read "a fixed
+   hallway camera captures a creator hiding a watch" and "a direct desk view
+   focuses on a regular collectible": cinematography, which passed the product
+   check because it named no product. A situation is a person and what they
+   think, ask, accuse, assume or feel. */
+const SHOT_SCENE = /\b(cameras?|shots?|framing|angles?|close-?ups?|top-?down|overhead|lens|footage|captures?|captured|b-?roll|cut to|cutaway|desk view|hallway view|pov|montage|split-?screen|green-?screen|voice-?over|time-?lapse)\b/i;
 function humanSituation(text, brandName) {
   const t = String(text || '');
   if (!t.trim()) return 'empty';
   if (brandName && new RegExp(brandName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(t)) return `names the brand`;
+  const sh = t.match(SHOT_SCENE);
+  if (sh) return `the situation is a shot, not a scene ("${sh[0]}")`;
   const m = t.match(PRODUCT_SCENE);
   return m ? `the product is the scene ("${m[0]}")` : null;
+}
+
+/* ChatGPT's read of Batches 20-22 (Sept 2026), as code, on the WRITTEN
+   concept: every shipped beat 1 opened on a screen, every beat 5 ended on
+   evidence left visible, the titles named formats ("Voice Memo Object
+   Handoff", "Desk Evidence Board"), and interface vocabulary had become the
+   language of the concepts. Same shape as the harness issues, so a draft that
+   still fails after the rewrite is replaced from the reserve, never flagged. */
+const FORMAT_TITLE = /\b(reply|stitch|replay|check|test|board|hand-?off|green-?screen|split-?screen|voice ?(memo|note)|pov|montage|walkthrough|carousel|time-?lapse|reveal|podcast|tutorial|explainer|breakdown|demo)\b/i;
+const INTERFACE_TERMS = /\b(records?|account( screen| page| value| action)?|screens?|shipping (path|update|status|label)|available (account )?value|listed contents|item variations?|categor(y|ies)( page| menu| view)?|pack (page|details?|record)|notifications?|browsing|tabs?|checkout|balance|listing)\b/i;
+const HUMAN_BEAT = /\b(says?|said|asks?|asked|laughs?|looks?|admits?|shrugs?|grins?|nods?|replies|reply|answers?|hands?|pauses?|smiles?|realises?|realizes?|stares?|sighs?|mutters?|whispers?|shouts?|texts? back|calls?)\b/i;
+function premiseLint(c, brandName) {
+  const issues = [];
+  const add = (code, field, detail) => issues.push({ code, field, detail });
+  const beats = Array.isArray(c.narrative) ? c.narrative.map((b) => String(b || '')) : [];
+  const brandRe = brandName ? new RegExp(brandName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
+  const productish = (t) => INTERFACE_TERMS.test(t) || PRODUCT_SCENE.test(t) || Boolean(brandRe && brandRe.test(t));
+  const t = String(c.title || '');
+  const ft = t.match(FORMAT_TITLE);
+  if (ft) add('format_title', 'title', `"${t}" says how the ad is made ("${ft[0]}"), not why anyone would watch it. The title is the situation or the line a person says; the format belongs in Design Components.`);
+  if (beats.length) {
+    if (productish(beats[0])) add('product_first_beat', 'narrative', `beat 1 opens on the product or a screen: "${beats[0].slice(0, 110)}". It must open on the human trigger from the package: a person, a question, an accusation, a look.`);
+    const last = beats[beats.length - 1];
+    if (productish(last) && !HUMAN_BEAT.test(last)) add('screen_payoff', 'narrative', `the last beat ends on evidence left visible, not on a human payoff: "${last.slice(0, 110)}". End on what a person says or does that resolves the tension.`);
+    const dense = beats.filter((b) => INTERFACE_TERMS.test(b)).length;
+    if (dense >= 3) add('product_spec_register', 'narrative', `${dense} of ${beats.length} beats use interface vocabulary (records, screens, shipping path, listed contents). The physical product, or one spoken line about where it came from, is the proof. The viewer does not need five pieces of interface evidence.`);
+  }
+  return issues;
 }
 
 async function stageVisualize({ snapshot, strategy, observations, viralFormats, poolCount, brief, brandName, log, ask }) {
@@ -645,8 +695,28 @@ compliment is not a story, an accusation is). Each carries its trigger, the skil
 is this person showing us this right now (accusation, discovery, comparison, challenge,
 confession, reaction, social moment). Then choose the strongest for THIS persona's world, say
 why, and state the chronology tag (before, during, after or split). Where an approved concept
-library appears above, it shows what this client's chosen visualizations look like. Do not pick
-a vehicle and do not write a concept here.`,
+library appears above, it shows what this client's chosen visualizations look like.
+
+A situation is a sentence about a PERSON and what they think, ask, accuse, assume or feel: "His
+coworker thinks he is lying about where his shoes came from." "A friend feels sorry for him
+because she thinks he got a bad pull." It is never a camera position, a shot, a frame or a
+device. "A fixed hallway camera captures" and "a direct desk view focuses on" are shots, and a
+shot is not a story. Test every situation by deleting the brand: if what is left is "someone
+scrolls through a menu on a phone", nothing happens and it fails; if what is left is "a coworker
+accusing someone of wearing fake shoes", it is still a story and it passes.
+
+Then, for the chosen situation, establish the premise the writer will build from, one plain
+sentence each. TENSION: what is at stake between the people in the scene. OPEN LOOP: the
+question the viewer needs answered before they can scroll on. CREATIVE LEAP: what makes this
+more than a literal picture of the selling argument. PRODUCT ROLE: the one moment the product
+enters and what it does there, at the chronology point and never earlier; the physical product
+or one spoken line about where it came from is the proof, not an interface. PAYOFF: how the
+tension resolves, as something a person says or does, never as a screen left visible. Label the
+slot's CREATIVE ENGINE: social_tension (someone doubts, accuses, pities or challenges the
+persona), behavioral (a relatable thing the persona does, with or without company) or
+visual_structural (a platform-native mechanic carries the idea). Across the pool cover all
+three engines, and alternates for one row never share an engine. Do not pick a vehicle and do
+not write a concept here.`,
     schema: VIS_SCHEMA,
     maxTokens: 48000,
   });
@@ -668,7 +738,7 @@ a vehicle and do not write a concept here.`,
   if (still.length) {
     const again = await ask({
       system: `You are the Creative Director on this account, redoing the skill's Message Visualization step for a few slots.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n${HOUSE_RULES}`,
-      prompt: `${snapshot}\n\nThese slots failed the skill's human-situation test: every visualization named the product, the app, an account, a pack, a page or a screen, so the product was the scene. A visualization is a moment from the persona's LIFE, the kind of thing that happens whether or not the product exists, and the product enters later as the thing that resolves it. Redo Sub-procedures 1 and 2 for exactly these slots, keeping each slot's objective, persona, selling argument, lane, awareness, duration, observation, insight family and persuasion job as given, and choose a visualization that passes.\n\n${still.map((sl) => `Slot ${sl.slot}: ${JSON.stringify({ objective: sl.objective, persona: sl.persona, selling_argument: sl.selling_argument, lane: sl.lane, awareness: sl.awareness, duration_s: sl.duration_s, observation: sl.observation, insight_family: sl.insight_family, persuasion_job: sl.persuasion_job })}\nFailed because: ${humanSituation(sl.chosen && sl.chosen.situation, brandName)}`).join('\n\n')}`,
+      prompt: `${snapshot}\n\nThese slots failed the skill's human-situation test: every visualization either named the product, the app, an account, a pack, a page or a screen, so the product was the scene, or described a camera, a shot or a frame instead of a person, so there was no scene at all. A visualization is a moment from the persona's LIFE, the kind of thing that happens whether or not the product exists, and the product enters later as the thing that resolves it. Redo Sub-procedures 1 and 2 for exactly these slots, keeping each slot's objective, persona, selling argument, lane, awareness, duration, observation, insight family and persuasion job as given, and choose a visualization that passes.\n\n${still.map((sl) => `Slot ${sl.slot}: ${JSON.stringify({ objective: sl.objective, persona: sl.persona, selling_argument: sl.selling_argument, lane: sl.lane, awareness: sl.awareness, duration_s: sl.duration_s, observation: sl.observation, insight_family: sl.insight_family, persuasion_job: sl.persuasion_job })}\nFailed because: ${humanSituation(sl.chosen && sl.chosen.situation, brandName)}`).join('\n\n')}`,
       schema: VIS_SCHEMA,
       maxTokens: 24000,
     });
@@ -677,7 +747,7 @@ a vehicle and do not write a concept here.`,
       if (i < 0) continue;
       if (humanSituation(nu.chosen && nu.chosen.situation, brandName)) {
         const alt = (nu.visualizations || []).find((v) => v.deletable_brand_pass && !humanSituation(v.situation, brandName));
-        if (alt) nu.chosen = { label: alt.label, situation: alt.situation, trigger: alt.trigger, why: 'Chosen by the code check on the second pass: the first choice named the product.' };
+        if (alt) nu.chosen = { label: alt.label, situation: alt.situation, trigger: alt.trigger, why: 'Chosen by the code check on the second pass: the first choice failed the human-situation test.' };
       }
       slots[i] = { ...slots[i], ...nu, slot: slots[i].slot };
       redone++;
@@ -798,6 +868,8 @@ function buildPackages({ visSlots, vehSlots, startNum }) {
       situation: sl.chosen.situation, trigger: w.trigger || sl.chosen.trigger, why_situation: sl.chosen.why,
       vehicle: w.vehicle || '', family: w.family || '', why_vehicle: w.why || '',
       proof_object: w.proof_object || '', talent: w.talent || 'solo',
+      creative_engine: sl.creative_engine || '', tension: sl.tension || '', open_loop: sl.open_loop || '',
+      creative_leap: sl.creative_leap || '', product_role: sl.product_role || '', payoff: sl.payoff || '',
     };
   });
 }
@@ -813,7 +885,14 @@ The situation: ${p.situation}
 Chronology (internal, never on the slide): ${p.chronology || 'unstated'} the pain point
 Trigger (why this person is showing us this today): ${p.trigger}
 Vehicle (the shape of the video): ${p.vehicle} (family: ${p.family}). ${p.why_vehicle}
-Proof object: ${p.proof_object}`;
+Proof object: ${p.proof_object}
+Creative engine: ${p.creative_engine || 'unstated'}
+THE PREMISE, build the concept from this and in this order:
+  Tension: ${p.tension}
+  Open loop: ${p.open_loop}
+  Creative leap: ${p.creative_leap}
+  Product role: ${p.product_role}
+  Payoff: ${p.payoff}`;
 
 /* What the writer produces: the slide, nothing else. Strategy tags travel on
    the package and are stitched in by the parse, so the writer never writes
@@ -826,6 +905,20 @@ Narrative: five bullets
 Design Components: five bullets
 Hooks: three candidate opening lines (internal, for the script phase and the mockup caption)
 Beats and design bullets are one plain sentence each, said the way you would say it to a producer.
+
+The title says WHY someone would watch, never HOW the ad is made. "He Asked How Much I Paid" and
+"Break Room: They Called My Shoes Fake" are titles. "Voice Memo Object Handoff" and "Desk
+Evidence Board" are formats, and the format belongs in Design Components.
+Beat 1 opens on the human trigger from the package: a person, a question, an accusation, a look.
+Never on a phone, a post, a message arriving, a screen or the product.
+Beats 2 to 4 carry the tension and hold the open loop. The product enters once, where the
+package's chronology and product role say, and no earlier.
+Beat 5 is the payoff from the package: something a person says or does that resolves the tension.
+A screen left visible is not a payoff.
+The proof is the physical product, or one spoken line about where it came from. Interface
+vocabulary (record, account screen, shipping path, available value, listed contents, item
+variations, category page) appears only where the persuasion job cannot be answered without it,
+and never in beat 1 or beat 5.
 Nothing else: no tags, no strategy notes, no composition note.`;
 
 /* Lift the Creative Director's text into the fields, word for word, with the
@@ -919,6 +1012,14 @@ async function stageGate({ snapshot, concepts, log, ask, pool }) {
 5. Trigger: why is this person showing us this today?
 No trigger at all is the kill-level failure. A NO on tests 1 to 4 is a fix the Creative Director
 must make, quoted and prescribed, unless the client's approved library shows the same trait.
+Then label the draft in kind: CONCEPT (a human situation that is still a story with the brand
+deleted, which the product then resolves), FORMAT (a production device with no situation under
+it: a green-screen reply, a desk evidence board, a category menu test), DEMO (the product shown
+working) or PRODUCT_WALKTHROUGH (interface evidence in sequence). Delete the brand to decide:
+"someone scrolls a menu on a phone" is FORMAT; "a coworker accusing someone of wearing fake
+shoes" is CONCEPT. Anything that is not CONCEPT is at least EDIT, and your change_log names the
+human situation it needs in beat 1 and the payoff it needs in beat 5; FORMAT or
+PRODUCT_WALKTHROUGH with no situation under it at all is REJECT.
 Then run the five audits above in order, then your full scorecard on each concept below. Be hard: reject or edit on a title that does
 not let a reader picture the ad, a missing creative leap, more than one persuasion job, a
 sibling it would look identical to with the sound off, strategist language in the copy,
@@ -1150,8 +1251,11 @@ You wrote the batch these concepts come from. The reviewers have judged them and
 have run. The notes under each concept are binding. Rewrite ONLY the concepts below, keeping each
 one's number and its package (same observation, persuasion job, situation and vehicle). Fix a note
 about a specific line at that line; do not reword around it, do not add hedges, caveats or
-production disclaimers, and do not add benefits or products to compensate. Plain speech, the way
-you would say it to a producer.
+production disclaimers, and do not add benefits or products to compensate. A note is never fixed
+by adding interface evidence, a screen, a record or a second product mention. A note asking for
+brand-specific proof is satisfied by the physical product or one spoken line about where it came
+from, at the package's chronology point and never earlier. Beat 1 stays on the human trigger and
+beat 5 stays on the human payoff. Plain speech, the way you would say it to a producer.
 
 CONCEPTS TO REWRITE, each with its package and its notes:
 ${items.map((it) => `${packageMd(it.pkg)}\n\nCURRENT DRAFT:\n${JSON.stringify({ title: it.concept.title, desc: it.concept.desc, narrative: it.concept.narrative, design: it.concept.design, hooks: it.concept.hooks }, null, 1)}\nNOTES:\n${it.notes.join('\n')}`).join('\n\n=====\n\n')}
@@ -1387,7 +1491,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     const byNum = new Map();
     const batchIssues = harness.lintBatch(list, lintCtx);
     for (const c of list) {
-      const issues = harness.lintConcept(c, lintCtx).concat(batchIssues.get(canonNum(c.num)) || []);
+      const issues = harness.lintConcept(c, lintCtx).concat(batchIssues.get(canonNum(c.num)) || [], premiseLint(c, record.brand.brand_name));
       if (issues.length) byNum.set(canonNum(c.num), issues);
     }
     return byNum;
@@ -1414,7 +1518,9 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   for (const r of reviews) {
     const v = vOf(r.num); const t = String(r.verdict || '').toLowerCase();
     v.gate = t.includes('reject') ? 'REJECT' : t.includes('edit') ? 'EDIT' : 'PASS';
+    v.kind = String(r.kind || 'CONCEPT').toUpperCase();
     if (v.gate !== 'PASS') v.notes.push(`CREATIVE STRATEGIST (${v.gate}): ${r.change_log}`);
+    if (v.kind !== 'CONCEPT') v.notes.push(`CREATIVE STRATEGIST: this is a ${v.kind.replace('_', ' ')}, not a concept. Beat 1 must open on the human situation from its package and beat 5 on its payoff; the device moves to Design Components.`);
   }
   for (const r of feedback.reviews || []) {
     const v = vOf(r.num); v.feedback = r.verdict || 'PASS';
@@ -1450,6 +1556,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     sc += v.final === 'SHIP' ? 3 : v.final === 'REWRITE' ? 1 : 0;
     sc -= v.hard * 1.5 + v.soft * 0.25;
     sc -= (lint.get(canonNum(c.num)) || []).length * 0.5;
+    sc -= !v.kind || v.kind === 'CONCEPT' ? 0 : v.kind === 'DEMO' ? 2 : 3;   // a format is not a concept
     sc += ((Number(c.thumb_stop) || 0) + (Number(c.performance_ready) || 0)) / 10;
     return sc;
   };
@@ -1470,21 +1577,27 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   const ranked = pool.filter((c) => !confirmedKill.has(canonNum(c.num))).sort((a, b) => score(b) - score(a));
   const famOf = (c) => String((pkgOf.get(canonNum(c.num)) || {}).family || c.visual_family || '').toLowerCase().trim();
   const laneOf = (c) => String((pkgOf.get(canonNum(c.num)) || {}).lane || c.lane || '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 5);
+  /* ChatGPT's diversity rule (Sept 2026): "three different formats" is not
+     "three different reasons someone would care". Batches 20, 21 and 22 each
+     shipped one engine in three vehicles. Distinct creative engines across the
+     shipped set, alongside lanes and vehicle families. */
+  const engOf = (c) => String((pkgOf.get(canonNum(c.num)) || {}).creative_engine || '').toLowerCase().trim();
   const survivors = [];
   const usedFam = new Set();
   const usedLane = new Set();
+  const usedEng = new Set();
   for (const c of ranked) {                      // the Strategy Map's lanes first: the best of each
     if (survivors.length >= count) break;
-    const l = laneOf(c); const f = famOf(c);
-    if (!l || usedLane.has(l) || (f && usedFam.has(f))) continue;
-    survivors.push(c); usedLane.add(l); if (f) usedFam.add(f);
+    const l = laneOf(c); const f = famOf(c); const e = engOf(c);
+    if (!l || usedLane.has(l) || (f && usedFam.has(f)) || (e && usedEng.has(e))) continue;
+    survivors.push(c); usedLane.add(l); if (f) usedFam.add(f); if (e) usedEng.add(e);
   }
-  for (const c of ranked) {                      // then best first, distinct vehicle families
+  for (const c of ranked) {                      // then best first, distinct vehicle families and engines
     if (survivors.length >= count) break;
     if (survivors.includes(c)) continue;
-    const f = famOf(c);
-    if (f && usedFam.has(f)) continue;
-    survivors.push(c); if (f) usedFam.add(f);
+    const f = famOf(c); const e = engOf(c);
+    if ((f && usedFam.has(f)) || (e && usedEng.has(e))) continue;
+    survivors.push(c); if (f) usedFam.add(f); if (e) usedEng.add(e);
   }
   for (const c of ranked) {                      // relax the family rule only if short
     if (survivors.length >= count) break;
@@ -1494,6 +1607,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   const killed = pool.filter((c) => confirmedKill.has(canonNum(c.num)));
   log('Selection', 'done',
     `${pool.length} in the pool: ${killed.length} killed by the reviewers, ${survivors.length} kept as the strongest, ${reserve.length} in reserve` +
+    (usedEng.size ? `; engines: ${[...usedEng].join(', ')}` : '') +
     (survivors.length < count ? `. Only ${survivors.length} of the ${count} asked for survived` : ''));
 
   /* ---- one rewrite, for survivors that carry notes ---- */
@@ -1505,7 +1619,25 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     const items = needs.map((c) => ({ concept: c, notes: vOf(c.num).notes, pkg: pkgOf.get(canonNum(c.num)) || {} }));
     const rewritten = await stageRewrite({ snapshot, strategy, items, round: 1, log, ask: trackedAsk, researchMd, harvestMd });
     if (rewritten.__usage) spend.push(rewritten.__usage);
-    concepts = mergeByNum(concepts, rewritten);
+    /* The rewrite may not answer a note by adding product evidence. Ricardo's
+       doc traced the product-spec register to exactly this loop: judges
+       prescribe "brand-specific proof", the rewrite obeys. If a rewritten
+       draft mentions the product in more beats than before, or has moved it
+       into beat 1, the original stands. */
+    const brandRe = new RegExp(record.brand.brand_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const productBeats = (c) => (c.narrative || []).filter((b) => INTERFACE_TERMS.test(b) || PRODUCT_SCENE.test(b) || brandRe.test(b)).length;
+    const firstIsProduct = (c) => { const b = (c.narrative || [])[0] || ''; return INTERFACE_TERMS.test(b) || PRODUCT_SCENE.test(b) || brandRe.test(b); };
+    const accepted = [];
+    for (const r of rewritten) {
+      const before = concepts.find((c) => canonNum(c.num) === canonNum(r.num));
+      if (!before) continue;
+      if (productBeats(r) > productBeats(before) || (firstIsProduct(r) && !firstIsProduct(before))) {
+        log('Creative Director rewrite', 'done', `"${before.title}": rewrite discarded, it answered the notes by adding product evidence (${productBeats(before)} to ${productBeats(r)} beats); the original stands`);
+        continue;
+      }
+      accepted.push(r);
+    }
+    concepts = mergeByNum(concepts, accepted);
   }
 
   /* ---- code checks again: a survivor that still fails is replaced, not flagged ---- */
@@ -1580,7 +1712,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     composition_note: drafted.composition_note,
     change_log: reviews.map((r) => ({ num: r.num, verdict: r.verdict, note: r.change_log })),
     composition,
-    pipeline_version: V6 ? 'v7.5-select' : 'v4',
+    pipeline_version: V6 ? 'v7.6-premise' : 'v4',
     strategy,
     /* the decisions made before writing, one per pool slot */
     packages,
@@ -1590,7 +1722,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
       const v = vOf(c.num);
       return { num: c.num, title: c.title, gate: v.gate, feedback: v.feedback, final: v.final, hard: v.hard, soft: v.soft,
         lint: (lintAll([c]).get(canonNum(c.num)) || []).map((i) => i.code),
-        outcome: killed.includes(c) ? 'killed' : concepts.some((k) => canonNum(k.num) === canonNum(c.num)) ? 'shipped' : 'reserve' };
+        kind: (V.get(canonNum(c.num)) || {}).kind || null, outcome: killed.includes(c) ? 'killed' : concepts.some((k) => canonNum(k.num) === canonNum(c.num)) ? 'shipped' : 'reserve' };
     }),
     feedback: {
       batch_findings: feedback.batch_findings,
@@ -1618,4 +1750,4 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   };
 }
 
-module.exports = { run, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote, standardNote };
+module.exports = { run, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote, standardNote, humanSituation, premiseLint };
