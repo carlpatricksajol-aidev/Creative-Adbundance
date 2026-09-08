@@ -1789,7 +1789,12 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   const harvest = await stageHarvest({ snapshot, prior, log, ask: trackedAsk, researchMd, strategy, harvestMd, categoryMd });
 
   /* ---- decide before writing: one package per pool slot ---- */
-  const poolCount = Math.min(15, Math.max(count * 3, count + 3));
+  /* The premise gate rejects premises before the writer sees them, so the
+     pool it feeds starts larger than the pool that used to go straight to the
+     writer. Batch 28 dropped 4 of 9 and wrote from 5, which left one reserve
+     concept for two replacements. Four per shipped concept absorbs the gate's
+     rejection rate and still caps at 15. */
+  const poolCount = Math.min(15, Math.max(count * 4, count + 4));
   const visSlots = await stageVisualize({
     snapshot, strategy, observations: harvest.observations, viralFormats: harvest.viral_formats,
     poolCount, brief, brandName: record.brand.brand_name, log, ask: trackedAsk,
@@ -2134,7 +2139,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     composition_note: drafted.composition_note,
     change_log: reviews.map((r) => ({ num: r.num, verdict: r.verdict, note: r.change_log })),
     composition,
-    pipeline_version: V6 ? 'v7.9.4-send-first' : 'v4',
+    pipeline_version: V6 ? 'v7.9.5-send-first' : 'v4',
     strategy,
     /* the decisions made before writing, one per pool slot */
     packages,
