@@ -645,14 +645,32 @@ function humanSituation(text, brandName) {
    language of the concepts. Same shape as the harness issues, so a draft that
    still fails after the rewrite is replaced from the reserve, never flagged. */
 const FORMAT_TITLE = /\b(reply|stitch|replay|check|test|board|hand-?off|green-?screen|split-?screen|voice ?(memo|note)|pov|montage|walkthrough|carousel|time-?lapse|reveal|podcast|tutorial|explainer|breakdown|demo)\b/i;
-const INTERFACE_TERMS = /\b(records?|account( screen| page| value| action)?|screens?|shipping (path|update|status|label)|available (account )?value|listed contents|item variations?|categor(y|ies)( page| menu| view)?|pack (page|details?|record)|notifications?|browsing|tabs?|checkout|balance|listing)\b/i;
+const INTERFACE_TERMS = /\b(records?|account( screen| page| value| action)?|screens?|shipping (path|update|status|label)|available (account )?(value|choices|options|paths)|listed (contents|items|details)|item variations?|item list|categor(y|ies)( page| menu| view)?|pack (page|details?|record|list)|saved page|the phone shows|phone screen|notifications?|browsing|tabs?|checkout|balance|listing)\b/i;
+/* the offer menu (keep it, ship it, cash out) is product talk too: Batch 23
+   put it in all three shipped concepts */
+const OFFER_MENU = /\b(cash[- ]?out|crypto|withdraw(al)?|payout|sell[- ]back|keep,? ship|keep it, ship it|keep or ship|ship or keep)\b/i;
+/* ChatGPT's PRODUCT_SCENE_DENSITY (Sept 2026): one normalised answer to "is
+   this beat about the product, its interface or its offer", used by the
+   density check, the beat-1 and beat-5 checks and the rewrite guard alike,
+   so nothing slips through on a synonym the way "The Saved Page Hearing" did. */
+function brandRegex(brandName) { return brandName ? new RegExp(String(brandName).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null; }
+function productScene(text, brandRe) {
+  const t = String(text || '');
+  return INTERFACE_TERMS.test(t) || PRODUCT_SCENE.test(t) || OFFER_MENU.test(t) || Boolean(brandRe && brandRe.test(t));
+}
+const ENGINES = ['social_tension', 'behavioral', 'visual_structural'];
+const ENGINE_FLAVOURS = {
+  social_tension: 'someone doubts, someone accuses, someone challenges, someone misunderstands, someone feels sorry for the persona',
+  behavioral: 'a collector habit, a shopping ritual, a weird routine, a decision behaviour, an obsession of the persona',
+  visual_structural: 'a comment response, a screen mechanic, a physical-proof mechanic, a platform-native format, an unexpected visual structure',
+};
 const HUMAN_BEAT = /\b(says?|said|asks?|asked|laughs?|looks?|admits?|shrugs?|grins?|nods?|replies|reply|answers?|hands?|pauses?|smiles?|realises?|realizes?|stares?|sighs?|mutters?|whispers?|shouts?|texts? back|calls?)\b/i;
 function premiseLint(c, brandName) {
   const issues = [];
   const add = (code, field, detail) => issues.push({ code, field, detail });
   const beats = Array.isArray(c.narrative) ? c.narrative.map((b) => String(b || '')) : [];
-  const brandRe = brandName ? new RegExp(brandName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
-  const productish = (t) => INTERFACE_TERMS.test(t) || PRODUCT_SCENE.test(t) || Boolean(brandRe && brandRe.test(t));
+  const brandRe = brandRegex(brandName);
+  const productish = (t) => productScene(t, brandRe);
   const t = String(c.title || '');
   const ft = t.match(FORMAT_TITLE);
   if (ft) add('format_title', 'title', `"${t}" says how the ad is made ("${ft[0]}"), not why anyone would watch it. The title is the situation or the line a person says; the format belongs in Design Components.`);
@@ -660,8 +678,10 @@ function premiseLint(c, brandName) {
     if (productish(beats[0])) add('product_first_beat', 'narrative', `beat 1 opens on the product or a screen: "${beats[0].slice(0, 110)}". It must open on the human trigger from the package: a person, a question, an accusation, a look.`);
     const last = beats[beats.length - 1];
     if (productish(last) && !HUMAN_BEAT.test(last)) add('screen_payoff', 'narrative', `the last beat ends on evidence left visible, not on a human payoff: "${last.slice(0, 110)}". End on what a person says or does that resolves the tension.`);
-    const dense = beats.filter((b) => INTERFACE_TERMS.test(b)).length;
-    if (dense >= 3) add('product_spec_register', 'narrative', `${dense} of ${beats.length} beats use interface vocabulary (records, screens, shipping path, listed contents). The physical product, or one spoken line about where it came from, is the proof. The viewer does not need five pieces of interface evidence.`);
+    const dense = beats.filter(productish).length;
+    if (dense >= 3) add('product_scene_density', 'narrative', `${dense} of ${beats.length} beats are about the product, its interface or its offer menu (page, pack, screen, record, keep / ship / cash out). The product is proven once, with the physical item or one spoken line about where it came from; after that the beats belong to the people. Two product beats at most.`);
+    const menu = beats.filter((b) => OFFER_MENU.test(b)).length;
+    if (menu >= 2) add('offer_menu_repeat', 'narrative', `the keep / ship / cash-out menu appears in ${menu} beats. It is product talk: once at most, or leave it to Design Components.`);
   }
   return issues;
 }
@@ -671,6 +691,13 @@ async function stageVisualize({ snapshot, strategy, observations, viralFormats, 
   const obsList = observations.map((o, i) => `${i + 1}. [${o.insight_family}] ${o.text}`).join('\n');
   const formats = (viralFormats || []).map((f, i) => `${i + 1}. ${f.name} (${f.capture_style}): ${f.why_it_fits}`).join('\n');
   const band = brief && brief.duration_min ? `Durations must sit between ${brief.duration_min} and ${brief.duration_max || brief.duration_min + 15} seconds (the client brief).` : 'Follow the Strategy Map duration mix.';
+  /* ChatGPT's Change #2 (Sept 2026): the engines are assigned to the slots
+     before a situation is generated, round robin, so the pool always holds
+     an equal share of each and selection never has to relax the diversity
+     rule. Asking the model to "cover all three across the pool" gave Batch
+     23 a behavioral-heavy pool. */
+  const engineOf = (slot) => ENGINES[((Number(slot) || 1) - 1) % ENGINES.length];
+  const engineTable = Array.from({ length: poolCount }, (_, i) => `Slot ${i + 1}: ${engineOf(i + 1)} (${ENGINE_FLAVOURS[engineOf(i + 1)]})`).join('\n');
   const out = await ask({
     system: `You are the Creative Director on this account, running the skill's Message Visualization step before any concept is written.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}
@@ -711,16 +738,18 @@ question the viewer needs answered before they can scroll on. CREATIVE LEAP: wha
 more than a literal picture of the selling argument. PRODUCT ROLE: the one moment the product
 enters and what it does there, at the chronology point and never earlier; the physical product
 or one spoken line about where it came from is the proof, not an interface. PAYOFF: how the
-tension resolves, as something a person says or does, never as a screen left visible. Label the
-slot's CREATIVE ENGINE: social_tension (someone doubts, accuses, pities or challenges the
-persona), behavioral (a relatable thing the persona does, with or without company) or
-visual_structural (a platform-native mechanic carries the idea). Across the pool cover all
-three engines, and alternates for one row never share an engine. Do not pick a vehicle and do
-not write a concept here.`,
+tension resolves, as something a person says or does, never as a screen left visible.
+
+The slot's CREATIVE ENGINE is assigned, not chosen. Set creative_engine to the assigned value
+and keep every visualization for that slot inside its engine, so the alternates differ in
+scene, not in engine:
+${engineTable}
+Do not pick a vehicle and do not write a concept here.`,
     schema: VIS_SCHEMA,
     maxTokens: 48000,
   });
   let slots = out.slots || [];
+  for (const sl of slots) sl.creative_engine = engineOf(sl.slot);   // assigned, whatever the model wrote
   const vis = slots.reduce((a, sl) => a + (sl.visualizations || []).length, 0);
 
   /* the human-situation test on every choice; swap, then ask again once */
@@ -738,7 +767,7 @@ not write a concept here.`,
   if (still.length) {
     const again = await ask({
       system: `You are the Creative Director on this account, redoing the skill's Message Visualization step for a few slots.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n${HOUSE_RULES}`,
-      prompt: `${snapshot}\n\nThese slots failed the skill's human-situation test: every visualization either named the product, the app, an account, a pack, a page or a screen, so the product was the scene, or described a camera, a shot or a frame instead of a person, so there was no scene at all. A visualization is a moment from the persona's LIFE, the kind of thing that happens whether or not the product exists, and the product enters later as the thing that resolves it. Redo Sub-procedures 1 and 2 for exactly these slots, keeping each slot's objective, persona, selling argument, lane, awareness, duration, observation, insight family and persuasion job as given, and choose a visualization that passes.\n\n${still.map((sl) => `Slot ${sl.slot}: ${JSON.stringify({ objective: sl.objective, persona: sl.persona, selling_argument: sl.selling_argument, lane: sl.lane, awareness: sl.awareness, duration_s: sl.duration_s, observation: sl.observation, insight_family: sl.insight_family, persuasion_job: sl.persuasion_job })}\nFailed because: ${humanSituation(sl.chosen && sl.chosen.situation, brandName)}`).join('\n\n')}`,
+      prompt: `${snapshot}\n\nThese slots failed the skill's human-situation test: every visualization either named the product, the app, an account, a pack, a page or a screen, so the product was the scene, or described a camera, a shot or a frame instead of a person, so there was no scene at all. A visualization is a moment from the persona's LIFE, the kind of thing that happens whether or not the product exists, and the product enters later as the thing that resolves it. Redo Sub-procedures 1 and 2 for exactly these slots, keeping each slot's objective, persona, selling argument, lane, awareness, duration, observation, insight family and persuasion job as given, and choose a visualization that passes.\n\n${still.map((sl) => `Slot ${sl.slot}: ${JSON.stringify({ objective: sl.objective, persona: sl.persona, selling_argument: sl.selling_argument, lane: sl.lane, awareness: sl.awareness, duration_s: sl.duration_s, observation: sl.observation, insight_family: sl.insight_family, persuasion_job: sl.persuasion_job, creative_engine: engineOf(sl.slot) })}\nFailed because: ${humanSituation(sl.chosen && sl.chosen.situation, brandName)}`).join('\n\n')}`,
       schema: VIS_SCHEMA,
       maxTokens: 24000,
     });
@@ -749,7 +778,7 @@ not write a concept here.`,
         const alt = (nu.visualizations || []).find((v) => v.deletable_brand_pass && !humanSituation(v.situation, brandName));
         if (alt) nu.chosen = { label: alt.label, situation: alt.situation, trigger: alt.trigger, why: 'Chosen by the code check on the second pass: the first choice failed the human-situation test.' };
       }
-      slots[i] = { ...slots[i], ...nu, slot: slots[i].slot };
+      slots[i] = { ...slots[i], ...nu, slot: slots[i].slot, creative_engine: engineOf(slots[i].slot) };
       redone++;
     }
   }
@@ -1167,8 +1196,22 @@ const FINAL_SCHEMA = {
           verdict: { type: 'string', enum: ['SHIP', 'REWRITE', 'KILL'] },
           source: { type: 'string' },
           note: { type: 'string' },
+          /* ChatGPT's ranking (Sept 2026): survivors are ranked on the premise,
+             not on cleanliness. Each 1 to 5, scored by the senior reviewer. */
+          premise_scores: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              human_premise: { type: 'integer' }, tension: { type: 'integer' }, open_loop: { type: 'integer' },
+              creative_leap: { type: 'integer' }, payoff: { type: 'integer' }, persuasion_job: { type: 'integer' },
+              distinctiveness: { type: 'integer' }, production_feasibility: { type: 'integer' }, product_restraint: { type: 'integer' },
+            },
+            required: ['human_premise', 'tension', 'open_loop', 'creative_leap', 'payoff', 'persuasion_job', 'distinctiveness', 'production_feasibility', 'product_restraint'],
+          },
+          /* the taste question: would you send this to the client tomorrow */
+          send_to_client: { type: 'boolean' },
         },
-        required: ['num', 'verdict', 'source', 'note'],
+        required: ['num', 'verdict', 'source', 'note', 'premise_scores', 'send_to_client'],
       },
     },
     batch_verdict: { type: 'string', enum: ['SHIP', 'RESHAPE'] },
@@ -1195,6 +1238,22 @@ KILL cites its source: a brand_brain field, a marketing_report line, an approved
 a compliance rule, quoted where you can. You do NOT rewrite: for REWRITE, quote what fails and
 prescribe the fix; for KILL, brief the replacement in one paragraph keeping the slot's objective,
 persona and selling argument. Only what you would ship tomorrow is SHIP.
+
+The governing question is taste, not compliance: would you actually send this to the client
+tomorrow, under your own name, as one of the three? Answer it in send_to_client. A concept that
+passes every check and that you would still not send is a REWRITE, and your note says what is
+missing: usually the premise is ordinary, the product keeps talking after it has been proven, or
+the payoff is a shrug.
+
+Then score the premise, 1 to 5 each, as the ranking the selector will use. 5 is the approved
+library's best; 1 is a product walkthrough. human_premise (a situation a person would recognise
+and repeat), tension (what is at stake between the people), open_loop (the viewer needs to know
+what happens), creative_leap (more than a literal picture of the selling argument), payoff (beat
+5 resolves the human situation), persuasion_job (it answers the one objection it was built for),
+distinctiveness (nothing else in this batch or the approved library is this), production_feasibility
+(a creator can shoot it in a day), product_restraint (the product is proven once and then the
+people take over: 5 is one product beat, 1 is five). Score the idea, not the wording: a clean
+concept with an ordinary premise scores low.
 
 THE BATCH:\n${JSON.stringify(concepts.map((c) => ({
       num: c.num, title: c.title, desc: c.desc, narrative: c.narrative, design: c.design,
@@ -1337,7 +1396,18 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   } catch (err) { log('Compliance rules', 'done', 'could not dedupe the rules table (' + err.message.slice(0, 60) + ')'); }
   /* the client's brief rides with the snapshot as data, exactly like the report */
   const brief = store.getBrief(record.brand.brand_name) || store.getBrief(client) || {};
-  let snapshot = brand.toMarkdown(record) + briefMd(brief);
+  /* ChatGPT's source hierarchy (Sept 2026): marketing report, then the client
+     brief, then the approved concepts, then everything else. The brand brain
+     is the "everything else": scraped, capped and the least trustworthy, so
+     it goes last. The brief and the approved library are spliced in ahead of
+     it rather than appended after it. */
+  const BRAIN_HEADING = '\n## BRAND BRAIN, the account record';
+  const spliceBeforeBrain = (md, add) => {
+    if (!add) return md;
+    const at = md.indexOf(BRAIN_HEADING);
+    return at > 0 ? md.slice(0, at) + add + md.slice(at) : md + add;
+  };
+  let snapshot = spliceBeforeBrain(brand.toMarkdown(record), briefMd(brief));
   /* Say what the snapshot was actually built from. A run grounded in a brand
      with no marketing plan and no compliance rules should say so in the step,
      not read identical to one that had both. */
@@ -1419,7 +1489,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   } catch (err) {
     log('Approved library', 'done', 'could not read the approved-concept view (' + err.message.slice(0, 60) + ')');
   }
-  if (approved) snapshot += '\n\n' + approved.md;
+  if (approved) snapshot = spliceBeforeBrain(snapshot, '\n\n' + approved.md);
 
   log('Category ads', 'running');
   let categoryMd = null;
@@ -1533,7 +1603,12 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   }
   for (const r of finalReview.reviews || []) {
     const v = vOf(r.num); v.final = r.verdict || 'SHIP';
+    const ps = r.premise_scores || {};
+    v.premise_scores = ps;
+    v.premise = Object.values(ps).reduce((a, n) => a + (Number(n) || 0), 0);   // nine dimensions, 45 at most
+    v.send = r.send_to_client !== false;
     if (v.final !== 'SHIP') v.notes.push(`FINAL CREATIVE STRATEGY REVIEW (${v.final}, source: ${r.source}): ${r.note}`);
+    else if (!v.send) v.notes.push(`FINAL CREATIVE STRATEGY REVIEW (would not send this to the client as it stands): ${r.note}`);
   }
   for (const [k, issues] of lint) vOf(k).notes.push('CODE CHECKS FAILED, fix each at the line named:\n' + harness.describe(issues));
 
@@ -1551,6 +1626,12 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   const score = (c) => {
     const v = vOf(c.num);
     let sc = 0;
+    /* ChatGPT's ranking (Sept 2026): the premise leads. 45 points of premise
+       scores become up to 15 here; the three judges' verdicts add up to 7;
+       the penalties are unchanged. The cleanest concept no longer beats the
+       most interesting one. */
+    sc += (v.premise || 0) / 3;
+    if (v.send === false) sc -= 2;
     sc += v.gate === 'PASS' ? 2 : v.gate === 'EDIT' ? 1 : 0;
     sc += v.feedback === 'PASS' ? 2 : v.feedback === 'REWORK' ? 1 : 0;
     sc += v.final === 'SHIP' ? 3 : v.final === 'REWRITE' ? 1 : 0;
@@ -1574,7 +1655,14 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
       if (spared) log('Final creative strategy review, kill confirmation', 'done', `${confirmedKill.size} of ${candidates.length} kills confirmed, ${spared} spared and kept in the ranking with the notes`);
     }
   }
-  const ranked = pool.filter((c) => !confirmedKill.has(canonNum(c.num))).sort((a, b) => score(b) - score(a));
+  /* ChatGPT's hard constraints (Sept 2026): a format-primary draft cannot
+     ship whatever it scores; a rewrite changes wording, not what kind of
+     thing it is. Compliance failures and product density are wording, so
+     they stay as notes the rewrite must clear, and the recheck below
+     replaces whatever still fails. */
+  const formatPrimary = (c) => ['FORMAT', 'PRODUCT_WALKTHROUGH'].includes(vOf(c.num).kind);
+  const excluded = pool.filter((c) => !confirmedKill.has(canonNum(c.num)) && formatPrimary(c));
+  const ranked = pool.filter((c) => !confirmedKill.has(canonNum(c.num)) && !formatPrimary(c)).sort((a, b) => score(b) - score(a));
   const famOf = (c) => String((pkgOf.get(canonNum(c.num)) || {}).family || c.visual_family || '').toLowerCase().trim();
   const laneOf = (c) => String((pkgOf.get(canonNum(c.num)) || {}).lane || c.lane || '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 5);
   /* ChatGPT's diversity rule (Sept 2026): "three different formats" is not
@@ -1599,15 +1687,26 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     if ((f && usedFam.has(f)) || (e && usedEng.has(e))) continue;
     survivors.push(c); if (f) usedFam.add(f); if (e) usedEng.add(e);
   }
-  for (const c of ranked) {                      // relax the family rule only if short
+  for (const c of ranked) {                      // short: relax the family rule, keep the engines distinct
     if (survivors.length >= count) break;
-    if (!survivors.includes(c)) survivors.push(c);
+    if (survivors.includes(c)) continue;
+    const e = engOf(c);
+    if (e && usedEng.has(e)) continue;
+    survivors.push(c); if (e) usedEng.add(e);
+  }
+  let relaxed = 0;
+  for (const c of ranked) {                      // still short: the best that is left, and say so
+    if (survivors.length >= count) break;
+    if (!survivors.includes(c)) { survivors.push(c); relaxed++; }
   }
   let reserve = ranked.filter((c) => !survivors.includes(c));
   const killed = pool.filter((c) => confirmedKill.has(canonNum(c.num)));
   log('Selection', 'done',
     `${pool.length} in the pool: ${killed.length} killed by the reviewers, ${survivors.length} kept as the strongest, ${reserve.length} in reserve` +
     (usedEng.size ? `; engines: ${[...usedEng].join(', ')}` : '') +
+    (excluded.length ? `; ${excluded.length} excluded as format-primary` : '') +
+    (relaxed ? `; ${relaxed} chosen with the diversity rules relaxed` : '') +
+    `; premise scores of the kept: ${survivors.map((c) => vOf(c.num).premise || 0).join('/')}` +
     (survivors.length < count ? `. Only ${survivors.length} of the ${count} asked for survived` : ''));
 
   /* ---- one rewrite, for survivors that carry notes ---- */
@@ -1624,9 +1723,9 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
        prescribe "brand-specific proof", the rewrite obeys. If a rewritten
        draft mentions the product in more beats than before, or has moved it
        into beat 1, the original stands. */
-    const brandRe = new RegExp(record.brand.brand_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    const productBeats = (c) => (c.narrative || []).filter((b) => INTERFACE_TERMS.test(b) || PRODUCT_SCENE.test(b) || brandRe.test(b)).length;
-    const firstIsProduct = (c) => { const b = (c.narrative || [])[0] || ''; return INTERFACE_TERMS.test(b) || PRODUCT_SCENE.test(b) || brandRe.test(b); };
+    const brandRe = brandRegex(record.brand.brand_name);
+    const productBeats = (c) => (c.narrative || []).filter((b) => productScene(b, brandRe)).length;
+    const firstIsProduct = (c) => productScene((c.narrative || [])[0] || '', brandRe);
     const accepted = [];
     for (const r of rewritten) {
       const before = concepts.find((c) => canonNum(c.num) === canonNum(r.num));
@@ -1712,7 +1811,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     composition_note: drafted.composition_note,
     change_log: reviews.map((r) => ({ num: r.num, verdict: r.verdict, note: r.change_log })),
     composition,
-    pipeline_version: V6 ? 'v7.6-premise' : 'v4',
+    pipeline_version: V6 ? 'v7.7-engines' : 'v4',
     strategy,
     /* the decisions made before writing, one per pool slot */
     packages,
@@ -1722,7 +1821,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
       const v = vOf(c.num);
       return { num: c.num, title: c.title, gate: v.gate, feedback: v.feedback, final: v.final, hard: v.hard, soft: v.soft,
         lint: (lintAll([c]).get(canonNum(c.num)) || []).map((i) => i.code),
-        kind: (V.get(canonNum(c.num)) || {}).kind || null, outcome: killed.includes(c) ? 'killed' : concepts.some((k) => canonNum(k.num) === canonNum(c.num)) ? 'shipped' : 'reserve' };
+        kind: (V.get(canonNum(c.num)) || {}).kind || null, premise: (V.get(canonNum(c.num)) || {}).premise || null, premise_scores: (V.get(canonNum(c.num)) || {}).premise_scores || null, send_to_client: (V.get(canonNum(c.num)) || {}).send !== false, outcome: killed.includes(c) ? 'killed' : excluded.includes(c) ? 'excluded_format' : concepts.some((k) => canonNum(k.num) === canonNum(c.num)) ? 'shipped' : 'reserve' };
     }),
     feedback: {
       batch_findings: feedback.batch_findings,
