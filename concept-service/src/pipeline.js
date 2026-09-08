@@ -1181,27 +1181,31 @@ THE PREMISE, build the concept from this and in this order:
 const CD_FORMAT = `Deliver the batch as text, in the skill's slide format, exactly as you would in a working
 session. For each concept, in this order:
 NNN · Title
-Description (two or three sentences, structure and brand fit, no hooks, no dialogue)
+Description
 Narrative: five bullets
 Design Components: five bullets
 Hooks: three candidate opening lines (internal, for the script phase and the mockup caption)
-Beats and design bullets are one plain sentence each, said the way you would say it to a producer.
-In the beats people have names in the story, not jobs on the shoot: "he", "his friend", "his
-roommate", "the coworker". Never "the creator", and never the camera or the cut.
 
-The title says WHY someone would watch, never HOW the ad is made. "He Asked How Much I Paid" and
-"Break Room: They Called My Shoes Fake" are titles. "Voice Memo Object Handoff" and "Desk
-Evidence Board" are formats, and the format belongs in Design Components.
-Beat 1 opens on the human trigger from the package: a person, a question, an accusation, a look.
-Never on a phone, a post, a message arriving, a screen or the product.
-Beats 2 to 4 carry the tension and hold the open loop. The product enters once, where the
-package's chronology and product role say, and no earlier.
-Beat 5 is the payoff from the package: something a person says or does that resolves the tension.
-A screen left visible is not a payoff.
-The proof is the physical product, or one spoken line about where it came from. Interface
-vocabulary (record, account screen, shipping path, available value, listed contents, item
-variations, category page) appears only where the persuasion job cannot be answered without it,
-and never in beat 1 or beat 5.
+The title says why someone would watch, never how the ad is made. The format belongs in Design
+Components.
+
+The description is the real-life moment, told in two or three plain sentences the way you would
+pitch it across a table: who is there, what they do, what comes out of it, and where the product
+sits in that. It is not a summary of the format and it is not a strategy note. This is the
+standard, and every description in the batch is written to it:
+
+  His friend yanks the drawer open and dumps forty graded cards onto the bed. Says the quiet
+  part: none of it is anything you can wear, drive, or use. Guy pulls out his phone, picks a
+  pack by theme, and what comes out is a pair of sneakers, on his feet by Friday.
+
+Write the beats and the design bullets in that same voice: one plain sentence each, concrete
+things people do and say, no agency register. In the beats people are "he", "his friend", "his
+roommate", "the coworker", never "the creator", and never the camera or the cut. Beat 1 opens on
+the human trigger from the package, never on a screen or the product. The product enters once,
+where the package's chronology and product role say. Beat 5 is the payoff: something a person
+says or does that resolves the tension. The proof is the physical product, or one spoken line
+about where it came from; interface vocabulary only where the persuasion job cannot be answered
+without it, and never in beat 1 or beat 5.
 Nothing else: no tags, no strategy notes, no composition note.`;
 
 /* Lift the Creative Director's text into the fields, word for word, with the
@@ -1570,7 +1574,8 @@ production disclaimers, and do not add benefits or products to compensate. A not
 by adding interface evidence, a screen, a record or a second product mention. A note asking for
 brand-specific proof is satisfied by the physical product or one spoken line about where it came
 from, at the package's chronology point and never earlier. Beat 1 stays on the human trigger and
-beat 5 stays on the human payoff. Plain speech, the way you would say it to a producer.
+beat 5 stays on the human payoff. Plain speech, the way you would pitch it across a table, and every
+sentence a note does not touch keeps the Creative Director's words exactly.
 
 CONCEPTS TO REWRITE, each with its package and its notes:
 ${items.map((it) => `${packageMd(it.pkg)}\n\nCURRENT DRAFT:\n${JSON.stringify({ title: it.concept.title, desc: it.concept.desc, narrative: it.concept.narrative, design: it.concept.design, hooks: it.concept.hooks }, null, 1)}\nNOTES:\n${it.notes.join('\n')}`).join('\n\n=====\n\n')}
@@ -2143,7 +2148,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     composition_note: drafted.composition_note,
     change_log: reviews.map((r) => ({ num: r.num, verdict: r.verdict, note: r.change_log })),
     composition,
-    pipeline_version: V6 ? 'v7.9.6-no-repeats' : 'v4',
+    pipeline_version: V6 ? 'v8.0-opus' : 'v4',
     strategy,
     /* the decisions made before writing, one per pool slot */
     packages,
@@ -2181,4 +2186,35 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   };
 }
 
-module.exports = { run, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote, standardNote, humanSituation, premiseLint, stagePremiseGate, premiseTotal, premiseFails };
+/* Carl's bypass (Sept 2026): a batch written in Claude web, pasted in as text
+   in the slide format, becomes the same record a pipeline run produces, so it
+   shows in the OS, gets mockups and counts as a batch. Copied verbatim; the
+   strategy tags are not in the text, so they are inferred and say so. */
+async function importBatch({ client, text, requestedBy, log }) {
+  const { record } = await brand.resolve(client);
+  const brandName = record.brand.brand_name;
+  log('Import', 'running', `${text.length} characters pasted`);
+  const out = await ask({
+    system: `You convert a Creative Director's concept batch, written as text in a slide format, into JSON. You copy; you never rewrite. Title, description, every narrative bullet, every design bullet and every hook are reproduced VERBATIM, character for character. Where the text has fewer than five narrative or design bullets, keep exactly what is there and invent nothing. Number the concepts NNN in order of appearance if the text does not number them. The tag fields (objective, persona, selling_argument, awareness, lane, dur, vehicle, visual_family, observation, insight_family, persuasion_job) are not in the text: infer each in a few plain words from the concept itself, for the brand ${brandName}. logline is the situation in the customer's own voice in one sentence; thumb_stop and performance_ready are your honest 1 to 5 read of the text. composition_note is "imported".`,
+    prompt: `THE BATCH TEXT:\n${text}`,
+    schema: BATCH_SCHEMA,
+    maxTokens: 48000,
+    model: REVIEW_MODEL,
+  });
+  const concepts = (out.concepts || []).map((c, i) => ({ ...c, num: canonNum(c.num || '') || String(i + 1).padStart(3, '0') }));
+  log('Import', 'done', `${concepts.length} concept${concepts.length === 1 ? '' : 's'} lifted verbatim`);
+  return {
+    client: brandName, concepts, pipeline_version: 'import-claude-web', imported: true, imported_by: requestedBy || null,
+    observations: [], harvest_notes: null, composition_note: 'imported', change_log: [], composition: null, strategy: null,
+    packages: [], visualizations: [],
+    pool: concepts.map((c) => ({ num: c.num, title: c.title, outcome: 'shipped', imported: true })),
+    feedback: null, compliance: null, final_review: null, brand_fields: 0, used_marketing_plan: false,
+    cost_usd: Math.round(((out.__usage && out.__usage.cost) || 0) * 100) / 100,
+    used_research: false, used_harvest: false, harvest_id: null,
+    has_brand_visuals: (record.colors || []).length > 0 && (record.fonts || []).length > 0,
+    production_notes: null, used_approved_library: false, used_category_ads: false,
+    pool_size: concepts.length, lint_rounds: 0, lint_remaining: 0, cd_markdown: String(text).slice(0, 120000),
+  };
+}
+
+module.exports = { run, importBatch, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote, standardNote, humanSituation, premiseLint, stagePremiseGate, premiseTotal, premiseFails };

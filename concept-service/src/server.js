@@ -1383,6 +1383,24 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, store.saveStory(patch));
     }
 
+    /* Paste a batch written elsewhere (Claude web) as text and it becomes a
+       batch here: same record, same OS page, same mockup path. Nothing is
+       generated; the text is lifted verbatim. */
+    if (p === '/import' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      if (!b.client) return json(res, 400, { error: 'client is required' });
+      const text = String(b.text || '');
+      if (text.trim().length < 80) return json(res, 400, { error: 'paste the concepts as text: title, description, narrative, design components, hooks' });
+      try { await brand.resolve(b.client); }
+      catch (e) { return json(res, 400, { error: e.message }); }
+      const steps = [];
+      const result = await pipeline.importBatch({ client: b.client, text, requestedBy: b.requestedBy, log: (stage, status, detail) => steps.push({ stage, status, detail }) });
+      if (!result.concepts.length) return json(res, 422, { error: 'no concepts could be read from that text', steps });
+      const batch = store.saveBatch(result);
+      return json(res, 201, { batchId: batch.id, number: batch.number, count: result.concepts.length, titles: result.concepts.map((c) => `${c.num} ${c.title}`), steps });
+    }
+
     if (p === '/run' && req.method === 'POST') {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
       if (!process.env.OPENROUTER_API_KEY) {
