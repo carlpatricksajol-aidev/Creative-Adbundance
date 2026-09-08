@@ -650,8 +650,18 @@ function humanSituation(text, brandName) {
    Chat Exit Check", "Comment Stitch: Did It Arrive?", "Desk Evidence Board").
    The same words inside a sentence are a story ("The Reveal Was Too Fast",
    "I Check Every Character"), which Batch 24 taught the hard way. */
-const FORMAT_TITLE = /\b(green-?screen|split-?screen|voice ?(memo|note)|pov|montage|walkthrough|carousel|time-?lapse|podcast|tutorial|explainer|breakdown|demo|hand-?off)\b|\b(reply|stitch|replay|check|test|board|reveal|review|reaction|unboxing|haul)\s*(:|$)/i;
-const INTERFACE_TERMS = /\b(records?|account( screen| page| value| action)?|screens?|shipping (path|update|status|label)|available (account )?(value|choices|options|paths)|listed (contents|items|details)|item variations?|item list|categor(y|ies)( page| menu| view)?|pack (page|details?|record|list)|saved page|the phone shows|phone screen|notifications?|browsing|tabs?|checkout|balance|listing)\b/i;
+const FORMAT_DEVICE = /\b(green-?screen|split-?screen|voice ?(memo|note)|pov|montage|walkthrough|carousel|time-?lapse|podcast|tutorial|explainer|breakdown|demo|hand-?off)\b/i;
+const FORMAT_NOUN = /\b(reply|stitch|replay|check|test|board|reveal|review|reaction|unboxing|haul)$/i;
+function formatTitle(title) {
+  const t = String(title || '').trim();
+  const dev = t.match(FORMAT_DEVICE);
+  if (dev) return dev[0];                       // a production device anywhere is always a format
+  const head = t.split(':')[0].trim().replace(/[?.!,]+$/, '');
+  if (head.split(/\s+/).filter(Boolean).length > 5) return null;   // a sentence, not a label
+  const noun = head.match(FORMAT_NOUN);         // a format noun ending a short label
+  return noun ? noun[0] : null;
+}
+const INTERFACE_TERMS = /\b(records?|account( screen| page| value| action)?|screens?|shipping (path|update|status|label)|available (account )?(value|choices|options|paths)|listed (contents|items|details)|item variations?|item list|categor(y|ies)( page| menu| view)?|pack (page|details?|record|list)|(offer|options?|category|main|side|nav(igation)?) ?menus?|menus?|saved page|the phone shows|phone screen|notifications?|browsing|tabs?|checkout|balance|listing)\b/i;
 /* the offer menu (keep it, ship it, cash out) is product talk too: Batch 23
    put it in all three shipped concepts */
 const OFFER_MENU = /\b(cash[- ]?out|crypto|withdraw(al)?|payout|sell[- ]back|keep,? ship|keep it, ship it|keep or ship|ship or keep)\b/i;
@@ -709,8 +719,13 @@ function premiseLint(c, brandName) {
   const brandRe = brandRegex(brandName);
   const productish = (t) => productScene(t, brandRe);
   const t = String(c.title || '');
-  const ft = t.match(FORMAT_TITLE);
-  if (ft) add('format_title', 'title', `"${t}" says how the ad is made ("${ft[0]}"), not why anyone would watch it. The title is the situation or the line a person says; the format belongs in Design Components.`);
+  const ft = formatTitle(t);
+  if (ft) add('format_title', 'title', `"${t}" says how the ad is made ("${ft}"), not why anyone would watch it. The title is the situation or the line a person says; the format belongs in Design Components.`);
+  /* the description is client-facing prose, so producer language shows there
+     too and nothing was reading it */
+  const desc = String(c.desc || '');
+  const dapp = (desc.match(APPARATUS) || [])[0] || (desc.match(PRODUCTION_ROLE) || [])[0];
+  if (dapp) add('producer_voice_desc', 'desc', `the description says "${dapp}". The description is what we are making for a person to read: name the situation and the people, and leave the camera, the cut and "the creator" to Design Components.`);
   if (beats.length) {
     if (productish(beats[0])) add('product_first_beat', 'narrative', `beat 1 opens on the product or a screen: "${beats[0].slice(0, 110)}". It must open on the human trigger from the package: a person, a question, an accusation, a look.`);
     const last = beats[beats.length - 1];
@@ -756,13 +771,17 @@ const PREMISE_SCHEMA = {
           verdict: { type: 'string', enum: ['PASS', 'SHARPEN', 'REPLACE'] },
           why: { type: 'string' },
           sharper_situation: { type: 'string' },
+          sharper_trigger: { type: 'string' },
           sharper_tension: { type: 'string' },
           sharper_open_loop: { type: 'string' },
+          sharper_creative_leap: { type: 'string' },
+          sharper_product_role: { type: 'string' },
           sharper_payoff: { type: 'string' },
         },
         required: ['slot', 'human_premise', 'watch_without_brand', 'open_loop', 'social_truth',
-          'product_necessity', 'verdict', 'why', 'sharper_situation', 'sharper_tension',
-          'sharper_open_loop', 'sharper_payoff'],
+          'product_necessity', 'verdict', 'why', 'sharper_situation', 'sharper_trigger',
+          'sharper_tension', 'sharper_open_loop', 'sharper_creative_leap', 'sharper_product_role',
+          'sharper_payoff'],
       },
     },
   },
@@ -816,7 +835,9 @@ down the one thing I would actually want first" is sharper than "he writes down 
 keep", because now there is a test and the video answers it. Keep the same persona, persuasion
 job, selling argument and engine. The situation stays a sentence about a person and never a
 camera, a shot, a screen or the product. Verdict PASS if it needs nothing, SHARPEN if your
-sharper version fixes it, REPLACE if the premise has nothing under it at all.${round > 1 ? '\n\nThese are the sharpened premises from the first pass. Score them as they now stand.' : ''}
+sharper version fixes it, REPLACE if the premise has nothing under it at all. When you sharpen,
+return the whole premise, trigger, tension, open loop, creative leap, product role and payoff
+together, so nothing is left describing the scene you just replaced.${round > 1 ? '\n\nThese are the sharpened premises from the first pass. Score them as they now stand.' : ''}
 
 THE PREMISES:
 ${list.map(slotPremiseMd).join('\n\n')}`,
@@ -828,8 +849,11 @@ ${list.map(slotPremiseMd).join('\n\n')}`,
   const apply = (sl, g) => {                       // the sharper premise, if it is really a situation
     if (!g.sharper_situation || humanSituation(g.sharper_situation, brandName)) return false;
     sl.chosen = { ...(sl.chosen || {}), situation: g.sharper_situation, why: `Sharpened by the premise gate: ${g.why}` };
+    if (g.sharper_trigger) sl.chosen.trigger = g.sharper_trigger;
     if (g.sharper_tension) sl.tension = g.sharper_tension;
     if (g.sharper_open_loop) sl.open_loop = g.sharper_open_loop;
+    if (g.sharper_creative_leap) sl.creative_leap = g.sharper_creative_leap;
+    if (g.sharper_product_role) sl.product_role = g.sharper_product_role;
     if (g.sharper_payoff) sl.payoff = g.sharper_payoff;
     return true;
   };
@@ -844,24 +868,42 @@ ${list.map(slotPremiseMd).join('\n\n')}`,
   const gOf = new Map((first.slots || []).map((g) => [Number(g.slot), g]));
   for (const sl of slots) sl.premise_gate = gOf.get(Number(sl.slot)) || null;
   let sharpened = 0; let swapped = 0; let reverted = 0;
-  const weak = slots.filter((sl) => premiseFails(sl.premise_gate) || (sl.premise_gate || {}).verdict !== 'PASS');
-  const before = new Map(weak.map((sl) => [sl, { chosen: sl.chosen, tension: sl.tension, open_loop: sl.open_loop, payoff: sl.payoff, gate: sl.premise_gate }]));
+  /* No score is not a bad score. A slot the reviewer omitted is left exactly
+     as the situation stage chose it: not sharpened, not swapped, not dropped. */
+  const unscored = slots.filter((sl) => !sl.premise_gate);
+  const weak = slots.filter((sl) => sl.premise_gate && (premiseFails(sl.premise_gate) || sl.premise_gate.verdict !== 'PASS'));
+  const before = new Map(weak.map((sl) => [sl, { chosen: sl.chosen, tension: sl.tension, open_loop: sl.open_loop, payoff: sl.payoff, creative_leap: sl.creative_leap, product_role: sl.product_role, gate: sl.premise_gate }]));
+  const changed = new Set();
   for (const sl of weak) {
     const g = sl.premise_gate || {};
-    if (apply(sl, g)) sharpened++;
-    else if (premiseFails(g) && swap(sl)) swapped++;
+    /* REPLACE means there is nothing under this premise to sharpen, so it is
+       swapped for a different visualization rather than reworded. The verdict
+       used to be written down and never read. */
+    if (String(g.verdict || '').toUpperCase() === 'REPLACE' && swap(sl)) { swapped++; changed.add(sl); continue; }
+    if (apply(sl, g)) { sharpened++; changed.add(sl); }
+    else if (premiseFails(g) && swap(sl)) { swapped++; changed.add(sl); }
   }
-  if (weak.length) {                               // score the changed premises as they now stand
-    const again = await askGate(weak, 2);
+  const changedList = weak.filter((sl) => changed.has(sl));
+  if (changedList.length) {                        // only what actually changed is re-scored
+    const again = await askGate(changedList, 2);
     const g2 = new Map((again.slots || []).map((g) => [Number(g.slot), g]));
-    for (const sl of weak) {
-      if (!g2.has(Number(sl.slot))) continue;
+    for (const sl of changedList) {
       const was = before.get(sl);
+      /* a changed premise the second pass skipped has no score of its own, and
+         the first-pass score belongs to the premise it replaced, so the
+         original stands rather than being judged on the wrong evidence */
+      if (!g2.has(Number(sl.slot))) {
+        sl.chosen = was.chosen; sl.tension = was.tension; sl.open_loop = was.open_loop; sl.payoff = was.payoff;
+        sl.creative_leap = was.creative_leap; sl.product_role = was.product_role;
+        sl.premise_gate = was.gate; reverted++;
+        continue;
+      }
       const now = g2.get(Number(sl.slot));
       /* sharper is a claim, not a fact: if the rewritten premise scores worse
          than the one it replaced, the original stands */
       if (premiseTotal(now) < premiseTotal(was.gate)) {
         sl.chosen = was.chosen; sl.tension = was.tension; sl.open_loop = was.open_loop; sl.payoff = was.payoff;
+        sl.creative_leap = was.creative_leap; sl.product_role = was.product_role;
         sl.premise_gate = was.gate; reverted++;
       } else sl.premise_gate = now;
     }
@@ -881,6 +923,7 @@ ${list.map(slotPremiseMd).join('\n\n')}`,
   const scores = kept.map((sl) => premiseTotal(sl.premise_gate));
   log('Premise strength gate', 'done',
     `${slots.length} premises scored out of 25` +
+    (unscored.length ? `; ${unscored.length} the reviewer did not score, left as chosen` : '') +
     (sharpened ? `; ${sharpened} sharpened` : '') +
     (swapped ? `; ${swapped} swapped for an alternate` : '') +
     (reverted ? `; ${reverted} sharpened version scored worse and was reverted` : '') +
@@ -1211,7 +1254,9 @@ It is the bar for every verdict here, not the skill's ideal. Before you fail a c
 approved concept nearest to it and ask whether the client would have failed that one for the same
 reason. A trait the approved library also has is never a reason to fail: a story title rather
 than a format title, an objection spoken in a character's mouth, an everyday number a person
-would say out loud, household gear, a parody of a familiar format, a talking head in a kitchen.
+would say out loud, household gear, a talking head in a kitchen. A familiar format is fine as the
+TREATMENT over a human situation, the way the approved library uses it, and is not a defence when
+the format is the whole idea: that is the FORMAT verdict and it stands.
 The failing verdict is for a draft clearly below that library: no human situation, a second
 persuasion job, a claim the brand record contradicts, a banned term from the brief, or a shoot
 the creator could not do at home.
@@ -1887,7 +1932,8 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
      never excluded down to fewer than the batch needs, and the log says when
      one shipped below the floor. */
   const loopFloor = (c) => {
-    const ps = vOf(c.num).premise_scores || {};
+    const ps = vOf(c.num).premise_scores;
+    if (!ps || !Object.keys(ps).length) return null;   // unscored is not the same as no loop
     const bad = [['open loop', ps.open_loop], ['payoff', ps.payoff]].filter(([, n]) => (Number(n) || 0) < PREMISE_FLOOR);
     return bad.length ? bad.map(([k, n]) => `${k} ${Number(n) || 0}/5`).join(', ') : null;
   };
@@ -2071,7 +2117,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     composition_note: drafted.composition_note,
     change_log: reviews.map((r) => ({ num: r.num, verdict: r.verdict, note: r.change_log })),
     composition,
-    pipeline_version: V6 ? 'v7.9.1-loop-gate' : 'v4',
+    pipeline_version: V6 ? 'v7.9.2-loop-gate' : 'v4',
     strategy,
     /* the decisions made before writing, one per pool slot */
     packages,
