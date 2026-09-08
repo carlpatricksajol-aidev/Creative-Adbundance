@@ -242,9 +242,9 @@ function body(req) {
   });
 }
 
-async function startRun({ client, count, requestedBy }) {
+async function startRun({ client, count, requestedBy, mode }) {
   const id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  store.newRun({ id, client, count, requestedBy });
+  store.newRun({ id, client, count, requestedBy, mode: mode === 'direct' ? 'direct' : 'pipeline' });
 
   const log = (name, state, detail) => store.step(id, name, state, detail);
 
@@ -300,7 +300,10 @@ async function startRun({ client, count, requestedBy }) {
       }
 
       const priorCtx = store.priorContext(client);
-      const result = await pipeline.run({ client, count, prior: priorCtx.text, priorMeta: priorCtx, log });
+      /* direct: one call to Opus with the whole skill and snapshot, nothing
+         rewritten afterwards. pipeline: the staged run. Carl's call per batch. */
+      const runner = mode === 'direct' ? pipeline.runDirect : pipeline.run;
+      const result = await runner({ client, count, prior: priorCtx.text, priorMeta: priorCtx, log });
       const batch = store.saveBatch(result);
       store.finishRun(id, { status: 'done', batchId: batch.id, cost_usd: result.cost_usd, used_research: result.used_research });
     } catch (err) {
@@ -1415,7 +1418,7 @@ const server = http.createServer(async (req, res) => {
       // Fail fast on a bad name rather than after a minute of work.
       try { await brand.resolve(b.client); }
       catch (e) { return json(res, 400, { error: e.message }); }
-      const id = await startRun({ client: b.client, count, requestedBy: b.requestedBy });
+      const id = await startRun({ client: b.client, count, requestedBy: b.requestedBy, mode: b.mode });
       return json(res, 202, { runId: id });
     }
 

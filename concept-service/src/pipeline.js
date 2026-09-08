@@ -1642,6 +1642,158 @@ function reconcile(concepts, reviews) {
   return concepts.map((c) => byNum.get(canonNum(c.num)) || c);
 }
 
+/* Everything the pipeline reads before a word is written, as one function,
+   so the direct mode reads exactly what the pipeline reads: brand record,
+   marketing report, client brief, approved library, research, vehicle bank,
+   category ads, real harvest, prior batches. Same order, same logs. */
+async function intake({ client, prior, priorMeta, log }) {
+  log('Intake and brand analysis', 'running');
+  let { record, matched } = await brand.resolve(client);
+  /* the report extraction appends compliance rows on every run; take the
+     duplicates out of the table before the snapshot is built from it */
+  try {
+    const removed = await brand.dedupeRules(record.brand && record.brand.id);
+    if (removed) { log('Compliance rules', 'done', `${removed} duplicate rule rows removed`); ({ record, matched } = await brand.resolve(client)); }
+  } catch (err) { log('Compliance rules', 'done', 'could not dedupe the rules table (' + err.message.slice(0, 60) + ')'); }
+  /* the client's brief rides with the snapshot as data, exactly like the report */
+  const brief = store.getBrief(record.brand.brand_name) || store.getBrief(client) || {};
+  /* ChatGPT's source hierarchy (Sept 2026): marketing report, then the client
+     brief, then the approved concepts, then everything else. The brand brain
+     is the "everything else": scraped, capped and the least trustworthy, so
+     it goes last. The brief and the approved library are spliced in ahead of
+     it rather than appended after it. */
+  const BRAIN_HEADING = '\n## BRAND BRAIN, the account record';
+  const spliceBeforeBrain = (md, add) => {
+    if (!add) return md;
+    const at = md.indexOf(BRAIN_HEADING);
+    return at > 0 ? md.slice(0, at) + add + md.slice(at) : md + add;
+  };
+  let snapshot = spliceBeforeBrain(brand.toMarkdown(record), briefMd(brief));
+  /* Say what the snapshot was actually built from. A run grounded in a brand
+     with no marketing plan and no compliance rules should say so in the step,
+     not read identical to one that had both. */
+  const built = [
+    record.snap ? 'identity' : null,
+    /* First in the list because it is first in the snapshot, and because a run
+       that read it should be distinguishable at a glance from one that did
+       not. Naming it here is how Carl can tell the marketing_report table is
+       actually being used without going and querying it. */
+    record.report ? 'the brand strategy snapshot' : null,
+    record.plan ? 'marketing plan' : null,
+    record.rules.length ? `${record.rules.length} compliance rule${record.rules.length === 1 ? '' : 's'}` : null,
+    record.products.length ? `${record.products.length} product${record.products.length === 1 ? '' : 's'}` : null,
+    record.colors.length ? 'colours' : null,
+    brief.client ? `the client brief (${brief.duration_min || '?'} to ${brief.duration_max || '?'}s, ${(brief.banned || []).length} banned words)` : null,
+  ].filter(Boolean);
+  log('Intake and brand analysis', 'done',
+    `snapshot for ${record.brand.brand_name} (matched on ${matched}) from ${built.length ? built.join(', ') : 'a bare brand row'}`);
+
+  log('Library check', 'done',
+    prior
+      ? `${priorMeta ? priorMeta.concepts : '?'} prior concepts across ${priorMeta ? priorMeta.batches : '?'} batches fed in, deduping at observation level`
+      : 'no prior batch on file, nothing to dedup against');
+  const winners = record.snap && record.snap.winning_concepts;
+  const losers = record.snap && record.snap.losing_patterns;
+  log('Performance filter', 'done',
+    (winners ? 'winner set from what has worked' : 'no winner set on file, defaulting') +
+    (losers ? ', known losing patterns excluded' : ', nothing on file to exclude'));
+
+  /* The market research library: the Research Agent's catalogue of ad formats,
+     which is shared across every client rather than being about this one. It
+     used to be logged as "Marketing report", which collided with the step that
+     commissions THIS CLIENT'S report in marketingReport.js. Steps are keyed by
+     name, so the two were one row and the client report never showed. Absence
+     degrades honestly, never silently: the step says what was and was not on
+     file. */
+  log('Market research library', 'running');
+  let researchMd = null;
+  try {
+    const brief = await research.fetchBrief();
+    researchMd = research.toMarkdown(brief, { compact: true });
+    log('Market research library', 'done', brief
+      ? `${brief.vehicles.length} researched vehicles read` +
+        (brief.edition ? `, catalog edition of ${String(brief.edition.ran_at).slice(0, 10)}` : '') +
+        `, ${(brief.probes || []).length} recent probes`
+      : 'the research library is empty, generating from the brand snapshot alone');
+  } catch (err) {
+    log('Market research library', 'done',
+      'could not reach the research library (' + err.message.slice(0, 80) + '), generating from the brand snapshot alone');
+  }
+
+  /* Ricardo's vehicle rule: a fresh random draw from the curated bank every
+     run, minus everything this client's earlier batches already used. */
+  log('Vehicle bank', 'running');
+  let usedVeh = [];
+  try { usedVeh = store.usedVehicles(client); } catch {}
+  const vehicles = await vehicleMenu(usedVeh);
+  log('Vehicle bank', 'done', vehicles
+    ? vehicles.count + ' vehicles drawn at random from the ' + vehicles.total + ' on file' +
+      (vehicles.banned ? ', ' + vehicles.banned + ' used in earlier batches quietly left out' : '') +
+      ', duration rule >30s attached'
+    : 'the vehicle bank is unreachable, so the skill\'s own libraries carry the batch alone');
+
+  /* The skill's other two knowledge pools, which the ecosystem never fed:
+     the client's approved concepts (Step 1 tone appetite, Step 2 full dedup)
+     and the adjacent category's real ads (Step 4 context). Ricardo's "not
+     pulling all information correctly" was these. */
+  const nameSet = [record.brand.brand_name, record.brand.client_name, client].filter(Boolean);
+  log('Approved library', 'running');
+  let approved = null;
+  try {
+    approved = await knowledge.fetchApproved(nameSet);
+    /* the view has nothing for a brand until its decks are catalogued; the
+       brief can carry the client's approved concepts in the meantime */
+    if (!approved) approved = knowledge.approvedFromBrief(brief);
+    log('Approved library', 'done', approved
+      ? `${approved.count} approved concepts ${approved.clients.join(', ') === brief.client ? 'from the client brief' : 'on file for ' + approved.clients.join(', ')}, read for tone and dedup`
+      : 'no approved concepts in the library for this client yet, tone comes from the brand record alone');
+  } catch (err) {
+    log('Approved library', 'done', 'could not read the approved-concept view (' + err.message.slice(0, 60) + ')');
+  }
+  if (approved) snapshot = spliceBeforeBrain(snapshot, '\n\n' + approved.md);
+
+  log('Category ads', 'running');
+  let categoryMd = null;
+  try {
+    const cat = await knowledge.fetchCategoryAds({ names: nameSet, category: record.snap && record.snap.category });
+    if (cat) { categoryMd = cat.md; log('Category ads', 'done', `${cat.count} adjacent-category ads read (bucket: ${cat.bucket}), adoption signal only`); }
+    else log('Category ads', 'done', 'no adjacent-category ads on file for this brand or its category');
+  } catch (err) {
+    log('Category ads', 'done', 'could not read the scraped-ad table (' + err.message.slice(0, 60) + ')');
+  }
+
+  /* The audience harvest, if one has been posted for this client. Absence is
+     reported honestly rather than passed over: a batch built on imagined
+     observations should say so in its own step log. */
+  log('Audience harvest', 'running');
+  let harvestMd = null;
+  let harvestRec = null;
+  try {
+    harvestRec = store.latestHarvest(client);
+    harvestMd = harvestBrief(harvestRec);
+    if (harvestMd) {
+      const age = Math.round((Date.now() - new Date(harvestRec.savedAt).getTime()) / 86400000);
+      const sourced = harvestRec.observations.filter((o) => o.source_url).length;
+      log('Audience harvest', 'done',
+        `${harvestRec.observations.length} real observations read, ${sourced} with a source link, harvested ${age < 1 ? 'today' : age + ' days ago'}` +
+        (age > 90 ? '. Over three months old, the behaviour may have moved on' : ''));
+    } else {
+      log('Audience harvest', 'done',
+        'no harvest on file for this client, so the observations below are the model\'s own rather than sourced from real customers');
+    }
+  } catch (err) {
+    log('Audience harvest', 'done', 'could not read the harvest store (' + err.message.slice(0, 60) + '), generating without it');
+  }
+
+  /* The strategist does NOT see the vehicle menu. Step Zero allocates business
+     objective x persona x selling argument, and when Batch 6's strategist had
+     the menu in front of it the objectives came out as statements about the
+     creative instead of the business. The writer picks vehicles; the
+     strategist picks what the batch is FOR. */
+
+  return { record, matched, brief, snapshot, researchMd, vehicles, approved, categoryMd, harvestMd, harvestRec };
+}
+
 async function run({ client, count = 5, prior = '', priorMeta = null, startNum = 1, log }) {
   const spend = [];
   const baseAsk = ask;
@@ -2190,6 +2342,92 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   };
 }
 
+
+/* Carl's direct mode (Sept 2026): one long prompt to Opus 5 with the whole
+   snapshot and the whole skill, the way the skill runs in Claude web. The
+   model does Step Zero, the harvest, the visualization, the vehicle and the
+   writing in one head, and nobody edits it afterwards. The deterministic
+   checks still run, but they FLAG for a person to read; they never rewrite
+   and never replace. */
+async function runDirect({ client, count = 1, prior = '', priorMeta = null, startNum = 1, log }) {
+  const spend = [];
+  const t0 = Date.now();
+  const { record, brief, snapshot, researchMd, vehicles, approved, categoryMd, harvestMd, harvestRec } =
+    await intake({ client, prior, priorMeta, log });
+  const brandName = record.brand.brand_name;
+  const n = Math.min(Math.max(Number(count) || 1, 1), 16);
+  log('Creative Director, one pass', 'running', `one call, the whole skill, ${n} concept${n === 1 ? '' : 's'}`);
+
+  const system = `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n\nThe creative strategist's reference:\n\n${ref('creative-strategist.md')}\n${HOUSE_RULES}`;
+  const prompt = `${snapshot}
+${researchMd ? '\n' + researchMd + '\n' : ''}${vehicles ? '\nTHE VEHICLE BANK, researched vehicles you may draw on:\n' + vehicles.md + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}${categoryMd ? '\n' + categoryMd + '\n' : ''}
+ALREADY DONE FOR THIS CLIENT. Do not repeat these, in idea or in situation:
+${prior || '(nothing on file)'}
+
+Run the whole skill yourself, in this one pass, exactly as you would in a Claude web session with
+all of this material in front of you: Step Zero, the observation harvest, message visualization,
+the vehicle choice, the writing, and your own review against the skill's checks before you hand
+it over. Nobody edits this after you; what you write is what the client sees. Deliver
+${n} concept${n === 1 ? '' : 's'}, numbered from ${String(startNum).padStart(3, '0')}, in the slide format and nothing else:
+NNN · Title
+Description
+Narrative: five bullets
+Design Components: five bullets
+Hooks: three candidate opening lines`;
+
+  const out = await askText({ system, prompt, maxTokens: 24000 });
+  const text = typeof out === 'string' ? out : String((out && (out.text || out.content)) || '');
+  const usage = out && (out.__usage || out.usage);
+  if (usage) spend.push(usage);
+  log('Creative Director, one pass', 'done', `${text.length} characters in ${Math.round((Date.now() - t0) / 1000)}s`);
+
+  /* lift into fields, verbatim; the tags are inferred and say so */
+  log('Lift', 'running');
+  const lifted = await ask({
+    system: `You convert a Creative Director's concept batch, written as text in a slide format, into JSON. You copy; you never rewrite. Title, description, every narrative bullet, every design bullet and every hook are reproduced VERBATIM, character for character. Where the text has fewer than five narrative or design bullets, keep exactly what is there and invent nothing. Number the concepts NNN in order of appearance if the text does not number them. The tag fields (objective, persona, selling_argument, awareness, lane, dur, vehicle, visual_family, observation, insight_family, persuasion_job) are not in the text: infer each in a few plain words from the concept itself, for the brand ${brandName}. logline is the situation in the customer's own voice in one sentence; thumb_stop and performance_ready are your honest 1 to 5 read of the text. composition_note is "direct".`,
+    prompt: `THE BATCH TEXT:\n${text}`,
+    schema: BATCH_SCHEMA,
+    maxTokens: 48000,
+    model: REVIEW_MODEL,
+  });
+  if (lifted.__usage) spend.push(lifted.__usage);
+  const concepts = (lifted.concepts || []).map((c, i) => ({ ...c, num: String(String(c.num || '').replace(/\D/g, '') || (startNum + i)).padStart(3, '0') }));
+  log('Lift', 'done', `${concepts.length} concept${concepts.length === 1 ? '' : 's'} lifted verbatim`);
+
+  /* the checks run and are shown; they change nothing */
+  let flagged = 0; const codes = {};
+  try {
+    const lintCtx = harness.context({ brief, snapshot, library: store.libraryConcepts(brandName) });
+    const batchIssues = harness.lintBatch(concepts, lintCtx);
+    for (const c of concepts) {
+      const issues = harness.lintConcept(c, lintCtx).concat(batchIssues.get(canonNum(c.num)) || [], premiseLint(c, brandName));
+      c.flags = issues.map((i) => ({ code: i.code, field: i.field, detail: i.detail }));
+      if (issues.length) flagged++;
+      for (const i of issues) codes[i.code] = (codes[i.code] || 0) + 1;
+    }
+  } catch (err) { log('Code checks', 'done', 'could not run the checks (' + err.message.slice(0, 80) + ')'); }
+  log('Code checks', 'done', flagged
+    ? `${flagged} of ${concepts.length} carry flags for a person to read (${Object.entries(codes).map(([k, v]) => `${k} x${v}`).join(', ')}); nothing was rewritten`
+    : `every concept clears the checks; nothing was rewritten`);
+  log('Selection', 'done', `${concepts.length} concept${concepts.length === 1 ? '' : 's'}, 9:16 space reserved`);
+
+  return {
+    client: brandName, concepts, pipeline_version: 'v8.1-direct', mode: 'direct',
+    observations: [], harvest_notes: null, composition_note: 'direct', change_log: [], composition: null, strategy: null,
+    packages: [], visualizations: [],
+    pool: concepts.map((c) => ({ num: c.num, title: c.title, outcome: 'shipped', lint: (c.flags || []).map((f) => f.code), direct: true })),
+    feedback: null, compliance: null, final_review: null,
+    brand_fields: [record.snap, record.plan, record.rules.length, record.products.length].filter(Boolean).length,
+    used_marketing_plan: Boolean(record.plan),
+    cost_usd: Math.round(spend.reduce((a, u) => a + (u && u.cost || 0), 0) * 100) / 100,
+    used_research: Boolean(researchMd), used_harvest: Boolean(harvestMd), harvest_id: harvestRec ? harvestRec.id : null,
+    has_brand_visuals: (record.colors || []).length > 0 && (record.fonts || []).length > 0,
+    production_notes: brief.production_notes || null, used_approved_library: Boolean(approved), used_category_ads: Boolean(categoryMd),
+    pool_size: concepts.length, lint_rounds: 0, lint_remaining: flagged, cd_markdown: text.slice(0, 120000),
+    seconds: Math.round((Date.now() - t0) / 1000),
+  };
+}
+
 /* Carl's bypass (Sept 2026): a batch written in Claude web, pasted in as text
    in the slide format, becomes the same record a pipeline run produces, so it
    shows in the OS, gets mockups and counts as a batch. Copied verbatim; the
@@ -2221,4 +2459,4 @@ async function importBatch({ client, text, requestedBy, log }) {
   };
 }
 
-module.exports = { run, importBatch, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote, standardNote, humanSituation, premiseLint, stagePremiseGate, premiseTotal, premiseFails };
+module.exports = { run, runDirect, importBatch, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote, standardNote, humanSituation, premiseLint, stagePremiseGate, premiseTotal, premiseFails };
