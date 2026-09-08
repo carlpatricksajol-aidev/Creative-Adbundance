@@ -670,6 +670,37 @@ const ENGINE_FLAVOURS = {
   behavioral: 'a collector habit, a shopping ritual, a weird routine, a decision behaviour, an obsession of the persona',
   visual_structural: 'a comment response, a screen mechanic, a physical-proof mechanic, a platform-native format, an unexpected visual structure',
 };
+/* ChatGPT (Sept 2026): "producer language should describe the execution, not
+   replace the human motivation". A narrative beat that names the camera, the
+   frame or the cut is describing the shoot; that belongs in Design
+   Components. "The creator places the saved page in front of the camera" is
+   producer language; "His friend asks why he has looked at the same page
+   twice and still won't open it" is the same beat, alive. */
+const APPARATUS = /\b(cameras?|the frame|framing|close-?ups?|macro|footage|b-?roll|clips?|cut(s|ting)? (to|away)|cutaways?|split-?screen|green-?screen|montage|voice-?over|time-?lapse|on-?screen text|captions?|the video|the shot|(fixed|static|locked-?off|wide|overhead|quick) (views?|angles?|frames?)|views? show)\b/i;
+/* "the creator" is the first thing on ChatGPT's producer-language list, and
+   Batch 25 shipped it twice ("The creator explains that his friend assumed he
+   had spent resale money"). It is the production role standing in for the
+   person: in the story he is he, his friend, the coworker. A persona noun is
+   left alone, since the concept they praised said "the collector". */
+const PRODUCTION_ROLE = /\b(the|a) (creator|talent|actor|presenter|subject|model|spokesperson|voice ?actor)\b/i;
+/* and a beat whose subject is a thing rather than a person: "The product
+   appears", "A phone screen shows", "The PackDraw item enters the story",
+   "Three polished reveal clips play". A person as the subject is fine, which
+   is why the noun list holds no people. */
+const OBJECT_SUBJECT = /^\s*(?:the|a|an|one|two|three|four|five|six|several|a few|multiple)\s+(?:\w+\s+){0,2}?(phones?|screens?|products?|items?|packages?|box(?:es)?|packs?|pages?|accounts?|apps?|labels?|clips?|photos?|videos?|cameras?|footage|reveals?|notifications?)\b/i;
+/* ChatGPT on The Box As Evidence: "The story only needs one strong piece of
+   proof", where that concept stacked a shipping label, the original
+   packaging, three photos and an inspection. Distinct proof artefacts, not
+   mentions. */
+const PROOF_ARTEFACTS = [
+  [/\b(shipping label|label)\b/i, 'the label'],
+  [/\b(original packaging|packaging)\b/i, 'the packaging'],
+  [/\bbox(es)?\b/i, 'the box'],
+  [/\bphotos?\b/i, 'photos'],
+  [/\bscreenshots?\b/i, 'a screenshot'],
+  [/\b(receipts?|invoices?)\b/i, 'a receipt'],
+  [/\b(records?|order history|tracking)\b/i, 'a record'],
+];
 const HUMAN_BEAT = /\b(says?|said|asks?|asked|laughs?|looks?|admits?|shrugs?|grins?|nods?|replies|reply|answers?|hands?|pauses?|smiles?|realises?|realizes?|stares?|sighs?|mutters?|whispers?|shouts?|texts? back|calls?)\b/i;
 function premiseLint(c, brandName) {
   const issues = [];
@@ -688,8 +719,175 @@ function premiseLint(c, brandName) {
     if (dense >= 3) add('product_scene_density', 'narrative', `${dense} of ${beats.length} beats are about the product, its interface or its offer menu (page, pack, screen, record, keep / ship / cash out). The product is proven once, with the physical item or one spoken line about where it came from; after that the beats belong to the people. Two product beats at most.`);
     const menu = beats.filter((b) => OFFER_MENU.test(b)).length;
     if (menu >= 2) add('offer_menu_repeat', 'narrative', `the keep / ship / cash-out menu appears in ${menu} beats. It is product talk: once at most, or leave it to Design Components.`);
+    const app = beats.map((b, i) => [i + 1, (b.match(APPARATUS) || [])[0]]).filter(([, m]) => m);
+    if (app.length) add('producer_voice', 'narrative', `${app.map(([i, m]) => `beat ${i} names "${m}"`).join(', ')}. The narrative is what happens between the people; the camera, the cut and the caption belong in Design Components.`);
+    const role = beats.map((b, i) => [i + 1, (b.match(PRODUCTION_ROLE) || [])[0]]).filter(([, m]) => m);
+    if (role.length) add('production_role', 'narrative', `${role.map(([i, m]) => `beat ${i} calls him "${m}"`).join(', ')}. In the story he is "he", and the others are "his friend", "his roommate", "the coworker". "The creator" is the person who shoots it, which is a Design Components word.`);
+    const objs = beats.map((b, i) => [i + 1, (b.match(OBJECT_SUBJECT) || [])[1]]).filter(([, m]) => m);
+    if (objs.length) add('object_subject', 'narrative', `${objs.map(([i, m]) => `beat ${i} opens with "${m}" as the subject`).join(', ')}. A person does the thing: "he", "his friend", "his roommate", not "the product appears".`);
+    const found = PROOF_ARTEFACTS.filter(([re]) => beats.some((b) => re.test(b))).map(([, name]) => name);
+    if (found.length >= 3) add('proof_stacking', 'narrative', `the concept stacks ${found.length} pieces of proof (${found.join(', ')}). One strong piece is the whole point: the physical item, or one spoken line about where it came from. Cut the rest to Design Components.`);
   }
   return issues;
+}
+
+/* ChatGPT's Premise Strength Gate (Sept 2026). "A concept can technically be
+   classified as CONCEPT and still be boring." So the premise is scored before
+   the Creative Director is allowed to write a word, on the five questions
+   ChatGPT set, and a weak one is sharpened or replaced rather than polished.
+   The floor is theirs too: premise, open loop and watch-without-brand below 4
+   are rejected. */
+const PREMISE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    slots: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          slot: { type: 'integer' },
+          human_premise: { type: 'integer' },        // a specific person in a specific situation
+          watch_without_brand: { type: 'integer' },  // would you watch the opening with the brand gone
+          open_loop: { type: 'integer' },            // is there something you need resolved
+          social_truth: { type: 'integer' },         // could a real person live this
+          product_necessity: { type: 'integer' },    // does the product resolve it or just appear in it
+          verdict: { type: 'string', enum: ['PASS', 'SHARPEN', 'REPLACE'] },
+          why: { type: 'string' },
+          sharper_situation: { type: 'string' },
+          sharper_tension: { type: 'string' },
+          sharper_open_loop: { type: 'string' },
+          sharper_payoff: { type: 'string' },
+        },
+        required: ['slot', 'human_premise', 'watch_without_brand', 'open_loop', 'social_truth',
+          'product_necessity', 'verdict', 'why', 'sharper_situation', 'sharper_tension',
+          'sharper_open_loop', 'sharper_payoff'],
+      },
+    },
+  },
+  required: ['slots'],
+};
+const PREMISE_FLOOR = 4;
+const PREMISE_KEYS = ['human_premise', 'watch_without_brand', 'open_loop', 'social_truth', 'product_necessity'];
+const GATE_KEYS = ['human_premise', 'open_loop', 'watch_without_brand'];   // the three ChatGPT rejects on
+function premiseTotal(g) { return PREMISE_KEYS.reduce((a, k) => a + (Number(g && g[k]) || 0), 0); }
+function premiseFails(g) {
+  if (!g) return null;
+  const bad = GATE_KEYS.filter((k) => (Number(g[k]) || 0) < PREMISE_FLOOR).map((k) => `${k.replace(/_/g, ' ')} ${Number(g[k]) || 0}/5`);
+  return bad.length ? bad.join(', ') : null;
+}
+function slotPremiseMd(sl) {
+  const ch = sl.chosen || {};
+  return `Slot ${sl.slot} (engine ${sl.creative_engine}, persona ${sl.persona})
+  Persuasion job: ${sl.persuasion_job}
+  Situation: ${ch.situation}
+  Trigger: ${ch.trigger}
+  Tension: ${sl.tension}
+  Open loop: ${sl.open_loop}
+  Creative leap: ${sl.creative_leap}
+  Product role: ${sl.product_role}
+  Payoff: ${sl.payoff}`;
+}
+async function stagePremiseGate({ snapshot, slots, brandName, count, log, ask }) {
+  log('Premise strength gate', 'running');
+  const askGate = (list, round) => ask({
+    system: `You are the senior creative strategist on this account, scoring premises before anything is written. You are not looking at finished concepts and you do not judge wording, production or compliance: you judge whether there is an idea here worth watching.
+${HOUSE_RULES}`,
+    prompt: `${snapshot}
+
+Score each premise below, 1 to 5 on each question. 5 is the approved library's best, 1 is a
+product walkthrough with a person standing next to it.
+
+1. human_premise: is there a specific person in a specific situation, not a category of person doing a category of thing?
+2. watch_without_brand: delete ${brandName} entirely. Would you watch the opening anyway?
+3. open_loop: is there something you need to see resolved before you can scroll on?
+4. social_truth: does this feel like something a real person actually experiences and retells?
+5. product_necessity: does ${brandName} genuinely resolve the situation, or does it merely appear inside it?
+
+A premise can be clean, sensible and correctly built and still be a 3: ordinary is the failure
+mode here, not wrongness. Score the idea as a stranger scrolling would meet it.
+
+Then, for every premise that is not a 5 across the board, push the conflict harder and return the
+sharper version in sharper_situation, sharper_tension, sharper_open_loop and sharper_payoff. Being
+sharper means someone is more wrong, more sure, or more openly doubting, and the viewer has a
+question they need answered: "my friend said I would keep literally anything I opened, so I wrote
+down the one thing I would actually want first" is sharper than "he writes down what he would
+keep", because now there is a test and the video answers it. Keep the same persona, persuasion
+job, selling argument and engine. The situation stays a sentence about a person and never a
+camera, a shot, a screen or the product. Verdict PASS if it needs nothing, SHARPEN if your
+sharper version fixes it, REPLACE if the premise has nothing under it at all.${round > 1 ? '\n\nThese are the sharpened premises from the first pass. Score them as they now stand.' : ''}
+
+THE PREMISES:
+${list.map(slotPremiseMd).join('\n\n')}`,
+    schema: PREMISE_SCHEMA,
+    model: REVIEW_MODEL,
+    maxTokens: 32000,
+  });
+
+  const apply = (sl, g) => {                       // the sharper premise, if it is really a situation
+    if (!g.sharper_situation || humanSituation(g.sharper_situation, brandName)) return false;
+    sl.chosen = { ...(sl.chosen || {}), situation: g.sharper_situation, why: `Sharpened by the premise gate: ${g.why}` };
+    if (g.sharper_tension) sl.tension = g.sharper_tension;
+    if (g.sharper_open_loop) sl.open_loop = g.sharper_open_loop;
+    if (g.sharper_payoff) sl.payoff = g.sharper_payoff;
+    return true;
+  };
+  const swap = (sl) => {                           // or a different visualization from its own list
+    const alt = (sl.visualizations || []).find((v) => v.deletable_brand_pass && !humanSituation(v.situation, brandName) && v.situation !== (sl.chosen || {}).situation);
+    if (!alt) return false;
+    sl.chosen = { label: alt.label, situation: alt.situation, trigger: alt.trigger, why: 'Swapped by the premise gate: the first premise scored below the floor.' };
+    return true;
+  };
+
+  const first = await askGate(slots, 1);
+  const gOf = new Map((first.slots || []).map((g) => [Number(g.slot), g]));
+  for (const sl of slots) sl.premise_gate = gOf.get(Number(sl.slot)) || null;
+  let sharpened = 0; let swapped = 0; let reverted = 0;
+  const weak = slots.filter((sl) => premiseFails(sl.premise_gate) || (sl.premise_gate || {}).verdict !== 'PASS');
+  const before = new Map(weak.map((sl) => [sl, { chosen: sl.chosen, tension: sl.tension, open_loop: sl.open_loop, payoff: sl.payoff, gate: sl.premise_gate }]));
+  for (const sl of weak) {
+    const g = sl.premise_gate || {};
+    if (apply(sl, g)) sharpened++;
+    else if (premiseFails(g) && swap(sl)) swapped++;
+  }
+  if (weak.length) {                               // score the changed premises as they now stand
+    const again = await askGate(weak, 2);
+    const g2 = new Map((again.slots || []).map((g) => [Number(g.slot), g]));
+    for (const sl of weak) {
+      if (!g2.has(Number(sl.slot))) continue;
+      const was = before.get(sl);
+      const now = g2.get(Number(sl.slot));
+      /* sharper is a claim, not a fact: if the rewritten premise scores worse
+         than the one it replaced, the original stands */
+      if (premiseTotal(now) < premiseTotal(was.gate)) {
+        sl.chosen = was.chosen; sl.tension = was.tension; sl.open_loop = was.open_loop; sl.payoff = was.payoff;
+        sl.premise_gate = was.gate; reverted++;
+      } else sl.premise_gate = now;
+    }
+  }
+
+  /* Below the floor after the second pass, and the pool can spare it: drop it
+     rather than let the writer polish it. Never below count + 2, so the
+     reserve still has depth. */
+  const floor = Math.max(Number(count) + 2, 3);
+  const ranked = slots.slice().sort((a, b) => premiseTotal(b.premise_gate) - premiseTotal(a.premise_gate));
+  const dropped = [];
+  for (const sl of ranked.slice().reverse()) {
+    if (ranked.length - dropped.length <= floor) break;
+    if (premiseFails(sl.premise_gate)) dropped.push(sl);
+  }
+  const kept = slots.filter((sl) => !dropped.includes(sl));
+  const scores = kept.map((sl) => premiseTotal(sl.premise_gate));
+  log('Premise strength gate', 'done',
+    `${slots.length} premises scored out of 25` +
+    (sharpened ? `; ${sharpened} sharpened` : '') +
+    (swapped ? `; ${swapped} swapped for an alternate` : '') +
+    (reverted ? `; ${reverted} sharpened version scored worse and was reverted` : '') +
+    (dropped.length ? `; ${dropped.length} dropped below the floor (${dropped.map((sl) => `slot ${sl.slot}: ${premiseFails(sl.premise_gate)}`).join('; ')})` : '') +
+    `; kept ${scores.join('/')}` +
+    (kept.filter((sl) => premiseFails(sl.premise_gate)).length ? `; ${kept.filter((sl) => premiseFails(sl.premise_gate)).length} kept below the floor because the pool could not spare them` : ''));
+  return kept;
 }
 
 async function stageVisualize({ snapshot, strategy, observations, viralFormats, poolCount, brief, brandName, log, ask }) {
@@ -904,6 +1102,7 @@ function buildPackages({ visSlots, vehSlots, startNum }) {
       vehicle: w.vehicle || '', family: w.family || '', why_vehicle: w.why || '',
       proof_object: w.proof_object || '', talent: w.talent || 'solo',
       creative_engine: sl.creative_engine || '', tension: sl.tension || '', open_loop: sl.open_loop || '',
+      premise_gate: sl.premise_gate || null, premise_gate_total: premiseTotal(sl.premise_gate),
       creative_leap: sl.creative_leap || '', product_role: sl.product_role || '', payoff: sl.payoff || '',
     };
   });
@@ -1548,10 +1747,15 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     snapshot, strategy, observations: harvest.observations, viralFormats: harvest.viral_formats,
     poolCount, brief, brandName: record.brand.brand_name, log, ask: trackedAsk,
   });
-  const vehSlots = await stageVehicles({
-    snapshot, visSlots, vehicles, researchMd, viralFormats: harvest.viral_formats, log, ask: trackedAsk,
+  /* ChatGPT's gate: the premise is scored and fixed before the Creative
+     Director is allowed to write, never after. */
+  const gatedSlots = await stagePremiseGate({
+    snapshot, slots: visSlots, brandName: record.brand.brand_name, count, log, ask: trackedAsk,
   });
-  const packages = buildPackages({ visSlots, vehSlots, startNum });
+  const vehSlots = await stageVehicles({
+    snapshot, visSlots: gatedSlots, vehicles, researchMd, viralFormats: harvest.viral_formats, log, ask: trackedAsk,
+  });
+  const packages = buildPackages({ visSlots: gatedSlots, vehSlots, startNum });
   const pkgOf = new Map(packages.map((p) => [canonNum(p.num), p]));
 
   /* ---- the pool ---- */
@@ -1615,6 +1819,12 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     v.send = r.send_to_client !== false;
     if (v.final !== 'SHIP') v.notes.push(`FINAL CREATIVE STRATEGY REVIEW (${v.final}, source: ${r.source}): ${r.note}`);
     else if (!v.send) v.notes.push(`FINAL CREATIVE STRATEGY REVIEW (would not send this to the client as it stands): ${r.note}`);
+    /* ChatGPT's Open-Loop Gate (Sept 2026), on the written concept rather than
+       the premise: below the floor there is nothing the viewer needs resolved,
+       or beat 5 does not resolve it, and a concept that only explains a
+       decision process is the failure mode. */
+    if ((Number(ps.open_loop) || 0) < PREMISE_FLOOR) v.notes.push(`OPEN-LOOP GATE (open loop ${Number(ps.open_loop) || 0}/5): there is nothing here the viewer needs to see resolved. Beats 1 and 2 must raise a question that beat 5 answers, and the question is about the people, not about how the product works.`);
+    if ((Number(ps.payoff) || 0) < PREMISE_FLOOR) v.notes.push(`OPEN-LOOP GATE (payoff ${Number(ps.payoff) || 0}/5): beat 5 does not resolve the human situation. End on what a person says or does once the question is answered.`);
   }
   for (const [k, issues] of lint) vOf(k).notes.push('CODE CHECKS FAILED, fix each at the line named:\n' + harness.describe(issues));
 
@@ -1637,6 +1847,11 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
        the penalties are unchanged. The cleanest concept no longer beats the
        most interesting one. */
     sc += (v.premise || 0) / 3;
+    /* ChatGPT's priority 5, "rank on premise strength before production
+       polish": the gate scored the idea before a word was written, out of 25,
+       worth up to 5 here. A clean concept on an ordinary premise now loses to
+       an interesting one. */
+    sc += (Number((pkgOf.get(canonNum(c.num)) || {}).premise_gate_total) || 0) / 5;
     if (v.send === false) sc -= 2;
     sc += v.gate === 'PASS' ? 2 : v.gate === 'EDIT' ? 1 : 0;
     sc += v.feedback === 'PASS' ? 2 : v.feedback === 'REWORK' ? 1 : 0;
@@ -1667,8 +1882,23 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
      they stay as notes the rewrite must clear, and the recheck below
      replaces whatever still fails. */
   const formatPrimary = (c) => ['FORMAT', 'PRODUCT_WALKTHROUGH'].includes(vOf(c.num).kind);
-  const excluded = pool.filter((c) => !confirmedKill.has(canonNum(c.num)) && formatPrimary(c));
-  const ranked = pool.filter((c) => !confirmedKill.has(canonNum(c.num)) && !formatPrimary(c)).sort((a, b) => score(b) - score(a));
+  /* ChatGPT's Open-Loop Gate as a selection floor: a concept with no open loop
+     or no payoff does not ship while anything else can take its place. It is
+     never excluded down to fewer than the batch needs, and the log says when
+     one shipped below the floor. */
+  const loopFloor = (c) => {
+    const ps = vOf(c.num).premise_scores || {};
+    const bad = [['open loop', ps.open_loop], ['payoff', ps.payoff]].filter(([, n]) => (Number(n) || 0) < PREMISE_FLOOR);
+    return bad.length ? bad.map(([k, n]) => `${k} ${Number(n) || 0}/5`).join(', ') : null;
+  };
+  const live = pool.filter((c) => !confirmedKill.has(canonNum(c.num)));
+  const excluded = live.filter(formatPrimary);
+  const byScore = (a, b) => score(b) - score(a);
+  const clears = live.filter((c) => !formatPrimary(c) && !loopFloor(c)).sort(byScore);
+  const belowLoop = live.filter((c) => !formatPrimary(c) && loopFloor(c)).sort(byScore);
+  /* below the floor sits behind everything that clears it, so it is reached
+     only when the batch would otherwise come up short */
+  const ranked = clears.concat(belowLoop);
   const famOf = (c) => String((pkgOf.get(canonNum(c.num)) || {}).family || c.visual_family || '').toLowerCase().trim();
   const laneOf = (c) => String((pkgOf.get(canonNum(c.num)) || {}).lane || c.lane || '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 5);
   /* ChatGPT's diversity rule (Sept 2026): "three different formats" is not
@@ -1711,6 +1941,8 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     `${pool.length} in the pool: ${killed.length} killed by the reviewers, ${survivors.length} kept as the strongest, ${reserve.length} in reserve` +
     (usedEng.size ? `; engines: ${[...usedEng].join(', ')}` : '') +
     (excluded.length ? `; ${excluded.length} excluded as format-primary` : '') +
+    (belowLoop.length ? `; ${belowLoop.length} below the open-loop floor (${belowLoop.map((c) => `"${c.title}": ${loopFloor(c)}`).join('; ')})` : '') +
+    (survivors.filter((c) => loopFloor(c)).length ? `; ${survivors.filter((c) => loopFloor(c)).length} shipped below the open-loop floor because nothing else was left` : '') +
     (relaxed ? `; ${relaxed} chosen with the diversity rules relaxed` : '') +
     `; premise scores of the kept: ${survivors.map((c) => vOf(c.num).premise || 0).join('/')}` +
     (survivors.length < count ? `. Only ${survivors.length} of the ${count} asked for survived` : ''));
@@ -1839,7 +2071,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     composition_note: drafted.composition_note,
     change_log: reviews.map((r) => ({ num: r.num, verdict: r.verdict, note: r.change_log })),
     composition,
-    pipeline_version: V6 ? 'v7.7.1-engines' : 'v4',
+    pipeline_version: V6 ? 'v7.9.1-loop-gate' : 'v4',
     strategy,
     /* the decisions made before writing, one per pool slot */
     packages,
@@ -1849,7 +2081,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
       const v = vOf(c.num);
       return { num: c.num, title: c.title, gate: v.gate, feedback: v.feedback, final: v.final, hard: v.hard, soft: v.soft,
         lint: (lintAll([c]).get(canonNum(c.num)) || []).map((i) => i.code),
-        kind: (V.get(canonNum(c.num)) || {}).kind || null, premise: (V.get(canonNum(c.num)) || {}).premise || null, premise_scores: (V.get(canonNum(c.num)) || {}).premise_scores || null, send_to_client: (V.get(canonNum(c.num)) || {}).send !== false, outcome: killed.includes(c) ? 'killed' : excluded.includes(c) ? 'excluded_format' : concepts.some((k) => canonNum(k.num) === canonNum(c.num)) ? 'shipped' : 'reserve' };
+        kind: (V.get(canonNum(c.num)) || {}).kind || null, premise_gate: (pkgOf.get(canonNum(c.num)) || {}).premise_gate || null, premise: (V.get(canonNum(c.num)) || {}).premise || null, premise_scores: (V.get(canonNum(c.num)) || {}).premise_scores || null, send_to_client: (V.get(canonNum(c.num)) || {}).send !== false, outcome: killed.includes(c) ? 'killed' : excluded.includes(c) ? 'excluded_format' : concepts.some((k) => canonNum(k.num) === canonNum(c.num)) ? 'shipped' : 'reserve' };
     }),
     feedback: {
       batch_findings: feedback.batch_findings,
@@ -1877,4 +2109,4 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   };
 }
 
-module.exports = { run, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote, standardNote, humanSituation, premiseLint };
+module.exports = { run, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote, standardNote, humanSituation, premiseLint, stagePremiseGate, premiseTotal, premiseFails };
