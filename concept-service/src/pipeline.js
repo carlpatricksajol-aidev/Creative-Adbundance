@@ -1189,17 +1189,21 @@ Hooks: three candidate opening lines (internal, for the script phase and the moc
 The title says why someone would watch, never how the ad is made. The format belongs in Design
 Components.
 
-The description is the real-life moment, told in two or three plain sentences the way you would
-pitch it across a table: who is there, what they do, what comes out of it, and where the product
-sits in that. It is not a summary of the format and it is not a strategy note. This is the
-standard, and every description in the batch is written to it:
+The description follows the skill, word for word: a 2 to 3 sentence summary describing the
+creative vehicle (UGC, sketch, trend, interview, b-roll montage, ring cam, mockumentary) and how
+the brand or product is woven into it. It tells the reader WHAT KIND of ad this is, not WHAT
+HAPPENS in it: the story lives in the narrative bullets, never here. No hooks, no dialogue, no
+strategy memo. Format, scene, the one core message, where the brand comes in, the one idea
+running through it, in plain speech, and stop.
+
+The narrative beats are where the real-life moment lives, in the voice of this standard:
 
   His friend yanks the drawer open and dumps forty graded cards onto the bed. Says the quiet
   part: none of it is anything you can wear, drive, or use. Guy pulls out his phone, picks a
   pack by theme, and what comes out is a pair of sneakers, on his feet by Friday.
 
-Write the beats and the design bullets in that same voice: one plain sentence each, concrete
-things people do and say, no agency register. In the beats people are "he", "his friend", "his
+Write the beats and the design bullets in that voice: one plain sentence each, concrete things
+people do and say, no agency register. In the beats people are "he", "his friend", "his
 roommate", "the coworker", never "the creator", and never the camera or the cut. Beat 1 opens on
 the human trigger from the package, never on a screen or the product. The product enters once,
 where the package's chronology and product role say. Beat 5 is the payoff: something a person
@@ -2148,7 +2152,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     composition_note: drafted.composition_note,
     change_log: reviews.map((r) => ({ num: r.num, verdict: r.verdict, note: r.change_log })),
     composition,
-    pipeline_version: V6 ? 'v8.0-opus' : 'v4',
+    pipeline_version: V6 ? 'v8.0.1-opus' : 'v4',
     strategy,
     /* the decisions made before writing, one per pool slot */
     packages,
