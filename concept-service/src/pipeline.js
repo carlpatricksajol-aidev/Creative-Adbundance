@@ -933,7 +933,7 @@ ${list.map(slotPremiseMd).join('\n\n')}`,
   return kept;
 }
 
-async function stageVisualize({ snapshot, strategy, observations, viralFormats, poolCount, brief, brandName, log, ask }) {
+async function stageVisualize({ snapshot, strategy, observations, viralFormats, poolCount, brief, brandName, prior, log, ask }) {
   log('Message visualization', 'running');
   const obsList = observations.map((o, i) => `${i + 1}. [${o.insight_family}] ${o.text}`).join('\n');
   const formats = (viralFormats || []).map((f, i) => `${i + 1}. ${f.name} (${f.capture_style}): ${f.why_it_fits}`).join('\n');
@@ -950,6 +950,10 @@ async function stageVisualize({ snapshot, strategy, observations, viralFormats, 
     prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}
 Observations harvested for this client:
 ${obsList}
+${prior ? `
+ALREADY SHIPPED FOR THIS CLIENT. These situations are used up: a new one that puts the same people in the same argument is a repeat, however differently it is written. Take a different moment from the persona's life.
+${prior}
+` : ''}
 ${formats ? `\nViral formats harvested for these personas:\n${formats}\n` : ''}
 ${skillSection('**Sub-procedure 1: Message Visualization', '**Sub-procedure 3: Vehicle Candidate Search')}
 
@@ -1797,7 +1801,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   const poolCount = Math.min(15, Math.max(count * 4, count + 4));
   const visSlots = await stageVisualize({
     snapshot, strategy, observations: harvest.observations, viralFormats: harvest.viral_formats,
-    poolCount, brief, brandName: record.brand.brand_name, log, ask: trackedAsk,
+    poolCount, brief, brandName: record.brand.brand_name, prior, log, ask: trackedAsk,
   });
   /* ChatGPT's gate: the premise is scored and fixed before the Creative
      Director is allowed to write, never after. */
@@ -2139,7 +2143,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     composition_note: drafted.composition_note,
     change_log: reviews.map((r) => ({ num: r.num, verdict: r.verdict, note: r.change_log })),
     composition,
-    pipeline_version: V6 ? 'v7.9.5-send-first' : 'v4',
+    pipeline_version: V6 ? 'v7.9.6-no-repeats' : 'v4',
     strategy,
     /* the decisions made before writing, one per pool slot */
     packages,
