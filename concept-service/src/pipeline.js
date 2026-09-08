@@ -1182,6 +1182,8 @@ Narrative: five bullets
 Design Components: five bullets
 Hooks: three candidate opening lines (internal, for the script phase and the mockup caption)
 Beats and design bullets are one plain sentence each, said the way you would say it to a producer.
+In the beats people have names in the story, not jobs on the shoot: "he", "his friend", "his
+roommate", "the coworker". Never "the creator", and never the camera or the cut.
 
 The title says WHY someone would watch, never HOW the ad is made. "He Asked How Much I Paid" and
 "Break Room: They Called My Shoes Fake" are titles. "Voice Memo Object Handoff" and "Desk
@@ -2044,9 +2046,17 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     const used = (fn) => new Set(kept.map(fn).filter(Boolean));
     const uL = used(laneOf), uF = used(famOf), uE = used(engOf);
     const clean = (c) => !lintAll([c]).size;
+    const send = (c) => vOf(c.num).send !== false;
+    /* what the senior reviewer would send comes first here too: in Batch 27
+       selection honoured the taste question and promotion did not, so a
+       replacement was chosen over two concepts the reviewer would have sent. */
     const tiers = [
-      (c) => !uE.has(engOf(c)) && !uL.has(laneOf(c)) && !uF.has(famOf(c)) && clean(c),
-      (c) => !uE.has(engOf(c)) && !uF.has(famOf(c)) && clean(c),
+      (c) => send(c) && !uE.has(engOf(c)) && !uL.has(laneOf(c)) && !uF.has(famOf(c)) && clean(c),
+      (c) => send(c) && !uE.has(engOf(c)) && !uF.has(famOf(c)) && clean(c),
+      (c) => send(c) && !uE.has(engOf(c)) && clean(c),
+      (c) => send(c) && !uE.has(engOf(c)),
+      (c) => send(c) && clean(c),
+      (c) => send(c),
       (c) => !uE.has(engOf(c)) && clean(c),
       (c) => clean(c),
       () => true,
@@ -2055,7 +2065,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     for (const ok of tiers) { next = reserve.find(ok); if (next) break; }
     if (next) {
       reserve.splice(reserve.indexOf(next), 1);
-      log('Selection', 'done', `${why}; "${next.title}" promoted from the reserve (${engOf(next) || 'no engine'}, ${laneOf(next) || 'no lane'}${clean(next) ? '' : ', still carries code-check notes'})`);
+      log('Selection', 'done', `${why}; "${next.title}" promoted from the reserve (${engOf(next) || 'no engine'}, ${laneOf(next) || 'no lane'}${send(next) ? '' : ', which the senior reviewer would not send'}${clean(next) ? '' : ', still carries code-check notes'})`);
     }
     return next;
   };
@@ -2124,7 +2134,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     composition_note: drafted.composition_note,
     change_log: reviews.map((r) => ({ num: r.num, verdict: r.verdict, note: r.change_log })),
     composition,
-    pipeline_version: V6 ? 'v7.9.3-send-first' : 'v4',
+    pipeline_version: V6 ? 'v7.9.4-send-first' : 'v4',
     strategy,
     /* the decisions made before writing, one per pool slot */
     packages,
