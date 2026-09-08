@@ -2201,7 +2201,7 @@ async function importBatch({ client, text, requestedBy, log }) {
     maxTokens: 48000,
     model: REVIEW_MODEL,
   });
-  const concepts = (out.concepts || []).map((c, i) => ({ ...c, num: canonNum(c.num || '') || String(i + 1).padStart(3, '0') }));
+  const concepts = (out.concepts || []).map((c, i) => ({ ...c, num: String(String(c.num || '').replace(/\D/g, '') || (i + 1)).padStart(3, '0') }));
   log('Import', 'done', `${concepts.length} concept${concepts.length === 1 ? '' : 's'} lifted verbatim`);
   return {
     client: brandName, concepts, pipeline_version: 'import-claude-web', imported: true, imported_by: requestedBy || null,

@@ -1398,7 +1398,7 @@ const server = http.createServer(async (req, res) => {
       const result = await pipeline.importBatch({ client: b.client, text, requestedBy: b.requestedBy, log: (stage, status, detail) => steps.push({ stage, status, detail }) });
       if (!result.concepts.length) return json(res, 422, { error: 'no concepts could be read from that text', steps });
       const batch = store.saveBatch(result);
-      return json(res, 201, { batchId: batch.id, number: batch.number, count: result.concepts.length, titles: result.concepts.map((c) => `${c.num} ${c.title}`), steps });
+      return json(res, 201, { batchId: batch.id, number: batch.n || batch.number || null, count: result.concepts.length, titles: result.concepts.map((c) => `${c.num} ${c.title}`), steps });
     }
 
     if (p === '/run' && req.method === 'POST') {
