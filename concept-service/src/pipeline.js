@@ -1940,11 +1940,16 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   const live = pool.filter((c) => !confirmedKill.has(canonNum(c.num)));
   const excluded = live.filter(formatPrimary);
   const byScore = (a, b) => score(b) - score(a);
-  const clears = live.filter((c) => !formatPrimary(c) && !loopFloor(c)).sort(byScore);
-  const belowLoop = live.filter((c) => !formatPrimary(c) && loopFloor(c)).sort(byScore);
-  /* below the floor sits behind everything that clears it, so it is reached
-     only when the batch would otherwise come up short */
-  const ranked = clears.concat(belowLoop);
+  /* ChatGPT's governing question is "would I actually send this to a client?",
+     so the answer partitions the ranking instead of costing points the judges'
+     verdicts can outvote. Batch 26 shipped three concepts the senior reviewer
+     would not send and left the one they would in reserve. */
+  const wouldSend = (c) => vOf(c.num).send !== false;
+  const tier = (c) => (loopFloor(c) ? 2 : 0) + (wouldSend(c) ? 0 : 1);
+  const eligible = live.filter((c) => !formatPrimary(c));
+  const belowLoop = eligible.filter(loopFloor);
+  const notSent = eligible.filter((c) => !wouldSend(c));
+  const ranked = eligible.slice().sort((a, b) => tier(a) - tier(b) || byScore(a, b));
   const famOf = (c) => String((pkgOf.get(canonNum(c.num)) || {}).family || c.visual_family || '').toLowerCase().trim();
   const laneOf = (c) => String((pkgOf.get(canonNum(c.num)) || {}).lane || c.lane || '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 5);
   /* ChatGPT's diversity rule (Sept 2026): "three different formats" is not
@@ -1988,6 +1993,8 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     (usedEng.size ? `; engines: ${[...usedEng].join(', ')}` : '') +
     (excluded.length ? `; ${excluded.length} excluded as format-primary` : '') +
     (belowLoop.length ? `; ${belowLoop.length} below the open-loop floor (${belowLoop.map((c) => `"${c.title}": ${loopFloor(c)}`).join('; ')})` : '') +
+    (notSent.length ? `; ${notSent.length} the senior reviewer would not send as they stand` : '') +
+    (survivors.filter((c) => !wouldSend(c)).length ? `; ${survivors.filter((c) => !wouldSend(c)).length} shipped anyway because nothing better was left` : '') +
     (survivors.filter((c) => loopFloor(c)).length ? `; ${survivors.filter((c) => loopFloor(c)).length} shipped below the open-loop floor because nothing else was left` : '') +
     (relaxed ? `; ${relaxed} chosen with the diversity rules relaxed` : '') +
     `; premise scores of the kept: ${survivors.map((c) => vOf(c.num).premise || 0).join('/')}` +
@@ -2117,7 +2124,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     composition_note: drafted.composition_note,
     change_log: reviews.map((r) => ({ num: r.num, verdict: r.verdict, note: r.change_log })),
     composition,
-    pipeline_version: V6 ? 'v7.9.2-loop-gate' : 'v4',
+    pipeline_version: V6 ? 'v7.9.3-send-first' : 'v4',
     strategy,
     /* the decisions made before writing, one per pool slot */
     packages,
