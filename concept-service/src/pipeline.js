@@ -644,7 +644,13 @@ function humanSituation(text, brandName) {
    Handoff", "Desk Evidence Board"), and interface vocabulary had become the
    language of the concepts. Same shape as the harness issues, so a draft that
    still fails after the rewrite is replaced from the reserve, never flagged. */
-const FORMAT_TITLE = /\b(reply|stitch|replay|check|test|board|hand-?off|green-?screen|split-?screen|voice ?(memo|note)|pov|montage|walkthrough|carousel|time-?lapse|reveal|podcast|tutorial|explainer|breakdown|demo)\b/i;
+/* A format title names the device: either a production device anywhere in
+   the title (green screen, voice memo, POV, montage, split screen) or a
+   format noun in title position, as the last word or before a colon ("Group
+   Chat Exit Check", "Comment Stitch: Did It Arrive?", "Desk Evidence Board").
+   The same words inside a sentence are a story ("The Reveal Was Too Fast",
+   "I Check Every Character"), which Batch 24 taught the hard way. */
+const FORMAT_TITLE = /\b(green-?screen|split-?screen|voice ?(memo|note)|pov|montage|walkthrough|carousel|time-?lapse|podcast|tutorial|explainer|breakdown|demo|hand-?off)\b|\b(reply|stitch|replay|check|test|board|reveal|review|reaction|unboxing|haul)\s*(:|$)/i;
 const INTERFACE_TERMS = /\b(records?|account( screen| page| value| action)?|screens?|shipping (path|update|status|label)|available (account )?(value|choices|options|paths)|listed (contents|items|details)|item variations?|item list|categor(y|ies)( page| menu| view)?|pack (page|details?|record|list)|saved page|the phone shows|phone screen|notifications?|browsing|tabs?|checkout|balance|listing)\b/i;
 /* the offer menu (keep it, ship it, cash out) is product talk too: Batch 23
    put it in all three shipped concepts */
@@ -1741,16 +1747,38 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
 
   /* ---- code checks again: a survivor that still fails is replaced, not flagged ---- */
   lint = lintAll(concepts);
-  const promote = (why) => {
-    const next = reserve.shift();
-    if (next) log('Selection', 'done', `${why}; "${next.title}" promoted from the reserve`);
+  /* Promotion from the reserve keeps the set diverse. Batch 24 shipped two
+     visual_structural concepts and two wild-lane concepts because the
+     replacement was simply the next in rank: the lane, family and engine
+     rules that chose the survivors were not applied to their replacements.
+     Prefer, in order: a clean candidate on an unused engine, lane and
+     family; then unused engine and family; then unused engine; then any
+     clean candidate; then whatever is left. */
+  const promote = (why, dropped) => {
+    const kept = concepts.filter((c) => c !== dropped);
+    const used = (fn) => new Set(kept.map(fn).filter(Boolean));
+    const uL = used(laneOf), uF = used(famOf), uE = used(engOf);
+    const clean = (c) => !lintAll([c]).size;
+    const tiers = [
+      (c) => !uE.has(engOf(c)) && !uL.has(laneOf(c)) && !uF.has(famOf(c)) && clean(c),
+      (c) => !uE.has(engOf(c)) && !uF.has(famOf(c)) && clean(c),
+      (c) => !uE.has(engOf(c)) && clean(c),
+      (c) => clean(c),
+      () => true,
+    ];
+    let next = null;
+    for (const ok of tiers) { next = reserve.find(ok); if (next) break; }
+    if (next) {
+      reserve.splice(reserve.indexOf(next), 1);
+      log('Selection', 'done', `${why}; "${next.title}" promoted from the reserve (${engOf(next) || 'no engine'}, ${laneOf(next) || 'no lane'}${clean(next) ? '' : ', still carries code-check notes'})`);
+    }
     return next;
   };
   if (lint.size) {
     const kept = [];
     for (const c of concepts) {
       if (!lint.has(canonNum(c.num))) { kept.push(c); continue; }
-      const next = promote(`"${c.title}" still fails the code checks after the rewrite (${lint.get(canonNum(c.num)).map((i) => i.code).join(', ')})`);
+      const next = promote(`"${c.title}" still fails the code checks after the rewrite (${lint.get(canonNum(c.num)).map((i) => i.code).join(', ')})`, c);
       if (next) kept.push(next);
     }
     concepts = kept;
@@ -1776,7 +1804,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     for (const c of concepts) {
       const k = canonNum(c.num);
       if (!hardNow.has(k) && !killNow.has(k)) { kept.push(c); continue; }
-      const next = promote(`"${c.title}" ${killNow.has(k) ? 'killed by the final review' : 'still carries a hard compliance fail'} after the rewrite`);
+      const next = promote(`"${c.title}" ${killNow.has(k) ? 'killed by the final review' : 'still carries a hard compliance fail'} after the rewrite`, c);
       if (next) kept.push(next);
       else {                                       // reserve exhausted: ship it flagged, never silently
         const f = killNow.get(k) || hardNow.get(k);
@@ -1811,7 +1839,7 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     composition_note: drafted.composition_note,
     change_log: reviews.map((r) => ({ num: r.num, verdict: r.verdict, note: r.change_log })),
     composition,
-    pipeline_version: V6 ? 'v7.7-engines' : 'v4',
+    pipeline_version: V6 ? 'v7.7.1-engines' : 'v4',
     strategy,
     /* the decisions made before writing, one per pool slot */
     packages,
