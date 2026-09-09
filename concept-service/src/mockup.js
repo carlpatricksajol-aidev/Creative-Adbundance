@@ -14,7 +14,12 @@
  *
  * TWO THINGS ARE DELIBERATE HERE.
  *
- * 1. The prompt is NOT in this repo. `concept-visualizer.md` is Carl's own
+ * 1. (2026-09-09) The prompt writer follows the SKILL's reference,
+ *    ad-concept-generator/references/image-prompts.md, read from the mounted
+ *    repo at call time: Carl's ruling, follow what the skill mentions. The
+ *    earlier master instructions `concept-visualizer.md` stay in the vault and
+ *    are no longer read here. Older note kept for history:
+ *    The prompt is NOT in this repo. `concept-visualizer.md` is Carl's own
  *    spec and lives in the team's PRIVATE repo; this repo is public. It is
  *    read at runtime from the shared vault instead, the same way the concept
  *    pipeline reads its craft from the mounted skill checkout. This file
@@ -119,35 +124,49 @@ async function authorPrompt({ input, model, log }) {
   if (!key) { const e = new Error('OPENROUTER_API_KEY is not set on the server'); e.status = 503; throw e; }
 
   const f = (v) => {
-    if (Array.isArray(v)) return v.length ? v.join('; ') : 'not specified';
+    if (Array.isArray(v)) return v.length ? v.map((x) => '- ' + x).join('\n') : 'not specified';
     return v && String(v).trim() ? String(v).trim() : 'not specified';
   };
 
-  const userPrompt = `BRAND ONBOARDING:
+  /* The skill's own reference is the whole instruction set (Carl, 2026-09-09:
+     follow what the skill mentions, there are standards). The only thing added
+     is a fact about our frame: the platform chrome the still is wrapped in
+     covers the top of the image, so a caption placed at the very top would be
+     hidden behind the brand header. */
+  const system = `You are the Creative Director on this account, writing the image-generation prompt for ONE concept's 9:16 mockup still. Follow the skill's reference below exactly; it is the standard.
+
+${imageConventions()}
+
+One production fact about where this still is shown: it is wrapped in a story-ad frame whose header (brand name, "Sponsored") covers roughly the top 12 percent of the image and whose call-to-action bar covers roughly the bottom 12 percent. Place the hook caption in the upper part of the frame BELOW that header band, never in the top or bottom 12 percent. Use the brand's accent colour for the caption pill when one is given.
+
+Return the deliverable shape from the reference for this one concept and nothing else: the "Concept:" line, the "Hook overlay:" line, then "Prompt:" followed by the single continuous plain-text prompt block. No preamble, no commentary, no code fences.`;
+
+  const userPrompt = `BRAND:
 BRAND_NAME: ${f(input.brandName)}
 PRODUCT_NAME: ${f(input.productName)}
-PRODUCT_REFERENCE_IMAGE: ${input.hasProductReferenceImage ? 'yes' : 'no'}
 CATEGORY: ${f(input.category)}
 TARGET_PERSONA: ${f(input.targetPersona)}
 CORE_USPS / BENEFITS: ${f(input.coreUsps)}
 BRAND_VOICE: ${f(input.brandVoice)}
+BRAND_ACCENT_COLOUR: ${f(input.accentHex)}
 
-THE CONCEPT SLIDE, which is the creative source of truth:
-CONCEPT_TITLE: ${f(input.conceptTitle)}
-CONCEPT_DESCRIPTION: ${f(input.conceptDescription)}
-LEAD_HOOK: ${f(input.leadHook)}
-NARRATIVE_BEATS: ${f(input.narrativeBeats)}
-DESIGN_COMPONENTS: ${f(input.designComponents)}
+THE CONCEPT SLIDE, the creative source of truth:
+CONCEPT: ${f(input.conceptNum)}_${f(input.conceptTitle)}
+DESCRIPTION: ${f(input.conceptDescription)}
+NARRATIVE BEATS:
+${f(input.narrativeBeats)}
+DESIGN COMPONENTS:
+${f(input.designComponents)}
+HOOK CANDIDATES from the concept (pick one or write a compliance-safe one per the reference):
+${f(input.hooks)}
 
-PLATFORM: ${f(input.platform || 'Instagram Reels')}
-
-${input.forcedTextTreatment ? `OVERLAY TREATMENT OVERRIDE: use exactly this style unless the Contrast Gate genuinely forbids it at the position this composition offers, in which case pick the closest legal option in the SAME visual category instead. This has already been chosen for you to guarantee variety across the batch: ${input.forcedTextTreatment}\n\n` : ''}Follow your instructions exactly. Output ONLY the filled prompt, no preamble, no commentary, no code fences.`;
+PLATFORM: ${f(input.platform || 'Instagram Reels')}`;
 
   /* The model reasons internally before writing, and that reasoning counts
      against max_tokens: at 6000 a long think consumed the whole budget and the
      API returned 200 with EMPTY content, which is exactly the intermittent
      "returned nothing" failure. So the budget is big enough for the worst
-     think, the reasoning effort is bounded low (this is template filling, not
+     think, the reasoning effort is bounded low (this is prompt writing, not
      strategy), and an empty reply gets one retry before it becomes an error. */
   let totalCost = 0;
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -160,18 +179,12 @@ ${input.forcedTextTreatment ? `OVERLAY TREATMENT OVERRIDE: use exactly this styl
         'x-title': 'Abundance Ecosystem concept mockups',
       },
       body: JSON.stringify({
-        model: model || process.env.MOCKUP_MODEL || 'anthropic/claude-sonnet-5',
+        model: model || process.env.MOCKUP_MODEL || 'anthropic/claude-opus-5',
         max_tokens: 16000,
         temperature: 0.7,
         reasoning: { effort: 'low' },
         messages: [
-          /* the team's production mockup role first, then the skill's own image
-             conventions riding alongside it: they agree in spirit (UGC realism,
-             the hook caption in the brand's style) and the skill is the source
-             of truth Carl asked to be used on every run */
-          { role: 'system', content: craft('concept-visualizer.md')
-              + '\n\nTHE SKILL\'S IMAGE CONVENTIONS, from ad-concept-generator/references/image-prompts.md. Follow these as binding style rules for the prompt you write:\n\n'
-              + imageConventions() },
+          { role: 'system', content: system },
           { role: 'user', content: userPrompt },
         ],
       }),
@@ -182,7 +195,16 @@ ${input.forcedTextTreatment ? `OVERLAY TREATMENT OVERRIDE: use exactly this styl
     }
     totalCost += (body.usage && body.usage.cost) || 0;
     const out = body.choices && body.choices[0] && body.choices[0].message && body.choices[0].message.content;
-    if (out && String(out).trim()) return { prompt: String(out).trim(), cost: totalCost };
+    if (out && String(out).trim()) {
+      const text = String(out).trim();
+      /* the skill's deliverable shape: Concept / Hook overlay / Prompt. The
+         prompt block is what the image model gets; the hook line is kept. */
+      const pm = text.match(/Prompt:\s*([\s\S]+)$/i);
+      const hm = text.match(/Hook overlay:\s*(.+)/i);
+      const prompt = (pm ? pm[1] : text).trim().replace(/^```[a-z]*\s*|\s*```$/g, '');
+      const hookOverlay = hm ? hm[1].trim().replace(/^["“]|["”]$/g, '') : null;
+      return { prompt, hookOverlay, source: 'ad-concept-generator/references/image-prompts.md', cost: totalCost };
+    }
     const finish = body.choices && body.choices[0] && body.choices[0].finish_reason;
     if (attempt === 2) throw new Error('the prompt agent returned nothing twice (finish: ' + (finish || 'unknown') + ')');
   }
@@ -302,6 +324,13 @@ function brandInputs(record) {
     targetPersona: snap.target_audience,
     coreUsps: snap.value_prop || snap.proof_points || snap.messaging_pillars,
     brandVoice: snap.voice_summary,
+    /* the caption pill colour the skill's reference asks for; role names vary
+       by extraction, so accent first, then primary, then whatever is first */
+    accentHex: (() => {
+      const cs = record.colors || [];
+      const pick = cs.find((c) => /accent/i.test(c.role || '')) || cs.find((c) => /primary|brand/i.test(c.role || '')) || cs[0];
+      return pick && pick.hex ? `${pick.hex}${pick.token_name ? ' (' + pick.token_name + ')' : ''}` : null;
+    })(),
   };
 }
 
@@ -316,7 +345,6 @@ async function run({ client, batchId, nums, requestedBy, log }) {
   log('Intake', 'running');
   const { record, matched } = await brand.resolve(client);
   const base = brandInputs(record);
-  const treatments = JSON.parse(craft('text-treatments.json'));
   log('Intake', 'done',
     `${concepts.length} concept${concepts.length === 1 ? '' : 's'} in scope, snapshot for ${base.brandName} (matched on ${matched})`);
 
@@ -334,20 +362,18 @@ async function run({ client, batchId, nums, requestedBy, log }) {
     const label = `Concept ${c.num}`;
     log(label, 'running', 'writing the image prompt');
     try {
-      /* Rotating the overlay treatment across the batch, the way the team's
-         route does, so ten regenerations do not collapse onto one style. */
-      const forcedTextTreatment = treatments[(Number(c.num) - 1 + i) % treatments.length];
       const authored = await authorPrompt({
         input: {
           ...base,
+          conceptNum: c.num,
           conceptTitle: c.title,
           conceptDescription: c.desc,
-          leadHook: (c.hooks || [])[0],
           narrativeBeats: c.narrative,
           designComponents: c.design,
-          forcedTextTreatment,
+          hooks: c.hooks || [],
         },
       });
+      log(label, 'running', authored.hookOverlay ? `hook overlay: "${authored.hookOverlay.slice(0, 80)}"` : 'prompt written, no hook overlay named');
       spend += authored.cost || 0;
 
       log(label, 'running', 'generating, this takes up to two minutes');
@@ -370,6 +396,8 @@ async function run({ client, batchId, nums, requestedBy, log }) {
 
       out.push({
         num: c.num, id, bytes, treatment: forcedTextTreatment, prompt: authored.prompt,
+        hookOverlay: authored.hookOverlay || null,
+        promptSource: authored.source,
         framed: Boolean(framed),
         avatar: framed ? framed.avatar.mode : null,
         dims: framed ? `${framed.dims.w}x${framed.dims.h}` : null,
