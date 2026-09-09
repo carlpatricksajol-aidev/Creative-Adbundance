@@ -101,6 +101,14 @@ function ref(name) {
    words". A summary of a craft document is not the craft document. The
    generative stages get the original; the review gates keep the reviewer docs
    that were written for them. */
+/* A sibling skill in the same checkout, read fresh like the concept skill. */
+const SKILLS_ROOT = process.env.SKILLS_ROOT || path.dirname(SKILL_DIR);
+function otherSkill(skill, file) {
+  const p = path.join(SKILLS_ROOT, skill, file);
+  try { return fs.readFileSync(p, 'utf8'); }
+  catch { throw new Error(`missing ${skill}/${file} at ${p}. Is the repo checked out and up to date?`); }
+}
+
 function skillDoc() {
   const p = path.join(SKILL_DIR, 'SKILL.md');
   try { return fs.readFileSync(p, 'utf8'); }
@@ -2343,34 +2351,115 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
 }
 
 
-/* Carl's direct mode (Sept 2026): one long prompt to Opus 5 with the whole
-   snapshot and the whole skill, the way the skill runs in Claude web. The
-   model does Step Zero, the harvest, the visualization, the vehicle and the
-   writing in one head, and nobody edits it afterwards. The deterministic
-   checks still run, but they FLAG for a person to read; they never rewrite
-   and never replace. */
-async function runDirect({ client, count = 1, prior = '', priorMeta = null, startNum = 1, log }) {
-  const spend = [];
-  const t0 = Date.now();
-  const { record, brief, snapshot, researchMd, vehicles, approved, categoryMd, harvestMd, harvestRec } =
-    await intake({ client, prior, priorMeta, log });
-  const brandName = record.brand.brand_name;
-  const n = Math.min(Math.max(Number(count) || 1, 1), 16);
-  log('Creative Director, one pass', 'running', `one call, the whole skill, ${n} concept${n === 1 ? '' : 's'}`);
+/* The Concept Alignment Review, Ricardo's skill, run as an agent over a batch
+   the service just wrote. The skill's deck-building steps do not apply here;
+   its method does: every concept against every brand-side source, sourced
+   action items graded hard / soft / info, a status per concept, cross-batch
+   flags and a keeper set. No unsourced flags, ever. */
+const ALIGN_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    executive_summary: { type: 'array', minItems: 1, maxItems: 5, items: { type: 'string' } },
+    concepts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          num: { type: 'string' },
+          title: { type: 'string' },
+          status: { type: 'string', enum: ['Keep', 'Reposition', 'Rewrite', 'Rebuild', 'Drop'] },
+          persona_match: { type: 'string' },
+          action_items: {
+            type: 'array', minItems: 1, maxItems: 3,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                severity: { type: 'string', enum: ['hard', 'soft', 'info'] },
+                headline: { type: 'string' },
+                source: { type: 'string' },
+                fix: { type: 'string' },
+              },
+              required: ['severity', 'headline', 'source', 'fix'],
+            },
+          },
+        },
+        required: ['num', 'title', 'status', 'persona_match', 'action_items'],
+      },
+    },
+    cross_batch_flags: {
+      type: 'array', maxItems: 4,
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          headline: { type: 'string' },
+          evidence: { type: 'string' },
+          source: { type: 'string' },
+          recommendation: { type: 'string' },
+        },
+        required: ['headline', 'evidence', 'source', 'recommendation'],
+      },
+    },
+    keeper_set: { type: 'array', items: { type: 'string' } },
+    held_back: { type: 'array', items: { type: 'object', additionalProperties: false, properties: { num: { type: 'string' }, reason: { type: 'string' } }, required: ['num', 'reason'] } },
+  },
+  required: ['executive_summary', 'concepts', 'cross_batch_flags', 'keeper_set', 'held_back'],
+};
 
-  const system = `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n\nThe creative strategist's reference:\n\n${ref('creative-strategist.md')}\n${HOUSE_RULES}`;
-  const prompt = `${snapshot}
-${researchMd ? '\n' + researchMd + '\n' : ''}${vehicles ? '\nTHE VEHICLE BANK, researched vehicles you may draw on:\n' + vehicles.md + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}${categoryMd ? '\n' + categoryMd + '\n' : ''}
-ALREADY DONE FOR THIS CLIENT. Do not repeat these, in idea or in situation:
-${prior || '(nothing on file)'}
+/* The agency's own review of the generator's output, 2026-09-09, as a source
+   the alignment reviewer may cite. Speaker-attributed, the way the skill wants
+   its sources. These are the team's standing asks, not a client's. */
+const AGENCY_REVIEW_NOTES = `## AGENCY REVIEW NOTES, Creative AdBundance, OS Concept Writer Review call, 2026-09-09
+Cite as: CAB review call 9/9: <speaker> — "<quote>"
+- Krithika — "the moment I look at the mockup, it is not quite clear what exactly is this concept going to be about. The headline or what the mockup hook says needs to clearly give the idea at the first glance what is the core message."
+- Krithika — "all of them need not be a talking head. The podcast has been working for them, street interview has been working for them. We need to look at variety in terms of format: what would be the best match for a specific message."
+- Krithika — "the kind of persona that we have chosen, I'm not sure if that's the persona they would be targeting. It could be changed into a different job category so that it's more at par with the customer persona the client wants to target."
+- Krithika — "she tells that this many people visited this month, I generated this much revenue, I got this many inquiries, so that it makes it more solid." Ricardo — "So, hard stats."
+- Krithika — "will we be able to execute with a UGC creator remotely." Ricardo — "making sure the concepts can be shot by one person."
+- Krithika — "setting of more contextual overlays rather than going very broad."
+- Ricardo — "the name of the concept needs to be a little more descriptive."
+- Ricardo — "the skill creates the personas first and then creates the concept based on those personas. It just generated random personas for each concept."
+- Krithika — "it should always generate based on what the critical info says."`;
 
-Run the whole skill yourself, in this one pass, exactly as you would in a Claude web session with
-all of this material in front of you: Step Zero, the observation harvest, message visualization,
-the vehicle choice, the writing, and your own review against the skill's checks before you hand
-it over. Do all of that work in your head, the way the skill runs silent: no strategy map, no
-observation list, no visualizations, no notes, no preamble and no review appear in your answer.
-Nobody edits this after you; what you write is what the client sees. The ONLY text you return is
-${n} concept${n === 1 ? '' : 's'}, numbered from ${String(startNum).padStart(3, '0')}, in the slide format and nothing else:
+async function stageAlignment({ snapshot, strategy, concepts, log, ask, label }) {
+  const name = label || 'Concept alignment review';
+  log(name, 'running');
+  const out = await ask({
+    system: `You are running Creative AdBundance's Concept Alignment Review over a batch the concept generator just wrote, before it reaches anyone. The skill below is your method. You are not building the .pptx here: the deck steps, the design system and the build workflow do not apply. Everything else does, exactly as written: read every source before you flag, the six questions per concept, the severity coding and its proportions, the statuses (Keep / Reposition / Rewrite / Rebuild / Drop, never an ambiguous one), the keeper set with a reason for anything held back, the voice, and above all the sourcing rule: no unsourced flags, ever. A concern you cannot source is not a flag.
+
+${otherSkill('concept-alignment-review', 'SKILL.md')}
+
+How to phrase every SOURCE line:
+
+${otherSkill('concept-alignment-review', 'references/sourcing-cheatsheet.md')}
+${HOUSE_RULES}`,
+    prompt: `THE BRAND-SIDE SOURCES, everything on file for this client. The marketing report, the client brief from the account team, the approved concept library and the brand record are below; cite them by their section headings.
+
+${snapshot}
+
+${strategy ? strategyBrief(strategy) + '\n\nThe Batch Strategy Map above is a source too: cite it for persona and allocation flags ("Batch Strategy Map, persona 2").\n' : ''}
+${AGENCY_REVIEW_NOTES}
+
+THE CONCEPT BATCH TO REVIEW, as written:
+${concepts.map((c) => `### ${c.num} · ${c.title}\n${c.desc}\nNarrative:\n${(c.narrative || []).map((b) => '- ' + b).join('\n')}\nDesign components:\n${(c.design || []).map((d) => '- ' + d).join('\n')}\nHooks (internal, the mockup caption comes from these): ${(c.hooks || []).join(' | ')}\nTags: persona="${c.persona}" lane="${c.lane}" vehicle="${c.vehicle}" duration="${c.dur}"`).join('\n\n')}
+
+Run the skill's flag analysis over every concept: (a) the narrative spine and beat order, (b) any voice do or don't line, (c) any claim the record cannot substantiate, or a hard stat the record HAS that the concept leaves on the table, (d) the brief's audience and the Strategy Map's persona for that row, (e) production against a single remote creator at home, (f) protecting what has worked for this client. Then the cross-batch flags: missing audience, missing angle, format concentration (three talking heads is a pattern), banned-language pattern, contradiction with a client statement, production overload. Every concept gets a status and one to three action items with a SOURCE. Every concept number and title you write is copied from the batch, never paraphrased. The keeper set is the concepts you would lead the client call with; hold back with a specific reason, not a vibe.`,
+    schema: ALIGN_SCHEMA,
+    model: REVIEW_MODEL,
+    maxTokens: 32000,
+  });
+  const st = (out.concepts || []).reduce((a, r) => { a[r.status] = (a[r.status] || 0) + 1; return a; }, {});
+  const hard = (out.concepts || []).reduce((a, r) => a + (r.action_items || []).filter((i) => i.severity === 'hard').length, 0);
+  log(name, 'done', `${Object.entries(st).map(([k, v]) => `${v} ${k.toLowerCase()}`).join(', ') || 'no statuses'}; ${hard} hard flag${hard === 1 ? '' : 's'}, ${(out.cross_batch_flags || []).length} cross-batch, keeper set ${(out.keeper_set || []).join(', ') || 'none named'}`);
+  return out;
+}
+
+/* The direct writer's contract, shared by the first pass and the revision. */
+function directSlideContract({ n, startNum, brandName, approved }) {
+  return `${n} concept${n === 1 ? '' : 's'}, numbered from ${String(startNum).padStart(3, '0')}, in the slide format and nothing else:
 NNN · Title
 Description
 Narrative: five bullets
@@ -2385,29 +2474,23 @@ comes in and what it settles. Not a list of what happens, and not a format label
 story after it; the point of the ad has to be in it.${approved ? ' The APPROVED CONCEPT LIBRARY above shows this client\'s descriptions: write to that shape.' : ''}
 Give every concept the same care whether you are writing one or ${n}: each one gets its full
 five beats, its full description and its own situation.`;
+}
 
-  /* the cap was 24000 and three concepts hit it, so the model was narrating its
-     working; the instruction above stops that and the cap now has real room */
-  const out = await askText({ system, prompt, maxTokens: 32000 });
-  const text = typeof out === 'string' ? out : String((out && (out.text || out.content)) || '');
-  const usage = out && (out.__usage || out.usage);
-  if (usage) spend.push(usage);
-  log('Creative Director, one pass', 'done', `${text.length} characters in ${Math.round((Date.now() - t0) / 1000)}s`);
-
-  /* lift into fields, verbatim; the tags are inferred and say so */
-  log('Lift', 'running');
+async function liftDirect({ text, brandName, startNum, log, ask, label }) {
+  log(label || 'Lift', 'running');
   const lifted = await ask({
-    system: `You convert a Creative Director's concept batch, written as text in a slide format, into JSON. You copy; you never rewrite. Title, description, every narrative bullet, every design bullet and every hook are reproduced VERBATIM, character for character. Where the text has fewer than five narrative or design bullets, keep exactly what is there and invent nothing. Number the concepts NNN in order of appearance if the text does not number them. The tag fields (objective, persona, selling_argument, awareness, lane, dur, vehicle, visual_family, observation, insight_family, persuasion_job) are not in the text: infer each in a few plain words from the concept itself, for the brand ${brandName}. logline is the situation in the customer's own voice in one sentence; thumb_stop and performance_ready are your honest 1 to 5 read of the text. composition_note is "direct".`,
+    system: `You convert a Creative Director's concept batch, written as text in a slide format, into JSON. You copy; you never rewrite. Title, description, every narrative bullet, every design bullet and every hook are reproduced VERBATIM, character for character. Where the text has fewer than five narrative or design bullets, keep exactly what is there and invent nothing. Keep the concept numbers as written (NNN); number in order of appearance only if the text has none. The tag fields (objective, persona, selling_argument, awareness, lane, dur, vehicle, visual_family, observation, insight_family, persuasion_job) are not in the text: infer each in a few plain words from the concept itself, for the brand ${brandName}. logline is the situation in the customer's own voice in one sentence; thumb_stop and performance_ready are your honest 1 to 5 read of the text. composition_note is "direct".`,
     prompt: `THE BATCH TEXT:\n${text}`,
     schema: BATCH_SCHEMA,
     maxTokens: 48000,
     model: REVIEW_MODEL,
   });
-  if (lifted.__usage) spend.push(lifted.__usage);
   const concepts = (lifted.concepts || []).map((c, i) => ({ ...c, num: String(String(c.num || '').replace(/\D/g, '') || (startNum + i)).padStart(3, '0') }));
-  log('Lift', 'done', `${concepts.length} concept${concepts.length === 1 ? '' : 's'} lifted verbatim`);
+  log(label || 'Lift', 'done', `${concepts.length} concept${concepts.length === 1 ? '' : 's'} lifted verbatim`);
+  return { concepts, usage: lifted.__usage };
+}
 
-  /* the checks run and are shown; they change nothing */
+function directCodeChecks({ concepts, brief, snapshot, brandName, log, label }) {
   let flagged = 0; const codes = {};
   try {
     const lintCtx = harness.context({ brief, snapshot, library: store.libraryConcepts(brandName) });
@@ -2418,25 +2501,178 @@ five beats, its full description and its own situation.`;
       if (issues.length) flagged++;
       for (const i of issues) codes[i.code] = (codes[i.code] || 0) + 1;
     }
-  } catch (err) { log('Code checks', 'done', 'could not run the checks (' + err.message.slice(0, 80) + ')'); }
-  log('Code checks', 'done', flagged
-    ? `${flagged} of ${concepts.length} carry flags for a person to read (${Object.entries(codes).map(([k, v]) => `${k} x${v}`).join(', ')}); nothing was rewritten`
-    : `every concept clears the checks; nothing was rewritten`);
-  log('Selection', 'done', `${concepts.length} concept${concepts.length === 1 ? '' : 's'}, 9:16 space reserved`);
+  } catch (err) { log(label || 'Code checks', 'done', 'could not run the checks (' + err.message.slice(0, 80) + ')'); return flagged; }
+  log(label || 'Code checks', 'done', flagged
+    ? `${flagged} of ${concepts.length} carry flags for a person to read (${Object.entries(codes).map(([k, v]) => `${k} x${v}`).join(', ')})`
+    : `every concept clears the checks`);
+  return flagged;
+}
 
+/* Carl's direct mode (Sept 2026): one long prompt to Opus 5 with the whole
+   snapshot and the whole skill, the way the skill runs in Claude web. The
+   model does Step Zero, the harvest, the visualization, the vehicle and the
+   writing in one head, and nobody edits it afterwards. The deterministic
+   checks still run, but they FLAG for a person to read; they never rewrite
+   and never replace. */
+async function runDirect({ client, count = 1, prior = '', priorMeta = null, startNum = 1, log }) {
+  const spend = [];
+  const track = (u) => { if (u) spend.push(u); };
+  const t0 = Date.now();
+  const { record, brief, snapshot, researchMd, vehicles, approved, categoryMd, harvestMd, harvestRec } =
+    await intake({ client, prior, priorMeta, log });
+  const brandName = record.brand.brand_name;
+  const n = Math.min(Math.max(Number(count) || 1, 1), 16);
+  const trackedAsk = async (args) => { const o = await ask(args); if (o && o.__usage) { track(o.__usage); delete o.__usage; } return o; };
+
+  /* 1. Step Zero as its own agent: the Batch Strategy Map, personas first */
+  const strategy = await stageStrategy({ snapshot, count: n, log, ask: trackedAsk, researchMd });
+  const strategyMd = strategyBrief(strategy);
+
+  /* 2. the one pass with the whole skill, written against the map */
+  log('Creative Director, one pass', 'running', `one call, the whole skill, ${n} concept${n === 1 ? '' : 's'} against the Strategy Map`);
+  const system = `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n\nThe creative strategist's reference:\n\n${ref('creative-strategist.md')}\n${HOUSE_RULES}`;
+  const materials = `${snapshot}
+${researchMd ? '\n' + researchMd + '\n' : ''}${vehicles ? '\nTHE VEHICLE BANK, researched vehicles you may draw on:\n' + vehicles.md + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}${categoryMd ? '\n' + categoryMd + '\n' : ''}
+${strategyMd}
+
+ALREADY DONE FOR THIS CLIENT. Do not repeat these, in idea or in situation:
+${prior || '(nothing on file)'}`;
+  const prompt = `${materials}
+
+Step Zero has been run by the Strategic Analyst: the Batch Strategy Map above is the map. Write
+each concept against ONE allocation row of it: that row's persona is the person in the ad, that
+row's selling argument is what the ad is about, and the duration and format mix are the map's.
+Then run the rest of the skill yourself, in this one pass, exactly as you would in a Claude web
+session with all of this material in front of you: the observation harvest, message
+visualization, the vehicle choice, the writing, and your own review against the skill's checks
+before you hand it over. Do all of that work in your head, the way the skill runs silent: no
+observation list, no visualizations, no notes, no preamble and no review appear in your answer.
+A senior reviewer and an alignment reviewer read what you write next, against the client's
+sources; what passes them is what the client sees. The ONLY text you return is
+${directSlideContract({ n, startNum, brandName, approved })}`;
+
+  const out = await askText({ system, prompt, maxTokens: 32000 });
+  const text = typeof out === 'string' ? out : String((out && (out.text || out.content)) || '');
+  track(out && (out.__usage || out.usage));
+  log('Creative Director, one pass', 'done', `${text.length} characters in ${Math.round((Date.now() - t0) / 1000)}s`);
+
+  const first = await liftDirect({ text, brandName, startNum, log, ask, label: 'Lift' });
+  track(first.usage);
+  let concepts = first.concepts;
+  directCodeChecks({ concepts, brief, snapshot, brandName, log });
+
+  /* 3. the checkpoints: the skill's Final Creative Strategy Reviewer, then the
+        Concept Alignment Review, each its own agent reading the whole batch */
+  const rounds = [];
+  const judge = async (list, label) => {
+    const fin = await stageFinalReview({ snapshot, concepts: list, strategy, log, ask: trackedAsk, label: label ? `Final creative strategy review, ${label}` : undefined });
+    const align = await stageAlignment({ snapshot, strategy, concepts: list, log, ask: trackedAsk, label: label ? `Concept alignment review, ${label}` : undefined });
+    const decisions = list.map((c) => {
+      const k = canonNum(c.num);
+      const f = (fin.reviews || []).find((r) => canonNum(r.num) === k) || {};
+      const a = (align.concepts || []).find((r) => canonNum(r.num) === k) || {};
+      const hard = (a.action_items || []).filter((i) => i.severity === 'hard');
+      const rebuild = f.verdict === 'KILL' || a.status === 'Drop' || a.status === 'Rebuild';
+      const rewrite = !rebuild && (f.verdict === 'REWRITE' || a.status === 'Rewrite' || a.status === 'Reposition' || hard.length > 0);
+      const notes = [];
+      if (f.verdict && f.verdict !== 'SHIP') notes.push(`FINAL CREATIVE STRATEGY REVIEW (${f.verdict}${f.source ? ', source: ' + f.source : ''}): ${f.note}`);
+      for (const i of a.action_items || []) if (i.severity !== 'info') notes.push(`ALIGNMENT (${i.severity.toUpperCase()}) ${i.headline} SOURCE: ${i.source} FIX: ${i.fix}`);
+      return { num: c.num, final: f.verdict || 'unreviewed', alignment: a.status || 'unreviewed', hard: hard.length, action: rebuild ? 'rebuild' : rewrite ? 'rewrite' : 'ship', notes,
+        why: [f.note ? `Senior reviewer: ${f.note}` : null, a.persona_match ? `Persona: ${a.persona_match}` : null].filter(Boolean).join(' ') };
+    });
+    rounds.push({ label: label || 'first read', final_review: fin, alignment: align, decisions });
+    return decisions;
+  };
+  let decisions = await judge(concepts);
+
+  /* 4. one revision by the same Creative Director, then the checkers read the
+        changed concepts once more; what still fails ships flagged */
+  const toFix = decisions.filter((d) => d.action !== 'ship');
+  let revised = [];
+  if (toFix.length) {
+    log('Creative Director, revision', 'running', `${toFix.filter((d) => d.action === 'rebuild').length} to rebuild, ${toFix.filter((d) => d.action === 'rewrite').length} to rewrite`);
+    const items = toFix.map((d) => {
+      const c = concepts.find((x) => canonNum(x.num) === canonNum(d.num));
+      return `--- ${c.num} · ${c.title} : ${d.action.toUpperCase()} ---
+CURRENT:
+${c.desc}
+Narrative:
+${(c.narrative || []).map((b) => '- ' + b).join('\n')}
+Design Components:
+${(c.design || []).map((x) => '- ' + x).join('\n')}
+Hooks: ${(c.hooks || []).join(' | ')}
+Strategy Map row it was written against: persona "${c.persona}", selling argument "${c.selling_argument}", lane "${c.lane}".
+THE REVIEWERS' NOTES, binding:
+${d.notes.join('\n')}`;
+    }).join('\n\n');
+    const rev = await askText({
+      system,
+      prompt: `${materials}
+
+You wrote this batch. The Final Creative Strategy Reviewer and the Concept Alignment Reviewer have
+read it against the client's sources, and their notes below are binding. Two kinds of work:
+REBUILD means the concept is replaced: a new idea on the SAME Strategy Map row (same persona, same
+selling argument, same lane and duration), not a repair of the old one, and not a repeat of
+anything already done for this client. REWRITE means the same concept with each note answered at
+the line it names: fix what is quoted, keep everything the notes do not touch word for word, do
+not add hedges or disclaimers, do not add product evidence to answer a note about story, and
+where a note asks for a hard stat use only a figure that is in the sources above.
+Return ONLY the concepts below, keeping their numbers, as
+${directSlideContract({ n: toFix.length, startNum: Number(toFix[0].num), brandName, approved })}
+
+${items}`,
+      maxTokens: 32000,
+    });
+    const rtext = typeof rev === 'string' ? rev : String((rev && (rev.text || rev.content)) || '');
+    track(rev && (rev.__usage || rev.usage));
+    log('Creative Director, revision', 'done', `${rtext.length} characters`);
+    const second = await liftDirect({ text: rtext, brandName, startNum: Number(toFix[0].num), log, ask, label: 'Lift, revision' });
+    track(second.usage);
+    revised = second.concepts.filter((c) => toFix.some((d) => canonNum(d.num) === canonNum(c.num)));
+    if (revised.length) {
+      concepts = mergeByNum(concepts, revised);
+      directCodeChecks({ concepts, brief, snapshot, brandName, log, label: 'Code checks, after revision' });
+      const again = await judge(revised, 'second read');
+      decisions = decisions.map((d) => again.find((x) => canonNum(x.num) === canonNum(d.num)) || d);
+    } else {
+      log('Creative Director, revision', 'error', 'the revision returned no readable concepts, so the first drafts stand with their notes');
+    }
+  }
+
+  /* 5. the record: what each concept was judged, and why, for a person */
+  for (const c of concepts) {
+    const d = decisions.find((x) => canonNum(x.num) === canonNum(c.num)) || {};
+    c.review = { final: d.final, alignment: d.alignment, hard_flags: d.hard || 0, outcome: d.action === 'ship' ? 'passed' : `still ${d.action} after revision`, why: d.why || '' };
+    if (d.action && d.action !== 'ship') {
+      c.flag = `${d.final} from the senior reviewer, ${d.alignment} from the alignment review after one revision; read the notes before this ships`;
+      c.review_notes = d.notes;
+    } else if (d.notes && d.notes.length) {
+      c.review_notes = d.notes.filter((x) => x.startsWith('ALIGNMENT (SOFT)'));
+    }
+  }
+  const passed = concepts.filter((c) => c.review && c.review.outcome === 'passed').length;
+  log('Deck ready', 'done', `${concepts.length} concept${concepts.length === 1 ? '' : 's'}, ${passed} passed both reviewers${passed < concepts.length ? `, ${concepts.length - passed} carrying a flag for a person` : ''}, 9:16 space reserved`);
+
+  const last = rounds[rounds.length - 1] || {};
   return {
-    client: brandName, concepts, pipeline_version: 'v8.1-direct', mode: 'direct',
-    observations: [], harvest_notes: null, composition_note: 'direct', change_log: [], composition: null, strategy: null,
+    client: brandName, concepts, pipeline_version: 'v8.2-direct-checked', mode: 'direct',
+    observations: [], harvest_notes: null, composition_note: 'direct', change_log: [], composition: null,
+    strategy,
     packages: [], visualizations: [],
-    pool: concepts.map((c) => ({ num: c.num, title: c.title, outcome: 'shipped', lint: (c.flags || []).map((f) => f.code), direct: true })),
-    feedback: null, compliance: null, final_review: null,
+    pool: concepts.map((c) => ({ num: c.num, title: c.title, outcome: c.review && c.review.outcome === 'passed' ? 'shipped' : 'shipped, flagged', final: c.review && c.review.final, alignment: c.review && c.review.alignment, lint: (c.flags || []).map((f) => f.code), direct: true })),
+    feedback: null, compliance: null,
+    final_review: rounds[0] ? rounds[0].final_review : null,
+    alignment: rounds[0] ? rounds[0].alignment : null,
+    review_rounds: rounds.map((r) => ({ label: r.label, decisions: r.decisions, final_review: r.final_review, alignment: r.alignment })),
+    revised: revised.map((c) => c.num),
     brand_fields: [record.snap, record.plan, record.rules.length, record.products.length].filter(Boolean).length,
     used_marketing_plan: Boolean(record.plan),
     cost_usd: Math.round(spend.reduce((a, u) => a + (u && u.cost || 0), 0) * 100) / 100,
     used_research: Boolean(researchMd), used_harvest: Boolean(harvestMd), harvest_id: harvestRec ? harvestRec.id : null,
     has_brand_visuals: (record.colors || []).length > 0 && (record.fonts || []).length > 0,
     production_notes: brief.production_notes || null, used_approved_library: Boolean(approved), used_category_ads: Boolean(categoryMd),
-    pool_size: concepts.length, lint_rounds: 0, lint_remaining: flagged, cd_markdown: text.slice(0, 120000),
+    pool_size: concepts.length, lint_rounds: revised.length ? 1 : 0, lint_remaining: concepts.filter((c) => (c.flags || []).length).length,
+    cd_markdown: text.slice(0, 120000),
     seconds: Math.round((Date.now() - t0) / 1000),
   };
 }

@@ -13,11 +13,32 @@ import io, os, re, sys, shutil
 VAULT = r"c:\Clients\Creative Adbundance\_vault-local\skills"
 REPO  = r"c:\Clients\Creative Adbundance\Creative-Adbundance\.claude\skills"
 
-SKILLS = ['ad-concept-generator', 'ad-script-writer', 'batch-shoot-package', 'audience-harvest']
+SKILLS = ['ad-concept-generator', 'ad-script-writer', 'batch-shoot-package', 'audience-harvest', 'concept-alignment-review']
 
 # Ordered longest-first so a longer phrase is consumed before its substring.
 # Each entry: (regex, replacement). Case-sensitive by design; the names are proper nouns.
 RULES = [
+    # --- concept-alignment-review examples (added 2026-09-10) ---
+    (r'\\bCirrus LED\\b', 'an LED-signage client'),
+    (r'cirrusled\\.com/scoreboards', "the signage client's site, scoreboards page"),
+    (r'cirrusled\\.com', "the signage client's site"),
+    (r'\\bSymple B39\\b', "a lending client's Batch 39"),
+    (r'\\bSymple Lending\\b', 'a lending client'),
+    (r'symplelending\\.com', "the lending client's site"),
+    (r'\\bMicroFree\\b', 'a supplement client'),
+    (r'microfreeworld\\.com', "the supplement client's site"),
+    (r"\\bPuckett's\\b", 'a third-party venue name'),
+    (r'\\bKyle Fenerty email\\b', "the client founder's email"),
+    (r'\\bKyle Fenerty\\b', "the client's founder"),
+    (r'\\bKyle, you look too good, bro\\.', 'you look too good for this.'),
+    (r'\\bAlex Shear\\b', "the client's CEO"),
+    (r'\\bRamsey Alagha \\(Head of Digital\\)', "the client's head of digital"),
+    (r'\\bRamsey Slack\\b', "the client's head of digital, Slack"),
+    (r'\\bRamsey\\b', "the client's head of digital"),
+    (r'\\bG G\\b', "the client's founder"),
+    (r'\\bJoniya\\b', "the client's marketing lead"),
+    (r'\\bAlex\\b', "the client's CEO"),
+
     # --- product lines pending clearance (name the client, so they go first) ---
     (r"\bSolstice by Nurx\b",            "an unreleased product line"),
     (r"\bReviveRx Cream\b",              "a pending-clearance cream"),
