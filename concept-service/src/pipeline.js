@@ -2375,7 +2375,16 @@ NNN · Title
 Description
 Narrative: five bullets
 Design Components: five bullets
-Hooks: three candidate opening lines`;
+Hooks: three candidate opening lines
+
+The description is two or three sentences a reader can understand the ad from without reading
+the beats. The first clause names the kind of ad (the vehicle: UGC talking head, two-hander,
+ring cam, sketch). The rest says what the ad is about: the real-life moment and what is at
+stake in it, told plainly the way you would pitch it across a table, and where ${brandName}
+comes in and what it settles. Not a list of what happens, and not a format label with a vague
+story after it; the point of the ad has to be in it.${approved ? ' The APPROVED CONCEPT LIBRARY above shows this client\'s descriptions: write to that shape.' : ''}
+Give every concept the same care whether you are writing one or ${n}: each one gets its full
+five beats, its full description and its own situation.`;
 
   /* the cap was 24000 and three concepts hit it, so the model was narrating its
      working; the instruction above stops that and the cap now has real room */
