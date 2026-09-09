@@ -520,7 +520,7 @@ async function startMockupRun({ client, batchId, nums, requestedBy }) {
     for (const k of keys) mockupsInFlight.add(k);
     try {
       const result = await mockup.run({ client, batchId, nums, requestedBy, log });
-      store.finishRun(id, { status: 'done', mockupBatch: result.batchId, made: result.made, cost_usd: result.cost_usd });
+      store.finishRun(id, { status: 'done', mockupBatch: result.batchId, made: result.made, cost_usd: result.cost_usd, mockups: (result.mockups || []).map((m) => ({ num: m.num, hookOverlay: m.hookOverlay || null, promptSource: m.promptSource || null, prompt: m.prompt || null, error: m.error || null })) });
       store.notify({
         to: requestedBy, client, open: 'concepts',
         /* Name the reason. "1 failed and can be run again" on its own left

@@ -137,7 +137,7 @@ async function authorPrompt({ input, model, log }) {
 
 ${imageConventions()}
 
-One production fact about where this still is shown: it is wrapped in a story-ad frame whose header (brand name, "Sponsored") covers roughly the top 12 percent of the image and whose call-to-action bar covers roughly the bottom 12 percent. Place the hook caption in the upper part of the frame BELOW that header band, never in the top or bottom 12 percent. Use the brand's accent colour for the caption pill when one is given.
+One production fact about where this still is shown: it is wrapped in a story-ad frame whose header (brand name, "Sponsored") covers the top 15 percent of the image and whose call-to-action bar covers the bottom 12 percent. The reference says "near the top of the frame"; here that means the caption's TOP edge starts about a quarter of the way down the image, with clear empty picture above it, so it clears the header. Say that placement explicitly in the prompt in those words (for example "a caption pill whose top edge sits about a quarter of the way down the frame, with open space above it"), never "at the top" or "near the top". Use the brand's accent colour for the caption pill when one is given.
 
 Return the deliverable shape from the reference for this one concept and nothing else: the "Concept:" line, the "Hook overlay:" line, then "Prompt:" followed by the single continuous plain-text prompt block. No preamble, no commentary, no code fences.`;
 
