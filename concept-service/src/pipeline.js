@@ -38,7 +38,7 @@ const SKILL_DIR = process.env.SKILL_DIR ||
    two-hander kept coming back wearing a different room. */
 const VEHICLE_SAMPLE = 30;
 
-async function vehicleMenu(usedLines) {
+async function vehicleMenu(usedLines, opts = {}) {
   const u = process.env.SUPABASE_URL, k = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
   if (!u || !k) return null;
   try {
@@ -59,7 +59,7 @@ async function vehicleMenu(usedLines) {
       const j = Math.floor(Math.random() * (i + 1));
       const t = rows[i]; rows[i] = rows[j]; rows[j] = t;
     }
-    const pick = rows.slice(0, VEHICLE_SAMPLE);
+    const pick = opts.all ? rows : rows.slice(0, VEHICLE_SAMPLE);
     /* the fields the skill's own fetch-vehicles.js renders: mechanic, hook
        strategy, and how many approved concepts have backed the vehicle */
     const lines = pick.map(function (v) {
@@ -80,7 +80,8 @@ async function vehicleMenu(usedLines) {
       count: pick.length,
       total,
       banned,
-      md: 'THE VEHICLE BANK, a fresh random sample of ' + pick.length + ' of the ' + total +
+      rows: pick.map((v) => ({ id: v.vehicle_id, name: v.name, path: v.production_path || null, proven: Array.isArray(v.proven_by) ? v.proven_by.length : 0 })),
+      md: (opts.all ? 'THE VEHICLE BANK, all ' + pick.length + ' of the ' + total : 'THE VEHICLE BANK, a fresh random sample of ' + pick.length + ' of the ' + total) +
         ' curated vehicles on file, for when a concept needs a vehicle:\n' + lines + '\n\n' +
         'One rule from the creative director: source vehicles from this random sample rather than ' +
         'defaulting to the same familiar formats; no two concepts in the batch share a vehicle family.',
@@ -2508,6 +2509,193 @@ function directCodeChecks({ concepts, brief, snapshot, brandName, log, label }) 
   return flagged;
 }
 
+/* The client evidence pack (Carl, 2026-09-10). Everything below is already in
+   the record or on disk; this step only pulls it into one place the writer
+   and the reviewers can hold: the verifiable figures and comparisons with
+   their source section, what has worked and what has not, and what this
+   client has already run. Nothing here is invented: a figure that is not in
+   the record does not appear, and the reviewers already fail invented ones. */
+const EVIDENCE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    hard_stats: {
+      type: 'array', maxItems: 25,
+      items: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          figure: { type: 'string' },
+          statement: { type: 'string' },
+          kind: { type: 'string', enum: ['stat', 'comparison', 'proof', 'offer'] },
+          source: { type: 'string' },
+          usable_in_paid: { type: 'boolean' },
+        },
+        required: ['figure', 'statement', 'kind', 'source', 'usable_in_paid'],
+      },
+    },
+    what_worked: { type: 'array', maxItems: 12, items: { type: 'object', additionalProperties: false, properties: { what: { type: 'string' }, why: { type: 'string' }, source: { type: 'string' } }, required: ['what', 'why', 'source'] } },
+    what_did_not: { type: 'array', maxItems: 12, items: { type: 'object', additionalProperties: false, properties: { what: { type: 'string' }, source: { type: 'string' } }, required: ['what', 'source'] } },
+    competitors: { type: 'array', maxItems: 8, items: { type: 'object', additionalProperties: false, properties: { name: { type: 'string' }, where_we_win: { type: 'string' }, source: { type: 'string' } }, required: ['name', 'where_we_win', 'source'] } },
+    open_questions: { type: 'array', maxItems: 8, items: { type: 'string' } },
+  },
+  required: ['hard_stats', 'what_worked', 'what_did_not', 'competitors', 'open_questions'],
+};
+
+async function stageEvidence({ snapshot, client, log, ask }) {
+  log('Client evidence pack', 'running');
+  /* what this client has already run, from the batches on disk: code, no model */
+  const usedVehicles = [...new Set((store.usedVehicles(client, 60) || []).map((v) => String(v).trim()).filter(Boolean))];
+  const usedPersonas = [], usedTitles = [], usedFamilies = new Set();
+  for (const { concept: c } of store.libraryConcepts(client)) {
+    if (c.persona && !usedPersonas.includes(c.persona)) usedPersonas.push(String(c.persona).slice(0, 90));
+    if (c.title) usedTitles.push(String(c.title).slice(0, 70));
+    if (c.visual_family) usedFamilies.add(String(c.visual_family).toLowerCase().trim());
+  }
+  let out;
+  try {
+    out = await ask({
+      system: `You compile a client evidence pack for a creative team from the client's own record. You extract; you never invent. Every item carries the section of the record it came from, named the way the heading reads. A figure is only a figure if the record states it; a comparison is only a comparison if the record makes it. If the record has no hard numbers, hard_stats is short and that is the honest answer.`,
+      prompt: `THE CLIENT'S RECORD:
+
+${snapshot}
+
+Compile:
+1. hard_stats: every verifiable figure, comparison and proof point a paid ad could stand on (customer counts, results, times, prices, guarantees, ratings, "X versus the competitor" claims, mechanism facts). For each: the figure as written, the plain statement it supports, its kind, its source section, and whether it is usable in paid creative given the record's own compliance guardrails.
+2. what_worked: formats, angles, hooks, personas or claims the record says performed or the client approved and kept, each with why and its source.
+3. what_did_not: what the record says underperformed, was rejected, or is banned, with its source.
+4. competitors: named competitors and the record's own statement of where this brand wins against each.
+5. open_questions: contradictions inside the record (one section says X, another says not-X) that a person must settle before the claim ships.`,
+      schema: EVIDENCE_SCHEMA,
+      maxTokens: 16000,
+      model: REVIEW_MODEL,
+    });
+  } catch (err) {
+    log('Client evidence pack', 'done', 'could not compile the pack (' + String(err.message || err).slice(0, 80) + '); the run continues on the record alone');
+    out = { hard_stats: [], what_worked: [], what_did_not: [], competitors: [], open_questions: [] };
+  }
+  const usable = out.hard_stats.filter((h) => h.usable_in_paid);
+  const md = `## CLIENT EVIDENCE PACK, compiled from the record and this client's own batches
+Hard stats on file, usable in paid creative (${usable.length}). Use a figure only as written here, with its source; where a beat needs proof and one of these fits, it belongs there:
+${usable.map((h) => `- ${h.figure}: ${h.statement} [${h.kind}; ${h.source}]`).join('\n') || '- none the record can stand behind'}
+${out.hard_stats.length > usable.length ? `\nOn file but NOT cleared for paid creative (${out.hard_stats.length - usable.length}): ${out.hard_stats.filter((h) => !h.usable_in_paid).map((h) => h.figure).join('; ')}\n` : ''}
+What has worked for this client:
+${out.what_worked.map((w) => `- ${w.what}: ${w.why} [${w.source}]`).join('\n') || '- nothing recorded'}
+
+What has not, or is out of bounds:
+${out.what_did_not.map((w) => `- ${w.what} [${w.source}]`).join('\n') || '- nothing recorded'}
+
+Competitors and where this brand wins:
+${out.competitors.map((c) => `- ${c.name}: ${c.where_we_win} [${c.source}]`).join('\n') || '- none named in the record'}
+${out.open_questions.length ? `\nContradictions in the record, unsettled (do not build a claim on either side): ${out.open_questions.join(' | ')}\n` : ''}
+Already run for this client, do not repeat (from ${usedTitles.length} earlier concepts):
+- Vehicles used: ${usedVehicles.slice(0, 40).join('; ') || 'none on file'}
+- Visual families used: ${[...usedFamilies].slice(0, 30).join('; ') || 'none on file'}
+- Personas already written for: ${usedPersonas.slice(0, 20).join('; ') || 'none on file'}`;
+  log('Client evidence pack', 'done',
+    `${usable.length} hard stat${usable.length === 1 ? '' : 's'} usable in paid (${out.hard_stats.length} on file), ${out.what_worked.length} worked, ${out.what_did_not.length} did not, ${out.competitors.length} competitor${out.competitors.length === 1 ? '' : 's'}, ${out.open_questions.length} open question${out.open_questions.length === 1 ? '' : 's'}; ${usedVehicles.length} vehicles and ${usedPersonas.length} personas already run`);
+  return { ...out, usedVehicles, usedPersonas, usedFamilies: [...usedFamilies], usedTitles, md };
+}
+
+/* Vehicle selection per Strategy Map row, from the WHOLE bank (Carl,
+   2026-09-10). The writer used to pick a vehicle inside its one pass from a
+   random sample of 30; now the skill's Sub-procedure 3 runs as its own step
+   over all the bank's vehicles plus the researched ones, the client's used
+   vehicles and families are excluded in code, and distinct families across
+   the rows are enforced in code. */
+const ROW_VEH_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    rows: {
+      type: 'array', minItems: 1,
+      items: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          row: { type: 'integer' },
+          keywords: { type: 'array', minItems: 3, maxItems: 5, items: { type: 'string' } },
+          candidates: {
+            type: 'array', minItems: 3, maxItems: 5,
+            items: {
+              type: 'object', additionalProperties: false,
+              properties: {
+                vehicle: { type: 'string' }, family: { type: 'string' }, source: { type: 'string' },
+                message_fit: { type: 'integer', minimum: 1, maximum: 5 }, persona_fit: { type: 'integer', minimum: 1, maximum: 5 },
+                freshness: { type: 'integer', minimum: 1, maximum: 5 }, producibility: { type: 'integer', minimum: 1, maximum: 5 },
+              },
+              required: ['vehicle', 'family', 'source', 'message_fit', 'persona_fit', 'freshness', 'producibility'],
+            },
+          },
+          winner: {
+            type: 'object', additionalProperties: false,
+            properties: { vehicle: { type: 'string' }, family: { type: 'string' }, why: { type: 'string' }, one_creator_at_home: { type: 'boolean' } },
+            required: ['vehicle', 'family', 'why', 'one_creator_at_home'],
+          },
+        },
+        required: ['row', 'keywords', 'candidates', 'winner'],
+      },
+    },
+  },
+  required: ['rows'],
+};
+
+const normFam = (x) => String(x || '').toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+
+async function stageRowVehicles({ snapshot, strategy, evidence, bank, researchMd, log, ask }) {
+  log('Vehicle selection', 'running', `Sub-procedure 3 over ${bank ? bank.count : 0} bank vehicles${researchMd ? ' and the researched ones' : ''}`);
+  const rows = [];
+  (strategy.allocation || []).forEach((a, i) => { for (let k = 0; k < (a.slots || 1); k++) rows.push({ row: rows.length + 1, ...a }); });
+  const usedV = new Set((evidence.usedVehicles || []).map((v) => normFam(v)));
+  const usedF = new Set((evidence.usedFamilies || []).map(normFam));
+  const out = await ask({
+    system: `You are the Creative Director on this account, running the skill's Vehicle Candidate Search and Fit-Check for every row of the Batch Strategy Map, before a word of concept is written.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour libraries:\n\n${ref('libraries.md')}\n${HOUSE_RULES}`,
+    prompt: `${snapshot}
+
+${evidence.md}
+
+${strategyBrief(strategy)}
+
+THE VEHICLE POOLS.
+${bank ? bank.md : '(the curated bank is unreachable this run)'}
+${researchMd ? '\n' + researchMd : ''}
+
+${skillSection('**Sub-procedure 3: Vehicle Candidate Search', '**All v6 rules apply, plus:**')}
+
+Run Sub-procedure 3 for each of these ${rows.length} rows:
+${rows.map((r) => `Row ${r.row}: persona "${r.persona}"; selling argument "${r.selling_argument}"; objective "${r.objective}".`).join('\n')}
+
+For each row: 3 to 5 shape keywords for how that persona's world and that selling argument want
+to be seen; a candidate table of 3 to 5 vehicles drawn from the pools above (name them as the
+bank names them, source "bank", "researched" or "original"), at least one wild, captured or
+parody candidate, scored 1 to 5 on the four axes; the winner and why, and whether one creator can
+shoot it at home. Vehicles and visual families listed under "Already run for this client" score
+freshness 1 and cannot win. No two rows may share a vehicle family, and the batch as a whole may
+not be more than half talking heads or desk-and-phone setups (the skill's rule 5): if the pattern
+default wins more than half, redo the table with the wild pool forced in.`,
+    schema: ROW_VEH_SCHEMA,
+    maxTokens: 32000,
+  });
+  /* code enforces what the prompt asked for: no used vehicle, no used family,
+     no family twice; fall back to the next candidate in score order */
+  const takenF = new Set();
+  const chosen = rows.map((r) => {
+    const o = (out.rows || []).find((x) => Number(x.row) === r.row) || { candidates: [], winner: null };
+    const ranked = [...(o.candidates || [])].sort((a, b) => (b.message_fit + b.persona_fit + b.freshness + b.producibility) - (a.message_fit + a.persona_fit + a.freshness + a.producibility));
+    const ok = (c) => c && !usedV.has(normFam(c.vehicle)) && !usedF.has(normFam(c.family)) && !takenF.has(normFam(c.family));
+    let pick = o.winner && ok(o.winner) ? o.winner : ranked.find(ok) || o.winner || ranked[0] || null;
+    const swapped = pick && o.winner && pick.vehicle !== o.winner.vehicle;
+    if (pick) takenF.add(normFam(pick.family));
+    return { row: r.row, persona: r.persona, selling_argument: r.selling_argument, objective: r.objective, keywords: o.keywords || [],
+      vehicle: pick ? pick.vehicle : null, family: pick ? pick.family : null, why: pick ? (pick.why || `next candidate in score order after the winner collided with a used vehicle or family`) : null,
+      one_creator_at_home: pick && pick.one_creator_at_home != null ? pick.one_creator_at_home : null, swapped, candidates: o.candidates || [] };
+  });
+  const fams = new Set(chosen.map((c) => normFam(c.family)).filter(Boolean));
+  log('Vehicle selection', 'done', `${chosen.filter((c) => c.vehicle).length} of ${rows.length} rows have a vehicle, ${fams.size} distinct famil${fams.size === 1 ? 'y' : 'ies'}${chosen.some((c) => c.swapped) ? `, ${chosen.filter((c) => c.swapped).length} winner${chosen.filter((c) => c.swapped).length === 1 ? '' : 's'} replaced in code for colliding with a used vehicle or family` : ''}: ${chosen.map((c) => `row ${c.row} ${c.vehicle || 'none'}`).join('; ')}`);
+  const md = `## VEHICLE PER ROW, chosen by the vehicle selector from the whole bank (this client's used vehicles and families excluded)
+${chosen.map((c) => `- Row ${c.row} (${c.persona}; ${c.selling_argument}): ${c.vehicle || 'no vehicle found'}${c.family ? ` [family: ${c.family}]` : ''}${c.one_creator_at_home === false ? ' (needs more than one creator at home: the writer must bring it back to one)' : ''}. ${c.why || ''}`).join('\n')}
+Each concept is written IN its row's vehicle. The vehicle is the shape of the video; the story is the persona's.`;
+  return { rows: chosen, md };
+}
+
 /* Carl's direct mode (Sept 2026): one long prompt to Opus 5 with the whole
    snapshot and the whole skill, the way the skill runs in Claude web. The
    model does Step Zero, the harvest, the visualization, the vehicle and the
@@ -2524,16 +2712,29 @@ async function runDirect({ client, count = 1, prior = '', priorMeta = null, star
   const n = Math.min(Math.max(Number(count) || 1, 1), 16);
   const trackedAsk = async (args) => { const o = await ask(args); if (o && o.__usage) { track(o.__usage); delete o.__usage; } return o; };
 
+  /* 0. the client evidence pack: hard stats, what worked, what this client has run */
+  const evidence = await stageEvidence({ snapshot, client, log, ask: trackedAsk });
+  const snapshotPlus = snapshot + '\n\n' + evidence.md;
+
   /* 1. Step Zero as its own agent: the Batch Strategy Map, personas first */
-  const strategy = await stageStrategy({ snapshot, count: n, log, ask: trackedAsk, researchMd });
+  const strategy = await stageStrategy({ snapshot: snapshotPlus, count: n, log, ask: trackedAsk, researchMd });
   const strategyMd = strategyBrief(strategy);
+
+  /* 1b. the vehicle for each row, from the whole bank, in code-enforced distinct families */
+  let bankAll = null;
+  try { bankAll = await vehicleMenu(store.usedVehicles(client, 60), { all: true }); } catch { bankAll = null; }
+  const rowVeh = await stageRowVehicles({ snapshot, strategy, evidence, bank: bankAll, researchMd, log, ask: trackedAsk });
 
   /* 2. the one pass with the whole skill, written against the map */
   log('Creative Director, one pass', 'running', `one call, the whole skill, ${n} concept${n === 1 ? '' : 's'} against the Strategy Map`);
   const system = `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n\nThe creative strategist's reference:\n\n${ref('creative-strategist.md')}\n${HOUSE_RULES}`;
   const materials = `${snapshot}
 ${researchMd ? '\n' + researchMd + '\n' : ''}${vehicles ? '\nTHE VEHICLE BANK, researched vehicles you may draw on:\n' + vehicles.md + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}${categoryMd ? '\n' + categoryMd + '\n' : ''}
+${evidence.md}
+
 ${strategyMd}
+
+${rowVeh.md}
 
 ALREADY DONE FOR THIS CLIENT. Do not repeat these, in idea or in situation:
 ${prior || '(nothing on file)'}`;
@@ -2542,6 +2743,10 @@ ${prior || '(nothing on file)'}`;
 Step Zero has been run by the Strategic Analyst: the Batch Strategy Map above is the map. Write
 each concept against ONE allocation row of it: that row's persona is the person in the ad, that
 row's selling argument is what the ad is about, and the duration and format mix are the map's.
+Sub-procedure 3 has been run too: each row's vehicle is chosen above, from the whole bank with
+this client's used vehicles excluded, so build the concept IN that vehicle rather than choosing
+another. Where a beat needs proof, the CLIENT EVIDENCE PACK lists the figures the record can
+stand behind; use one as written, or none.
 Then run the rest of the skill yourself, in this one pass, exactly as you would in a Claude web
 session with all of this material in front of you: the observation harvest, message
 visualization, the vehicle choice, the writing, and your own review against the skill's checks
@@ -2565,8 +2770,8 @@ ${directSlideContract({ n, startNum, brandName, approved })}`;
         Concept Alignment Review, each its own agent reading the whole batch */
   const rounds = [];
   const judge = async (list, label) => {
-    const fin = await stageFinalReview({ snapshot, concepts: list, strategy, log, ask: trackedAsk, label: label ? `Final creative strategy review, ${label}` : undefined });
-    const align = await stageAlignment({ snapshot, strategy, concepts: list, log, ask: trackedAsk, label: label ? `Concept alignment review, ${label}` : undefined });
+    const fin = await stageFinalReview({ snapshot: snapshotPlus, concepts: list, strategy, log, ask: trackedAsk, label: label ? `Final creative strategy review, ${label}` : undefined });
+    const align = await stageAlignment({ snapshot: snapshotPlus, strategy, concepts: list, log, ask: trackedAsk, label: label ? `Concept alignment review, ${label}` : undefined });
     const decisions = list.map((c) => {
       const k = canonNum(c.num);
       const f = (fin.reviews || []).find((r) => canonNum(r.num) === k) || {};
@@ -2580,6 +2785,18 @@ ${directSlideContract({ n, startNum, brandName, approved })}`;
       return { num: c.num, final: f.verdict || 'unreviewed', alignment: a.status || 'unreviewed', hard: hard.length, action: rebuild ? 'rebuild' : rewrite ? 'rewrite' : 'ship', notes,
         why: [f.note ? `Senior reviewer: ${f.note}` : null, a.persona_match ? `Persona: ${a.persona_match}` : null].filter(Boolean).join(' ') };
     });
+    /* two concepts in one visual family is range failing in code, not a note
+       for later: the lower-ranked one is rewritten in a distinct vehicle */
+    const seenFam = new Map();
+    for (const c of list) {
+      const f = normFam(c.visual_family || c.vehicle);
+      if (!f) continue;
+      if (seenFam.has(f)) {
+        const d = decisions.find((x) => canonNum(x.num) === canonNum(c.num));
+        if (d && d.action === 'ship') d.action = 'rewrite';
+        if (d) d.notes.push(`RANGE (code check): this concept shares the visual family "${c.visual_family || c.vehicle}" with concept ${seenFam.get(f)}. Rewrite it in a distinct vehicle from the VEHICLE PER ROW list or the bank, keeping its persona, selling argument and story.`);
+      } else seenFam.set(f, c.num);
+    }
     rounds.push({ label: label || 'first read', final_review: fin, alignment: align, decisions });
     return decisions;
   };
@@ -2655,9 +2872,11 @@ ${items}`,
 
   const last = rounds[rounds.length - 1] || {};
   return {
-    client: brandName, concepts, pipeline_version: 'v8.2-direct-checked', mode: 'direct',
+    client: brandName, concepts, pipeline_version: 'v8.3-direct-evidence', mode: 'direct',
     observations: [], harvest_notes: null, composition_note: 'direct', change_log: [], composition: null,
     strategy,
+    evidence: { hard_stats: evidence.hard_stats, what_worked: evidence.what_worked, what_did_not: evidence.what_did_not, competitors: evidence.competitors, open_questions: evidence.open_questions, used_vehicles: evidence.usedVehicles, used_personas: evidence.usedPersonas },
+    row_vehicles: rowVeh.rows,
     packages: [], visualizations: [],
     pool: concepts.map((c) => ({ num: c.num, title: c.title, outcome: c.review && c.review.outcome === 'passed' ? 'shipped' : 'shipped, flagged', final: c.review && c.review.final, alignment: c.review && c.review.alignment, lint: (c.flags || []).map((f) => f.code), direct: true })),
     feedback: null, compliance: null,
