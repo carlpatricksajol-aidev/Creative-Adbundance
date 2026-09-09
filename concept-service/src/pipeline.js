@@ -2367,7 +2367,9 @@ ${prior || '(nothing on file)'}
 Run the whole skill yourself, in this one pass, exactly as you would in a Claude web session with
 all of this material in front of you: Step Zero, the observation harvest, message visualization,
 the vehicle choice, the writing, and your own review against the skill's checks before you hand
-it over. Nobody edits this after you; what you write is what the client sees. Deliver
+it over. Do all of that work in your head, the way the skill runs silent: no strategy map, no
+observation list, no visualizations, no notes, no preamble and no review appear in your answer.
+Nobody edits this after you; what you write is what the client sees. The ONLY text you return is
 ${n} concept${n === 1 ? '' : 's'}, numbered from ${String(startNum).padStart(3, '0')}, in the slide format and nothing else:
 NNN · Title
 Description
@@ -2375,7 +2377,9 @@ Narrative: five bullets
 Design Components: five bullets
 Hooks: three candidate opening lines`;
 
-  const out = await askText({ system, prompt, maxTokens: 24000 });
+  /* the cap was 24000 and three concepts hit it, so the model was narrating its
+     working; the instruction above stops that and the cap now has real room */
+  const out = await askText({ system, prompt, maxTokens: 32000 });
   const text = typeof out === 'string' ? out : String((out && (out.text || out.content)) || '');
   const usage = out && (out.__usage || out.usage);
   if (usage) spend.push(usage);
