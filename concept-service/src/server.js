@@ -244,7 +244,11 @@ function body(req) {
 
 async function startRun({ client, count, requestedBy, mode }) {
   const id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  store.newRun({ id, client, count, requestedBy, mode: mode === 'direct' ? 'direct' : 'pipeline' });
+  /* Direct is how every run happens (Carl and Ricardo, 2026-09-09, on Batches
+     32 and 33): one call to Opus with the whole skill and snapshot. The staged
+     pipeline stays reachable only by asking for it: mode: 'pipeline'. */
+  const how = mode === 'pipeline' ? 'pipeline' : 'direct';
+  store.newRun({ id, client, count, requestedBy, mode: how });
 
   const log = (name, state, detail) => store.step(id, name, state, detail);
 
@@ -302,7 +306,7 @@ async function startRun({ client, count, requestedBy, mode }) {
       const priorCtx = store.priorContext(client);
       /* direct: one call to Opus with the whole skill and snapshot, nothing
          rewritten afterwards. pipeline: the staged run. Carl's call per batch. */
-      const runner = mode === 'direct' ? pipeline.runDirect : pipeline.run;
+      const runner = how === 'pipeline' ? pipeline.run : pipeline.runDirect;
       const result = await runner({ client, count, prior: priorCtx.text, priorMeta: priorCtx, log });
       const batch = store.saveBatch(result);
       store.finishRun(id, { status: 'done', batchId: batch.id, cost_usd: result.cost_usd, used_research: result.used_research });
