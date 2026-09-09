@@ -378,7 +378,7 @@ function readVault(name) {
   }
 }
 
-function buildHtml({ creativePng, brandName, logoBuf, logoMeta, cta, sponsored }) {
+function buildHtml({ creativePng, brandName, logoBuf, logoMeta, cta, sponsored, caption }) {
   const template = readVault(TEMPLATE).toString('utf8');
 
   /* A template that lost a token would still render, and would ship a frame
@@ -407,9 +407,14 @@ function buildHtml({ creativePng, brandName, logoBuf, logoMeta, cta, sponsored }
        only external value inside it has already been escaped or base64ed */
     .replace(/\{\{AVATAR_CONTENT\}\}/g, av.content)
     .replace(/\{\{SPONSORED\}\}/g, esc(sponsored || 'Sponsored'))
-    .replace(/\{\{CTA\}\}/g, esc(cta || 'Learn More'));
+    .replace(/\{\{CTA\}\}/g, esc(cta || 'Learn More'))
+    /* the hook caption, drawn by the frame in code rather than baked into the
+       still by the image model (Carl, 2026-09-10: three renders in a row put
+       it in the wrong place or the wrong style). Optional token: an older
+       template without it renders as before, with no caption. */
+    .replace(/\{\{CAPTION\}\}/g, esc(caption || ''));
 
-  return { html: out, avatar: av };
+  return { html: out, avatar: av, captionDrawn: Boolean(caption) && template.includes('{{CAPTION}}') };
 }
 
 /* --------------------------------------------------------------- the render --- */
@@ -451,11 +456,11 @@ async function rasterise(html) {
 }
 
 /** Wrap one creative in the frame. Returns the framed PNG plus what it did. */
-async function frame({ creativePng, brandName, logoBuf, logoMeta, cta, sponsored }) {
-  const { html, avatar } = buildHtml({ creativePng, brandName, logoBuf, logoMeta, cta, sponsored });
+async function frame({ creativePng, brandName, logoBuf, logoMeta, cta, sponsored, caption }) {
+  const { html, avatar, captionDrawn } = buildHtml({ creativePng, brandName, logoBuf, logoMeta, cta, sponsored, caption });
   const png = await rasterise(html);
   const dims = { w: png.readUInt32BE(16), h: png.readUInt32BE(20) };
-  return { png, avatar, dims, htmlBytes: Buffer.byteLength(html) };
+  return { png, avatar, dims, captionDrawn, htmlBytes: Buffer.byteLength(html) };
 }
 
 module.exports = {

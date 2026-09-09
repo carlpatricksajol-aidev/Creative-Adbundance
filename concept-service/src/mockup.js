@@ -137,7 +137,9 @@ async function authorPrompt({ input, model, log }) {
 
 ${imageConventions()}
 
-One production fact about where this still is shown: it is wrapped in a story-ad frame whose header (brand name, "Sponsored") covers the top 15 percent of the image and whose call-to-action bar covers the bottom 12 percent. The reference says "near the top of the frame"; here that means the caption's TOP edge starts about a quarter of the way down the image, with clear empty picture above it, so it clears the header. Say that placement explicitly in the prompt in those words (for example "a caption pill whose top edge sits about a quarter of the way down the frame, with open space above it"), never "at the top" or "near the top". Use the brand's accent colour for the caption pill when one is given.
+Two production facts about how this still is used. First, the hook caption is NOT rendered by the image model: the story frame draws the "Hook overlay:" line itself, in code, as a native TikTok caption (bold white text on black rounded pills, centred in the upper third). So the Prompt block must describe a still with NO text of any kind in it: no caption, no pill, no on-screen words, no readable labels; leave the caption clause out of the prompt entirely, and keep the upper third of the frame visually calm (no face or key object there) because the caption lands on it. Second, the still is wrapped in a frame whose header covers the top 15 percent and whose call-to-action bar covers the bottom 12 percent; keep the subject's face and the key objects out of those bands.
+
+The "Hook overlay:" line is therefore the whole caption a viewer reads, and it is the first thing a person judges the concept by. Write it the way the reference now asks: the core message at a glance, eight words or fewer, in the persona's own voice, never a paragraph and never the anecdote retold.
 
 Return the deliverable shape from the reference for this one concept and nothing else: the "Concept:" line, the "Hook overlay:" line, then "Prompt:" followed by the single continuous plain-text prompt block. No preamble, no commentary, no code fences.`;
 
@@ -148,7 +150,6 @@ CATEGORY: ${f(input.category)}
 TARGET_PERSONA: ${f(input.targetPersona)}
 CORE_USPS / BENEFITS: ${f(input.coreUsps)}
 BRAND_VOICE: ${f(input.brandVoice)}
-BRAND_ACCENT_COLOUR: ${f(input.accentHex)}
 
 THE CONCEPT SLIDE, the creative source of truth:
 CONCEPT: ${f(input.conceptNum)}_${f(input.conceptTitle)}
@@ -285,17 +286,23 @@ function creativePath(id) {
 /* Frame one still and write it to the served path. Returns what it did so the
    run can report a plate, a square mark or a lettermark per concept rather
    than leaving Carl to notice a missing logo by eye. */
-async function frameOne({ id, creativeBuf, brandName, logo, cta }) {
+async function frameOne({ id, creativeBuf, brandName, logo, cta, caption }) {
   const out = await storyframe.frame({
     creativePng: creativeBuf,
     brandName,
     logoBuf: logo.buf,
     logoMeta: logo.meta,
     cta,
+    caption,
   });
   writeAtomic(path.join(IMG_DIR, `${safeId(id)}.png`), out.png);
   return out;
 }
+
+/* The hook caption rides beside the still on disk, so a free reframe can draw
+   it again without the prompt writer. */
+function hookPath(id) { return path.join(CREATIVE_DIR, `${safeId(id)}.hook.txt`); }
+function readHook(id) { try { return fs.readFileSync(hookPath(id), 'utf8').trim() || null; } catch { return null; } }
 
 function imagePath(id) {
   const safe = safeId(id);
@@ -386,7 +393,8 @@ async function run({ client, batchId, nums, requestedBy, log }) {
          generation that already cost money and two minutes disappear. */
       let framed = null, frameErr = null;
       try {
-        framed = await frameOne({ id, creativeBuf: buf, brandName: base.brandName, logo, cta: 'Learn More' });
+        if (authored.hookOverlay) { try { writeAtomic(hookPath(id), Buffer.from(authored.hookOverlay, 'utf8')); } catch { /* the frame still gets it this run */ } }
+        framed = await frameOne({ id, creativeBuf: buf, brandName: base.brandName, logo, cta: 'Learn More', caption: authored.hookOverlay || null });
       } catch (err) {
         frameErr = err && err.message ? err.message : String(err);
         /* serve the unframed still rather than nothing, so the paid work is
@@ -405,7 +413,7 @@ async function run({ client, batchId, nums, requestedBy, log }) {
       });
       log(label, frameErr ? 'error' : 'done', frameErr
         ? `the still is safe but the frame failed: ${frameErr.slice(0, 90)}`
-        : `framed ${framed.dims.w}x${framed.dims.h}${authored.hookOverlay ? ', hook "' + authored.hookOverlay.slice(0, 40) + '"' : ''}`);
+        : `framed ${framed.dims.w}x${framed.dims.h}${authored.hookOverlay ? (framed.captionDrawn ? ', caption drawn by the frame: "' : ', hook (template has no caption slot): "') + authored.hookOverlay.slice(0, 40) + '"' : ''}`);
     } catch (err) {
       /* One concept failing must not lose the ones already paid for. */
       const msg = err && err.message ? err.message : String(err);
@@ -469,11 +477,12 @@ async function reframe({ client, batchId, nums, log }) {
       continue;
     }
     try {
+      const caption = readHook(id);
       const framed = await frameOne({
-        id, creativeBuf: fs.readFileSync(src), brandName: base.brandName, logo, cta: 'Learn More',
+        id, creativeBuf: fs.readFileSync(src), brandName: base.brandName, logo, cta: 'Learn More', caption,
       });
-      out.push({ num: c.num, id, framed: true, avatar: framed.avatar.mode, dims: `${framed.dims.w}x${framed.dims.h}` });
-      log(label, 'done', `reframed ${framed.dims.w}x${framed.dims.h}, ${framed.avatar.mode}`);
+      out.push({ num: c.num, id, framed: true, avatar: framed.avatar.mode, dims: `${framed.dims.w}x${framed.dims.h}`, caption: caption || null });
+      log(label, 'done', `reframed ${framed.dims.w}x${framed.dims.h}, ${framed.avatar.mode}${caption ? ', caption drawn' : ', no hook on file for this still (rendered before captions moved to the frame)'}`);
     } catch (err) {
       const msg = err && err.message ? err.message : String(err);
       out.push({ num: c.num, id, framed: false, error: msg });
