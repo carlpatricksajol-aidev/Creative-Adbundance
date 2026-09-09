@@ -14,11 +14,13 @@
  *
  * TWO THINGS ARE DELIBERATE HERE.
  *
- * 1. (2026-09-09) The prompt writer follows the SKILL's reference,
- *    ad-concept-generator/references/image-prompts.md, read from the mounted
- *    repo at call time: Carl's ruling, follow what the skill mentions. The
- *    earlier master instructions `concept-visualizer.md` stay in the vault and
- *    are no longer read here. Older note kept for history:
+ * 1. (2026-09-10) The prompt writer is the visualizer master instructions
+ *    again, plus the skill's image-prompts.md as binding conventions (Carl:
+ *    "the previous mockups are quite good, it understands the positioning of
+ *    the overlays"). The one addition is the 9/9 call's hook rule: the overlay
+ *    states the core message at one glance. For one day (9/9) the writer read
+ *    only the skill reference and the frame drew the caption; the frame's
+ *    {{CAPTION}} slot stays but is passed nothing.
  *    The prompt is NOT in this repo. `concept-visualizer.md` is Carl's own
  *    spec and lives in the team's PRIVATE repo; this repo is public. It is
  *    read at runtime from the shared vault instead, the same way the concept
@@ -128,50 +130,45 @@ async function authorPrompt({ input, model, log }) {
   if (!key) { const e = new Error('OPENROUTER_API_KEY is not set on the server'); e.status = 503; throw e; }
 
   const f = (v) => {
-    if (Array.isArray(v)) return v.length ? v.map((x) => '- ' + x).join('\n') : 'not specified';
+    if (Array.isArray(v)) return v.length ? v.join('; ') : 'not specified';
     return v && String(v).trim() ? String(v).trim() : 'not specified';
   };
 
-  /* The skill's own reference is the whole instruction set (Carl, 2026-09-09:
-     follow what the skill mentions, there are standards). The only thing added
-     is a fact about our frame: the platform chrome the still is wrapped in
-     covers the top of the image, so a caption placed at the very top would be
-     hidden behind the brand header. */
-  const system = `You are the Creative Director on this account, writing the image-generation prompt for ONE concept's 9:16 mockup still. Follow the skill's reference below exactly; it is the standard.
-
-${imageConventions()}
-
-Two production facts about how this still is used. First, the hook caption is NOT rendered by the image model: the story frame draws the "Hook overlay:" line itself, in code, as a native TikTok caption (bold white text on black rounded pills, centred in the upper third). So the Prompt block must describe a still with NO text of any kind in it: no caption, no pill, no on-screen words, no readable labels; leave the caption clause out of the prompt entirely, and keep the upper third of the frame visually calm (no face or key object there) because the caption lands on it. Second, the still is wrapped in a frame whose header covers the top 15 percent and whose call-to-action bar covers the bottom 12 percent; keep the subject's face and the key objects out of those bands.
-
-The "Hook overlay:" line is therefore the whole caption a viewer reads, and it is the first thing a person judges the concept by. Write it the way the reference now asks: the core message at a glance, eight words or fewer, in the persona's own voice, never a paragraph and never the anecdote retold.
-
-Return the deliverable shape from the reference for this one concept and nothing else: the "Concept:" line, the "Hook overlay:" line, then "Prompt:" followed by the single continuous plain-text prompt block. No preamble, no commentary, no code fences.`;
-
-  const userPrompt = `BRAND:
+  /* Carl, 2026-09-10: the previous writer (the visualizer master instructions)
+     understood where an overlay belongs; keep it whole and add only the 9/9
+     call's ask, that the hook says what the ad is about at one glance. */
+  const userPrompt = `BRAND ONBOARDING:
 BRAND_NAME: ${f(input.brandName)}
 PRODUCT_NAME: ${f(input.productName)}
+PRODUCT_REFERENCE_IMAGE: ${input.hasProductReferenceImage ? 'yes' : 'no'}
 CATEGORY: ${f(input.category)}
 TARGET_PERSONA: ${f(input.targetPersona)}
 CORE_USPS / BENEFITS: ${f(input.coreUsps)}
 BRAND_VOICE: ${f(input.brandVoice)}
 
-THE CONCEPT SLIDE, the creative source of truth:
-CONCEPT: ${f(input.conceptNum)}_${f(input.conceptTitle)}
-DESCRIPTION: ${f(input.conceptDescription)}
-NARRATIVE BEATS:
-${f(input.narrativeBeats)}
-DESIGN COMPONENTS:
-${f(input.designComponents)}
-HOOK CANDIDATES from the concept (pick one or write a compliance-safe one per the reference):
-${f(input.hooks)}
+THE CONCEPT SLIDE, which is the creative source of truth:
+CONCEPT_TITLE: ${f(input.conceptTitle)}
+CONCEPT_DESCRIPTION: ${f(input.conceptDescription)}
+LEAD_HOOK: ${f(input.leadHook)}
+HOOK_CANDIDATES: ${f(input.hooks)}
+NARRATIVE_BEATS: ${f(input.narrativeBeats)}
+DESIGN_COMPONENTS: ${f(input.designComponents)}
 
-PLATFORM: ${f(input.platform || 'Instagram Reels')}`;
+PLATFORM: ${f(input.platform || 'Instagram Reels')}
+
+THE OVERLAY COPY RULE (the skill's image-prompts reference, hook-caption section): the overlay is the
+first thing anyone judges the concept by, so it states the core message at one glance: what this ad
+is about, in the persona's own voice, eight words or fewer, two short lines at most. Not the
+anecdote retold, not the title, not a slogan. Start from LEAD_HOOK and the candidates; if none of
+them does that in eight words, write the line that does, and use it as the overlay text.
+
+${input.forcedTextTreatment ? `OVERLAY TREATMENT OVERRIDE: use exactly this style unless the Contrast Gate genuinely forbids it at the position this composition offers, in which case pick the closest legal option in the SAME visual category instead. This has already been chosen for you to guarantee variety across the batch: ${input.forcedTextTreatment}\n\n` : ''}Follow your instructions exactly. Output ONLY the filled prompt, no preamble, no commentary, no code fences.`;
 
   /* The model reasons internally before writing, and that reasoning counts
      against max_tokens: at 6000 a long think consumed the whole budget and the
      API returned 200 with EMPTY content, which is exactly the intermittent
      "returned nothing" failure. So the budget is big enough for the worst
-     think, the reasoning effort is bounded low (this is prompt writing, not
+     think, the reasoning effort is bounded low (this is template filling, not
      strategy), and an empty reply gets one retry before it becomes an error. */
   let totalCost = 0;
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -189,7 +186,13 @@ PLATFORM: ${f(input.platform || 'Instagram Reels')}`;
         temperature: 0.7,
         reasoning: { effort: 'low' },
         messages: [
-          { role: 'system', content: system },
+          /* the team's production mockup role first, then the skill's own image
+             conventions riding alongside it: they agree in spirit (UGC realism,
+             the hook caption in the brand's style) and the skill is the source
+             of truth Carl asked to be used on every run */
+          { role: 'system', content: craft('concept-visualizer.md')
+              + '\n\nTHE SKILL\'S IMAGE CONVENTIONS, from ad-concept-generator/references/image-prompts.md. Follow these as binding style rules for the prompt you write:\n\n'
+              + imageConventions() },
           { role: 'user', content: userPrompt },
         ],
       }),
@@ -201,14 +204,11 @@ PLATFORM: ${f(input.platform || 'Instagram Reels')}`;
     totalCost += (body.usage && body.usage.cost) || 0;
     const out = body.choices && body.choices[0] && body.choices[0].message && body.choices[0].message.content;
     if (out && String(out).trim()) {
-      const text = String(out).trim();
-      /* the skill's deliverable shape: Concept / Hook overlay / Prompt. The
-         prompt block is what the image model gets; the hook line is kept. */
-      const pm = text.match(/Prompt:\s*([\s\S]+)$/i);
-      const hm = text.match(/Hook overlay:\s*(.+)/i);
-      const prompt = (pm ? pm[1] : text).trim().replace(/^```[a-z]*\s*|\s*```$/g, '');
-      const hookOverlay = hm ? hm[1].trim().replace(/^["“]|["”]$/g, '') : null;
-      return { prompt, hookOverlay, source: 'ad-concept-generator/references/image-prompts.md', cost: totalCost };
+      const prompt = String(out).trim().replace(/^```[a-z]*\s*|\s*```$/g, '');
+      /* the overlay line, read back out of the prompt for the record only; the
+         image model renders it, the frame does not */
+      const m = prompt.match(/(?:reading|reads|text|copy)[^"“]{0,40}["“]([^"”]{3,140})["”]/i);
+      return { prompt, hookOverlay: m ? m[1].trim() : null, source: 'concept-visualizer.md + image-prompts.md', cost: totalCost };
     }
     const finish = body.choices && body.choices[0] && body.choices[0].finish_reason;
     if (attempt === 2) throw new Error('the prompt agent returned nothing twice (finish: ' + (finish || 'unknown') + ')');
@@ -368,6 +368,9 @@ async function run({ client, batchId, nums, requestedBy, log }) {
     ? `${logo.why}, so the frame uses the ${base.brandName} initials`
     : `logo on file, ${logo.meta.kind} ${logo.meta.w}x${logo.meta.h}`);
 
+  /* Rotating the overlay treatment across the batch, the way the team's route
+     does, so ten regenerations do not collapse onto one style. */
+  const treatments = JSON.parse(craft('text-treatments.json'));
   const out = [];
   let spend = 0;
   for (let i = 0; i < concepts.length; i++) {
@@ -376,17 +379,21 @@ async function run({ client, batchId, nums, requestedBy, log }) {
     log(label, 'running', 'writing the image prompt');
     let authored = null;
     try {
+      const forcedTextTreatment = treatments[(Number(c.num) - 1 + i) % treatments.length];
       authored = await authorPrompt({
         input: {
           ...base,
           conceptNum: c.num,
           conceptTitle: c.title,
           conceptDescription: c.desc,
+          leadHook: (c.hooks || [])[0],
+          hooks: c.hooks || [],
           narrativeBeats: c.narrative,
           designComponents: c.design,
-          hooks: c.hooks || [],
+          forcedTextTreatment,
         },
       });
+      authored.treatment = forcedTextTreatment;
       log(label, 'running', authored.hookOverlay ? `hook overlay: "${authored.hookOverlay.slice(0, 80)}"` : 'prompt written, no hook overlay named');
       spend += authored.cost || 0;
 
@@ -400,8 +407,10 @@ async function run({ client, batchId, nums, requestedBy, log }) {
          generation that already cost money and two minutes disappear. */
       let framed = null, frameErr = null;
       try {
-        if (authored.hookOverlay) { try { writeAtomic(hookPath(id), Buffer.from(authored.hookOverlay, 'utf8')); } catch { /* the frame still gets it this run */ } }
-        framed = await frameOne({ id, creativeBuf: buf, brandName: base.brandName, logo, cta: 'Learn More', caption: authored.hookOverlay || null });
+        /* the caption is in the picture again; a sidecar from the frame-drawn
+           period would make a free reframe draw it twice, so it goes */
+        try { fs.unlinkSync(hookPath(id)); } catch { /* none on file */ }
+        framed = await frameOne({ id, creativeBuf: buf, brandName: base.brandName, logo, cta: 'Learn More', caption: null });
       } catch (err) {
         frameErr = err && err.message ? err.message : String(err);
         /* serve the unframed still rather than nothing, so the paid work is
@@ -410,7 +419,7 @@ async function run({ client, batchId, nums, requestedBy, log }) {
       }
 
       out.push({
-        num: c.num, id, bytes, treatment: 'skill caption, image-prompts.md', prompt: authored.prompt,
+        num: c.num, id, bytes, treatment: authored.treatment || null, prompt: authored.prompt,
         hookOverlay: authored.hookOverlay || null,
         promptSource: authored.source,
         framed: Boolean(framed),
@@ -420,7 +429,7 @@ async function run({ client, batchId, nums, requestedBy, log }) {
       });
       log(label, frameErr ? 'error' : 'done', frameErr
         ? `the still is safe but the frame failed: ${frameErr.slice(0, 90)}`
-        : `framed ${framed.dims.w}x${framed.dims.h}${authored.hookOverlay ? (framed.captionDrawn ? ', caption drawn by the frame: "' : ', hook (template has no caption slot): "') + authored.hookOverlay.slice(0, 40) + '"' : ''}`);
+        : `framed ${framed.dims.w}x${framed.dims.h}, ${String(authored.treatment || '').slice(0, 34)}${authored.hookOverlay ? ', overlay "' + authored.hookOverlay.slice(0, 48) + '"' : ''}`);
     } catch (err) {
       /* One concept failing must not lose the ones already paid for. */
       const msg = err && err.message ? err.message : String(err);

@@ -41,13 +41,12 @@ Fails: "A woman at a party spent months looking for a photographer. I shot her s
 (the anecdote, three lines) · "She Was Looking For Someone Like Me" (a title, says nothing about
 the ad) · "The most expensive shoes you'll ever buy are the fake ones" (eleven words, a slogan).
 
-**Where the caption is drawn.** When a build system wraps the still in a story frame (the
-concept-service does), the frame draws the caption itself in this style from the `Hook overlay:`
-line, and the image prompt must describe a still with NO text in it at all, with the upper third
-kept visually calm for the caption to land on. Only when the still is the final asset with no
-frame does the prompt render the caption, and then it describes exactly the style above: e.g.
-"Centred in the upper third, clear of the top edge, a native TikTok-style caption on black rounded
-pills with bold white sans-serif text reading "[HOOK]"."
+**Where the caption goes.** The image prompt renders the caption. Its position is a composition
+decision made per image (the visualizer's contrast and placement rules decide it), never a fixed
+slot: it sits where the picture has room and contrast, clear of any platform header and of the
+subject's face. Describe it explicitly in the prompt, e.g. "a native TikTok-style caption on
+rounded pills with bold white sans-serif text reading "[HOOK]", placed [where the composition
+allows]".
 
 ## Deliverable shape
 
@@ -60,6 +59,6 @@ Concept: 001_We Can Leave the House Again
 Hook overlay: "I said no to plans for a month"
 Prompt: Vertical 9:16 authentic smartphone POV shot from a parent's perspective in a bright entryway, one
 hand loading a diaper bag onto a stroller in soft natural daylight, a cozy lived-in home slightly out of
-focus behind, real textures and mild iPhone compression, casual handheld framing, no cinematic grading,
-the upper third of the frame plain wall and doorframe with nothing important in it, no text or lettering
-anywhere in the image. Grounded, unpolished, realistic UGC look.
+focus behind, real textures and mild iPhone compression, casual handheld framing, no cinematic grading.
+Over the plain wall above the stroller, a native TikTok-style caption on rounded black pills with bold
+white sans-serif text reading "I said no to plans for a month." Grounded, unpolished, realistic UGC look.
