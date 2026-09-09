@@ -62,19 +62,12 @@ function imageConventions() {
 }
 
 const KIE_BASE = 'https://api.kie.ai/api/v1/jobs';
-/* Carl, 2026-09-09: GPT Image 2.5 Sunburst on kie.ai, the precise-edit variant
-   OpenAI shipped on 2026-09-08 (Flare is the fast default). Input schema per
-   docs.kie.ai: prompt (max 20,000 chars), aspect_ratio, resolution 1K/2K/4K.
-   No output_format and no image input on the text-to-image model. Was
-   nano-banana-2 before. */
-const KIE_MODEL = 'gpt-image-2-5-sunburst-text-to-image';
-const KIE_RESOLUTION = '2K';   // the story frame is 1080 wide; 1K at 9:16 would be upscaled into it
+const KIE_MODEL = 'nano-banana-2';
 const POLL_MS = 2000;
-/* nano-banana-2 measured 48s to 118s and the ceiling was 180s. Sunburst is
-   documented as the slower of the two 2.5 variants, so the ceiling is wider;
-   a timeout is an error a person reads, so wide costs nothing when it is
-   not needed. */
-const MAX_WAIT_MS = 300 * 1000;
+/* The team measured 48s to 118s in production and widened their own ceiling
+   to 180s after real timeouts at 90s. Same model, same aspect ratio, so the
+   same ceiling applies rather than a guess. */
+const MAX_WAIT_MS = 180 * 1000;
 
 const IMG_DIR = path.join(process.env.DATA_DIR || '/data', 'mockups');
 /* The still is kept as well as the framed composite. A still is paid for and
@@ -200,7 +193,7 @@ ${input.forcedTextTreatment ? `OVERLAY TREATMENT OVERRIDE: use exactly this styl
 /* createTask then poll, exactly as the team's kieMockup.js does. Same model,
    same 9:16, same png. Divergence here would mean our decks and theirs stop
    looking like the same agency made them. */
-async function generateImage({ prompt }) {
+async function generateImage({ prompt, imageUrls }) {
   const key = process.env.KIE_API_KEY;
   if (!key) { const e = new Error('KIE_API_KEY is not set on the server, so mockups cannot be generated'); e.status = 503; throw e; }
 
@@ -211,8 +204,9 @@ async function generateImage({ prompt }) {
       model: KIE_MODEL,
       input: {
         prompt,
+        output_format: 'png',
         aspect_ratio: '9:16',
-        resolution: KIE_RESOLUTION,
+        ...(imageUrls && imageUrls.length ? { image_input: imageUrls } : {}),
       },
     }),
   });
