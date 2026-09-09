@@ -72,7 +72,11 @@ const POLL_MS = 2000;
 /* The team measured 48s to 118s in production and widened their own ceiling
    to 180s after real timeouts at 90s. Same model, same aspect ratio, so the
    same ceiling applies rather than a guess. */
-const MAX_WAIT_MS = 180 * 1000;
+/* 2026-09-10: two long-prompt renders in a row sat past 180s while a short
+   probe prompt finished in 31s, so the ceiling is 300s. A timeout throws away
+   a paid generation; a wider wait costs nothing when it is not needed, and the
+   last state kie reported is now in the error. */
+const MAX_WAIT_MS = 300 * 1000;
 
 const IMG_DIR = path.join(process.env.DATA_DIR || '/data', 'mockups');
 /* The still is kept as well as the framed composite. A still is paid for and
@@ -240,6 +244,7 @@ async function generateImage({ prompt, imageUrls }) {
   const taskId = created.data.taskId;
 
   const deadline = Date.now() + MAX_WAIT_MS;
+  let lastState = 'unknown';
   while (Date.now() < deadline) {
     await sleep(POLL_MS);
     const pollRes = await fetch(`${KIE_BASE}/recordInfo?taskId=${encodeURIComponent(taskId)}`, {
@@ -247,6 +252,7 @@ async function generateImage({ prompt, imageUrls }) {
     });
     const poll = await pollRes.json().catch(() => null);
     const state = poll && poll.data && poll.data.state;
+    if (state) lastState = state;
     if (state === 'success') {
       let url = null;
       try { url = (JSON.parse((poll.data.resultJson) || '{}').resultUrls || [])[0] || null; } catch { url = null; }
@@ -255,7 +261,7 @@ async function generateImage({ prompt, imageUrls }) {
     }
     if (state === 'fail') throw new Error((poll.data && poll.data.failMsg) || 'kie.ai generation failed');
   }
-  throw new Error('timed out waiting on kie.ai after ' + Math.round(MAX_WAIT_MS / 1000) + 's');
+  throw new Error('timed out waiting on kie.ai after ' + Math.round(MAX_WAIT_MS / 1000) + 's (last state: ' + lastState + ', prompt ' + String(prompt || '').length + ' chars)');
 }
 
 /* The URL rots in about a day, so the bytes come to us now. The still lands in
@@ -368,8 +374,9 @@ async function run({ client, batchId, nums, requestedBy, log }) {
     const c = concepts[i];
     const label = `Concept ${c.num}`;
     log(label, 'running', 'writing the image prompt');
+    let authored = null;
     try {
-      const authored = await authorPrompt({
+      authored = await authorPrompt({
         input: {
           ...base,
           conceptNum: c.num,
@@ -417,8 +424,9 @@ async function run({ client, batchId, nums, requestedBy, log }) {
     } catch (err) {
       /* One concept failing must not lose the ones already paid for. */
       const msg = err && err.message ? err.message : String(err);
-      out.push({ num: c.num, error: msg });
-      log(label, 'error', msg.slice(0, 140));
+      /* the prompt is kept even when the image never came, so a failure can be read */
+      out.push({ num: c.num, error: msg, prompt: authored ? authored.prompt : null, hookOverlay: authored ? authored.hookOverlay : null });
+      log(label, 'error', msg.slice(0, 160));
     }
   }
 
