@@ -395,7 +395,7 @@ async function run({ client, batchId, nums, requestedBy, log }) {
       }
 
       out.push({
-        num: c.num, id, bytes, treatment: forcedTextTreatment, prompt: authored.prompt,
+        num: c.num, id, bytes, treatment: 'skill caption, image-prompts.md', prompt: authored.prompt,
         hookOverlay: authored.hookOverlay || null,
         promptSource: authored.source,
         framed: Boolean(framed),
@@ -405,7 +405,7 @@ async function run({ client, batchId, nums, requestedBy, log }) {
       });
       log(label, frameErr ? 'error' : 'done', frameErr
         ? `the still is safe but the frame failed: ${frameErr.slice(0, 90)}`
-        : `framed ${framed.dims.w}x${framed.dims.h}, ${String(forcedTextTreatment).slice(0, 34)}`);
+        : `framed ${framed.dims.w}x${framed.dims.h}${authored.hookOverlay ? ', hook "' + authored.hookOverlay.slice(0, 40) + '"' : ''}`);
     } catch (err) {
       /* One concept failing must not lose the ones already paid for. */
       const msg = err && err.message ? err.message : String(err);
