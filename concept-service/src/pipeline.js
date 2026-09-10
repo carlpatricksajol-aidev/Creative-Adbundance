@@ -2548,7 +2548,13 @@ const PRODUCTION_BRIEF_SCHEMA = {
         max_people: { type: 'integer' },
         /* who must appear, with the plain words a narrative beat would use, so
            code can look for them: [{who:"a baby or toddler", terms:["baby","newborn","toddler","kid","son","daughter"]}] */
-        must_include: { type: 'array', maxItems: 6, items: { type: 'object', additionalProperties: false, properties: { who: { type: 'string' }, terms: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'string' } } }, required: ['who', 'terms'] } },
+        must_include: { type: 'array', maxItems: 8, items: { type: 'object', additionalProperties: false, properties: {
+          who: { type: 'string' },
+          terms: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'string' } },
+          /* always: in every concept for this client. any_of: at least one of
+             the any_of entries appears (stage or persona alternatives). */
+          rule: { type: 'string', enum: ['always', 'any_of'] },
+        }, required: ['who', 'terms', 'rule'] } },
         must_exclude: { type: 'array', maxItems: 8, items: { type: 'string' } },
         age_range: { type: 'string' },
         gender_skew: { type: 'string' },
@@ -2623,7 +2629,7 @@ function productionBriefMd(pb) {
   return `## PRODUCTION BRIEF, who can be on camera and what can be shot for this client
 ${pb.confirmed_by ? `Confirmed by ${pb.confirmed_by} on ${String(pb.confirmed_at || '').slice(0, 10)}.` : 'Extracted from the record and not yet confirmed by a person; treat as the working rule.'}
 Cast: ${c.who_on_camera} (${people}${c.age_range ? `, ${c.age_range}` : ''}${c.gender_skew ? `, ${c.gender_skew}` : ''}). [${c.source}]
-${(c.must_include || []).length ? `Must appear on camera: ${c.must_include.map((m) => m.who).join('; ')}.\n` : ''}${(c.must_exclude || []).length ? `Never on camera: ${c.must_exclude.join('; ')}.\n` : ''}Shoot: ${sh.gear || 'gear not stated'}; ${sh.crew || 'crew not stated'}; ${sh.remote ? 'remote' : 'in person or not stated'}${sh.self_shot ? ', self-shot by the creator' : ''}; locations: ${(sh.location || []).join(', ') || 'not stated'}. [${sh.source || 'not stated'}]
+${(c.must_include || []).some((m) => m.rule === 'always') ? `Always on camera: ${c.must_include.filter((m) => m.rule === 'always').map((m) => m.who).join('; ')}.\n` : ''}${(c.must_include || []).some((m) => m.rule !== 'always') ? `At least one of these on camera: ${c.must_include.filter((m) => m.rule !== 'always').map((m) => m.who).join('; ')}.\n` : ''}${(c.must_exclude || []).length ? `Never on camera: ${c.must_exclude.join('; ')}.\n` : ''}Shoot: ${sh.gear || 'gear not stated'}; ${sh.crew || 'crew not stated'}; ${sh.remote ? 'remote' : 'in person or not stated'}${sh.self_shot ? ', self-shot by the creator' : ''}; locations: ${(sh.location || []).join(', ') || 'not stated'}. [${sh.source || 'not stated'}]
 Formats the client rejected: ${(fm.rejected || []).join('; ') || 'none recorded'}. Formats that worked: ${(fm.worked || []).join('; ') || 'none recorded'}. Formats the client wants: ${(fm.wanted || []).join('; ') || 'none recorded'}. [${fm.source || 'not stated'}]
 Specs: ${sp.aspect_primary || '?'} primary${sp.aspect_secondary ? `, ${sp.aspect_secondary} secondary` : ''}; ${sp.durations || 'durations not stated'}${(sp.disclosures || []).length ? `; required disclosures: ${sp.disclosures.join('; ')}` : ''}. [${sp.source || 'not stated'}]
 ${pb.offer && pb.offer.statement ? `Offer as it may be stated: ${pb.offer.statement} [${pb.offer.source}]\n` : ''}${(pb.client_stats || []).length ? `Client-supplied figures (use as written or not at all): ${pb.client_stats.filter((s) => s.usable_in_paid !== false).map((s) => `${s.figure} (${s.source}${s.as_of ? ', ' + s.as_of : ''})`).join('; ')}\n` : ''}Every concept must be shootable by exactly this cast, in these conditions. A concept that needs someone the brief does not provide, or lacks someone it requires, fails.`;
@@ -2638,10 +2644,15 @@ function castLint(c, pb) {
   const add = (code, field, detail) => issues.push({ code, field, detail });
   const beats = Array.isArray(c.narrative) ? c.narrative.map((b) => String(b || '')) : [];
   const text = [c.desc || '', ...beats].join('\n');
-  for (const m of pb.cast.must_include || []) {
-    const re = new RegExp('\\b(' + (m.terms || []).map((t) => String(t).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).filter(Boolean).join('|') + ')s?\\b', 'i');
-    if ((m.terms || []).length && !re.test(text)) add('cast_missing', 'narrative', `the production brief says ${m.who} must be on camera (${pb.cast.source}); no beat and not the description has one. Words a beat would use: ${(m.terms || []).slice(0, 6).join(', ')}.`);
+  const termRe = (m) => new RegExp('\\b(' + (m.terms || []).map((t) => String(t).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).filter(Boolean).join('|') + ')s?\\b', 'i');
+  const entries = (pb.cast.must_include || []).filter((m) => (m.terms || []).length);
+  /* entries with no rule are read as any_of, the safer reading of an old brief */
+  const always = entries.filter((m) => m.rule === 'always');
+  const anyOf = entries.filter((m) => m.rule !== 'always');
+  for (const m of always) {
+    if (!termRe(m).test(text)) add('cast_missing', 'narrative', `the production brief says ${m.who} must be on camera in every concept for this client (${pb.cast.source}); no beat and not the description has one. Words a beat would use: ${(m.terms || []).slice(0, 6).join(', ')}.`);
   }
+  if (anyOf.length && !anyOf.some((m) => termRe(m).test(text))) add('cast_missing', 'narrative', `the production brief says at least one of these must be on camera (${pb.cast.source}): ${anyOf.map((m) => m.who).join('; ')}. None appears in a beat or the description.`);
   if (Number(pb.cast.max_people) === 1) {
     const hits = beats.map((b, i) => [i + 1, b]).filter(([, b]) => SECOND_PERSON.test(b) && ON_CAMERA_CUE.test(b) && !OFF_CAMERA_CUE.test(b));
     if (hits.length) add('cast_exceeded', 'narrative', `the production brief says one person on camera (${pb.cast.source}); ${hits.map(([i, b]) => `beat ${i} puts "${(b.match(SECOND_PERSON) || [''])[0]}" in the scene`).join(', ')}. A second person may be a voice note, a text, an off-camera line or a comment, never in frame.`);
@@ -2656,7 +2667,7 @@ async function stageProductionBrief({ client, slugName, snapshot, log, ask }) {
   log('Production brief', 'running', 'extracting who can be on camera and what can be shot, from the record and the vault');
   const vault = vaultContext(slugName);
   const out = await ask({
-    system: `You compile a Production Brief for a creative agency's concept team: who can be on camera for this client and what can be shot, so that every concept written is one the client's creators can actually make. You extract; you never invent. Every field carries the section or document it came from, named the way the heading reads. Where the record is silent, say "not stated" and leave the list empty; a guess here becomes a rule the writers obey. Prefer what was actually shot (shoot guides, scripts, storyboards) over what a brief hoped for, and say so in the source. must_include terms are the plain words a narrative beat would contain (baby, newborn, toddler, kid, son, daughter), so code can look for them.\n${HOUSE_RULES}`,
+    system: `You compile a Production Brief for a creative agency's concept team: who can be on camera for this client and what can be shot, so that every concept written is one the client's creators can actually make. You extract; you never invent. Every field carries the section or document it came from, named the way the heading reads. Where the record is silent, say "not stated" and leave the list empty; a guess here becomes a rule the writers obey. Prefer what was actually shot (shoot guides, scripts, storyboards) over what a brief hoped for, and say so in the source. must_include terms are the plain words a narrative beat would contain (baby, newborn, toddler, kid, son, daughter), so code can look for them. Each must_include entry carries a rule: "always" when it must appear in every concept for this client (the parent, for a parenting app), "any_of" when it is one of several alternatives and at least one must appear (newborn OR toddler OR expecting; creator OR small business owner). Never mark a persona alternative or a stage alternative as always.\n${HOUSE_RULES}`,
     prompt: `THE CLIENT'S RECORD:\n${snapshot}\n\n${vault || '(no agency work for this client on the vault yet)'}\n\nCompile the Production Brief:
 1. cast: who is on camera in this client's ads (e.g. "a parent, mom or dad, 22 to 38, with a baby or toddler in frame; the co-parent lane needs two adults" or "one content creator, 25 to 40, female skew, alone, self-shot"); minimum and maximum people on camera; who MUST appear (with plain-word terms); who must NEVER appear; age range; gender skew; source.
 2. shoot: locations, gear (phone or DSLR or either), crew (none, one, a crew), remote yes/no, self-shot yes/no; source.
@@ -3075,7 +3086,7 @@ ${items}`,
 
   const last = rounds[rounds.length - 1] || {};
   return {
-    client: brandName, concepts, pipeline_version: 'v8.4-production-brief', mode: 'direct',
+    client: brandName, concepts, pipeline_version: 'v8.4.1-production-brief', mode: 'direct',
     production_brief: productionBrief ? { cast: productionBrief.cast, shoot: productionBrief.shoot, confidence: productionBrief.confidence, confirmed_by: productionBrief.confirmed_by || null, extracted_at: productionBrief.extracted_at } : null,
     observations: [], harvest_notes: null, composition_note: 'direct', change_log: [], composition: null,
     strategy,
