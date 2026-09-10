@@ -2879,10 +2879,15 @@ default wins more than half, redo the table with the wild pool forced in.`,
     const ranked = [...(o.candidates || [])].sort((a, b) => tot(b) - tot(a));
     /* the cast floor is code, like the used-vehicle rule: when a production
        brief is on file, a vehicle this client's cast cannot perform cannot win */
+    /* the winner is named, its scores live in the candidate table: carry them
+       over so the cast floor judges the model's own winner, not only the
+       replacements (Path Social Batch 4 shipped winners with cast_fit null) */
+    const scored = (c) => { if (!c) return c; const m = (o.candidates || []).find((x) => normFam(x.vehicle) === normFam(c.vehicle)); return m ? { ...m, ...c, cast_fit: c.cast_fit != null ? c.cast_fit : m.cast_fit, cast_note: c.cast_note || m.cast_note } : c; };
+    const winner = scored(o.winner);
     const castOk = (c) => !productionBrief || c.cast_fit == null || Number(c.cast_fit) >= 4;
     const ok = (c) => c && castOk(c) && !usedV.has(normFam(c.vehicle)) && !usedF.has(normFam(c.family)) && !takenF.has(normFam(c.family));
-    let pick = o.winner && ok(o.winner) ? o.winner : ranked.find(ok) || o.winner || ranked[0] || null;
-    const swapped = pick && o.winner && pick.vehicle !== o.winner.vehicle;
+    let pick = winner && ok(winner) ? winner : ranked.find(ok) || winner || ranked[0] || null;
+    const swapped = pick && winner && pick.vehicle !== winner.vehicle;
     if (pick) takenF.add(normFam(pick.family));
     return { row: r.row, persona: r.persona, selling_argument: r.selling_argument, objective: r.objective, keywords: o.keywords || [],
       vehicle: pick ? pick.vehicle : null, family: pick ? pick.family : null, why: pick ? (pick.why || `next candidate in score order after the winner collided with a used vehicle or family, or failed the cast floor`) : null,
@@ -3086,7 +3091,7 @@ ${items}`,
 
   const last = rounds[rounds.length - 1] || {};
   return {
-    client: brandName, concepts, pipeline_version: 'v8.4.1-production-brief', mode: 'direct',
+    client: brandName, concepts, pipeline_version: 'v8.4.2-production-brief', mode: 'direct',
     production_brief: productionBrief ? { cast: productionBrief.cast, shoot: productionBrief.shoot, confidence: productionBrief.confidence, confirmed_by: productionBrief.confirmed_by || null, extracted_at: productionBrief.extracted_at } : null,
     observations: [], harvest_notes: null, composition_note: 'direct', change_log: [], composition: null,
     strategy,
