@@ -1,5 +1,98 @@
 # Ricardo's proposed better version: structure and outcome
 
+> **Current version: `v8.3-direct-evidence` (2026-09-10, commit `535bad7`).** The section directly
+> below describes what runs today. The v7.5-select write-up that follows it is kept as history: it
+> was the staged pipeline built on 2026-09-08 and superseded on 2026-09-09.
+
+## What runs today (2026-09-10)
+
+Model: Opus 5 for every call (`CONCEPT_MODEL`, `REVIEW_MODEL`, `MOCKUP_MODEL` in the service `.env`).
+Skills read from the repo checkout on every run: `ad-concept-generator` (v7.5, whole document plus
+references) and `concept-alignment-review` (Ricardo's, installed 2026-09-10). The OS "Run for this
+client" button posts `/run` with no mode, which is this flow.
+
+### The run, in order
+
+```
+marketing report refresh  ->  intake (brand record, report, client brief, approved library,
+                                       research, vehicle bank, prior batches)
+  ->  CLIENT EVIDENCE PACK (new 9/10)     hard stats with source + usable-in-paid flag, what worked,
+                                          what did not, competitors and where we win, contradictions,
+                                          and the vehicles / families / personas already run for this client
+  ->  STEP ZERO, Strategic Analyst        the Batch Strategy Map: 2 to 4 named personas, selling
+                                          arguments, allocation rows, duration + format mix
+  ->  VEHICLE PER ROW (new 9/10)          the skill's Sub-procedure 3 over the WHOLE vehicle bank plus the
+                                          researched vehicles, one candidate table per row; used vehicles
+                                          and families excluded and distinct families enforced in code
+  ->  ONE Opus pass, the whole skill      each concept written against one map row, in its row's vehicle,
+                                          figures only as the evidence pack states them
+  ->  lift to fields, verbatim  ->  code checks (flags only)
+  ->  FINAL CREATIVE STRATEGY REVIEWER    skill 7.6 as its own agent: SHIP / REWRITE / KILL, sourced
+  ->  CONCEPT ALIGNMENT REVIEW            Ricardo's skill as an agent: Keep / Reposition / Rewrite /
+                                          Rebuild / Drop, 1 to 3 sourced action items (hard / soft / info),
+                                          cross-batch flags, keeper set; the 9/9 review-call notes are a
+                                          citable source (hard stats, direct not broad, vehicle matched to
+                                          message, persona the client would target, one creator at home,
+                                          the mockup hook sets the context)
+  ->  range check in code                 two concepts in one visual family = the lower one is rewritten
+  ->  ONE revision by the same CD         KILL / Drop / Rebuild = rebuilt on the same row; REWRITE /
+                                          Rewrite / Reposition / hard flag = rewritten with the notes binding
+  ->  both reviewers read the changed concepts once more
+  ->  ship; anything still failing carries a flag and its notes for a person
+```
+
+Cost and time on Path Social, 2 concepts: about $4 to $5 and 18 minutes. Everything above is on the
+batch record: `evidence`, `strategy`, `row_vehicles`, `review_rounds[]` (both reviewers, both rounds),
+and a per-concept `review {final, alignment, hard_flags, outcome, why}`.
+
+### Why it is shaped this way (the Sept 9 OS Concept Writer Review)
+
+Eric, Ricardo, Krithika and Carl reviewed direct-mode output. Layout and messaging were good. What
+failed: personas were random per concept instead of from the Strategy Map; too many talking heads,
+vehicle not matched to the message; no hard stats; titles and mockup hooks did not say what the ad
+was about at a glance; one-creator-at-home shootability; and the skill's last reviewer was not
+kicking in inside the single pass. Slack and meeting notes as sources were deferred.
+
+### Results so far
+
+| Batch | What | Outcome |
+|---|---|---|
+| Path Social 2 | first checkpoint run (9/10) | 2 written, both REWRITE after one revision, shipped flagged with sourced notes; reviewers caught a persona drift and an unverified claim |
+| Path Social 3 | + evidence pack + row vehicles | 2 written; 001 "Every Order Had A Name I Recognized" SHIP and Keep, offer in beat 2, vehicle "Product Demo While Doing Unrelated Task"; 002 still REWRITE (overnight-spike claim, needs two people) |
+
+Recurring finding: the reviewers ask for a dashboard number and the record only has the voice guide's
+"3,500 the first month" example. A real figure from the client would close that.
+
+### Mockups (2026-09-10)
+
+Prompt writer: the visualizer master instructions (`concept-visualizer.md` in the vault) plus the
+skill's `image-prompts.md`, Opus 5, treatment rotation across the batch, nano-banana-2 on kie.ai
+(300s ceiling). One addition from the 9/9 call: the overlay states the core message at one glance,
+eight words or fewer, in the persona's voice (`image-prompts.md`, hook-caption section). The prompt
+and overlay line of every render are saved on the run record. The story frame template has an
+optional caption slot that is currently passed nothing. The OS page shows a regenerating card with a
+spinner and refetches the new picture when the run lands.
+
+### Files
+
+- `concept-service/src/pipeline.js`: `intake`, `stageEvidence`, `stageStrategy`, `stageRowVehicles`,
+  `runDirect` (the flow above), `stageFinalReview`, `stageAlignment`, `liftDirect`, `directCodeChecks`,
+  `otherSkill`; the staged pipeline (`run`) stays reachable with `mode: "pipeline"` for comparison.
+- `concept-service/src/mockup.js`, `storyframe.js`: the mockup path.
+- `.claude/skills/concept-alignment-review/`: Ricardo's review skill, client and person names in its
+  examples redacted for the public repo; `redact-skills.py` knows it.
+- `.claude/skills/ad-concept-generator/references/image-prompts.md`: hook-caption section rewritten.
+
+### Not in git
+
+The service `.env` (models, keys), `/data/briefs/<client>.json` (client briefs; only PackDraw has one),
+the vault (`concept-visualizer.md`, `story-frame.html`, `text-treatments.json`), and the OS page
+`20-internal.html`, which is deployed to `/data/os/` on the server.
+
+---
+
+## History: v7.5-select (2026-09-08), superseded
+
 Concept generator (`concept-service`), version `v7.5-select`. Written 2026-09-08 after the restructure
 Carl specified was built, deployed and run three times on PackDraw. Code lives in
 `concept-service/src/pipeline.js` (commits `396ec50` through `b77d419` on `main`).
