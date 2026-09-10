@@ -516,6 +516,30 @@ function markNotifsRead(to, ids) {
  * (code, ours). A PackDraw rule written here reaches no other client.
  */
 const briefFile = (client) => path.join(BRIEFS, `${slug(client)}.json`);
+/* ---------- production briefs ----------
+ * Who can be on camera and what can be shot, per client, extracted once from
+ * the client's record and the agency's own shoot guides and scripts for that
+ * client, then confirmed by a person in the OS. Read on every run. Huckleberry
+ * needs a parent with a child in frame; Path Social needs one creator alone;
+ * the same code serves both because the rule lives here, not in the code. */
+const PBRIEFS = path.join(DATA, 'production-briefs');
+const pbriefFile = (client) => path.join(PBRIEFS, `${slug(client)}.json`);
+function getProductionBrief(client) {
+  if (!client) return null;
+  try { return JSON.parse(fs.readFileSync(pbriefFile(client), 'utf8')); }
+  catch { return null; }
+}
+function saveProductionBrief(client, patch) {
+  fs.mkdirSync(PBRIEFS, { recursive: true });
+  const prev = getProductionBrief(client) || { client };
+  const out = { ...prev, ...patch, client: prev.client || client, updatedAt: new Date().toISOString() };
+  writeJSON(pbriefFile(client), out);
+  return out;
+}
+function listProductionBriefs() {
+  try { return fs.readdirSync(PBRIEFS).filter((f) => f.endsWith('.json')).map((f) => { try { return JSON.parse(fs.readFileSync(path.join(PBRIEFS, f), 'utf8')); } catch { return null; } }).filter(Boolean); }
+  catch { return []; }
+}
 
 function getBrief(client) {
   if (!client) return null;
@@ -628,7 +652,7 @@ function overview() {
 
 module.exports = {
   canonNum, sweepOrphanedRuns, newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext, overview, usedVehicles, usedAngles,
-                   getBrief, saveBrief, libraryConcepts,
+                   getBrief, saveBrief, libraryConcepts, getProductionBrief, saveProductionBrief, listProductionBriefs,
                    saveScripts, getScripts, listScripts,
                    savePush, getPush, getPushByBatch, getPushByToken, decide, approvedNums,
                    saveHarvest, listHarvests, latestHarvest, getHarvest,

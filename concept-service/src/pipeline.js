@@ -1678,6 +1678,13 @@ async function intake({ client, prior, priorMeta, log }) {
     return at > 0 ? md.slice(0, at) + add + md.slice(at) : md + add;
   };
   let snapshot = spliceBeforeBrain(brand.toMarkdown(record), briefMd(brief));
+  /* the production brief, when one is on file, sits with the client brief:
+     ahead of the approved library and the brand brain */
+  const productionBrief = store.getProductionBrief(client) || store.getProductionBrief(record.brand.brand_name) || null;
+  if (productionBrief) snapshot = spliceBeforeBrain(snapshot, '\n\n' + productionBriefMd(productionBrief));
+  log('Production brief', 'done', productionBrief
+    ? `on file, extracted ${String(productionBrief.extracted_at || '').slice(0, 10)}${productionBrief.confirmed_by ? ', confirmed by ' + productionBrief.confirmed_by : ', not yet confirmed by a person'}: ${productionBrief.cast && productionBrief.cast.who_on_camera ? productionBrief.cast.who_on_camera.slice(0, 120) : 'no cast line'}`
+    : 'none on file for this client');
   /* Say what the snapshot was actually built from. A run grounded in a brand
      with no marketing plan and no compliance rules should say so in the step,
      not read identical to one that had both. */
@@ -1800,7 +1807,7 @@ async function intake({ client, prior, priorMeta, log }) {
      creative instead of the business. The writer picks vehicles; the
      strategist picks what the batch is FOR. */
 
-  return { record, matched, brief, snapshot, researchMd, vehicles, approved, categoryMd, harvestMd, harvestRec };
+  return { record, matched, brief, snapshot, researchMd, vehicles, approved, categoryMd, harvestMd, harvestRec, productionBrief };
 }
 
 async function run({ client, count = 5, prior = '', priorMeta = null, startNum = 1, log }) {
@@ -1834,6 +1841,13 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     return at > 0 ? md.slice(0, at) + add + md.slice(at) : md + add;
   };
   let snapshot = spliceBeforeBrain(brand.toMarkdown(record), briefMd(brief));
+  /* the production brief, when one is on file, sits with the client brief:
+     ahead of the approved library and the brand brain */
+  const productionBrief = store.getProductionBrief(client) || store.getProductionBrief(record.brand.brand_name) || null;
+  if (productionBrief) snapshot = spliceBeforeBrain(snapshot, '\n\n' + productionBriefMd(productionBrief));
+  log('Production brief', 'done', productionBrief
+    ? `on file, extracted ${String(productionBrief.extracted_at || '').slice(0, 10)}${productionBrief.confirmed_by ? ', confirmed by ' + productionBrief.confirmed_by : ', not yet confirmed by a person'}: ${productionBrief.cast && productionBrief.cast.who_on_camera ? productionBrief.cast.who_on_camera.slice(0, 120) : 'no cast line'}`
+    : 'none on file for this client');
   /* Say what the snapshot was actually built from. A run grounded in a brand
      with no marketing plan and no compliance rules should say so in the step,
      not read identical to one that had both. */
@@ -2447,6 +2461,7 @@ ${AGENCY_REVIEW_NOTES}
 THE CONCEPT BATCH TO REVIEW, as written:
 ${concepts.map((c) => `### ${c.num} · ${c.title}\n${c.desc}\nNarrative:\n${(c.narrative || []).map((b) => '- ' + b).join('\n')}\nDesign components:\n${(c.design || []).map((d) => '- ' + d).join('\n')}\nHooks (internal, the mockup caption comes from these): ${(c.hooks || []).join(' | ')}\nTags: persona="${c.persona}" lane="${c.lane}" vehicle="${c.vehicle}" duration="${c.dur}"`).join('\n\n')}
 
+Where a PRODUCTION BRIEF section appears above, it is a source like the others, cited as "Production brief, cast" or "Production brief, shoot": a concept that needs someone on camera the brief does not provide, or lacks someone it requires, or needs a location, gear or crew the brief rules out, is a HARD flag with the fix stated as a cast or setting change, not a story change.
 Run the skill's flag analysis over every concept: (a) the narrative spine and beat order, (b) any voice do or don't line, (c) any claim the record cannot substantiate, or a hard stat the record HAS that the concept leaves on the table, (d) the brief's audience and the Strategy Map's persona for that row, (e) production against a single remote creator at home, (f) protecting what has worked for this client. Then the cross-batch flags: missing audience, missing angle, format concentration (three talking heads is a pattern), banned-language pattern, contradiction with a client statement, production overload. Every concept gets a status and one to three action items with a SOURCE. Every concept number and title you write is copied from the batch, never paraphrased. The keeper set is the concepts you would lead the client call with; hold back with a specific reason, not a vibe.`,
     schema: ALIGN_SCHEMA,
     model: REVIEW_MODEL,
@@ -2459,7 +2474,8 @@ Run the skill's flag analysis over every concept: (a) the narrative spine and be
 }
 
 /* The direct writer's contract, shared by the first pass and the revision. */
-function directSlideContract({ n, startNum, brandName, approved }) {
+function directSlideContract({ n, startNum, brandName, approved, productionBrief }) {
+  const cast = productionBrief && productionBrief.cast ? `\nEvery concept is shootable by exactly this client's cast, as the PRODUCTION BRIEF states: ${productionBrief.cast.who_on_camera}${Number(productionBrief.cast.max_people) === 1 ? '. One person in frame; anyone else is a voice note, a text, an off-camera line or a comment' : ''}${(productionBrief.cast.must_include || []).length ? `. ${productionBrief.cast.must_include.map((m) => m.who).join(' and ')} must be on camera` : ''}.` : '';
   return `${n} concept${n === 1 ? '' : 's'}, numbered from ${String(startNum).padStart(3, '0')}, in the slide format and nothing else:
 NNN · Title
 Description
@@ -2474,7 +2490,7 @@ stake in it, told plainly the way you would pitch it across a table, and where $
 comes in and what it settles. Not a list of what happens, and not a format label with a vague
 story after it; the point of the ad has to be in it.${approved ? ' The APPROVED CONCEPT LIBRARY above shows this client\'s descriptions: write to that shape.' : ''}
 Give every concept the same care whether you are writing one or ${n}: each one gets its full
-five beats, its full description and its own situation.`;
+five beats, its full description and its own situation.${cast}`;
 }
 
 async function liftDirect({ text, brandName, startNum, log, ask, label }) {
@@ -2491,13 +2507,13 @@ async function liftDirect({ text, brandName, startNum, log, ask, label }) {
   return { concepts, usage: lifted.__usage };
 }
 
-function directCodeChecks({ concepts, brief, snapshot, brandName, log, label }) {
+function directCodeChecks({ concepts, brief, snapshot, brandName, productionBrief, log, label }) {
   let flagged = 0; const codes = {};
   try {
     const lintCtx = harness.context({ brief, snapshot, library: store.libraryConcepts(brandName) });
     const batchIssues = harness.lintBatch(concepts, lintCtx);
     for (const c of concepts) {
-      const issues = harness.lintConcept(c, lintCtx).concat(batchIssues.get(canonNum(c.num)) || [], premiseLint(c, brandName));
+      const issues = harness.lintConcept(c, lintCtx).concat(batchIssues.get(canonNum(c.num)) || [], premiseLint(c, brandName), castLint(c, productionBrief));
       c.flags = issues.map((i) => ({ code: i.code, field: i.field, detail: i.detail }));
       if (issues.length) flagged++;
       for (const i of issues) codes[i.code] = (codes[i.code] || 0) + 1;
@@ -2508,6 +2524,158 @@ function directCodeChecks({ concepts, brief, snapshot, brandName, log, label }) 
     : `every concept clears the checks`);
   return flagged;
 }
+
+/* The Production Brief (Carl, 2026-09-10). "We can't just say we default the
+   content creator to one only. Huckleberry helps parents, so the creator should
+   have a child." Who can be on camera and what can be shot is a fact about the
+   client, not a rule in the code, so it is extracted per client from the
+   client's own record and from the agency's own shoot guides, scripts and
+   storyboards for that client (what was actually shot), saved, confirmed by a
+   person in the OS, and enforced on every run: as a scored axis with a floor
+   in the vehicle selector, as a code check on the written concept, as a source
+   for the alignment reviewer, and as client-supplied hard stats in the
+   evidence pack. Nothing here is invented: where the record is silent the
+   field says so. */
+const PRODUCTION_BRIEF_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    cast: {
+      type: 'object', additionalProperties: false,
+      properties: {
+        who_on_camera: { type: 'string' },
+        min_people: { type: 'integer' },
+        max_people: { type: 'integer' },
+        /* who must appear, with the plain words a narrative beat would use, so
+           code can look for them: [{who:"a baby or toddler", terms:["baby","newborn","toddler","kid","son","daughter"]}] */
+        must_include: { type: 'array', maxItems: 6, items: { type: 'object', additionalProperties: false, properties: { who: { type: 'string' }, terms: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'string' } } }, required: ['who', 'terms'] } },
+        must_exclude: { type: 'array', maxItems: 8, items: { type: 'string' } },
+        age_range: { type: 'string' },
+        gender_skew: { type: 'string' },
+        source: { type: 'string' },
+      },
+      required: ['who_on_camera', 'min_people', 'max_people', 'must_include', 'must_exclude', 'age_range', 'gender_skew', 'source'],
+    },
+    shoot: {
+      type: 'object', additionalProperties: false,
+      properties: {
+        location: { type: 'array', maxItems: 8, items: { type: 'string' } },
+        gear: { type: 'string' },
+        crew: { type: 'string' },
+        remote: { type: 'boolean' },
+        self_shot: { type: 'boolean' },
+        source: { type: 'string' },
+      },
+      required: ['location', 'gear', 'crew', 'remote', 'self_shot', 'source'],
+    },
+    formats: {
+      type: 'object', additionalProperties: false,
+      properties: {
+        rejected: { type: 'array', maxItems: 12, items: { type: 'string' } },
+        worked: { type: 'array', maxItems: 12, items: { type: 'string' } },
+        wanted: { type: 'array', maxItems: 12, items: { type: 'string' } },
+        source: { type: 'string' },
+      },
+      required: ['rejected', 'worked', 'wanted', 'source'],
+    },
+    specs: {
+      type: 'object', additionalProperties: false,
+      properties: {
+        aspect_primary: { type: 'string' }, aspect_secondary: { type: 'string' }, durations: { type: 'string' },
+        banned_words: { type: 'array', maxItems: 40, items: { type: 'string' } },
+        disclosures: { type: 'array', maxItems: 10, items: { type: 'string' } },
+        source: { type: 'string' },
+      },
+      required: ['aspect_primary', 'aspect_secondary', 'durations', 'banned_words', 'disclosures', 'source'],
+    },
+    offer: { type: 'object', additionalProperties: false, properties: { statement: { type: 'string' }, source: { type: 'string' } }, required: ['statement', 'source'] },
+    client_stats: {
+      type: 'array', maxItems: 20,
+      items: { type: 'object', additionalProperties: false,
+        properties: { figure: { type: 'string' }, statement: { type: 'string' }, kind: { type: 'string', enum: ['stat', 'comparison', 'proof', 'offer'] }, source: { type: 'string' }, as_of: { type: 'string' }, usable_in_paid: { type: 'boolean' } },
+        required: ['figure', 'statement', 'kind', 'source', 'as_of', 'usable_in_paid'] },
+    },
+    open_questions: { type: 'array', maxItems: 10, items: { type: 'string' } },
+    confidence: { type: 'string', enum: ['documented', 'inferred', 'thin'] },
+  },
+  required: ['cast', 'shoot', 'formats', 'specs', 'offer', 'client_stats', 'open_questions', 'confidence'],
+};
+const VAULT_ROOT = process.env.VAULT_ROOT || '/vault';
+/* The agency's own work for this client on the vault: shoot guides, scripts,
+   storyboards, marketing reports. What was actually shot is the best evidence
+   of what can be shot. Newest two per folder, capped, extraction only. */
+function vaultContext(clientSlug) {
+  const parts = [];
+  for (const [folder, cap] of [['shoot-guides', 9000], ['storyboards', 7000], ['scripts', 7000], ['marketing-reports', 6000], ['concepts', 4000]]) {
+    const dir = path.join(VAULT_ROOT, 'clients', clientSlug, folder);
+    let files = [];
+    try { files = fs.readdirSync(dir).filter((f) => f.endsWith('.md')).map((f) => ({ f, t: fs.statSync(path.join(dir, f)).mtimeMs })).sort((a, b) => b.t - a.t).slice(0, 2); } catch { continue; }
+    for (const { f } of files) {
+      try { parts.push(`### ${folder}/${f}\n${fs.readFileSync(path.join(dir, f), 'utf8').slice(0, cap)}`); } catch {}
+    }
+  }
+  return parts.length ? `## THE AGENCY'S OWN WORK FOR THIS CLIENT, from the vault (what was actually briefed, scripted and shot)\n${parts.join('\n\n')}` : '';
+}
+function productionBriefMd(pb) {
+  if (!pb || !pb.cast) return '';
+  const c = pb.cast, sh = pb.shoot || {}, fm = pb.formats || {}, sp = pb.specs || {};
+  const people = c.min_people === c.max_people ? `${c.max_people} person${c.max_people === 1 ? '' : 's'} on camera` : `${c.min_people} to ${c.max_people} people on camera`;
+  return `## PRODUCTION BRIEF, who can be on camera and what can be shot for this client
+${pb.confirmed_by ? `Confirmed by ${pb.confirmed_by} on ${String(pb.confirmed_at || '').slice(0, 10)}.` : 'Extracted from the record and not yet confirmed by a person; treat as the working rule.'}
+Cast: ${c.who_on_camera} (${people}${c.age_range ? `, ${c.age_range}` : ''}${c.gender_skew ? `, ${c.gender_skew}` : ''}). [${c.source}]
+${(c.must_include || []).length ? `Must appear on camera: ${c.must_include.map((m) => m.who).join('; ')}.\n` : ''}${(c.must_exclude || []).length ? `Never on camera: ${c.must_exclude.join('; ')}.\n` : ''}Shoot: ${sh.gear || 'gear not stated'}; ${sh.crew || 'crew not stated'}; ${sh.remote ? 'remote' : 'in person or not stated'}${sh.self_shot ? ', self-shot by the creator' : ''}; locations: ${(sh.location || []).join(', ') || 'not stated'}. [${sh.source || 'not stated'}]
+Formats the client rejected: ${(fm.rejected || []).join('; ') || 'none recorded'}. Formats that worked: ${(fm.worked || []).join('; ') || 'none recorded'}. Formats the client wants: ${(fm.wanted || []).join('; ') || 'none recorded'}. [${fm.source || 'not stated'}]
+Specs: ${sp.aspect_primary || '?'} primary${sp.aspect_secondary ? `, ${sp.aspect_secondary} secondary` : ''}; ${sp.durations || 'durations not stated'}${(sp.disclosures || []).length ? `; required disclosures: ${sp.disclosures.join('; ')}` : ''}. [${sp.source || 'not stated'}]
+${pb.offer && pb.offer.statement ? `Offer as it may be stated: ${pb.offer.statement} [${pb.offer.source}]\n` : ''}${(pb.client_stats || []).length ? `Client-supplied figures (use as written or not at all): ${pb.client_stats.filter((s) => s.usable_in_paid !== false).map((s) => `${s.figure} (${s.source}${s.as_of ? ', ' + s.as_of : ''})`).join('; ')}\n` : ''}Every concept must be shootable by exactly this cast, in these conditions. A concept that needs someone the brief does not provide, or lacks someone it requires, fails.`;
+}
+/* The cast check on the written concept, from the brief and nothing else. */
+const SECOND_PERSON = /\b(his|her|their|my|a|the|another|one) (friend|roommate|partner|wife|husband|girlfriend|boyfriend|coworker|co-worker|colleague|sister|brother|mom|mother|dad|father|aunt|uncle|cousin|neighbou?r|buddy|mate|client|customer|stranger|kid|child|son|daughter|baby|toddler)s?\b/i;
+const ON_CAMERA_CUE = /\b(walks? in|leans? in|points?|holds?|picks? up|grabs?|sits?|stands?|enters?|hands? (him|her|it|over)|takes? (it|the)|looks? (at|over|up)|nods?|laughs?|reaches?|in frame|on camera|beside (him|her)|next to (him|her)|across the table|in the doorway|at the table|comes? (in|over|back)|appears?)\b/i;
+const OFF_CAMERA_CUE = /\b(off[- ]?camera|off[- ]?screen|voice ?(note|memo|mail)|text(s|ed|ing)?\b|dm|message|phone call|calls? (him|her|from)|on the phone|over the phone|through the wall|from (outside|the (next|other) room|the hallway)|reads? (a|the) (message|comment|reply)|comment)\b/i;
+function castLint(c, pb) {
+  const issues = [];
+  if (!pb || !pb.cast) return issues;
+  const add = (code, field, detail) => issues.push({ code, field, detail });
+  const beats = Array.isArray(c.narrative) ? c.narrative.map((b) => String(b || '')) : [];
+  const text = [c.desc || '', ...beats].join('\n');
+  for (const m of pb.cast.must_include || []) {
+    const re = new RegExp('\\b(' + (m.terms || []).map((t) => String(t).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).filter(Boolean).join('|') + ')s?\\b', 'i');
+    if ((m.terms || []).length && !re.test(text)) add('cast_missing', 'narrative', `the production brief says ${m.who} must be on camera (${pb.cast.source}); no beat and not the description has one. Words a beat would use: ${(m.terms || []).slice(0, 6).join(', ')}.`);
+  }
+  if (Number(pb.cast.max_people) === 1) {
+    const hits = beats.map((b, i) => [i + 1, b]).filter(([, b]) => SECOND_PERSON.test(b) && ON_CAMERA_CUE.test(b) && !OFF_CAMERA_CUE.test(b));
+    if (hits.length) add('cast_exceeded', 'narrative', `the production brief says one person on camera (${pb.cast.source}); ${hits.map(([i, b]) => `beat ${i} puts "${(b.match(SECOND_PERSON) || [''])[0]}" in the scene`).join(', ')}. A second person may be a voice note, a text, an off-camera line or a comment, never in frame.`);
+  }
+  for (const x of pb.cast.must_exclude || []) {
+    const re = new RegExp('\\b' + String(x).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + 's?\\b', 'i');
+    if (String(x).trim() && re.test(text)) add('cast_excluded', 'narrative', `the production brief says "${x}" is never on camera for this client (${pb.cast.source}), and the concept has one.`);
+  }
+  return issues;
+}
+async function stageProductionBrief({ client, slugName, snapshot, log, ask }) {
+  log('Production brief', 'running', 'extracting who can be on camera and what can be shot, from the record and the vault');
+  const vault = vaultContext(slugName);
+  const out = await ask({
+    system: `You compile a Production Brief for a creative agency's concept team: who can be on camera for this client and what can be shot, so that every concept written is one the client's creators can actually make. You extract; you never invent. Every field carries the section or document it came from, named the way the heading reads. Where the record is silent, say "not stated" and leave the list empty; a guess here becomes a rule the writers obey. Prefer what was actually shot (shoot guides, scripts, storyboards) over what a brief hoped for, and say so in the source. must_include terms are the plain words a narrative beat would contain (baby, newborn, toddler, kid, son, daughter), so code can look for them.\n${HOUSE_RULES}`,
+    prompt: `THE CLIENT'S RECORD:\n${snapshot}\n\n${vault || '(no agency work for this client on the vault yet)'}\n\nCompile the Production Brief:
+1. cast: who is on camera in this client's ads (e.g. "a parent, mom or dad, 22 to 38, with a baby or toddler in frame; the co-parent lane needs two adults" or "one content creator, 25 to 40, female skew, alone, self-shot"); minimum and maximum people on camera; who MUST appear (with plain-word terms); who must NEVER appear; age range; gender skew; source.
+2. shoot: locations, gear (phone or DSLR or either), crew (none, one, a crew), remote yes/no, self-shot yes/no; source.
+3. formats: what the client rejected or moved away from, what performed or the client approved and kept, what the client has asked for; source.
+4. specs: aspect ratios, durations, banned words, required disclosures; source.
+5. offer: the offer as it may be stated in paid creative; source.
+6. client_stats: figures the client itself has supplied or approved for use in creative, with date and source; mark usable_in_paid honestly.
+7. open_questions: contradictions between sources (a brief that says three talent and a review that says one creator remote), for a person to settle.
+8. confidence: documented if the cast and shoot come from explicit lines, inferred if read from what was shot or from the personas, thin if the record barely says.`,
+    schema: PRODUCTION_BRIEF_SCHEMA,
+    maxTokens: 16000,
+    model: REVIEW_MODEL,
+  });
+  const usage = out.__usage; delete out.__usage;
+  const saved = store.saveProductionBrief(client, { ...out, client, brand: client, extracted_at: new Date().toISOString(), extracted_from: vault ? 'record + vault' : 'record', confirmed_by: null, confirmed_at: null });
+  log('Production brief', 'done', `${out.cast.who_on_camera.slice(0, 110)}; ${out.cast.min_people}-${out.cast.max_people} on camera; ${(out.cast.must_include || []).length} must-include; ${(out.client_stats || []).length} client-supplied figures; confidence ${out.confidence}${(out.open_questions || []).length ? `; ${out.open_questions.length} open question${out.open_questions.length === 1 ? '' : 's'} for a person` : ''}`);
+  return { brief: saved, usage };
+}
+const spliceBeforeBrainMd = (md, add) => { if (!add) return md; const at = md.indexOf('\n## BRAND BRAIN, the account record'); return at > 0 ? md.slice(0, at) + add + md.slice(at) : md + add; };
 
 /* The client evidence pack (Carl, 2026-09-10). Everything below is already in
    the record or on disk; this step only pulls it into one place the writer
@@ -2541,7 +2709,7 @@ const EVIDENCE_SCHEMA = {
   required: ['hard_stats', 'what_worked', 'what_did_not', 'competitors', 'open_questions'],
 };
 
-async function stageEvidence({ snapshot, client, log, ask }) {
+async function stageEvidence({ snapshot, client, productionBrief, log, ask }) {
   log('Client evidence pack', 'running');
   /* what this client has already run, from the batches on disk: code, no model */
   const usedVehicles = [...new Set((store.usedVehicles(client, 60) || []).map((v) => String(v).trim()).filter(Boolean))];
@@ -2572,6 +2740,13 @@ Compile:
   } catch (err) {
     log('Client evidence pack', 'done', 'could not compile the pack (' + String(err.message || err).slice(0, 80) + '); the run continues on the record alone');
     out = { hard_stats: [], what_worked: [], what_did_not: [], competitors: [], open_questions: [] };
+  }
+  /* figures the client itself supplied, from the production brief, lead the
+     list: a real number beats a voice-guide example every time */
+  for (const s of [...((productionBrief && productionBrief.client_stats) || [])].reverse()) {
+    if (!s || !s.figure) continue;
+    if (out.hard_stats.some((h) => String(h.figure).trim().toLowerCase() === String(s.figure).trim().toLowerCase())) continue;
+    out.hard_stats.unshift({ figure: s.figure, statement: s.statement || '', kind: s.kind || 'stat', source: `Production brief, client-supplied: ${s.source || 'account team'}${s.as_of ? ', as of ' + s.as_of : ''}`, usable_in_paid: s.usable_in_paid !== false });
   }
   const usable = out.hard_stats.filter((h) => h.usable_in_paid);
   const md = `## CLIENT EVIDENCE PACK, compiled from the record and this client's own batches
@@ -2621,8 +2796,11 @@ const ROW_VEH_SCHEMA = {
                 vehicle: { type: 'string' }, family: { type: 'string' }, source: { type: 'string' },
                 message_fit: { type: 'integer', minimum: 1, maximum: 5 }, persona_fit: { type: 'integer', minimum: 1, maximum: 5 },
                 freshness: { type: 'integer', minimum: 1, maximum: 5 }, producibility: { type: 'integer', minimum: 1, maximum: 5 },
+                /* can THIS client's cast perform it: 5 built for them, 1 needs
+                   people or places the production brief does not provide */
+                cast_fit: { type: 'integer', minimum: 1, maximum: 5 }, cast_note: { type: 'string' },
               },
-              required: ['vehicle', 'family', 'source', 'message_fit', 'persona_fit', 'freshness', 'producibility'],
+              required: ['vehicle', 'family', 'source', 'message_fit', 'persona_fit', 'freshness', 'producibility', 'cast_fit', 'cast_note'],
             },
           },
           winner: {
@@ -2640,7 +2818,8 @@ const ROW_VEH_SCHEMA = {
 
 const normFam = (x) => String(x || '').toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
 
-async function stageRowVehicles({ snapshot, strategy, evidence, bank, researchMd, log, ask }) {
+async function stageRowVehicles({ snapshot, strategy, evidence, bank, researchMd, productionBrief, log, ask }) {
+  const castLine = productionBrief && productionBrief.cast ? `THE CAST, from the PRODUCTION BRIEF: ${productionBrief.cast.who_on_camera} (${productionBrief.cast.min_people} to ${productionBrief.cast.max_people} on camera${(productionBrief.cast.must_include || []).length ? `; must include ${productionBrief.cast.must_include.map((m) => m.who).join(', ')}` : ''}${(productionBrief.cast.must_exclude || []).length ? `; never ${productionBrief.cast.must_exclude.join(', ')}` : ''}). Shoot: ${(productionBrief.shoot || {}).gear || 'gear not stated'}, ${(productionBrief.shoot || {}).crew || 'crew not stated'}${(productionBrief.shoot || {}).remote ? ', remote' : ''}${(productionBrief.shoot || {}).self_shot ? ', self-shot' : ''}.` : 'THE CAST: no production brief on file; score cast_fit on what the record says about who is on camera.';
   log('Vehicle selection', 'running', `Sub-procedure 3 over ${bank ? bank.count : 0} bank vehicles${researchMd ? ' and the researched ones' : ''}`);
   const rows = [];
   (strategy.allocation || []).forEach((a, i) => { for (let k = 0; k < (a.slots || 1); k++) rows.push({ row: rows.length + 1, ...a }); });
@@ -2666,8 +2845,14 @@ ${rows.map((r) => `Row ${r.row}: persona "${r.persona}"; selling argument "${r.s
 For each row: 3 to 5 shape keywords for how that persona's world and that selling argument want
 to be seen; a candidate table of 3 to 5 vehicles drawn from the pools above (name them as the
 bank names them, source "bank", "researched" or "original"), at least one wild, captured or
-parody candidate, scored 1 to 5 on the four axes; the winner and why, and whether one creator can
-shoot it at home. Vehicles and visual families listed under "Already run for this client" score
+parody candidate, scored 1 to 5 on five axes: message fit, persona fit, freshness, producibility
+and cast_fit, with a one-line cast_note saying who the vehicle needs on camera; the winner and why,
+and whether one creator can shoot it at home.
+${castLine}
+cast_fit is 5 when the vehicle is built for exactly this cast and these shoot conditions, and 1
+when it needs people, places or crew the production brief does not provide. A vehicle with cast_fit
+below 4 cannot win; if every candidate is below 4, find candidates that fit before you score.
+Vehicles and visual families listed under "Already run for this client" score
 freshness 1 and cannot win. No two rows may share a vehicle family, and the batch as a whole may
 not be more than half talking heads or desk-and-phone setups (the skill's rule 5): if the pattern
 default wins more than half, redo the table with the wild pool forced in.`,
@@ -2679,13 +2864,18 @@ default wins more than half, redo the table with the wild pool forced in.`,
   const takenF = new Set();
   const chosen = rows.map((r) => {
     const o = (out.rows || []).find((x) => Number(x.row) === r.row) || { candidates: [], winner: null };
-    const ranked = [...(o.candidates || [])].sort((a, b) => (b.message_fit + b.persona_fit + b.freshness + b.producibility) - (a.message_fit + a.persona_fit + a.freshness + a.producibility));
-    const ok = (c) => c && !usedV.has(normFam(c.vehicle)) && !usedF.has(normFam(c.family)) && !takenF.has(normFam(c.family));
+    const tot = (c) => (c.message_fit || 0) + (c.persona_fit || 0) + (c.freshness || 0) + (c.producibility || 0) + (c.cast_fit || 0);
+    const ranked = [...(o.candidates || [])].sort((a, b) => tot(b) - tot(a));
+    /* the cast floor is code, like the used-vehicle rule: when a production
+       brief is on file, a vehicle this client's cast cannot perform cannot win */
+    const castOk = (c) => !productionBrief || c.cast_fit == null || Number(c.cast_fit) >= 4;
+    const ok = (c) => c && castOk(c) && !usedV.has(normFam(c.vehicle)) && !usedF.has(normFam(c.family)) && !takenF.has(normFam(c.family));
     let pick = o.winner && ok(o.winner) ? o.winner : ranked.find(ok) || o.winner || ranked[0] || null;
     const swapped = pick && o.winner && pick.vehicle !== o.winner.vehicle;
     if (pick) takenF.add(normFam(pick.family));
     return { row: r.row, persona: r.persona, selling_argument: r.selling_argument, objective: r.objective, keywords: o.keywords || [],
-      vehicle: pick ? pick.vehicle : null, family: pick ? pick.family : null, why: pick ? (pick.why || `next candidate in score order after the winner collided with a used vehicle or family`) : null,
+      vehicle: pick ? pick.vehicle : null, family: pick ? pick.family : null, why: pick ? (pick.why || `next candidate in score order after the winner collided with a used vehicle or family, or failed the cast floor`) : null,
+      cast_fit: pick && pick.cast_fit != null ? pick.cast_fit : null, cast_note: pick ? (pick.cast_note || null) : null,
       one_creator_at_home: pick && pick.one_creator_at_home != null ? pick.one_creator_at_home : null, swapped, candidates: o.candidates || [] };
   });
   const fams = new Set(chosen.map((c) => normFam(c.family)).filter(Boolean));
@@ -2706,14 +2896,27 @@ async function runDirect({ client, count = 1, prior = '', priorMeta = null, star
   const spend = [];
   const track = (u) => { if (u) spend.push(u); };
   const t0 = Date.now();
-  const { record, brief, snapshot, researchMd, vehicles, approved, categoryMd, harvestMd, harvestRec } =
-    await intake({ client, prior, priorMeta, log });
+  const it = await intake({ client, prior, priorMeta, log });
+  const { record, brief, researchMd, vehicles, approved, categoryMd, harvestMd, harvestRec } = it;
+  let snapshot = it.snapshot;
+  let productionBrief = it.productionBrief;
   const brandName = record.brand.brand_name;
   const n = Math.min(Math.max(Number(count) || 1, 1), 16);
   const trackedAsk = async (args) => { const o = await ask(args); if (o && o.__usage) { track(o.__usage); delete o.__usage; } return o; };
+  /* first run for a client: extract its production brief now and use it; the
+     OS shows it for a person to confirm or correct, and every later run reads
+     the saved one */
+  if (!productionBrief) {
+    try {
+      const pbOut = await stageProductionBrief({ client, slugName: (record.brand.slug || String(client)).toLowerCase(), snapshot, log, ask });
+      track(pbOut.usage);
+      productionBrief = pbOut.brief;
+      snapshot = spliceBeforeBrainMd(snapshot, '\n\n' + productionBriefMd(productionBrief));
+    } catch (err) { log('Production brief', 'done', 'could not extract one (' + String(err.message || err).slice(0, 80) + '); the run continues without cast rules'); }
+  }
 
   /* 0. the client evidence pack: hard stats, what worked, what this client has run */
-  const evidence = await stageEvidence({ snapshot, client, log, ask: trackedAsk });
+  const evidence = await stageEvidence({ snapshot, client, productionBrief, log, ask: trackedAsk });
   const snapshotPlus = snapshot + '\n\n' + evidence.md;
 
   /* 1. Step Zero as its own agent: the Batch Strategy Map, personas first */
@@ -2723,7 +2926,7 @@ async function runDirect({ client, count = 1, prior = '', priorMeta = null, star
   /* 1b. the vehicle for each row, from the whole bank, in code-enforced distinct families */
   let bankAll = null;
   try { bankAll = await vehicleMenu(store.usedVehicles(client, 60), { all: true }); } catch { bankAll = null; }
-  const rowVeh = await stageRowVehicles({ snapshot, strategy, evidence, bank: bankAll, researchMd, log, ask: trackedAsk });
+  const rowVeh = await stageRowVehicles({ snapshot, strategy, evidence, bank: bankAll, researchMd, productionBrief, log, ask: trackedAsk });
 
   /* 2. the one pass with the whole skill, written against the map */
   log('Creative Director, one pass', 'running', `one call, the whole skill, ${n} concept${n === 1 ? '' : 's'} against the Strategy Map`);
@@ -2754,7 +2957,7 @@ before you hand it over. Do all of that work in your head, the way the skill run
 observation list, no visualizations, no notes, no preamble and no review appear in your answer.
 A senior reviewer and an alignment reviewer read what you write next, against the client's
 sources; what passes them is what the client sees. The ONLY text you return is
-${directSlideContract({ n, startNum, brandName, approved })}`;
+${directSlideContract({ n, startNum, brandName, approved, productionBrief })}`;
 
   const out = await askText({ system, prompt, maxTokens: 32000 });
   const text = typeof out === 'string' ? out : String((out && (out.text || out.content)) || '');
@@ -2764,7 +2967,7 @@ ${directSlideContract({ n, startNum, brandName, approved })}`;
   const first = await liftDirect({ text, brandName, startNum, log, ask, label: 'Lift' });
   track(first.usage);
   let concepts = first.concepts;
-  directCodeChecks({ concepts, brief, snapshot, brandName, log });
+  directCodeChecks({ concepts, brief, snapshot, brandName, productionBrief, log });
 
   /* 3. the checkpoints: the skill's Final Creative Strategy Reviewer, then the
         Concept Alignment Review, each its own agent reading the whole batch */
@@ -2835,7 +3038,7 @@ the line it names: fix what is quoted, keep everything the notes do not touch wo
 not add hedges or disclaimers, do not add product evidence to answer a note about story, and
 where a note asks for a hard stat use only a figure that is in the sources above.
 Return ONLY the concepts below, keeping their numbers, as
-${directSlideContract({ n: toFix.length, startNum: Number(toFix[0].num), brandName, approved })}
+${directSlideContract({ n: toFix.length, startNum: Number(toFix[0].num), brandName, approved, productionBrief })}
 
 ${items}`,
       maxTokens: 32000,
@@ -2848,7 +3051,7 @@ ${items}`,
     revised = second.concepts.filter((c) => toFix.some((d) => canonNum(d.num) === canonNum(c.num)));
     if (revised.length) {
       concepts = mergeByNum(concepts, revised);
-      directCodeChecks({ concepts, brief, snapshot, brandName, log, label: 'Code checks, after revision' });
+      directCodeChecks({ concepts, brief, snapshot, brandName, productionBrief, log, label: 'Code checks, after revision' });
       const again = await judge(revised, 'second read');
       decisions = decisions.map((d) => again.find((x) => canonNum(x.num) === canonNum(d.num)) || d);
     } else {
@@ -2872,7 +3075,8 @@ ${items}`,
 
   const last = rounds[rounds.length - 1] || {};
   return {
-    client: brandName, concepts, pipeline_version: 'v8.3-direct-evidence', mode: 'direct',
+    client: brandName, concepts, pipeline_version: 'v8.4-production-brief', mode: 'direct',
+    production_brief: productionBrief ? { cast: productionBrief.cast, shoot: productionBrief.shoot, confidence: productionBrief.confidence, confirmed_by: productionBrief.confirmed_by || null, extracted_at: productionBrief.extracted_at } : null,
     observations: [], harvest_notes: null, composition_note: 'direct', change_log: [], composition: null,
     strategy,
     evidence: { hard_stats: evidence.hard_stats, what_worked: evidence.what_worked, what_did_not: evidence.what_did_not, competitors: evidence.competitors, open_questions: evidence.open_questions, used_vehicles: evidence.usedVehicles, used_personas: evidence.usedPersonas },
@@ -2927,4 +3131,4 @@ async function importBatch({ client, text, requestedBy, log }) {
   };
 }
 
-module.exports = { run, runDirect, importBatch, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote, standardNote, humanSituation, premiseLint, stagePremiseGate, premiseTotal, premiseFails };
+module.exports = { run, runDirect, importBatch, stageProductionBrief, productionBriefMd, castLint, vaultContext, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote, standardNote, humanSituation, premiseLint, stagePremiseGate, premiseTotal, premiseFails };

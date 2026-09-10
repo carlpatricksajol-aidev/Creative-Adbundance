@@ -633,6 +633,37 @@ const server = http.createServer(async (req, res) => {
     /* The client brief: per-client production constraints the harness
        enforces (duration band, locale, banned words, production notes). The
        account team's layer; the skill never carries a client-specific rule. */
+    /* The production brief: who can be on camera and what can be shot, per
+       client. GET shows it, PUT lets a person confirm or correct it, and
+       POST /production-brief/extract rebuilds it from the record and the vault
+       (the first direct run for a client does this on its own). */
+    if (p === '/production-brief' && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const cli = url.searchParams.get('client');
+      if (!cli) return json(res, 200, { briefs: store.listProductionBriefs().map((b) => ({ client: b.client, cast: b.cast && b.cast.who_on_camera, confidence: b.confidence, confirmed_by: b.confirmed_by || null, extracted_at: b.extracted_at })) });
+      return json(res, 200, { brief: store.getProductionBrief(cli) });
+    }
+    if (p === '/production-brief' && req.method === 'PUT') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      if (!b.client) return json(res, 400, { error: 'client is required' });
+      const { client: cli, confirm, by, ...patch } = b;
+      if (confirm) { patch.confirmed_by = by || 'the account team'; patch.confirmed_at = new Date().toISOString(); }
+      return json(res, 200, { brief: store.saveProductionBrief(cli, patch) });
+    }
+    if (p === '/production-brief/extract' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      if (!b.client) return json(res, 400, { error: 'client is required' });
+      let resolved;
+      try { resolved = await brand.resolve(b.client); }
+      catch (e) { return json(res, 400, { error: e.message }); }
+      const steps = [];
+      const log = (stage, status, detail) => steps.push({ stage, status, detail });
+      const snapshot = brand.toMarkdown(resolved.record) + require('./pipeline').briefMd(store.getBrief(resolved.record.brand.brand_name) || store.getBrief(b.client) || {});
+      const out = await pipeline.stageProductionBrief({ client: b.client, slugName: (resolved.record.brand.slug || String(b.client)).toLowerCase(), snapshot, log, ask: require('./llm').ask });
+      return json(res, 201, { brief: out.brief, steps });
+    }
     if (p === '/brief' && req.method === 'GET') {
       if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
       const cli = url.searchParams.get('client');
