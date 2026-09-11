@@ -191,8 +191,11 @@ async function resolve(query) {
     fetchMarketingReport(hit.brand_name, hit.client_name),
     fetchMeetingSummary(hit.brand_name, hit.client_name),
   ]);
-  const logos = Array.isArray(brain && brain.logo_urls) ? brain.logo_urls
+  /* logo_urls holds strings or {url} objects, depending on who wrote the row;
+     the frame wants a string */
+  const rawLogos = Array.isArray(brain && brain.logo_urls) ? brain.logo_urls
     : (typeof (brain && brain.logo_urls) === 'string' ? String(brain.logo_urls).split(/[\s,]+/).filter(Boolean) : []);
+  const logos = rawLogos.map((e) => (typeof e === 'string' ? e : e && (e.url || e.src || e.href) || null)).filter(Boolean);
   const brand = {
     id: hit.id,
     brand_name: hit.brand_name,
