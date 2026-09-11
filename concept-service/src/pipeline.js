@@ -16,7 +16,6 @@ const { ask, askText, REVIEW_MODEL } = require('./llm');
    row: the same knowledge in the shapes the skill actually asks for, plus
    the client's own marketing plan, which brand_brain never carried. */
 const brand = require('./dossier');
-const research = require('./research');
 const store = require('./store');
 const harness = require('./harness');
 const knowledge = require('./knowledge');
@@ -1688,17 +1687,14 @@ async function intake({ client, prior, priorMeta, log }) {
   /* Say what the snapshot was actually built from. A run grounded in a brand
      with no marketing plan and no compliance rules should say so in the step,
      not read identical to one that had both. */
+  /* the five-table rule: the snapshot is built from marketing_report,
+     meeting_summary and brand_brain, plus the account team's brief on disk.
+     Naming each here is how Carl can tell a table is actually being read
+     without querying it. */
   const built = [
-    record.snap ? 'identity' : null,
-    /* First in the list because it is first in the snapshot, and because a run
-       that read it should be distinguishable at a glance from one that did
-       not. Naming it here is how Carl can tell the marketing_report table is
-       actually being used without going and querying it. */
-    record.report ? 'the brand strategy snapshot' : null,
-    record.plan ? 'marketing plan' : null,
-    record.rules.length ? `${record.rules.length} compliance rule${record.rules.length === 1 ? '' : 's'}` : null,
-    record.products.length ? `${record.products.length} product${record.products.length === 1 ? '' : 's'}` : null,
-    record.colors.length ? 'colours' : null,
+    record.report ? 'the marketing report' : null,
+    record.meeting ? `the meeting summary (${record.meeting.meetings_count || '?'} meeting${record.meeting.meetings_count === 1 ? '' : 's'}${record.meeting.last_meeting_date ? ', last ' + String(record.meeting.last_meeting_date).slice(0, 10) : ''})` : null,
+    record.brain ? 'the brand brain' : null,
     brief.client ? `the client brief (${brief.duration_min || '?'} to ${brief.duration_max || '?'}s, ${(brief.banned || []).length} banned words)` : null,
   ].filter(Boolean);
   log('Intake and brand analysis', 'done',
@@ -1708,8 +1704,8 @@ async function intake({ client, prior, priorMeta, log }) {
     prior
       ? `${priorMeta ? priorMeta.concepts : '?'} prior concepts across ${priorMeta ? priorMeta.batches : '?'} batches fed in, deduping at observation level`
       : 'no prior batch on file, nothing to dedup against');
-  const winners = record.snap && record.snap.winning_concepts;
-  const losers = record.snap && record.snap.losing_patterns;
+  const winners = record.brain && record.brain.winning_concepts;
+  const losers = record.brain && record.brain.losing_patterns;
   log('Performance filter', 'done',
     (winners ? 'winner set from what has worked' : 'no winner set on file, defaulting') +
     (losers ? ', known losing patterns excluded' : ', nothing on file to exclude'));
@@ -1721,20 +1717,11 @@ async function intake({ client, prior, priorMeta, log }) {
      name, so the two were one row and the client report never showed. Absence
      degrades honestly, never silently: the step says what was and was not on
      file. */
-  log('Market research library', 'running');
-  let researchMd = null;
-  try {
-    const brief = await research.fetchBrief();
-    researchMd = research.toMarkdown(brief, { compact: true });
-    log('Market research library', 'done', brief
-      ? `${brief.vehicles.length} researched vehicles read` +
-        (brief.edition ? `, catalog edition of ${String(brief.edition.ran_at).slice(0, 10)}` : '') +
-        `, ${(brief.probes || []).length} recent probes`
-      : 'the research library is empty, generating from the brand snapshot alone');
-  } catch (err) {
-    log('Market research library', 'done',
-      'could not reach the research library (' + err.message.slice(0, 80) + '), generating from the brand snapshot alone');
-  }
+  /* The five-table rule (2026-09-10): the Research Agent's catalogue
+     (knowledge_researched_vehicles, knowledge_catalog_edition,
+     knowledge_research_probe) is no longer read. The vehicle bank below is the
+     one vehicle source. */
+  const researchMd = null;
 
   /* Ricardo's vehicle rule: a fresh random draw from the curated bank every
      run, minus everything this client's earlier batches already used. */
@@ -1768,15 +1755,8 @@ async function intake({ client, prior, priorMeta, log }) {
   }
   if (approved) snapshot = spliceBeforeBrain(snapshot, '\n\n' + approved.md);
 
-  log('Category ads', 'running');
-  let categoryMd = null;
-  try {
-    const cat = await knowledge.fetchCategoryAds({ names: nameSet, category: record.snap && record.snap.category });
-    if (cat) { categoryMd = cat.md; log('Category ads', 'done', `${cat.count} adjacent-category ads read (bucket: ${cat.bucket}), adoption signal only`); }
-    else log('Category ads', 'done', 'no adjacent-category ads on file for this brand or its category');
-  } catch (err) {
-    log('Category ads', 'done', 'could not read the scraped-ad table (' + err.message.slice(0, 60) + ')');
-  }
+  /* the five-table rule: knowledge_scraped_ad is no longer read */
+  const categoryMd = null;
 
   /* The audience harvest, if one has been posted for this client. Absence is
      reported honestly rather than passed over: a batch built on imagined
@@ -1851,17 +1831,14 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   /* Say what the snapshot was actually built from. A run grounded in a brand
      with no marketing plan and no compliance rules should say so in the step,
      not read identical to one that had both. */
+  /* the five-table rule: the snapshot is built from marketing_report,
+     meeting_summary and brand_brain, plus the account team's brief on disk.
+     Naming each here is how Carl can tell a table is actually being read
+     without querying it. */
   const built = [
-    record.snap ? 'identity' : null,
-    /* First in the list because it is first in the snapshot, and because a run
-       that read it should be distinguishable at a glance from one that did
-       not. Naming it here is how Carl can tell the marketing_report table is
-       actually being used without going and querying it. */
-    record.report ? 'the brand strategy snapshot' : null,
-    record.plan ? 'marketing plan' : null,
-    record.rules.length ? `${record.rules.length} compliance rule${record.rules.length === 1 ? '' : 's'}` : null,
-    record.products.length ? `${record.products.length} product${record.products.length === 1 ? '' : 's'}` : null,
-    record.colors.length ? 'colours' : null,
+    record.report ? 'the marketing report' : null,
+    record.meeting ? `the meeting summary (${record.meeting.meetings_count || '?'} meeting${record.meeting.meetings_count === 1 ? '' : 's'}${record.meeting.last_meeting_date ? ', last ' + String(record.meeting.last_meeting_date).slice(0, 10) : ''})` : null,
+    record.brain ? 'the brand brain' : null,
     brief.client ? `the client brief (${brief.duration_min || '?'} to ${brief.duration_max || '?'}s, ${(brief.banned || []).length} banned words)` : null,
   ].filter(Boolean);
   log('Intake and brand analysis', 'done',
@@ -1871,8 +1848,8 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
     prior
       ? `${priorMeta ? priorMeta.concepts : '?'} prior concepts across ${priorMeta ? priorMeta.batches : '?'} batches fed in, deduping at observation level`
       : 'no prior batch on file, nothing to dedup against');
-  const winners = record.snap && record.snap.winning_concepts;
-  const losers = record.snap && record.snap.losing_patterns;
+  const winners = record.brain && record.brain.winning_concepts;
+  const losers = record.brain && record.brain.losing_patterns;
   log('Performance filter', 'done',
     (winners ? 'winner set from what has worked' : 'no winner set on file, defaulting') +
     (losers ? ', known losing patterns excluded' : ', nothing on file to exclude'));
@@ -1884,20 +1861,11 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
      name, so the two were one row and the client report never showed. Absence
      degrades honestly, never silently: the step says what was and was not on
      file. */
-  log('Market research library', 'running');
-  let researchMd = null;
-  try {
-    const brief = await research.fetchBrief();
-    researchMd = research.toMarkdown(brief, { compact: true });
-    log('Market research library', 'done', brief
-      ? `${brief.vehicles.length} researched vehicles read` +
-        (brief.edition ? `, catalog edition of ${String(brief.edition.ran_at).slice(0, 10)}` : '') +
-        `, ${(brief.probes || []).length} recent probes`
-      : 'the research library is empty, generating from the brand snapshot alone');
-  } catch (err) {
-    log('Market research library', 'done',
-      'could not reach the research library (' + err.message.slice(0, 80) + '), generating from the brand snapshot alone');
-  }
+  /* The five-table rule (2026-09-10): the Research Agent's catalogue
+     (knowledge_researched_vehicles, knowledge_catalog_edition,
+     knowledge_research_probe) is no longer read. The vehicle bank below is the
+     one vehicle source. */
+  const researchMd = null;
 
   /* Ricardo's vehicle rule: a fresh random draw from the curated bank every
      run, minus everything this client's earlier batches already used. */
@@ -1931,15 +1899,8 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
   }
   if (approved) snapshot = spliceBeforeBrain(snapshot, '\n\n' + approved.md);
 
-  log('Category ads', 'running');
-  let categoryMd = null;
-  try {
-    const cat = await knowledge.fetchCategoryAds({ names: nameSet, category: record.snap && record.snap.category });
-    if (cat) { categoryMd = cat.md; log('Category ads', 'done', `${cat.count} adjacent-category ads read (bucket: ${cat.bucket}), adoption signal only`); }
-    else log('Category ads', 'done', 'no adjacent-category ads on file for this brand or its category');
-  } catch (err) {
-    log('Category ads', 'done', 'could not read the scraped-ad table (' + err.message.slice(0, 60) + ')');
-  }
+  /* the five-table rule: knowledge_scraped_ad is no longer read */
+  const categoryMd = null;
 
   /* The audience harvest, if one has been posted for this client. Absence is
      reported honestly rather than passed over: a batch built on imagined
@@ -2348,13 +2309,13 @@ async function run({ client, count = 5, prior = '', priorMeta = null, startNum =
       batch_verdict: finalReview.batch_verdict, batch_note: finalReview.batch_note,
       reviews: (finalReview.reviews || []).map((r) => ({ num: r.num, verdict: r.verdict, source: r.source, note: r.note })),
     },
-    brand_fields: [record.snap, record.plan, record.rules.length, record.products.length].filter(Boolean).length,
+    brand_fields: [record.report, record.meeting, record.brain, brief.client].filter(Boolean).length,
     used_marketing_plan: Boolean(record.plan),
     cost_usd: Math.round(spend.reduce((a, u) => a + (u && u.cost || 0), 0) * 100) / 100,
     used_research: Boolean(researchMd),
     used_harvest: Boolean(harvestMd),
     harvest_id: harvestRec ? harvestRec.id : null,
-    has_brand_visuals: record.colors.length > 0 && record.fonts.length > 0,
+    has_brand_visuals: record.colors.length > 0,
     production_notes: brief.production_notes || null,
     used_approved_library: Boolean(approved),
     used_category_ads: Boolean(categoryMd),
@@ -3104,11 +3065,11 @@ ${items}`,
     alignment: rounds[0] ? rounds[0].alignment : null,
     review_rounds: rounds.map((r) => ({ label: r.label, decisions: r.decisions, final_review: r.final_review, alignment: r.alignment })),
     revised: revised.map((c) => c.num),
-    brand_fields: [record.snap, record.plan, record.rules.length, record.products.length].filter(Boolean).length,
+    brand_fields: [record.report, record.meeting, record.brain, brief.client].filter(Boolean).length,
     used_marketing_plan: Boolean(record.plan),
     cost_usd: Math.round(spend.reduce((a, u) => a + (u && u.cost || 0), 0) * 100) / 100,
     used_research: Boolean(researchMd), used_harvest: Boolean(harvestMd), harvest_id: harvestRec ? harvestRec.id : null,
-    has_brand_visuals: (record.colors || []).length > 0 && (record.fonts || []).length > 0,
+    has_brand_visuals: (record.colors || []).length > 0,
     production_notes: brief.production_notes || null, used_approved_library: Boolean(approved), used_category_ads: Boolean(categoryMd),
     pool_size: concepts.length, lint_rounds: revised.length ? 1 : 0, lint_remaining: concepts.filter((c) => (c.flags || []).length).length,
     cd_markdown: text.slice(0, 120000),
@@ -3141,7 +3102,7 @@ async function importBatch({ client, text, requestedBy, log }) {
     feedback: null, compliance: null, final_review: null, brand_fields: 0, used_marketing_plan: false,
     cost_usd: Math.round(((out.__usage && out.__usage.cost) || 0) * 100) / 100,
     used_research: false, used_harvest: false, harvest_id: null,
-    has_brand_visuals: (record.colors || []).length > 0 && (record.fonts || []).length > 0,
+    has_brand_visuals: (record.colors || []).length > 0,
     production_notes: null, used_approved_library: false, used_category_ads: false,
     pool_size: concepts.length, lint_rounds: 0, lint_remaining: 0, cd_markdown: String(text).slice(0, 120000),
   };

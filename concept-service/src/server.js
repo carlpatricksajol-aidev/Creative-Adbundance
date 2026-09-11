@@ -268,11 +268,9 @@ async function startRun({ client, count, requestedBy, mode }) {
          the stores. The old test keyed on marketing_plans alone, which 3 of 86
          brands have, so one hiccup in the chain abandoned batches for brands
          carrying rich snapshots, with a message the data contradicted. */
-      const snap = pre.snap || {};
-      const grounded = Boolean(
-        pre.report || pre.brain || pre.plan || pre.rules.length ||
-        (Array.isArray(snap.messaging_pillars) && snap.messaging_pillars.length) ||
-        (Array.isArray(snap.creative_hook_territory) && snap.creative_hook_territory.length));
+      /* the five-table rule: grounded means the report, the meeting summary
+         or the brain has something for this brand */
+      const grounded = Boolean(pre.report || pre.brain || pre.meeting);
 
       if (marketingReport.inFlight(brandName)) {
         const e = new Error(

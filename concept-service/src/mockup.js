@@ -325,18 +325,21 @@ function imagePath(id) {
    record's own vocabulary differs from the agent's, so the mapping is here
    and explicit rather than hidden in a template. */
 function brandInputs(record) {
-  const snap = record.snap || {};
+  /* the five-table rule (2026-09-10): the fields come from the brand_brain
+     row, not the relational snapshot that used to sit beside it */
+  const brain = record.brain || {};
+  const txt = (v) => (v == null ? undefined : Array.isArray(v) ? v.join('; ') : typeof v === 'object' ? JSON.stringify(v) : String(v));
   return {
     brandName: record.brand && record.brand.brand_name,
-    /* the frame's avatar. 19 of 86 active brands have no logo_url, so this is
-       often null and that is a designed state, not a gap. */
+    /* the frame's avatar. Many brands have no logo, so this is often null and
+       that is a designed state, not a gap. */
     logoUrl: record.brand && record.brand.logo_url,
     productName: (record.products || []).map((p) => p.name || p.product_name).filter(Boolean)[0],
     hasProductReferenceImage: false,
-    category: snap.category,
-    targetPersona: snap.target_audience,
-    coreUsps: snap.value_prop || snap.proof_points || snap.messaging_pillars,
-    brandVoice: snap.voice_summary,
+    category: txt(brain.industry),
+    targetPersona: txt(brain.target_personas),
+    coreUsps: txt(brain.product_benefits) || txt(brain.key_offer),
+    brandVoice: txt(brain.brand_tone),
     /* the caption pill colour the skill's reference asks for; role names vary
        by extraction, so accent first, then primary, then whatever is first */
     accentHex: (() => {

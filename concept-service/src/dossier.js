@@ -1,39 +1,50 @@
 'use strict';
 /*
- * The brand snapshot the ad-concept-generator skill reads, assembled from the
- * Knowledge Layer instead of a flat brand_brain row.
+ * The brand snapshot the ad-concept-generator skill reads.
  *
- * WHY THIS REPLACES brand.js. The skill's step 1 asks for "product + USPs,
- * personas, voice, real proof points, compliance rules, brand accent colour
- * (hex) + font". brand_brain answered that with 24 free-text fields. The
- * Knowledge Layer answers it with the actual shapes: compliance rules as rows
- * with severity and a safe alternative, colours with a role and a hex,
- * products as products, voice traits with an explicit do and don't. Same
- * knowledge, far less for the model to parse out of prose.
+ * THE FIVE-TABLE RULE (Carl and Ricardo, 2026-09-10). Every agent in this
+ * service reads client information from exactly five Supabase tables in the
+ * Heartreel project, and nothing else:
  *
- * It also adds the thing brand_brain never had: THE CLIENT'S OWN MARKETING
- * PLAN. Until now the generator read the Research Agent's market-level library
- * and nothing client-specific beyond the brand row, so two clients in the same
- * category got the same strategic grounding. marketing_plans carries the
- * audience, goals, channel and content strategy the Senior Agent wrote for
- * THIS brand, and it lands in the snapshot ahead of the market research.
+ *   brand_brain                  where all client data lives
+ *   marketing_report             the client-specific report, outside data via web search
+ *   meeting_summary              all client meeting notes, summarised from the latest data
+ *   knowledge_v_concept_approved every approved concept, in table form (knowledge.js)
+ *   knowledge_vehicle_bank       approved concepts made generic as vehicles (pipeline.js)
  *
- * The one property worth preserving from the old builder, and preserved here:
- * every section that has nothing in it is named at the end under "do not
- * invent". A model told a field is empty behaves very differently from a model
- * that simply never sees it.
+ * This file owns the first three and builds the snapshot from them. Until
+ * 2026-09-10 it also read the relational Knowledge Layer in a second Supabase
+ * project (brand_snapshots, compliance_rules, products, colours, fonts,
+ * marketing_plans, personas, research_findings). Those reads are gone; the
+ * record keeps the same shape so nothing downstream breaks, with those
+ * fields empty.
+ *
+ * The one property worth preserving from every earlier builder, preserved
+ * here: every section that has nothing in it is named at the end under "do
+ * not invent". A model told a field is empty behaves very differently from a
+ * model that simply never sees it.
  */
 
-const { Client } = require('pg');
 const store = require('./store');
 
-const KL_URL = process.env.SUPABASE_KNOWLEDGE_LAYER_URL || '';
-
-/* The marketing_report table lives in the Heartreel project, not the Knowledge
-   Layer, so it is read over REST with the credentials this service already
-   holds rather than through the pool above. */
 const SB_URL = process.env.SUPABASE_URL || '';
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || '';
+const HEADERS = () => ({ apikey: SB_KEY, authorization: 'Bearer ' + SB_KEY });
+
+const configured = () => Boolean(SB_URL && SB_KEY);
+
+const norm = (s) => String(s || '')
+  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+async function rest(path, { timeout = 12000 } = {}) {
+  if (!configured()) { const e = new Error('no Supabase URL or key configured on this server'); e.status = 503; throw e; }
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, { headers: HEADERS(), signal: AbortSignal.timeout(timeout) });
+  if (!res.ok) throw new Error(`supabase ${res.status} on ${path.split('?')[0]}: ${(await res.text()).slice(0, 200)}`);
+  return res.json();
+}
+
+/* ---- the report ------------------------------------------------------------ */
 
 /* The report's columns are the team's to change, and they DID change, hours
    after this was first wired: the thirteen strategy fields became the report
@@ -42,7 +53,7 @@ const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY
    reads first at the top, and any column the team adds next week renders
    automatically instead of silently not existing. */
 const REPORT_SKIP = new Set(['id', 'brand', 'brand_brain_id', 'created_at', 'updated_at',
-  'report_period', 'report_kind', 'subject_type', 'source', 'findings']);
+  'report_period', 'report_kind', 'subject_type', 'source', 'findings', 'content_written_at']);
 const REPORT_ORDER = ['overview', 'audience', 'audience_core', 'audience_secondary',
   'objectives_and_messaging', 'what_is_working', 'content_strategy', 'channel_strategy',
   'competitive_landscape', 'compliance_guardrails', 'sources_and_open_items'];
@@ -60,24 +71,26 @@ function reportKeys(row) {
   });
 }
 
-/* The Brand Brain row: the free-text account record every strategist works
-   from, and the thing Carl pastes into a Claude Web session alongside the
-   marketing report. The relational snapshot replaced it for STRUCTURE, but
-   these fields have no relational home and were reaching nobody. Order
-   matters less than presence; each is capped so one runaway field cannot
-   drown the snapshot. */
+/* ---- the brand brain ------------------------------------------------------- */
+
+/* The account record every strategist works from. Order matters less than
+   presence; each is capped so one runaway field cannot drown the snapshot. */
 const BRAIN_FIELDS = [
   ['key_offer', 'KEY OFFER'],
+  ['products', 'PRODUCTS'],
   ['brand_tone', 'BRAND TONE'],
   ['brand_personality', 'BRAND PERSONALITY'],
   ['target_personas', 'TARGET PERSONAS'],
   ['core_pain_points', 'CORE PAIN POINTS'],
   ['product_benefits', 'PRODUCT BENEFITS'],
+  ['competitors', 'COMPETITORS'],
   ['creative_brief', 'CREATIVE BRIEF'],
+  ['brand_guidelines', 'BRAND GUIDELINES'],
   ['dos_and_donts', 'DOS AND DONTS'],
   ['creative_boundaries', 'CREATIVE BOUNDARIES'],
   ['winning_hooks', 'WINNING HOOKS'],
   ['winning_concepts', 'WINNING CONCEPTS'],
+  ['winning_ads', 'WINNING ADS'],
   ['losing_patterns', 'LOSING PATTERNS'],
   ['compliance_notes', 'COMPLIANCE NOTES'],
   ['disclaimer_text', 'REQUIRED DISCLAIMER'],
@@ -85,216 +98,133 @@ const BRAIN_FIELDS = [
 ];
 const BRAIN_FIELD_CAP = 2200;
 
-async function fetchBrandBrain(brandName, clientName) {
-  if (!SB_URL || !SB_KEY) return null;
-  const headers = { apikey: SB_KEY, authorization: 'Bearer ' + SB_KEY };
-  for (const name of [brandName, clientName].filter(Boolean)) {
-    const q = `${SB_URL}/rest/v1/brand_brain?select=*`
-      + `&or=(client_name.ilike.${encodeURIComponent(String(name))},brand_name.ilike.${encodeURIComponent(String(name))})`
-      + `&limit=1`;
-    try {
-      const res = await fetch(q, { headers, signal: AbortSignal.timeout(12000) });
-      if (!res.ok) continue;
-      const rows = await res.json();
-      if (Array.isArray(rows) && rows.length) return rows[0];
-    } catch { /* the snapshot is better without it than not at all */ }
-  }
-  return null;
+/* The roster: every row of brand_brain, once per call. 90-odd rows, small. */
+async function brainRoster() {
+  return rest('brand_brain?select=id,brand_name,client_name,aliases,status,website,logo_urls&order=brand_name.asc');
 }
 
-/* The brand's strategy snapshot, if one has been written. Matched on the brand
-   name and then the client name, case-insensitively, because the roster here
-   and the report table are maintained separately and their spelling of the
-   same brand does not always agree. */
+async function fetchBrandBrain(id) {
+  const rows = await rest(`brand_brain?select=*&id=eq.${encodeURIComponent(id)}&limit=1`);
+  return Array.isArray(rows) && rows.length ? rows[0] : null;
+}
+
+/* ilike with no wildcards is case-insensitive equality, so a differently cased
+   row still matches and a partial name never does. */
 async function fetchMarketingReport(brandName, clientName) {
-  if (!SB_URL || !SB_KEY) return null;
-  const headers = { apikey: SB_KEY, authorization: 'Bearer ' + SB_KEY };
-  for (const name of [brandName, clientName].filter(Boolean)) {
-    /* ilike with no wildcards is case-insensitive equality, so a differently
-       cased row still matches and a partial name never does. No other filter:
-       report_period was a column for less than a day, and filtering on it made
-       every fetch 400 the moment the team removed it. */
-    const q = `${SB_URL}/rest/v1/marketing_report`
-      + `?select=*&brand=ilike.${encodeURIComponent(String(name))}`
-      + `&limit=1`;
+  for (const name of [...new Set([brandName, clientName].filter(Boolean))]) {
     try {
-      const res = await fetch(q, { headers, signal: AbortSignal.timeout(12000) });
-      if (!res.ok) continue;
-      const rows = await res.json();
+      const rows = await rest(`marketing_report?select=*&brand=ilike.${encodeURIComponent(String(name))}&limit=1`);
       if (Array.isArray(rows) && rows.length) return rows[0];
     } catch { /* the snapshot is better without it than not at all */ }
   }
   return null;
 }
 
-const configured = () => Boolean(KL_URL);
-
-/* Delete the duplicate compliance rows the report extraction appends on every
-   run, keeping the earliest of each. Same key as the render-time dedupe, so
-   what the model sees and what the table holds agree. Returns rows removed. */
-async function dedupeRules(brandId) {
-  if (!brandId || !configured()) return 0;
-  return withDb(async (c) => {
-    const { rowCount } = await c.query(
-      `delete from compliance_rules r
-        using compliance_rules keep
-        where r.brand_snapshot_id in (select id from brand_snapshots where brand_id = $1)
-          and keep.brand_snapshot_id = r.brand_snapshot_id
-          and left(regexp_replace(lower(keep.rule), '[^a-z0-9 ]+', ' ', 'g'), 60)
-            = left(regexp_replace(lower(r.rule), '[^a-z0-9 ]+', ' ', 'g'), 60)
-          and keep.created_at < r.created_at`,
-      [brandId]);
-    return rowCount || 0;
-  });
-}
-
-async function withDb(fn) {
-  if (!configured()) {
-    const e = new Error('the Knowledge Layer is not configured on this server');
-    e.status = 503;
-    throw e;
+/* The meeting summary: every client meeting on file, summarised from the
+   latest data, with what changed since the one before. Keyed on client_name. */
+async function fetchMeetingSummary(brandName, clientName) {
+  for (const name of [...new Set([clientName, brandName].filter(Boolean))]) {
+    try {
+      const rows = await rest(`meeting_summary?select=*&client_name=ilike.${encodeURIComponent(String(name))}&limit=1`);
+      if (Array.isArray(rows) && rows.length) return rows[0];
+    } catch { /* same */ }
   }
-  const c = new Client({ connectionString: KL_URL, ssl: { rejectUnauthorized: false }, statement_timeout: 25000 });
-  await c.connect();
-  try { return await fn(c); } finally { await c.end().catch(() => {}); }
+  return null;
 }
 
-/* Same normalisation brand.js used, so a name that resolved before still
-   resolves now: accents folded, punctuation dropped, whitespace collapsed. */
-const norm = (s) => String(s || '')
-  .normalize('NFD').replace(/[̀-ͯ]/g, '')
-  .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+/* ---- resolving a client name --------------------------------------------- */
 
-/** The picker. One entry per brand, with its client for disambiguation. */
 async function listBrands() {
-  return withDb(async (c) => {
-    const { rows } = await c.query(
-      `select b.name as brand_name, cl.name as client_name, b.slug,
-              (s.id is not null) as has_snapshot
-         from brands b
-         join clients cl on cl.id = b.client_id
-         left join brand_snapshots s on s.brand_id = b.id and s.is_current = true
-        where b.is_active
-        order by b.name asc`
-    );
-    return rows.map((r) => ({
+  const rows = await brainRoster();
+  return rows
+    .filter((r) => !r.status || !/inactive|archived|churn|paused|off/i.test(String(r.status)))
+    .map((r) => ({
       brand_name: r.brand_name,
-      client_name: r.client_name === r.brand_name ? '' : r.client_name,
-      slug: r.slug,
-      ready: r.has_snapshot,
+      client_name: r.client_name === r.brand_name ? '' : (r.client_name || ''),
+      slug: norm(r.brand_name).replace(/\s+/g, '-'),
+      ready: true,
     }));
-  });
 }
 
 /**
- * Find one brand. Brand name first, then client name, then slug — the same
- * order brand.js used, for the same reason: a client and a brand can share a
- * name and the brand is the more specific answer.
- *
- * Returns { record, matched } or throws a 404-ish error naming what was tried.
+ * Find one brand in brand_brain. Brand name first, then client name, then an
+ * alias, then an unambiguous partial. Ambiguity is an error, never a guess: a
+ * client with several brands must not silently resolve to whichever row came
+ * back first, that spends twenty minutes and real credits generating for the
+ * wrong brand. Returns { record, matched } or throws a 404-ish error.
  */
 async function resolve(query) {
   const want = norm(query);
   if (!want) { const e = new Error('no client given'); e.status = 400; throw e; }
-
-  return withDb(async (c) => {
-    const { rows: all } = await c.query(
-      `select b.id, b.name as brand_name, b.slug, b.website, b.logo_url,
-              cl.name as client_name
-         from brands b join clients cl on cl.id = b.client_id
-        where b.is_active`
-    );
-
-    /* Ambiguity is an error, never a guess. A client with several brands
-       (Scale has Beyond Collagen and Live Conscious; Pattern Brands has three)
-       must not silently resolve to whichever row came back first — that spends
-       twenty minutes and real credits generating for the wrong brand. */
-    const only = (matches, how) => {
-      if (matches.length === 1) return { hit: matches[0], matched: how };
-      if (matches.length > 1) {
-        const e = new Error(
-          `"${query}" is a client with ${matches.length} brands: ${matches.map((m) => m.brand_name).join(', ')}. Name the brand.`
-        );
-        e.status = 400;
-        throw e;
-      }
-      return null;
-    };
-
-    let found = only(all.filter((r) => norm(r.brand_name) === want), 'brand name')
-      || only(all.filter((r) => norm(r.client_name) === want), 'client name')
-      || only(all.filter((r) => norm(r.slug) === want), 'slug');
-    let hit = found && found.hit;
-    let matched = found && found.matched;
-    /* Last resort, and deliberately last: a substring match is how the old
-       folder search went wrong, so it only runs when nothing exact matched AND
-       it is unambiguous. */
-    if (!hit) {
-      const near = all.filter((r) => norm(r.brand_name).includes(want) || want.includes(norm(r.brand_name)));
-      if (near.length === 1) { hit = near[0]; matched = 'partial name'; }
-      else if (near.length > 1) {
-        const e = new Error(`"${query}" matches ${near.length} brands: ${near.map((n) => n.brand_name).join(', ')}. Use the exact name.`);
-        e.status = 400; throw e;
-      }
+  const all = await brainRoster();
+  const aliasesOf = (r) => {
+    const a = r.aliases;
+    if (Array.isArray(a)) return a;
+    if (typeof a === 'string') { try { const j = JSON.parse(a); if (Array.isArray(j)) return j; } catch {} return a.split(/[,;|]/); }
+    return [];
+  };
+  const only = (matches, how) => {
+    if (matches.length === 1) return { hit: matches[0], matched: how };
+    if (matches.length > 1) {
+      const e = new Error(`"${query}" matches ${matches.length} brand_brain rows: ${matches.map((m) => m.brand_name).join(', ')}. Name the brand.`);
+      e.status = 400; throw e;
     }
-    if (!hit) {
-      const e = new Error(`no brand called "${query}" in the Knowledge Layer`);
-      e.status = 404; throw e;
+    return null;
+  };
+  let found = only(all.filter((r) => norm(r.brand_name) === want), 'brand name')
+    || only(all.filter((r) => norm(r.client_name) === want), 'client name')
+    || only(all.filter((r) => aliasesOf(r).some((a) => norm(a) === want)), 'alias');
+  let hit = found && found.hit;
+  let matched = found && found.matched;
+  if (!hit) {
+    const near = all.filter((r) => norm(r.brand_name).includes(want) || want.includes(norm(r.brand_name)));
+    if (near.length === 1) { hit = near[0]; matched = 'partial name'; }
+    else if (near.length > 1) {
+      const e = new Error(`"${query}" matches ${near.length} brands: ${near.map((n) => n.brand_name).join(', ')}. Use the exact name.`);
+      e.status = 400; throw e;
     }
+  }
+  if (!hit) { const e = new Error(`no brand called "${query}" in brand_brain`); e.status = 404; throw e; }
 
-    const record = await loadRecord(c, hit);
-    return { record, matched };
-  });
-}
-
-async function loadRecord(c, brand) {
-  const one = async (sql, p) => (await c.query(sql, p)).rows;
-
-  const [snap] = await one(
-    'select * from brand_snapshots where brand_id = $1 and is_current = true limit 1',
-    [brand.id]
-  );
-
-  /* Sequential, not Promise.all: these all share one pg Client, and firing
-     them together makes pg serialise them anyway while warning that it will
-     stop doing so in v9. Five small indexed reads cost nothing in series. */
-  const products = await one('select name, description from products where brand_id=$1 and is_active order by name', [brand.id]);
-  const colors = snap ? await one('select token_name, role, hex, usage from brand_colors where brand_snapshot_id=$1 order by role', [snap.id]) : [];
-  const fonts = snap ? await one('select role, family, weights, fallback_stack from brand_fonts where brand_snapshot_id=$1 order by role', [snap.id]) : [];
-  const voice = snap ? await one('select trait, definition, do_text, dont_text from brand_voice_traits where brand_snapshot_id=$1', [snap.id]) : [];
-  const rules = snap ? await one('select rule, claim_domain, severity, safe_alternative, required_disclaimer from compliance_rules where brand_snapshot_id=$1 order by severity nulls last', [snap.id]) : [];
-
-  /* The client's own plan, when the Senior Agent has written one. Brand-level
-     first (the onboarding case); a batch-level plan wins when one exists,
-     because it is the more specific instruction. */
-  const [plan] = await one(
-    `select * from marketing_plans
-      where (brand_id = $1 or batch_id in (select id from batches where brand_id = $1))
-        and is_current
-      order by (batch_id is not null) desc, version desc
-      limit 1`,
-    [brand.id]
-  );
-
-  const personas = plan
-    ? await one('select name, profile, priority from personas where marketing_plan_id=$1 order by priority', [plan.id])
-    : [];
-  const findings = plan
-    ? await one('select source, finding_type, content from research_findings where marketing_plan_id=$1', [plan.id])
-    : [];
-
-  /* The strategy snapshot and the Brand Brain row. Fetched here so every
-     caller of resolve() gets them without knowing where they live. In
-     parallel: they come from the same project and neither depends on the
-     other. */
-  const [report, brain] = await Promise.all([
-    fetchMarketingReport(brand.brand_name, brand.client_name),
-    fetchBrandBrain(brand.brand_name, brand.client_name),
+  const brain = await fetchBrandBrain(hit.id);
+  const [report, meeting] = await Promise.all([
+    fetchMarketingReport(hit.brand_name, hit.client_name),
+    fetchMeetingSummary(hit.brand_name, hit.client_name),
   ]);
-
-  return { brand, snap: snap || null, colors, fonts, voice, rules, products,
-    plan: plan || null, personas, findings, report, brain };
+  const logos = Array.isArray(brain && brain.logo_urls) ? brain.logo_urls
+    : (typeof (brain && brain.logo_urls) === 'string' ? String(brain.logo_urls).split(/[\s,]+/).filter(Boolean) : []);
+  const brand = {
+    id: hit.id,
+    brand_name: hit.brand_name,
+    client_name: hit.client_name || hit.brand_name,
+    website: (brain && brain.website) || hit.website || null,
+    logo_url: logos[0] || null,
+  };
+  /* colours and fonts come from the brain row now; the shape the frame and the
+     mockup expect is kept */
+  const colors = brain ? [
+    brain.primary_color_hex ? { token_name: 'primary', role: 'primary', hex: brain.primary_color_hex } : null,
+    brain.secondary_color_hex ? { token_name: 'secondary', role: 'secondary', hex: brain.secondary_color_hex } : null,
+    brain.accent_color_hex ? { token_name: 'accent', role: 'accent', hex: brain.accent_color_hex } : null,
+  ].filter(Boolean) : [];
+  const fonts = brain && brain.brand_fonts
+    ? (Array.isArray(brain.brand_fonts) ? brain.brand_fonts : [brain.brand_fonts]).map((f) => (typeof f === 'string' ? { role: 'brand', family: f } : f))
+    : [];
+  const products = brain && brain.products
+    ? (Array.isArray(brain.products) ? brain.products : String(brain.products).split(/\n|;/)).map((p) => (typeof p === 'string' ? { name: p.trim() } : p)).filter((p) => p && p.name)
+    : [];
+  const record = {
+    brand, brain, report, meeting,
+    /* the relational fields the record used to carry; empty by design now */
+    snap: null, voice: [], rules: [], plan: null, personas: [], findings: [],
+    colors, fonts, products,
+  };
+  return { record, matched };
 }
+
+/* The Knowledge Layer rules table is no longer read, so there is nothing to
+   dedupe. Kept so callers need not change; returns 0. */
+async function dedupeRules() { return 0; }
 
 /* ---- rendering ----------------------------------------------------------- */
 
@@ -303,30 +233,20 @@ const has = (v) => {
   if (Array.isArray(v)) return v.length > 0;
   return String(v).trim().length > 0;
 };
-const list = (a) => (a || []).map((x) => `- ${x}`).join('\n');
-/* jsonb columns hold whatever shape the report gave them, so render generically
-   rather than assuming keys that may not be there. */
-const kv = (o) => Object.entries(o || {})
-  .filter(([, v]) => has(v))
-  .map(([k, v]) => `- **${k.replace(/_/g, ' ')}:** ${typeof v === 'object' ? JSON.stringify(v) : v}`)
-  .join('\n');
 
 function toMarkdown(rec) {
-  const { brand, snap, colors, fonts, voice, rules, products, plan, personas, findings, report, brain } = rec;
+  const { brand, report, brain, meeting } = rec;
   const out = [];
   const missing = [];
-  const S = (title, body) => { if (has(body)) out.push(`### ${title}\n${body}\n`); else missing.push(title.toLowerCase()); };
 
   out.push(`# Brand snapshot: ${brand.brand_name}`);
   if (brand.client_name && brand.client_name !== brand.brand_name) out.push(`_Client: ${brand.client_name}_`);
+  if (has(brand.website)) out.push(`_Website: ${brand.website}_`);
   out.push('');
 
-  S('WEBSITE', brand.website);
-
-  /* THE STRATEGY SNAPSHOT COMES FIRST. It is the most considered thing on file
+  /* THE MARKETING REPORT COMES FIRST. It is the most considered thing on file
      about this brand, written per brand rather than assembled from fragments,
-     so the model reads it before anything else. Everything below it is
-     supporting detail. */
+     so the model reads it before anything else. */
   if (report) {
     out.push(`## THE MARKETING REPORT, this brand's own`);
     for (const key of reportKeys(report)) {
@@ -341,40 +261,38 @@ function toMarkdown(rec) {
     missing.push("the brand's marketing report");
   }
 
-  /* The account record, as the strategists keep it. This is the half of what
-     Carl pastes into a working session that the relational tables never
-     carried: the do-not list, the hooks that already converted, the brief. */
+  /* THE MEETING SUMMARY. The client's own words, latest first: what they said
+     they want, what changed since last time, what is working for them. This is
+     the "critical info" the 9/9 review said the writer was not reading. */
+  if (meeting && (has(meeting.meeting_summary) || has(meeting.meeting_notes))) {
+    const when = meeting.last_meeting_date ? String(meeting.last_meeting_date).slice(0, 10) : null;
+    out.push(`## MEETING SUMMARY, the client's own meetings${meeting.meetings_count ? ` (${meeting.meetings_count} on file` : ''}${when ? `${meeting.meetings_count ? ', ' : ' ('}last ${when}` : ''}${meeting.meetings_count || when ? ')' : ''}`);
+    out.push('_What the client said, summarised from the latest meeting notes. Where the client said something here that the brand brain below contradicts, the client\'s later word wins; where it contradicts a compliance guardrail in the report above, the guardrail wins._\n');
+    if (has(meeting.meeting_summary)) out.push(`### WHERE THINGS STAND\n${String(meeting.meeting_summary).slice(0, 9000)}\n`);
+    if (has(meeting.what_changed)) out.push(`### WHAT CHANGED SINCE THE LAST MEETING\n${String(meeting.what_changed).slice(0, 4000)}\n`);
+    if (has(meeting.meeting_notes)) out.push(`### MEETINGS ON FILE\n${String(meeting.meeting_notes).slice(0, 1500)}\n`);
+  } else {
+    missing.push('meeting notes (no meeting_summary row for this client)');
+  }
+
+  /* The account record, as the strategists keep it. */
   if (brain) {
     /* Source priority. The marketing report's guardrails outrank the brand
        brain: the brain is onboarding knowledge, the report is the strategy.
-       PackDraw's "provably fair verification" line lived only in the brain and
-       became a concept the guardrails forbid. So brain sentences that use a
-       word the client's brief bans for paid creative are dropped before the
-       model ever sees them, and the section says what it is. */
+       Brain sentences that use a word the client's brief bans for paid
+       creative are dropped before the model ever sees them. */
     const brief = store.getBrief(brand.brand_name) || store.getBrief(brand.client_name) || {};
     const banned = (Array.isArray(brief.banned) ? brief.banned : [])
       .map((w) => new RegExp('\\b' + String(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+') + '\\b', 'i'));
     const scrub = (text) => !banned.length ? text
       : text.split(/(?<=[.!?])\s+/).filter((s) => !banned.some((re) => re.test(s))).join(' ');
-    /* Which fields the brain may contribute. PackDraw's row says in its own
-       notes "created by AI web research", and its product_benefits carried
-       an EOS server-seed line and a Trustpilot score, its compliance_notes a
-       category disclaimer, its personas the Battles feature: every recurring
-       defect in five batches traced back to this one row being obeyed. When a
-       marketing report exists it owns audience, claims and guardrails, and
-       the brain contributes tone and appetite only. */
-    /* Ricardo's gold run reads the brain in full: his North Star's selling
-       arguments (provably-fair trust, crypto cash-out, "$500M+ paid, 7K+
-       shipped, 71M+ opens") come straight from product_benefits. So the brain
-       stays a full source. The two fields that are disclaimer COPY are left
-       out when the report is on file, because the skill's own slide rule is
-       that disclaimer wording never appears in a concept, and those two
-       fields were exactly where the strips came from. */
+    /* The two fields that are disclaimer COPY are left out when the report is
+       on file: the skill's own slide rule is that disclaimer wording never
+       appears in a concept, and those two fields were exactly where the
+       strips came from. */
     const webOnly = /AI web research/i.test(String(brain.notes || ''));
     const DISCLAIMER_COPY = new Set(['compliance_notes', 'disclaimer_text']);
-    const fields = report
-      ? BRAIN_FIELDS.filter(([key]) => !DISCLAIMER_COPY.has(key))
-      : BRAIN_FIELDS;
+    const fields = report ? BRAIN_FIELDS.filter(([key]) => !DISCLAIMER_COPY.has(key)) : BRAIN_FIELDS;
     out.push('## BRAND BRAIN, the account record');
     out.push((report
       ? '_The account record. Where it and the marketing report above disagree, the report and its compliance guardrails win._'
@@ -388,100 +306,19 @@ function toMarkdown(rec) {
       if (!text.trim()) continue;
       out.push(`### ${title}\n${text.length > BRAIN_FIELD_CAP ? text.slice(0, BRAIN_FIELD_CAP) + ' ...' : text}\n`);
     }
+    const visuals = [
+      brain.primary_color_hex ? `- primary: ${brain.primary_color_hex}` : null,
+      brain.secondary_color_hex ? `- secondary: ${brain.secondary_color_hex}` : null,
+      brain.accent_color_hex ? `- accent: ${brain.accent_color_hex}` : null,
+      has(brain.brand_fonts) ? `- fonts: ${Array.isArray(brain.brand_fonts) ? brain.brand_fonts.join(', ') : brain.brand_fonts}` : null,
+    ].filter(Boolean);
+    if (visuals.length) out.push(`### BRAND VISUALS\n${visuals.join('\n')}\n`);
   } else {
     missing.push('the brand brain record');
   }
 
-  S('CATEGORY', snap && snap.category);
-  S('POSITIONING', snap && snap.positioning);
-  S('KEY OFFER', snap && snap.value_prop);
-  S('PRODUCTS', products.length
-    ? products.map((p) => `- **${p.name}**${p.description ? ` — ${p.description}` : ''}`).join('\n')
-    : null);
-  S('PROOF POINTS', snap && has(snap.proof_points) ? list(snap.proof_points) : null);
-  S('TARGET PERSONAS', snap && snap.target_audience);
-  S('CORE PAIN POINTS', snap && snap.pain_points);
-  S('COMPETITORS', snap && snap.competitive_frame);
-  S('MESSAGING PILLARS', snap && has(snap.messaging_pillars) ? list(snap.messaging_pillars) : null);
-  S('HOOK TERRITORY', snap && has(snap.creative_hook_territory) ? list(snap.creative_hook_territory) : null);
-
-  S('BRAND TONE', snap && snap.voice_summary);
-  S('VOICE TRAITS', voice.length
-    ? voice.map((v) => `- **${v.trait}**${v.definition ? ` — ${v.definition}` : ''}` +
-        `${v.do_text ? `\n  - do: ${v.do_text}` : ''}${v.dont_text ? `\n  - don't: ${v.dont_text}` : ''}`).join('\n')
-    : null);
-  S('BRAND GUIDELINES', snap && snap.guidelines);
-
-  S('COLOURS', colors.length
-    ? colors.map((c) => `- ${c.role || c.token_name}: ${c.hex || '(no hex on file)'}${c.usage ? ` — ${c.usage}` : ''}`).join('\n')
-    : null);
-  S('FONTS', fonts.length
-    ? fonts.map((f) => `- ${f.role || 'font'}: ${f.family}${f.weights ? ` (${f.weights})` : ''}`).join('\n')
-    : null);
-
-  /* Compliance is the one section where being wrong is expensive, so it is
-     rendered rule by rule with its severity rather than summarised. */
-  /* The rules table is an extraction of the report's own guardrails, and the
-     extraction APPENDS on every run: PackDraw went from 15 rows to 98 in three
-     days, with "include responsible-play framing" eleven times over, which is
-     how responsible-play strips ended up written into design components. So
-     the rows are made distinct here, and when the report is on file (its
-     guardrails already render verbatim above) they are kept short and capped,
-     hard severities first. Without a report they are the only compliance
-     source and render in full. */
-  const seenRule = new Set();
-  const distinctRules = rules.filter((r) => {
-    const k = String(r.rule || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
-    if (!k || seenRule.has(k)) return false;
-    seenRule.add(k); return true;
-  });
-  const hardFirst = distinctRules.slice().sort((a, b) =>
-    (/hard|block|must/i.test(b.severity || '') ? 1 : 0) - (/hard|block|must/i.test(a.severity || '') ? 1 : 0));
-  const shown = report ? hardFirst.slice(0, 25) : hardFirst;
-  S('COMPLIANCE RULES' + (report ? ` (${shown.length} distinct of ${rules.length} on file; the report's guardrails above are the authority)` : ''), shown.length
-    ? shown.map((r) => report
-        ? `- ${String(r.rule).slice(0, 160)}${r.severity ? ` _[${r.severity}]_` : ''}`
-        : `- ${r.rule}` +
-          `${r.severity ? ` _[${r.severity}]_` : ''}` +
-          `${r.safe_alternative ? `\n  - say instead: ${r.safe_alternative}` : ''}` +
-          `${r.required_disclaimer ? `\n  - disclaimer required: ${r.required_disclaimer}` : ''}`).join('\n')
-    : null);
-  S('CREATIVE BOUNDARIES', snap && has(snap.watch_outs) ? list(snap.watch_outs) : null);
-
-  S('WHAT HAS WORKED', snap && snap.winning_concepts);
-  S('WHAT HAS NOT', snap && snap.losing_patterns);
-  S('NOTES', snap && snap.notes);
-
-  /* The marketing plan goes last and loudest: it is the most recent, most
-     client-specific instruction in the whole snapshot, and it is the piece
-     that was missing entirely until now. */
-  /* The Knowledge Layer plan is extracted FROM the marketing report, so with
-     the report on file it is the same strategy a second time (CONTENT STRATEGY
-     and the competitive section each rendered twice). Ricardo's Web session
-     reads the report alone; so does this, when there is one. */
-  if (plan && !report) {
-    out.push('## THE CLIENT\'S CURRENT MARKETING PLAN\n');
-    const P = (t, b) => { if (has(b)) out.push(`### ${t}\n${b}\n`); };
-    P('AUDIENCE', kv(plan.audience_summary));
-    P('GOALS AND OBJECTIVES', kv(plan.goals));
-    P('PLATFORM STRATEGY', kv(plan.platform_strategy));
-    P('CONTENT STRATEGY', kv(plan.content_strategy));
-    P('COMPETITIVE ANALYSIS', kv(plan.competitive_analysis));
-    if (personas.length) {
-      out.push('### NAMED PERSONAS\n' + personas.map((p) =>
-        `- **${p.name}**${p.profile && Object.keys(p.profile).length ? ` — ${JSON.stringify(p.profile)}` : ''}`).join('\n') + '\n');
-    }
-    if (findings.length) {
-      out.push('### RESEARCH FINDINGS\n' + findings.map((f) =>
-        `- [${f.finding_type}] ${typeof f.content === 'object' ? JSON.stringify(f.content) : f.content}` +
-        `${f.source ? ` _(${f.source})_` : ''}`).join('\n') + '\n');
-    }
-  } else {
-    missing.push('the marketing plan');
-  }
-
   if (missing.length) {
-    out.push(`_Nothing on file for: ${missing.join(', ')}. Do not invent these — ask the client._`);
+    out.push(`_Nothing on file for: ${missing.join(', ')}. Do not invent these; ask the client._`);
   }
   return out.join('\n');
 }
