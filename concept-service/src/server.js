@@ -21,6 +21,8 @@ const research = require('./research');
 const onboarding = require('./onboarding');
 const auth = require('./auth');
 const flow = require('./pipelineFlow');
+const filetext = require('./filetext');
+const knowledge = require('./knowledge');
 const fs = require('fs');
 const path = require('path');
 
@@ -242,7 +244,7 @@ function body(req) {
   });
 }
 
-async function startRun({ client, count, requestedBy, mode }) {
+async function startRun({ client, count, requestedBy, mode, batch, number }) {
   const id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   /* Direct is how every run happens (Carl and Ricardo, 2026-09-09, on Batches
      32 and 33): one call to Opus with the whole skill and snapshot. The staged
@@ -306,6 +308,9 @@ async function startRun({ client, count, requestedBy, mode }) {
          rewritten afterwards. pipeline: the staged run. Carl's call per batch. */
       const runner = how === 'pipeline' ? pipeline.run : pipeline.runDirect;
       const result = await runner({ client, count, prior: priorCtx.text, priorMeta: priorCtx, log });
+      /* the account team's own numbering, when they gave one */
+      if (batch) result.batch = String(batch).slice(0, 120);
+      if (Number(number) > 0) result.n = Math.floor(Number(number));
       const batch = store.saveBatch(result);
       store.finishRun(id, { status: 'done', batchId: batch.id, cost_usd: result.cost_usd, used_research: result.used_research });
     } catch (err) {
@@ -325,7 +330,7 @@ async function startRun({ client, count, requestedBy, mode }) {
  * concurrency counter as concepts, so the page follows all three with one poll
  * and three simultaneous generators cannot quietly exhaust the box.
  */
-async function startScriptRun({ client, batchId, nums, requestedBy }) {
+async function startScriptRun({ client, batchId, nums, requestedBy, batch }) {
   const src = store.getBatch(batchId);
   if (!src) { const e = new Error('that concept batch is not on file'); e.status = 404; throw e; }
 
@@ -361,7 +366,7 @@ async function startScriptRun({ client, batchId, nums, requestedBy }) {
   const id = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   store.newRun({ id, client, count: concepts.length, requestedBy, kind: 'scripts', from: batchId });
   const log = (name, state, detail) => store.step(id, name, state, detail);
-  const batchLabel = src.batch || batchNameOf(src);
+  const batchLabel = batch ? String(batch).slice(0, 120) : (src.batch || batchNameOf(src));
 
   (async () => {
     active++;
@@ -391,7 +396,7 @@ async function startScriptRun({ client, batchId, nums, requestedBy }) {
   return id;
 }
 
-async function startStoryRun({ client, scriptsId, nums, requestedBy, savedBy }) {
+async function startStoryRun({ client, scriptsId, nums, requestedBy, savedBy, batch }) {
   const src = store.getScripts(scriptsId);
   if (!src) { const e = new Error('that scripts batch is not on file'); e.status = 404; throw e; }
   const all = src.docs || [];
@@ -423,7 +428,7 @@ async function startStoryRun({ client, scriptsId, nums, requestedBy, savedBy }) 
     active++;
     try {
       const result = await storyboardPipeline.run({
-        client, scripts, batchLabel: src.batch || 'this batch', savedBy, log,
+        client, scripts, batchLabel: batch ? String(batch).slice(0, 120) : (src.batch || 'this batch'), savedBy, log,
       });
       const rec = store.saveStory(result);
       store.finishRun(id, { status: 'done', storyId: rec.id, cost_usd: result.cost_usd });
@@ -548,10 +553,44 @@ async function startMockupRun({ client, batchId, nums, requestedBy }) {
 
 /* A batch's own label if it recorded one, else an ordinal from its position in
    the client's history, which is how the OS names batches. */
+/* The batch's name. A label the account team typed wins, then the number
+   stamped at save, and only then a count of what is on the board, which is
+   what the whole ecosystem used to do and is wrong for a client whose real
+   history is in Drive (ThreadBeast is on Batch 52 there and had four here). */
 function batchNameOf(rec) {
+  if (rec && rec.batch) return rec.batch;
+  if (rec && rec.n) return 'Batch ' + rec.n;
   const all = store.listBatches(rec.client);
   const ix = all.findIndex((b) => b.id === rec.id);
   return 'Batch ' + (ix >= 0 ? all.length - ix : all.length || 1);
+}
+
+/* What to put in the "which batch is this" field. Three numbers, each named,
+   because the honest answer for a client with Drive history is not the same
+   as the honest answer for a brand new one. */
+async function batchSuggestion(client) {
+  let record = null;
+  try { ({ record } = await brand.resolve(client)); } catch { /* the caller reports it */ }
+  const brandName = record ? record.brand.brand_name : client;
+  const names = [brandName, record && record.brand.client_name, client].filter(Boolean);
+  const mine = store.listBatches(brandName)
+    .map((b) => Number(b.n) || 0)
+    .reduce((a, n) => (n > a ? n : a), 0);
+  let approved = null;
+  try { approved = await knowledge.latestBatchNumber([...new Set(names)]); } catch { approved = null; }
+  const latest = Math.max(mine, approved ? approved.latest : 0);
+  return {
+    client: brandName,
+    generated_here: mine || null,
+    approved_library: approved ? { latest: approved.latest, label: approved.label } : null,
+    suggested: latest ? latest + 1 : 1,
+    suggested_label: 'Batch ' + (latest ? latest + 1 : 1),
+    why: approved && approved.latest >= mine
+      ? `their approved decks run to ${approved.label || 'Batch ' + approved.latest}`
+      : mine
+        ? `${mine} batch${mine === 1 ? '' : 'es'} generated here`
+        : 'nothing on file for this client yet',
+  };
 }
 
 const server = http.createServer(async (req, res) => {
@@ -1318,7 +1357,7 @@ const server = http.createServer(async (req, res) => {
       try { await brand.resolve(b.client); }
       catch (e) { return json(res, 400, { error: e.message }); }
       const id = await startScriptRun({
-        client: b.client, batchId: b.batchId, nums: b.nums, requestedBy: b.requestedBy,
+        client: b.client, batchId: b.batchId, nums: b.nums, requestedBy: b.requestedBy, batch: b.batch,
       });
       return json(res, 202, { runId: id });
     }
@@ -1346,7 +1385,7 @@ const server = http.createServer(async (req, res) => {
       catch (e) { return json(res, 400, { error: e.message }); }
       const id = await startStoryRun({
         client: b.client, scriptsId: b.scriptsId, nums: b.nums,
-        requestedBy: b.requestedBy, savedBy: b.savedBy,
+        requestedBy: b.requestedBy, savedBy: b.savedBy, batch: b.batch,
       });
       return json(res, 202, { runId: id });
     }
@@ -1419,6 +1458,64 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, store.saveStory(patch));
     }
 
+    /* Read an uploaded document and hand back its text. Nothing is stored and
+       nothing is generated: the page shows the text back so a person can see
+       what the server actually read before they import it. A format that
+       cannot be read says so, and says what to do instead. */
+    if (p === '/upload' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const name = req.headers['x-file-name'] ? decodeURIComponent(String(req.headers['x-file-name'])) : '';
+      let bytes;
+      try { bytes = await rawBody(req, filetext.MAX_BYTES + 4096); }
+      catch (e) { return json(res, e.status || 400, { error: e.message }); }
+      try {
+        const out = filetext.extractOrThrow({ bytes, filename: name, contentType: req.headers['content-type'] });
+        return json(res, 200, { filename: name, format: out.format, chars: out.chars, text: out.text });
+      } catch (e) {
+        return json(res, e.userFacing ? 422 : 500, { error: e.message, filename: name });
+      }
+    }
+
+    /* Which batch number to offer, from the client's own history. */
+    if (p === '/next-batch' && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const cli = url.searchParams.get('client');
+      if (!cli) return json(res, 400, { error: 'client is required' });
+      try { return json(res, 200, await batchSuggestion(cli)); }
+      catch (e) { return json(res, e.status || 500, { error: e.message }); }
+    }
+
+    /* Scripts written outside the ecosystem, brought in so a storyboard can be
+       built from them. The concept text rides along because the storyboard
+       needs the format and the beats, not just the spoken lines. */
+    if (p === '/import/scripts' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      if (!b.client) return json(res, 400, { error: 'client is required' });
+      const text = String(b.text || '');
+      if (text.trim().length < 80) {
+        return json(res, 400, { error: 'paste or upload the scripts: hooks and the spoken lines, one section per concept' });
+      }
+      try { await brand.resolve(b.client); }
+      catch (e) { return json(res, 400, { error: e.message }); }
+      const steps = [];
+      try {
+        const result = await pipeline.importScripts({
+          client: b.client, text, conceptText: String(b.conceptText || ''),
+          batch: b.batch, number: b.number, requestedBy: b.requestedBy,
+          log: (stage, status, detail) => steps.push({ stage, status, detail }),
+        });
+        if (!result.docs.length) return json(res, 422, { error: 'no scripts could be read from that text', steps });
+        const rec = store.saveScripts(result);
+        return json(res, 201, {
+          scriptsId: rec.id, batch: rec.batch, count: result.docs.length,
+          titles: result.docs.map((d) => `${d.num} ${d.title}`), steps,
+        });
+      } catch (e) {
+        return json(res, e.status || 500, { error: e.message, steps });
+      }
+    }
+
     /* Paste a batch written elsewhere (Claude web) as text and it becomes a
        batch here: same record, same OS page, same mockup path. Nothing is
        generated; the text is lifted verbatim. */
@@ -1431,10 +1528,14 @@ const server = http.createServer(async (req, res) => {
       try { await brand.resolve(b.client); }
       catch (e) { return json(res, 400, { error: e.message }); }
       const steps = [];
-      const result = await pipeline.importBatch({ client: b.client, text, requestedBy: b.requestedBy, log: (stage, status, detail) => steps.push({ stage, status, detail }) });
+      const result = await pipeline.importBatch({
+        client: b.client, text, requestedBy: b.requestedBy,
+        batch: b.batch, number: b.number,
+        log: (stage, status, detail) => steps.push({ stage, status, detail }),
+      });
       if (!result.concepts.length) return json(res, 422, { error: 'no concepts could be read from that text', steps });
       const batch = store.saveBatch(result);
-      return json(res, 201, { batchId: batch.id, number: batch.n || batch.number || null, count: result.concepts.length, titles: result.concepts.map((c) => `${c.num} ${c.title}`), steps });
+      return json(res, 201, { batchId: batch.id, number: batch.n || null, batch: batch.batch || batchNameOf(batch), count: result.concepts.length, titles: result.concepts.map((c) => `${c.num} ${c.title}`), steps });
     }
 
     if (p === '/run' && req.method === 'POST') {
@@ -1451,7 +1552,7 @@ const server = http.createServer(async (req, res) => {
       // Fail fast on a bad name rather than after a minute of work.
       try { await brand.resolve(b.client); }
       catch (e) { return json(res, 400, { error: e.message }); }
-      const id = await startRun({ client: b.client, count, requestedBy: b.requestedBy, mode: b.mode });
+      const id = await startRun({ client: b.client, count, requestedBy: b.requestedBy, mode: b.mode, batch: b.batch, number: b.number });
       return json(res, 202, { runId: id });
     }
 

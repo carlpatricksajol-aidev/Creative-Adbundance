@@ -63,6 +63,41 @@ ${lines.join('\n')}`,
   };
 }
 
+/* THE CLIENT'S REAL BATCH NUMBERING.
+ *
+ * Carl, 2026-09-14: "some clients here are not new. The batches of the
+ * concepts, scripts, storyboards or even shoot guides already has the
+ * numbers." The service's own count is not that number: it only counts what
+ * was generated here. Measured on 2026-09-14, the service thought ThreadBeast
+ * was on batch 4 while their approved decks run to Batch 52, and Path Social
+ * on 5 against a real Batch 15.
+ *
+ * The approved-concept view carries the true count, because a concept lands
+ * there once its batch has been scripted in Drive. So the number a person is
+ * offered comes from their own history, and they can still type over it.
+ * Returns null when the client has no approved concepts on file, which is the
+ * honest answer for a genuinely new client.
+ */
+async function latestBatchNumber(names) {
+  const list = (names || []).filter(Boolean);
+  if (!list.length) return null;
+  let rows;
+  try {
+    rows = await rest(`knowledge_v_concept_approved?select=batch,batch_seq&${orIlike('client', list)}&order=batch_seq.desc.nullslast&limit=200`);
+  } catch { return null; }
+  if (!Array.isArray(rows) || !rows.length) return null;
+  let best = 0, label = null;
+  for (const r of rows) {
+    /* batch_seq is the number when it is set; otherwise read it off the label,
+       because "Batch 52" is the form every deck uses */
+    const seq = Number(r.batch_seq);
+    const fromLabel = Number(String(r.batch || '').match(/(\d+)/) ? String(r.batch).match(/(\d+)/)[1] : NaN);
+    const n = Number.isFinite(seq) && seq > 0 ? seq : (Number.isFinite(fromLabel) ? fromLabel : 0);
+    if (n > best) { best = n; label = r.batch || null; }
+  }
+  return best > 0 ? { latest: best, next: best + 1, label, source: 'knowledge_v_concept_approved' } : null;
+}
+
 /* Ads from the adjacent category, Foreplay-sourced. Not the brand's own work,
    not dedup, not performance: what real ads in the neighbourhood are saying,
    with run_days as a weak longevity signal. Bucket: the brand by name first,
@@ -123,4 +158,4 @@ ${lines.join('\n')}`,
   };
 }
 
-module.exports = { fetchApproved, fetchCategoryAds, approvedFromBrief };
+module.exports = { fetchApproved, fetchCategoryAds, approvedFromBrief, latestBatchNumber };

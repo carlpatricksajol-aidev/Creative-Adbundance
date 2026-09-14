@@ -3081,7 +3081,7 @@ ${items}`,
    in the slide format, becomes the same record a pipeline run produces, so it
    shows in the OS, gets mockups and counts as a batch. Copied verbatim; the
    strategy tags are not in the text, so they are inferred and say so. */
-async function importBatch({ client, text, requestedBy, log }) {
+async function importBatch({ client, text, requestedBy, batch, number, log }) {
   const { record } = await brand.resolve(client);
   const brandName = record.brand.brand_name;
   log('Import', 'running', `${text.length} characters pasted`);
@@ -3094,8 +3094,12 @@ async function importBatch({ client, text, requestedBy, log }) {
   });
   const concepts = (out.concepts || []).map((c, i) => ({ ...c, num: String(String(c.num || '').replace(/\D/g, '') || (i + 1)).padStart(3, '0') }));
   log('Import', 'done', `${concepts.length} concept${concepts.length === 1 ? '' : 's'} lifted verbatim`);
+  const label = batch ? String(batch).slice(0, 120) : (Number(number) > 0 ? 'Batch ' + Math.floor(Number(number)) : null);
+  if (label) log('Import', 'done', `${concepts.length} concept${concepts.length === 1 ? '' : 's'} lifted verbatim into ${label}`);
   return {
     client: brandName, concepts, pipeline_version: 'import-claude-web', imported: true, imported_by: requestedBy || null,
+    ...(label ? { batch: label } : {}),
+    ...(Number(number) > 0 ? { n: Math.floor(Number(number)) } : {}),
     observations: [], harvest_notes: null, composition_note: 'imported', change_log: [], composition: null, strategy: null,
     packages: [], visualizations: [],
     pool: concepts.map((c) => ({ num: c.num, title: c.title, outcome: 'shipped', imported: true })),
@@ -3108,4 +3112,79 @@ async function importBatch({ client, text, requestedBy, log }) {
   };
 }
 
-module.exports = { run, runDirect, importBatch, stageProductionBrief, productionBriefMd, castLint, vaultContext, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote, standardNote, humanSituation, premiseLint, stagePremiseGate, premiseTotal, premiseFails };
+/* Scripts written outside the ecosystem, brought in so the rest of the chain
+   can run on them (Carl, 2026-09-14: "a manual process of inputting concept
+   and script and after that it will have the storyboard").
+
+   The same contract as every other import here: the spoken lines are COPIED,
+   never rewritten. What a storyboard needs and a script document does not
+   always carry, the format line and the concept number, is inferred from the
+   concept text when it was supplied, and said to be inferred. */
+const IMPORT_SCRIPTS_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    docs: {
+      type: 'array', minItems: 1, maxItems: 30,
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          num: { type: 'string', description: 'the concept number as written, NNN' },
+          title: { type: 'string' },
+          format: { type: 'string', description: 'production type, camera style, pacing and duration, from the concept if it is there' },
+          hooks: { type: 'array', minItems: 1, maxItems: 6, items: { type: 'string' }, description: 'the hook variants, verbatim' },
+          script: { type: 'string', description: 'the body of the script, verbatim, beat by beat, with line breaks kept' },
+          offer_placement: { type: 'string' },
+          cta_type: { type: 'string' },
+        },
+        required: ['num', 'title', 'format', 'hooks', 'script', 'offer_placement', 'cta_type'],
+      },
+    },
+    read_note: { type: 'string', description: 'one plain sentence on what was in the document and what had to be inferred' },
+  },
+  required: ['docs', 'read_note'],
+};
+
+async function importScripts({ client, text, conceptText, batch, number, requestedBy, log }) {
+  const { record } = await brand.resolve(client);
+  const brandName = record.brand.brand_name;
+  log('Import', 'running', `${text.length} characters of script${conceptText ? ` and ${conceptText.length} of concept` : ''}`);
+  const out = await ask({
+    system: `You convert an ad script document into JSON so a storyboard can be built from it. You COPY; you never rewrite. Every hook line and every spoken line is reproduced VERBATIM, character for character, including its line breaks. You never invent a beat, a line, or a concept that is not in the document.
+
+What you may infer, and only when the document does not say it: the format line (production type, camera style, pacing, duration) from the concept text where one was given, and the concept number from the order the scripts appear in. Where a script has no hooks written out, hooks is the first spoken line only, and you say so in read_note. Where you inferred anything, say exactly what in read_note.`,
+    prompt: `${conceptText ? `THE CONCEPTS these scripts were written from:\n${conceptText}\n\n` : ''}THE SCRIPTS:\n${text}`,
+    schema: IMPORT_SCRIPTS_SCHEMA,
+    maxTokens: 48000,
+    model: REVIEW_MODEL,
+  });
+  const docs = (out.docs || []).map((d, i) => ({
+    ...d,
+    num: canonNum(String(d.num || '').replace(/\D/g, '') || String(i + 1)),
+    no: i + 1,
+    id: `${canonNum(String(d.num || '').replace(/\D/g, '') || String(i + 1))}_${String(d.title || 'untitled').replace(/[^A-Za-z0-9]+/g, '_').slice(0, 60)}`,
+    filename: `${canonNum(String(d.num || '').replace(/\D/g, '') || String(i + 1))}_${String(d.title || 'untitled').replace(/[^A-Za-z0-9]+/g, '_').slice(0, 60)}`,
+    imported: true,
+  }));
+  const label = batch ? String(batch).slice(0, 120)
+    : (Number(number) > 0 ? 'Batch ' + Math.floor(Number(number)) : 'Imported scripts');
+  log('Import', 'done', `${docs.length} script${docs.length === 1 ? '' : 's'} lifted verbatim into ${label}. ${out.read_note || ''}`.trim());
+  return {
+    client: brandName,
+    batch: label,
+    fromBatch: null,
+    by: requestedBy || 'Imported',
+    date: new Date().toISOString().slice(0, 10),
+    docs,
+    imported: true,
+    imported_by: requestedBy || null,
+    read_note: out.read_note || null,
+    contracts: [], offer: null, proof_points: [],
+    revision_cycles: 0, below_threshold: 0, swap_test: null,
+    cost_usd: Math.round(((out.__usage && out.__usage.cost) || 0) * 100) / 100,
+    source_text: String(text).slice(0, 120000),
+  };
+}
+
+module.exports = { run, runDirect, importBatch, importScripts, stageProductionBrief, productionBriefMd, castLint, vaultContext, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote, standardNote, humanSituation, premiseLint, stagePremiseGate, premiseTotal, premiseFails };

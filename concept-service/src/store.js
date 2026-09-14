@@ -131,7 +131,11 @@ function saveBatch(result) {
      the audit trail (the pool and every verdict are on it) but never reaches
      the board, and it takes no number. */
   const empty = !(result.concepts || []).length;
-  const rec = { id, savedAt: new Date().toISOString(), n: empty ? null : maxN + 1, ...(empty ? { archived: true, archived_reason: 'empty: no concept survived the pool' } : {}), ...result };
+  /* Carl, 2026-09-14: most clients are not new, and their real batch numbers
+     live in Drive. A number the account team typed is the truth and wins over
+     the count; the count is only the fallback for a client with no history. */
+  const given = Number(result.n) > 0 ? Math.floor(Number(result.n)) : null;
+  const rec = { id, savedAt: new Date().toISOString(), n: empty ? null : (given || maxN + 1), ...(empty ? { archived: true, archived_reason: 'empty: no concept survived the pool' } : {}), ...result, ...(given && !empty ? { n: given } : {}) };
   writeJSON(path.join(BATCHES, `${id}.json`), rec);
   return rec;
 }
