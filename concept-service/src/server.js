@@ -573,7 +573,10 @@ async function batchSuggestion(client) {
   try { ({ record } = await brand.resolve(client)); } catch { /* the caller reports it */ }
   const brandName = record ? record.brand.brand_name : client;
   const names = [brandName, record && record.brand.client_name, client].filter(Boolean);
+  /* archived batches still count, because a number is never reused, but a
+     seeded one is dedup memory and was never a batch */
   const mine = store.listBatches(brandName)
+    .filter((b) => !b.seeded)
     .map((b) => Number(b.n) || 0)
     .reduce((a, n) => (n > a ? n : a), 0);
   let approved = null;
@@ -664,7 +667,11 @@ const server = http.createServer(async (req, res) => {
       /* Archived batches leave the board but keep existing on disk: their
          numbers stay taken, their concepts stay in the dedup memory, and their
          scripts and mockups stay readable by id. */
-      return json(res, 200, { batches: store.listBatches(url.searchParams.get('client')).filter((b) => !b.archived) });
+      /* seeded batches are dedup memory, never work: Carl's ruling of
+         2026-08-22. listBatches carries them because the numbering has to
+         count them; the board must not show them, and one was appearing on
+         ThreadBeast as "Batch undefined". */
+      return json(res, 200, { batches: store.listBatches(url.searchParams.get('client')).filter((b) => !b.archived && !b.seeded) });
     }
 
     /* The client brief: per-client production constraints the harness

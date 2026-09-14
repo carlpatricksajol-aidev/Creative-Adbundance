@@ -410,7 +410,9 @@ function listBatches(client) {
     .map((f) => {
       try {
         const b = JSON.parse(fs.readFileSync(path.join(BATCHES, f), 'utf8'));
-        return { id: b.id, client: b.client, savedAt: b.savedAt, n: b.n, archived: Boolean(b.archived),
+        return { id: b.id, client: b.client, savedAt: b.savedAt, n: b.n,
+                 batch: b.batch || null,
+                 archived: Boolean(b.archived), seeded: Boolean(b.seeded),
                  count: (b.concepts || []).length,
                  titles: (b.concepts || []).map((c) => c.title) };
       } catch { return null; }
