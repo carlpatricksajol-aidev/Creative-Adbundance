@@ -1175,6 +1175,10 @@ const server = http.createServer(async (req, res) => {
         batch: batch.batch || null,
         pushedAt: rec.pushedAt,
         note: rec.note || '',
+        /* Whether the client has handed this round back. The portal reads it
+           to decide what the batch's stage is, so a reload does not throw
+           away the fact that they already finished. */
+        submittedAt: rec.submittedAt || null,
         concepts,
         counts: {
           total: concepts.length,
@@ -1219,6 +1223,40 @@ const server = http.createServer(async (req, res) => {
       });
 
       return json(res, 200, { ok: true, num, verdict, decided, approved, total });
+    }
+
+    /* The client hands the round back. Separate from /decide on purpose: a
+       verdict is an opinion about one concept, this is the client saying they
+       are finished and the studio can move. Token-authenticated like the rest
+       of /client/, and the path has two segments so the generic
+       /client/:token GET above never sees it. */
+    if (p.startsWith('/client/') && p.endsWith('/submit') && req.method === 'POST') {
+      const token = decodeURIComponent(p.slice('/client/'.length, -'/submit'.length));
+      const rec = store.getPushByToken(token);
+      if (!rec) return json(res, 404, { error: 'that link is not valid' });
+      const batch = store.getBatch(rec.batchId);
+      if (!batch) return json(res, 404, { error: 'the work behind that link is no longer on file' });
+
+      const total = (batch.concepts || []).length;
+      const decisions = Object.values(rec.decisions || {});
+      const approved = decisions.filter((d) => d.verdict === 'approved').length;
+      const rejected = decisions.filter((d) => d.verdict === 'rejected').length;
+      /* Nothing to hand over. Sending an empty round would tell the studio to
+         start writing scripts for no concepts. */
+      if (!decisions.length) {
+        return json(res, 400, { error: 'approve or reject at least one concept before sending this back to us' });
+      }
+
+      const out = store.submitPush(rec.id, { by: rec.client });
+      const undecided = total - decisions.length;
+      store.notify({
+        to: out.by, client: out.client, open: 'concepts',
+        text: `${out.client} sent their concepts back: ${approved} approved, ${rejected} rejected`
+          + (undecided > 0 ? `, ${undecided} left undecided` : '')
+          + `, out of ${total}.`,
+      });
+
+      return json(res, 200, { ok: true, submittedAt: out.submittedAt, total, approved, rejected, undecided });
     }
 
     /* ---- concept mockups: the 9:16 still for a concept slide ---- */

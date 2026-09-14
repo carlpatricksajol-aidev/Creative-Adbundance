@@ -301,6 +301,31 @@ function decide(pushId, { num, verdict, note, by }) {
     at: new Date().toISOString(),
   };
   rec.decidedAt = new Date().toISOString();
+  /* A verdict after the round was handed back re-opens it. The alternative is
+     a portal that says "with the studio" while the client is still changing
+     things, which is the wrong way round: the studio can take a second
+     handover, it cannot act on one it was never told about. */
+  if (rec.submittedAt) { rec.submittedAt = null; rec.reopenedAt = new Date().toISOString(); }
+  writeJSON(pushFile(rec.id), rec);
+  return rec;
+}
+
+/* The client saying "I am done with this round".
+ *
+ * Deciding a concept and handing the round back are two different acts, and
+ * the portal only ever sent the first. A client could approve every concept
+ * and the studio would see a stream of verdicts with no end to it, which is
+ * why one real client's round sat at three of five with nobody able to say
+ * whether they were still reading or had walked away.
+ *
+ * Deciding again after a submit is allowed, and re-opens the round: changing
+ * your mind is not an error, and the studio would rather hear it than not.
+ */
+function submitPush(pushId, { by } = {}) {
+  const rec = getPush(pushId);
+  if (!rec) return null;
+  rec.submittedAt = new Date().toISOString();
+  rec.submittedBy = by ? String(by).slice(0, 120) : 'the client';
   writeJSON(pushFile(rec.id), rec);
   return rec;
 }
@@ -660,7 +685,7 @@ module.exports = {
   canonNum, sweepOrphanedRuns, newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext, overview, usedVehicles, usedAngles,
                    getBrief, saveBrief, libraryConcepts, getProductionBrief, saveProductionBrief, listProductionBriefs,
                    saveScripts, getScripts, listScripts,
-                   savePush, getPush, getPushByBatch, getPushByToken, decide, approvedNums,
+                   savePush, getPush, getPushByBatch, getPushByToken, decide, submitPush, approvedNums,
                    saveHarvest, listHarvests, latestHarvest, getHarvest,
                    saveStory, getStory, listStories, saveFootage, getFootage, listFootage,
                    notify, notifsFor, markNotifsRead, DATA };
