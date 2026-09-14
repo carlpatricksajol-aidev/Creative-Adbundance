@@ -98,6 +98,33 @@ const BRAIN_FIELDS = [
 ];
 const BRAIN_FIELD_CAP = 2200;
 
+/* logo_urls holds strings or {url} objects, depending on who wrote the row,
+   and sometimes a comma separated string. Everything downstream wants a plain
+   url, so normalise in one place and let both the roster and the single brand
+   resolve go through it. */
+function logoUrls(row) {
+  const raw = Array.isArray(row && row.logo_urls) ? row.logo_urls
+    : (typeof (row && row.logo_urls) === 'string'
+        ? String(row.logo_urls).split(/[\s,]+/).filter(Boolean) : []);
+  return raw
+    .map((e) => (typeof e === 'string' ? e : (e && (e.url || e.src || e.href)) || null))
+    .filter(Boolean);
+}
+
+/* The stored logos are variant named: `dark.svg` is the dark mark meant for a
+   light ground, `white.png` the light one meant for a dark ground, and eleven
+   brands carry both. Anything unlabelled is treated as the dark one, which is
+   what `armra.svg` beside `armra-white.svg` is.
+   Callers draw on a light ground, so prefer dark and say when there wasn't
+   one: fourteen brands have only a white mark, and a white mark on a white
+   plate is an empty box, which is how Bridge rendered. */
+function pickLogo(urls) {
+  const light = (u) => /(^|[/_-])(white|light|inverse|reversed)([._-]|$)/i.test(String(u).split('/').pop());
+  const dark = urls.find((u) => !light(u));
+  if (dark) return { url: dark, onDark: false };
+  return urls.length ? { url: urls[0], onDark: true } : null;
+}
+
 /* The roster: every row of brand_brain, once per call. 90-odd rows, small. */
 async function brainRoster() {
   return rest('brand_brain?select=id,brand_name,client_name,aliases,status,website,logo_urls&order=brand_name.asc');
@@ -142,6 +169,12 @@ async function listBrands() {
       brand_name: r.brand_name,
       client_name: r.client_name === r.brand_name ? '' : (r.client_name || ''),
       slug: norm(r.brand_name).replace(/\s+/g, '-'),
+      /* the roster query already asked for logo_urls and then dropped it on
+         the floor. The OS draws a client by their logo where there is one. */
+      ...(() => {
+        const pick = pickLogo(logoUrls(r));
+        return pick ? { logo: pick.url, logo_on_dark: pick.onDark } : { logo: null };
+      })(),
       ready: true,
     }));
 }
@@ -191,11 +224,7 @@ async function resolve(query) {
     fetchMarketingReport(hit.brand_name, hit.client_name),
     fetchMeetingSummary(hit.brand_name, hit.client_name),
   ]);
-  /* logo_urls holds strings or {url} objects, depending on who wrote the row;
-     the frame wants a string */
-  const rawLogos = Array.isArray(brain && brain.logo_urls) ? brain.logo_urls
-    : (typeof (brain && brain.logo_urls) === 'string' ? String(brain.logo_urls).split(/[\s,]+/).filter(Boolean) : []);
-  const logos = rawLogos.map((e) => (typeof e === 'string' ? e : e && (e.url || e.src || e.href) || null)).filter(Boolean);
+  const logos = logoUrls(brain);
   const brand = {
     id: hit.id,
     brand_name: hit.brand_name,
