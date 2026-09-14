@@ -29,6 +29,9 @@ const SESS_FILE = path.join(DIR, 'sessions.json');
    cannot sign in until the file is corrected, so the seed is safe. */
 const SEED = [
   { email: 'carl@creativeadbundance.com',     id: 'cs', name: 'Carl Sajol',      role: 'Developer' },
+  /* id matches the page's own roster, where the id is load-bearing: it is
+     what client ownership is keyed on. */
+  { email: 'darshan@creativeadbundance.com',  id: 'dm', name: 'Darshan Mangukiya', role: 'Developer' },
   { email: 'ricardo@creativeadbundance.com',  id: 'rm', name: 'Ricardo Mestae',  role: 'Editor' },
   { email: 'sabas@creativeadbundance.com',    id: 'sb', name: 'Sabas',           role: 'Editor' },
   { email: 'jessica@creativeadbundance.com',  id: 'js', name: 'Jessica',         role: 'Editor' },
