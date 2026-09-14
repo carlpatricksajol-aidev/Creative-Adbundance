@@ -814,7 +814,14 @@ const server = http.createServer(async (req, res) => {
              rebuild erased it. */
           console.error('[auth] CODE NOT DELIVERED to %s: %s', emp.email, err.message);
         }
-        if (!process.env.RESEND_API_KEY) why = 'NO_MAIL_KEY';
+        if (!process.env.RESEND_API_KEY) {
+          why = 'NO_MAIL_KEY';
+          /* No mail configured means this is almost certainly someone's laptop.
+             The code goes to the server console, which only whoever is running
+             the process can read, so nothing is exposed over HTTP. It is the
+             difference between a teammate signing in locally and not. */
+          console.log('[auth] no mail key set, so the sign-in code for %s is: %s', emp.email, code);
+        }
       }
       /* Still says nothing about whether the address is on the roster: an
          outsider probing addresses learns nothing either way. What changed is
@@ -871,7 +878,24 @@ const server = http.createServer(async (req, res) => {
       let html = LOGIN_HTML;
       if (ok) {
         try { html = fs.readFileSync(OS_FILE, 'utf8'); }
-        catch { html = '<h1 style="font-family:sans-serif">The OS page is not uploaded on this server yet.</h1>'; }
+        catch {
+          /* The page is deliberately not in the repo: it carries the client
+             roster and the staff roster, and the repo is public. So a fresh
+             checkout has the API and no page, and the old message was a dead
+             end. Say where the file goes instead. */
+          html = `<!doctype html><meta charset="utf-8">
+<title>The OS page is not on this server</title>
+<div style="font-family:system-ui,sans-serif;max-width:640px;margin:12vh auto;padding:0 24px;line-height:1.6;color:#0F172A">
+  <h1 style="font-size:22px;margin:0 0 10px">The OS page is not on this server</h1>
+  <p style="color:#475569">The service is running. What is missing is the page it serves, which is not in the
+  repository on purpose: it carries every client name and every person on the team, and the repository is public.</p>
+  <p style="color:#475569">Ask Carl for <code>20-internal.html</code> and put it here:</p>
+  <pre style="background:#F1F5F9;padding:12px 14px;border-radius:8px;font-size:13px;overflow-x:auto">${String(OS_FILE).replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>
+  <p style="color:#475569">No restart is needed. Reload this page once the file is there.</p>
+  <p style="color:#64748B;font-size:13px">The API itself is already up, so
+  <code>GET /health</code> and the rest of the routes work without the page.</p>
+</div>`;
+        }
       }
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex' });
       return res.end(html);

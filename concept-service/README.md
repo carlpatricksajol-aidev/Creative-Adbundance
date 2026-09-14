@@ -8,6 +8,9 @@ A run takes roughly twenty minutes, so this is deliberately asynchronous:
 Every state change is written to disk, so a restart mid-run shows up as a failed
 run rather than a request that never returns.
 
+Running it on your own machine, and adding a stage to the pipeline, are covered
+in [LOCAL.md](LOCAL.md).
+
 ## Endpoints
 
 | Method | Path | Notes |

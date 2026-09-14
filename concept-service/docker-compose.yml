@@ -1,5 +1,15 @@
 # Mirrors the videoeditor service's routing, which already works on this box:
 # traefik discovers the container by label and terminates TLS with letsencrypt.
+#
+# This is the PRODUCTION file. A laptop run adds docker-compose.local.yml on
+# top of it by name. Never rename that file to docker-compose.override.yml:
+# the deploy here is `docker compose up -d --build` in this directory, Compose
+# picks up an override file automatically, and a committed override would
+# follow a git pull into production.
+#
+# `env_file: .env` below is not optional. With no .env on disk Compose aborts
+# before it builds anything, so the first step on any box is
+# `cp .env.example .env`.
 services:
   concept-service:
     build: .
@@ -22,8 +32,11 @@ services:
       # the runner's job queue, so onboarding can ask for a Drive read. Same
       # volume the adbundance-os hud and runner already share.
       - adbundance-os_vault:/vault
-      # the skill is read from the repo checkout, so `git pull` updates the craft
-      - /root/Creative-Adbundance:/srv/repo:ro
+      # the skill is read from the repo checkout, so `git pull` updates the craft.
+      # Relative to this file, so it resolves to the checkout that contains it:
+      # on the VPS that is /root/Creative-Adbundance, the same path as before,
+      # and on a laptop it is whatever the clone is called.
+      - ..:/srv/repo:ro
     labels:
       traefik.enable: "true"
       traefik.http.routers.concepts.rule: "Host(`concepts.srv1486031.hstgr.cloud`)"

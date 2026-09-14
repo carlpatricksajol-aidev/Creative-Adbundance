@@ -1,0 +1,45 @@
+# Running concept-service on a laptop.
+#
+#   docker compose -f docker-compose.local.yml up --build
+#
+# Use this INSTEAD of docker-compose.yml, not alongside it. The production file
+# is shaped for the VPS and three things in it stop a local run:
+#
+#   1. it joins the external volume adbundance-os_vault, created by a different
+#      stack, and compose refuses to start when that volume does not exist
+#   2. it publishes no ports, because traefik reaches the container over the
+#      docker network, so nothing answers on localhost
+#   3. its traefik labels route the live domain, which means nothing here
+#
+# Everything else is the same image and the same code.
+#
+# Simpler still: skip docker and run `node src/server.js` directly. See LOCAL.md.
+
+services:
+  concept-service:
+    build: .
+    container_name: concept-service-local
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "8900"
+      DATA_DIR: /data
+      # the skills are read from the repo checkout at call time, so editing a
+      # skill changes the next run with no rebuild. `..` is this repository.
+      SKILL_DIR: /srv/repo/.claude/skills/ad-concept-generator
+      SCRIPT_SKILL_DIR: /srv/repo/.claude/skills/ad-script-writer
+      STORY_SKILL_DIR: /srv/repo/.claude/skills/batch-shoot-package
+      # VAULT_ROOT is deliberately NOT set. With no vault, commissioning a
+      # marketing report fails immediately and the run carries on with what is
+      # already on file. If a vault with a system/queue directory existed and
+      # no runner watched it, every run would wait fifteen minutes instead.
+      # Mockups cannot run here either way: the prompt they are written from is
+      # not in this public repository.
+    ports:
+      - "8900:8900"
+    volumes:
+      # batches, scripts, storyboards, runs and the OS page all live here, on
+      # your disk, so they survive a rebuild
+      - ./data:/data
+      # the repository itself, read only, for the skills
+      - ..:/srv/repo:ro

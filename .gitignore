@@ -40,6 +40,11 @@ Docs/Static Ads Generator/workflow-updates/brand_brain_sql/
 # Local secret files, wherever they live
 .env
 .env.*
+# ...but the example files are the whole point: they are how someone new knows
+# what to fill in. This negation matches only the literal name .env.example, so
+# .env.production and friends stay ignored. Anything in a file named
+# .env.example must be a blank or a public identifier, never a real value.
+!.env.example
 *.secret
 *.secrets*
 
