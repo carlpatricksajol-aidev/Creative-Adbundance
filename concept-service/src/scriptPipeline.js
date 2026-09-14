@@ -48,6 +48,35 @@ shorter notes below ever disagree, the skill wins.`;
 
 /* hooks[].line/.dir and script[].vo/.dir are the shapes the OS scripts surface
    already renders. Do not rename them without changing that renderer. */
+/* The two item shapes, named once. The OS page reads hooks[].line and
+   hooks[].dir and script[].vo and script[].dir, and the storyboard skill maps
+   hooks[].line to a Script Line and script[].vo to a spoken line, so anything
+   that produces a script doc has to produce these exact fields. The COUNTS
+   below belong to the generated path only: an import must never be forced to
+   invent a third hook to satisfy a schema. */
+const HOOK_ITEM = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    label: { type: 'string' },
+    overlay: { type: 'string' },
+    line: { type: 'string' },
+    dir: { type: 'string' },
+  },
+  required: ['label', 'overlay', 'line', 'dir'],
+};
+
+const BEAT_ITEM = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    vo: { type: 'string' },
+    dir: { type: 'string' },
+    overlay: { type: 'string' },
+  },
+  required: ['vo', 'dir'],
+};
+
 const SCRIPT = {
   type: 'object',
   additionalProperties: false,
@@ -56,33 +85,8 @@ const SCRIPT = {
     title: { type: 'string' },
     contract: { type: 'string' },
     filename: { type: 'string' },
-    hooks: {
-      type: 'array', minItems: 3, maxItems: 3,
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          label: { type: 'string' },
-          overlay: { type: 'string' },
-          line: { type: 'string' },
-          dir: { type: 'string' },
-        },
-        required: ['label', 'overlay', 'line', 'dir'],
-      },
-    },
-    script: {
-      type: 'array', minItems: 4, maxItems: 12,
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          vo: { type: 'string' },
-          dir: { type: 'string' },
-          overlay: { type: 'string' },
-        },
-        required: ['vo', 'dir'],
-      },
-    },
+    hooks: { type: 'array', minItems: 3, maxItems: 3, items: HOOK_ITEM },
+    script: { type: 'array', minItems: 4, maxItems: 12, items: BEAT_ITEM },
     offer_placement: { type: 'string' },
     product_intro: { type: 'string' },
     hero_proof: { type: 'string' },
@@ -521,4 +525,4 @@ async function run({ client, batch, concepts, batchLabel, log }) {
   };
 }
 
-module.exports = { run };
+module.exports = { run, HOOK_ITEM, BEAT_ITEM };

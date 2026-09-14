@@ -19,6 +19,7 @@ const brand = require('./dossier');
 const store = require('./store');
 const harness = require('./harness');
 const knowledge = require('./knowledge');
+const { HOOK_ITEM, BEAT_ITEM } = require('./scriptPipeline');
 const { canonNum, numSet } = require('./num');
 
 const SKILL_DIR = process.env.SKILL_DIR ||
@@ -3132,13 +3133,20 @@ const IMPORT_SCRIPTS_SCHEMA = {
         properties: {
           num: { type: 'string', description: 'the concept number as written, NNN' },
           title: { type: 'string' },
+          contract: { type: 'string', description: 'the one line this script has to land, from the concept if it is there' },
           format: { type: 'string', description: 'production type, camera style, pacing and duration, from the concept if it is there' },
-          hooks: { type: 'array', minItems: 1, maxItems: 6, items: { type: 'string' }, description: 'the hook variants, verbatim' },
-          script: { type: 'string', description: 'the body of the script, verbatim, beat by beat, with line breaks kept' },
+          /* The SAME field shapes a generated script has, because the OS page
+             and the storyboard skill both read hooks[].line and script[].vo.
+             The COUNTS are relaxed on purpose: the generated schema demands
+             exactly three hooks and at least four beats, and forcing those on
+             a document that has two hooks would make the model invent one,
+             which is the opposite of an import. */
+          hooks: { type: 'array', minItems: 1, maxItems: 6, items: HOOK_ITEM },
+          script: { type: 'array', minItems: 1, maxItems: 40, items: BEAT_ITEM },
           offer_placement: { type: 'string' },
           cta_type: { type: 'string' },
         },
-        required: ['num', 'title', 'format', 'hooks', 'script', 'offer_placement', 'cta_type'],
+        required: ['num', 'title', 'contract', 'format', 'hooks', 'script', 'offer_placement', 'cta_type'],
       },
     },
     read_note: { type: 'string', description: 'one plain sentence on what was in the document and what had to be inferred' },
@@ -3146,14 +3154,18 @@ const IMPORT_SCRIPTS_SCHEMA = {
   required: ['docs', 'read_note'],
 };
 
-async function importScripts({ client, text, conceptText, batch, number, requestedBy, log }) {
+async function importScripts({ client, text, conceptText, batch, number, fromBatch, requestedBy, log }) {
   const { record } = await brand.resolve(client);
   const brandName = record.brand.brand_name;
   log('Import', 'running', `${text.length} characters of script${conceptText ? ` and ${conceptText.length} of concept` : ''}`);
   const out = await ask({
-    system: `You convert an ad script document into JSON so a storyboard can be built from it. You COPY; you never rewrite. Every hook line and every spoken line is reproduced VERBATIM, character for character, including its line breaks. You never invent a beat, a line, or a concept that is not in the document.
+    system: `You convert an ad script document into JSON so a storyboard can be built from it. You COPY; you never rewrite. Every hook line and every spoken line is reproduced VERBATIM, character for character. You never invent a beat, a line, or a hook that is not in the document.
 
-What you may infer, and only when the document does not say it: the format line (production type, camera style, pacing, duration) from the concept text where one was given, and the concept number from the order the scripts appear in. Where a script has no hooks written out, hooks is the first spoken line only, and you say so in read_note. Where you inferred anything, say exactly what in read_note.`,
+The shape. Each hook is { label, overlay, line, dir }: line is the spoken opening, verbatim; overlay is its on-screen text if the document gives one, otherwise empty; label names the hook if the document names it, otherwise a few words describing it; dir is the direction if the document gives one, otherwise empty. Each beat of the body is { vo, dir, overlay }: vo is the spoken line verbatim, dir is the direction if the document gives one, otherwise empty, overlay is the on-screen text or empty. One beat per spoken line or paragraph, in order.
+
+Give back as many hooks as the document has, between one and six. Never pad to three: a document with two hooks has two. Where a script has no hooks written out at all, take its first spoken line as the single hook and say so in read_note.
+
+What you may infer, and only when the document does not say it: the format line (production type, camera style, pacing, duration) and the contract from the concept text where one was given, and the concept number from the order the scripts appear in. Where you inferred anything, say exactly what in read_note.`,
     prompt: `${conceptText ? `THE CONCEPTS these scripts were written from:\n${conceptText}\n\n` : ''}THE SCRIPTS:\n${text}`,
     schema: IMPORT_SCRIPTS_SCHEMA,
     maxTokens: 48000,
@@ -3161,6 +3173,16 @@ What you may infer, and only when the document does not say it: the format line 
   });
   const docs = (out.docs || []).map((d, i) => ({
     ...d,
+    /* the fields the page and the storyboard read, present even when the
+       document had nothing to put in them */
+    contract: d.contract || '',
+    offer_placement: d.offer_placement || '',
+    product_intro: '',
+    hero_proof: '',
+    cta_type: d.cta_type || '',
+    scores: null,
+    flag: 'Brought in from a document, so it has not been through the DR scorecard.',
+    notes: [],
     num: canonNum(String(d.num || '').replace(/\D/g, '') || String(i + 1)),
     no: i + 1,
     id: `${canonNum(String(d.num || '').replace(/\D/g, '') || String(i + 1))}_${String(d.title || 'untitled').replace(/[^A-Za-z0-9]+/g, '_').slice(0, 60)}`,
@@ -3173,7 +3195,11 @@ What you may infer, and only when the document does not say it: the format line 
   return {
     client: brandName,
     batch: label,
-    fromBatch: null,
+    /* the concept batch these scripts belong to, when the caller imported one
+       alongside them. Without it the board cannot walk concept to script to
+       storyboard for imported work, and the scripts list cannot follow its
+       source batch off the board. */
+    fromBatch: fromBatch || null,
     by: requestedBy || 'Imported',
     date: new Date().toISOString().slice(0, 10),
     docs,

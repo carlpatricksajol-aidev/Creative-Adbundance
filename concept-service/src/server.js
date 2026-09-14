@@ -244,7 +244,7 @@ function body(req) {
   });
 }
 
-async function startRun({ client, count, requestedBy, mode, batch, number }) {
+async function startRun({ client, count, requestedBy, mode, batch: batchLabel, number }) {
   const id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   /* Direct is how every run happens (Carl and Ricardo, 2026-09-09, on Batches
      32 and 33): one call to Opus with the whole skill and snapshot. The staged
@@ -308,8 +308,12 @@ async function startRun({ client, count, requestedBy, mode, batch, number }) {
          rewritten afterwards. pipeline: the staged run. Carl's call per batch. */
       const runner = how === 'pipeline' ? pipeline.run : pipeline.runDirect;
       const result = await runner({ client, count, prior: priorCtx.text, priorMeta: priorCtx, log });
-      /* the account team's own numbering, when they gave one */
-      if (batch) result.batch = String(batch).slice(0, 120);
+      /* The account team's own numbering, when they gave one. The parameter is
+         batchLabel, not batch: `const batch = store.saveBatch(...)` below is in
+         this same block, so a parameter called batch is shadowed by it and
+         reading it here is a temporal-dead-zone throw, after the model has
+         already been paid for. */
+      if (batchLabel) result.batch = String(batchLabel).slice(0, 120);
       if (Number(number) > 0) result.n = Math.floor(Number(number));
       const batch = store.saveBatch(result);
       store.finishRun(id, { status: 'done', batchId: batch.id, cost_usd: result.cost_usd, used_research: result.used_research });
@@ -1509,13 +1513,13 @@ const server = http.createServer(async (req, res) => {
       try {
         const result = await pipeline.importScripts({
           client: b.client, text, conceptText: String(b.conceptText || ''),
-          batch: b.batch, number: b.number, requestedBy: b.requestedBy,
+          batch: b.batch, number: b.number, fromBatch: b.fromBatch, requestedBy: b.requestedBy,
           log: (stage, status, detail) => steps.push({ stage, status, detail }),
         });
         if (!result.docs.length) return json(res, 422, { error: 'no scripts could be read from that text', steps });
         const rec = store.saveScripts(result);
         return json(res, 201, {
-          scriptsId: rec.id, batch: rec.batch, count: result.docs.length,
+          scriptsId: rec.id, batch: rec.batch, fromBatch: rec.fromBatch || null, count: result.docs.length,
           titles: result.docs.map((d) => `${d.num} ${d.title}`), steps,
         });
       } catch (e) {
