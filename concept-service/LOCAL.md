@@ -11,11 +11,19 @@ nobody tells you first.
 `.env.example` to `.env` and ask Carl for the values. Every variable in the
 example says what it is for and what stops working without it.
 
-**The OS page.** `20-internal.html` carries every client name and every person
-on the team, so it is not committed either. Without it the API works normally and
-only `/os` is affected: signed out you get the sign-in page as usual, and signed
-in you get a message naming the exact path the file belongs at. Ask Carl for it,
-drop it at `concept-service/data/os/20-internal.html`, and reload. No restart.
+**The OS page.** `20-internal.html` is kept out of the repository and handed over
+directly instead. It lists the client roster and the team, and although the same
+names are already elsewhere in this repo, the deliberate choice is not to put the
+whole roster in one file in public.
+
+Without it the API works normally and only `/os` is affected: signed out you get
+the sign-in page as usual, and signed in you get a message naming the exact path
+the file belongs at. Ask Carl for the file, drop it at
+`concept-service/data/os/20-internal.html`, and reload. No restart needed, the
+page is read from disk on every request.
+
+It is one file with no build step. Editing it and reloading is the whole
+development loop.
 
 ## Getting it running
 
