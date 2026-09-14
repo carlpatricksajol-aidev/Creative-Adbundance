@@ -28,13 +28,13 @@ cd Creative-Adbundance/concept-service
 cp .env.example .env          # then fill it in
 npm install
 mkdir -p data/os
-
-DATA_DIR=./data \
-SKILL_DIR=../.claude/skills/ad-concept-generator \
-SCRIPT_SKILL_DIR=../.claude/skills/ad-script-writer \
-STORY_SKILL_DIR=../.claude/skills/batch-shoot-package \
-node src/server.js
+npm run dev
 ```
+
+Use `npm run dev`, not `node src/server.js`. Plain node does not read a `.env`
+file, so it would ignore everything you just filled in and then report that the
+key is missing. The dev script is the same command with `--env-file=.env` in
+front of it, which needs Node 20 or newer.
 
 It prints one line naming the models it will use, whether it found an OpenRouter
 key, and where it is writing. Verified on 2026-09-14 with no keys at all: it
