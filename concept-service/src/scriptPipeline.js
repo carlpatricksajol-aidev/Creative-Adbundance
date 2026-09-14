@@ -360,7 +360,13 @@ SCRIPTS:\n${JSON.stringify(g, null, 1)}`,
   for (const r of reviews) if (r && r.num != null && !byNum.has(canonNum(r.num))) byNum.set(canonNum(r.num), r);
 
   const out = scripts.map((s) => {
-    const r = byNum.get(String(s.num));
+    /* canonNum on BOTH sides. The map above is keyed canonNum and this was
+        String, so a script the writer numbered "001" never found its review:
+        it shipped with no scores, no notes and an empty fails list, which
+        reads as "all clear". Three PackDraw script batches went out that way
+        (Batches 8, 10 and 11, measured 2026-09-14). num.js exists for exactly
+        this join and its own comment names this as the dangerous kind. */
+    const r = byNum.get(canonNum(s.num));
     if (!r) return { script: s, scores: null, fails: [], notes: [], unreviewed: true };
     return { script: r.script || s, scores: r.scores, fails: failures(r.scores), notes: r.notes || [] };
   });
@@ -448,12 +454,14 @@ async function run({ client, batch, concepts, batchLabel, log }) {
   /* Apply the swap rewrites over the reviewed set, keyed by number, so a
      rewrite can only replace a script and never remove one. */
   const swapped = new Map();
-  for (const r of swap.reviews || []) if (r && r.script && r.num != null) swapped.set(String(r.num), r.script);
+  for (const r of swap.reviews || []) if (r && r.script && r.num != null) swapped.set(canonNum(r.num), r.script);
 
-  const scoreOf = new Map(reviewed.map((r) => [String(r.script.num), r]));
+  const scoreOf = new Map(reviewed.map((r) => [canonNum(r.script.num), r]));
   const docs = reviewed.map((r) => {
-    const s = swapped.get(String(r.script.num)) || r.script;
-    const rec = scoreOf.get(String(s.num));
+    const s = swapped.get(canonNum(r.script.num)) || r.script;
+    /* keyed off the ORIGINAL number, not the swapped script's: a rewrite that
+       renumbered itself would otherwise drop its own scores */
+    const rec = scoreOf.get(canonNum(r.script.num));
     /* The house format opens the body with the interchangeable-hook marker
        rather than a line, and the model returns that beat with an empty vo.
        Empty renders as a blank row, so name it. */
@@ -478,17 +486,22 @@ async function run({ client, batch, concepts, batchLabel, log }) {
       cta_type: s.cta_type,
       scores: rec ? rec.scores : null,
       /* A script that never cleared the bar says so on the doc, so nobody has
-         to take "reviewed" on trust. */
+         to take "reviewed" on trust. And one the reviewer never returned says
+         THAT, rather than shipping silently with an empty fails list. */
       flag: rec && rec.fails.length
         ? `Below the DR threshold after ${cycles} cycle${cycles === 1 ? '' : 's'}: ${rec.fails.join('; ')}`
-        : null,
+        : (!rec || rec.unreviewed || !rec.scores)
+          ? 'The scorecard reviewer did not return a score for this script, so it has not been checked. Read it before it ships.'
+          : null,
       notes: rec ? rec.notes : [],
     };
   });
 
+  const unscored = docs.filter((d) => !d.scores).length;
   log('Scripts ready', 'done',
     `${docs.length} script${docs.length === 1 ? '' : 's'}` +
-    (flagged.length ? `, ${flagged.length} flagged below threshold` : ', all clear') +
+    (flagged.length ? `, ${flagged.length} flagged below threshold` : '') +
+    (unscored ? `, ${unscored} the reviewer never scored` : (flagged.length ? '' : ', all clear')) +
     (swap.collisions.length ? `, ${swap.reviews.length} rewritten after the swap test` : ''));
 
   return {
