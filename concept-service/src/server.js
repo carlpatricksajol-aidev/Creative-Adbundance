@@ -1214,6 +1214,14 @@ const server = http.createServer(async (req, res) => {
            to decide what the batch's stage is, so a reload does not throw
            away the fact that they already finished. */
         submittedAt: rec.submittedAt || null,
+        /* so the portal can badge the message button without a second call */
+        messages: store.messages(rec.client).length,
+        /* Invoices come off the client brief, which the account team owns.
+           There is no invoice generator here and there should not be one: the
+           portal must never compute money. An empty list is the normal state
+           and the portal says so plainly rather than inventing a retainer,
+           which is exactly what it used to do. */
+        invoices: (((store.getBrief(rec.client) || {}).invoices) || []).slice(0, 200),
         concepts,
         counts: {
           total: concepts.length,
@@ -1292,6 +1300,59 @@ const server = http.createServer(async (req, res) => {
       });
 
       return json(res, 200, { ok: true, submittedAt: out.submittedAt, total, approved, rejected, undecided });
+    }
+
+    /* ---- the thread between a client and the studio ----
+     * Two doors into one thread. The client comes through their share token,
+     * which already scopes them to their own work; the studio comes through a
+     * staff session or the service token. Neither side may name the other:
+     * who is speaking is decided here, not by the caller.
+     */
+    if (p.startsWith('/client/') && p.endsWith('/messages')) {
+      const token = decodeURIComponent(p.slice('/client/'.length, -'/messages'.length));
+      const rec = store.getPushByToken(token);
+      if (!rec) return json(res, 404, { error: 'that link is not valid' });
+
+      if (req.method === 'GET') {
+        return json(res, 200, { messages: store.messages(rec.client), client: rec.client });
+      }
+      if (req.method === 'POST') {
+        const b = await body(req);
+        const m = store.addMessage(rec.client, {
+          from: 'client', name: rec.client, role: '', text: b.text,
+        });
+        if (!m) return json(res, 400, { error: 'a message needs some words in it' });
+        /* the studio hears about it without anyone relaying a message */
+        store.notify({
+          to: rec.by, client: rec.client, open: 'concepts',
+          text: `${rec.client} sent a message: "${String(m.text).slice(0, 90)}"`,
+        });
+        return json(res, 200, { ok: true, message: m });
+      }
+    }
+
+    if (p === '/messages' && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const cli = url.searchParams.get('client');
+      if (!cli) return json(res, 400, { error: 'client is required' });
+      return json(res, 200, { messages: store.messages(cli) });
+    }
+
+    if (p === '/messages' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const b = await body(req);
+      if (!b.client) return json(res, 400, { error: 'client is required' });
+      /* a staff session names the person; the service token speaks as the
+         studio, because it is not a person */
+      const me = auth.sessionOf((req.headers.authorization || '').replace(/^Bearer /, ''));
+      const m = store.addMessage(b.client, {
+        from: 'studio',
+        name: (me && me.name) || 'Creative Ad\u2022Bundance',
+        role: (me && me.role) || '',
+        text: b.text,
+      });
+      if (!m) return json(res, 400, { error: 'a message needs some words in it' });
+      return json(res, 200, { ok: true, message: m });
     }
 
     /* ---- concept mockups: the 9:16 still for a concept slide ---- */

@@ -21,8 +21,9 @@ const PUSHES = path.join(DATA, 'pushes');
 const FOOTAGE = path.join(DATA, 'footage');
 const BRIEFS = path.join(DATA, 'briefs');
 const NOTIFS = path.join(DATA, 'notifications.json');
+const MSGS = path.join(DATA, 'messages');
 
-for (const d of [DATA, RUNS, BATCHES, STORIES, SCRIPTS, HARVESTS, PUSHES, FOOTAGE, BRIEFS]) fs.mkdirSync(d, { recursive: true });
+for (const d of [DATA, RUNS, BATCHES, STORIES, SCRIPTS, HARVESTS, PUSHES, FOOTAGE, BRIEFS, MSGS]) fs.mkdirSync(d, { recursive: true });
 
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 /* Ids arrive from the page, so they never reach a path unfiltered. */
@@ -328,6 +329,45 @@ function submitPush(pushId, { by } = {}) {
   rec.submittedBy = by ? String(by).slice(0, 120) : 'the client';
   writeJSON(pushFile(rec.id), rec);
   return rec;
+}
+
+/* ---------- the thread between a client and the studio ----------
+ *
+ * One thread per client, on disk, append only. The portal had a "Message the
+ * studio" button that raised a toast and sent nothing, which is worse than no
+ * button: a client who types into it believes they have been heard.
+ *
+ * NOT Slack. The design this came from shows the thread mirrored into a Slack
+ * channel, and that is a real integration we do not have; claiming it in the
+ * copy would be a promise the software does not keep. This is the thread
+ * itself, and Slack can mirror it later.
+ */
+function msgFile(client) { return path.join(MSGS, slug(client) + '.json'); }
+
+function messages(client) {
+  try { return JSON.parse(fs.readFileSync(msgFile(client), 'utf8')); }
+  catch { return []; }
+}
+
+function addMessage(client, { from, name, role, text, at }) {
+  const body = String(text || '').trim();
+  if (!body) return null;
+  const list = messages(client);
+  const m = {
+    id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    /* 'client' or 'studio'. The portal draws its own messages on the right,
+       so this is what decides the side rather than a name comparison that
+       breaks the moment a person is renamed. */
+    from: from === 'studio' ? 'studio' : 'client',
+    name: String(name || '').slice(0, 120),
+    role: String(role || '').slice(0, 80),
+    text: body.slice(0, 4000),
+    at: at || new Date().toISOString(),
+  };
+  list.push(m);
+  /* keep it bounded: a thread is a conversation, not an archive */
+  writeJSON(msgFile(client), list.slice(-500));
+  return m;
 }
 
 /* What the script and storyboard generators should actually run on. */
@@ -686,6 +726,7 @@ module.exports = {
                    getBrief, saveBrief, libraryConcepts, getProductionBrief, saveProductionBrief, listProductionBriefs,
                    saveScripts, getScripts, listScripts,
                    savePush, getPush, getPushByBatch, getPushByToken, decide, submitPush, approvedNums,
+                   messages, addMessage,
                    saveHarvest, listHarvests, latestHarvest, getHarvest,
                    saveStory, getStory, listStories, saveFootage, getFootage, listFootage,
                    notify, notifsFor, markNotifsRead, DATA };
