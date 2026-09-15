@@ -349,7 +349,7 @@ function messages(client) {
   catch { return []; }
 }
 
-function addMessage(client, { from, name, role, text, at }) {
+function addMessage(client, { from, name, role, text, at, mentions }) {
   const body = String(text || '').trim();
   if (!body) return null;
   const list = messages(client);
@@ -364,6 +364,13 @@ function addMessage(client, { from, name, role, text, at }) {
     text: body.slice(0, 4000),
     at: at || new Date().toISOString(),
   };
+  /* who was named, so the thread still shows it after the notification has
+     been read and gone */
+  if (Array.isArray(mentions) && mentions.length) {
+    m.mentions = mentions.slice(0, 10).map((x) => ({
+      id: String(x.id || '').slice(0, 40), name: String(x.name || '').slice(0, 120),
+    }));
+  }
   list.push(m);
   /* keep it bounded: a thread is a conversation, not an archive */
   writeJSON(msgFile(client), list.slice(-500));
@@ -725,7 +732,7 @@ module.exports = {
   canonNum, sweepOrphanedRuns, newRun, getRun, step, finishRun, saveBatch, getBatch, listBatches, priorContext, overview, usedVehicles, usedAngles,
                    getBrief, saveBrief, libraryConcepts, getProductionBrief, saveProductionBrief, listProductionBriefs,
                    saveScripts, getScripts, listScripts,
-                   savePush, getPush, getPushByBatch, getPushByToken, decide, submitPush, approvedNums,
+                   savePush, getPush, allPushes, getPushByBatch, getPushByToken, decide, submitPush, approvedNums,
                    messages, addMessage,
                    saveHarvest, listHarvests, latestHarvest, getHarvest,
                    saveStory, getStory, listStories, saveFootage, getFootage, listFootage,

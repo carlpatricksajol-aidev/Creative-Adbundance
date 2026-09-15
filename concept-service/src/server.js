@@ -13,6 +13,37 @@ const http = require('http');
 const store = require('./store');
 const brand = require('./dossier');
 const presence = require('./presence');
+
+/* Who a client can reach.
+ *
+ * NOT the whole studio roster, and nothing invented: the people who have
+ * actually pushed work to this client. That is the only thing on file meaning
+ * "is on your account", and a mention reaching somebody who has never touched
+ * the work is worse than no mention at all.
+ *
+ * MODULE SCOPE on purpose. These were `const` arrows declared beside the
+ * message routes and used by the client payload a hundred lines ABOVE them,
+ * which is a temporal dead zone: the payload threw on every request and the
+ * portal got `{error}` where it expected a batch. Same shape as the `startRun`
+ * shadowing that once killed every concept run.
+ */
+function teamFor(clientName) {
+  const byId = new Map();
+  for (const push of store.allPushes()) {
+    if (String(push.client || '').toLowerCase() !== String(clientName || '').toLowerCase()) continue;
+    const email = String(push.by || '').trim();
+    if (!email) continue;
+    const who = auth.lookup(email);
+    if (!who || byId.has(who.id)) continue;   // off the roster, so not reachable
+    /* the email is kept HERE and never leaves: a client is given names and
+       roles, not a way to mail the studio directly */
+    byId.set(who.id, { id: who.id, name: who.name, role: who.role || '', email });
+  }
+  return [...byId.values()];
+}
+const teamPublic = (list) => list.map(({ id, name, role }) => ({ id, name, role }));
+
+
 const pipeline = require('./pipeline');
 const scriptPipeline = require('./scriptPipeline');
 const storyboardPipeline = require('./storyboardPipeline');
@@ -1222,6 +1253,9 @@ const server = http.createServer(async (req, res) => {
            and the portal says so plainly rather than inventing a retainer,
            which is exactly what it used to do. */
         invoices: (((store.getBrief(rec.client) || {}).invoices) || []).slice(0, 200),
+        /* who they can @ in a message. Names and roles only: a client is not
+           given anybody's email address. */
+        team: teamPublic(teamFor(rec.client)),
         concepts,
         counts: {
           total: concepts.length,
@@ -1318,15 +1352,30 @@ const server = http.createServer(async (req, res) => {
       }
       if (req.method === 'POST') {
         const b = await body(req);
+        /* A mention is only honoured for somebody actually on this client's
+           work. The caller sends ids, not addresses, and anything not on the
+           list is dropped rather than trusted: otherwise a share token would
+           be a way to ping any name a person cared to guess. */
+        const team = teamFor(rec.client);
+        const want = Array.isArray(b.mentions) ? b.mentions.map(String) : [];
+        const hit = team.filter((x) => want.includes(x.id));
         const m = store.addMessage(rec.client, {
           from: 'client', name: rec.client, role: '', text: b.text,
+          mentions: hit.map((x) => ({ id: x.id, name: x.name })),
         });
         if (!m) return json(res, 400, { error: 'a message needs some words in it' });
-        /* the studio hears about it without anyone relaying a message */
-        store.notify({
-          to: rec.by, client: rec.client, open: 'concepts',
-          text: `${rec.client} sent a message: "${String(m.text).slice(0, 90)}"`,
-        });
+
+        /* A mention goes to that person BY NAME; everything else goes to
+           whoever pushed the batch, so nothing lands nowhere. */
+        if (hit.length) {
+          for (const x of hit) {
+            store.notify({ to: x.email, client: rec.client, open: 'concepts',
+              text: `${rec.client} mentioned you: "${String(m.text).slice(0, 90)}"` });
+          }
+        } else {
+          store.notify({ to: rec.by, client: rec.client, open: 'concepts',
+            text: `${rec.client} sent a message: "${String(m.text).slice(0, 90)}"` });
+        }
         return json(res, 200, { ok: true, message: m });
       }
     }
