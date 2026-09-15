@@ -119,6 +119,37 @@ Five Supabase tables and nothing else, decided 2026-09-10:
 `src/dossier.js` owns the first three and builds the snapshot every skill reads.
 Do not add a sixth source without talking to Carl first.
 
+The concept skill since 2026-09-16 is `quick-concepts`. Its own text also names
+`knowledge_researched_vehicles`, `knowledge_client` and `knowledge_client_alias`;
+the service does not read those, because the rule above wins. The model gets
+the five tables and the curated vehicle bank, and the skill's second vehicle
+pool is simply not fed until Carl says otherwise.
+
+## Which skill is running, and why that matters
+
+`pipeline.js` reads the skill's frontmatter `name:` and picks a PROFILE: which
+`references/*.md` the skill ships, and which headings its vehicle-selection and
+final-review sections sit under. Both are skill-specific. Before profiles, the
+pipeline pulled sections by the old skill's headings (`### 7.6.`, `**Sub-
+procedure 3`) and loaded `craft-rules.md` by name, so pointing `SKILL_DIR` at
+a different skill made every gate go blank without a word in any log, and then
+threw on the missing file after the model had been paid. Add a new skill by
+adding a profile; an unknown skill runs on the whole `SKILL.md` alone and stamps
+its records `v9-unknown-skill:<name>` so nobody mistakes them.
+
+Point `SKILL_DIR` back at `ad-concept-generator` and everything about it still
+works; the dry-run in the commit that added profiles proves both.
+
+## Shoot guides
+
+`POST /guide/run {client, storyId, batch}` writes Phase 2 of the batch shoot
+package, the remote shooting guide, from ONE storyboard. Never from a script or
+a concept: the board is the source of truth for the shoot. Every shot name in a
+guide is a Footage Name copied off the board, and `guidePipeline.enforce()` drops
+anything the model invents, because the footage renamer joins on that exact
+string when the creator's uploads come back. One guide per creator when the
+batch is cast; one per concept, labelled Uncast, when it is not.
+
 ## Adding an agent
 
 An agent here is a stage: a function that calls a model with a schema and gets

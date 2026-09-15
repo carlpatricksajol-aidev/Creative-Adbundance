@@ -19,7 +19,11 @@ services:
     environment:
       PORT: "8900"
       DATA_DIR: /data
-      SKILL_DIR: /srv/repo/.claude/skills/ad-concept-generator
+      # quick-concepts since 2026-09-16 (Carl: the better generator). The
+      # pipeline reads which skill is here from the file's own frontmatter and
+      # adapts its section reads and reference files to it; see pipeline.js
+      # PROFILES. ad-concept-generator still works if this is pointed back.
+      SKILL_DIR: /srv/repo/.claude/skills/quick-concepts
       # the script writer and the shoot package, read the same way: from the
       # repo checkout, so a `git pull` changes their craft with no deploy
       SCRIPT_SKILL_DIR: /srv/repo/.claude/skills/ad-script-writer

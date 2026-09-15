@@ -113,9 +113,10 @@ Three generators, all reading their own skill from disk:
 
 | What | Skill | Routes |
 |---|---|---|
-| Concepts | `ad-concept-generator` | `POST /run`, `GET /run/:id` |
+| Concepts | `quick-concepts` (since 2026-09-16; `ad-concept-generator` still runs if `SKILL_DIR` is pointed back) | `POST /run`, `GET /run/:id` |
 | Scripts | `ad-script-writer` | `POST /scripts/run` |
-| Storyboards | `batch-shoot-package` | `POST /storyboard/run` |
+| Storyboards | `batch-shoot-package` Phase 1 | `POST /storyboard/run` |
+| Shoot guides | `batch-shoot-package` Phase 2, from one storyboard | `POST /guide/run`, `GET /guides`, `GET /guide/:id` |
 
 Each one can also be fed a document instead of generating: `POST /upload` turns
 a `.docx`, `.txt`, `.md`, `.rtf` or `.html` into text, then `POST /import` or
@@ -132,6 +133,13 @@ it on a laptop, what each key unlocks, how to add a stage, and how to test
 without paying for a run.
 
 ---
+
+**Skills ship vault → `redact-skills.py` → repo, and only that way.** On
+2026-09-16 the repo was found AHEAD of the vault on two `ad-concept-generator`
+reference files (commits of Sep 8 and Sep 10 edited the repo copies in place),
+so a routine redaction run silently reverted those edits. The vault was brought
+back up to the repo. If `redact-skills.py --check` ever reports writes, look at
+`git diff` before trusting either side.
 
 ## Open, as of 2026-09-14
 

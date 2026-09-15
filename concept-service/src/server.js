@@ -13,6 +13,7 @@ const http = require('http');
 const store = require('./store');
 const brand = require('./dossier');
 const presence = require('./presence');
+const guidePipeline = require('./guidePipeline');
 
 /* Who a client can reach.
  *
@@ -479,6 +480,42 @@ async function startStoryRun({ client, scriptsId, nums, requestedBy, savedBy, ba
       store.finishRun(id, { status: 'error', error: msg.slice(0, 1000) });
       store.notify({ to: requestedBy, client, open: 'storyboards', text: `The storyboard generator stopped: ${msg.slice(0, 160)}` });
       console.error('[storyboard %s] %s', id, msg);
+    } finally { active--; }
+  })();
+
+  return id;
+}
+
+/* Phase 2 of the shoot package: the guide a creator films from, written off
+ * one storyboard. Same run record as everything else so the page follows it
+ * with the one poll it already has. */
+async function startGuideRun({ client, storyId, requestedBy, savedBy, batch, due }) {
+  const story = store.getStory(storyId);
+  if (!story) { const e = new Error('that storyboard is not on file'); e.status = 404; throw e; }
+  if (!(story.concepts || []).length) { const e = new Error('that storyboard has no concepts to write a guide from'); e.status = 400; throw e; }
+
+  const id = 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  store.newRun({ id, client, count: story.concepts.length, requestedBy, kind: 'guides', from: storyId });
+  const log = (name, state, detail) => store.step(id, name, state, detail);
+  const batchLabel = batch ? String(batch).slice(0, 120) : (story.batch || 'this batch');
+
+  (async () => {
+    active++;
+    try {
+      const result = await guidePipeline.run({ client, story, batchLabel, due, savedBy, log });
+      const rec = store.saveGuide(result);
+      store.finishRun(id, { status: 'done', guideId: rec.id, cost_usd: result.cost_usd });
+      store.notify({
+        to: requestedBy, client, open: 'shootguides',
+        text: `Shooting guide ready for ${result.batch}: ${result.guides.length} guide${result.guides.length === 1 ? '' : 's'}` +
+          ((result.repairs || []).length ? `. ${result.repairs.length} shot name${result.repairs.length === 1 ? '' : 's'} dropped for not matching the board` : ''),
+      });
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      log('Failed', 'error', msg.slice(0, 400));
+      store.finishRun(id, { status: 'error', error: msg.slice(0, 1000) });
+      store.notify({ to: requestedBy, client, open: 'shootguides', text: `The shoot guide generator stopped: ${msg.slice(0, 160)}` });
+      console.error('[guide %s] %s', id, msg);
     } finally { active--; }
   })();
 
@@ -1606,6 +1643,38 @@ const server = http.createServer(async (req, res) => {
         requestedBy: b.requestedBy, savedBy: b.savedBy, batch: b.batch,
       });
       return json(res, 202, { runId: id });
+    }
+
+    /* ---- shoot guides: Phase 2, written from a storyboard ---- */
+    if (p === '/guide/run' && req.method === 'POST') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      if (!process.env.OPENROUTER_API_KEY) {
+        return json(res, 503, { error: 'OPENROUTER_API_KEY is not set on the server, so runs cannot start' });
+      }
+      if (active >= MAX_CONCURRENT) {
+        return json(res, 429, { error: `already running ${active} generators, try again when one finishes` });
+      }
+      const b = await body(req);
+      if (!b.client) return json(res, 400, { error: 'client is required' });
+      if (!b.storyId) return json(res, 400, { error: 'storyId is required, a shooting guide is written from a storyboard' });
+      try { await brand.resolve(b.client); }
+      catch (e) { return json(res, 400, { error: e.message }); }
+      const id = await startGuideRun({
+        client: b.client, storyId: b.storyId, requestedBy: b.requestedBy, savedBy: b.savedBy,
+        batch: b.batch, due: b.due,
+      });
+      return json(res, 202, { runId: id });
+    }
+
+    if (p === '/guides' && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      return json(res, 200, { guides: store.listGuides(url.searchParams.get('client')) });
+    }
+
+    if (p.startsWith('/guide/') && req.method === 'GET') {
+      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const g = store.getGuide(decodeURIComponent(p.slice('/guide/'.length)));
+      return g ? json(res, 200, g) : json(res, 404, { error: 'no such shooting guide' });
     }
 
     if (p === '/storyboards' && req.method === 'GET') {

@@ -22,8 +22,9 @@ const FOOTAGE = path.join(DATA, 'footage');
 const BRIEFS = path.join(DATA, 'briefs');
 const NOTIFS = path.join(DATA, 'notifications.json');
 const MSGS = path.join(DATA, 'messages');
+const GUIDES = path.join(DATA, 'guides');
 
-for (const d of [DATA, RUNS, BATCHES, STORIES, SCRIPTS, HARVESTS, PUSHES, FOOTAGE, BRIEFS, MSGS]) fs.mkdirSync(d, { recursive: true });
+for (const d of [DATA, RUNS, BATCHES, STORIES, SCRIPTS, HARVESTS, PUSHES, FOOTAGE, BRIEFS, MSGS, GUIDES]) fs.mkdirSync(d, { recursive: true });
 
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 /* Ids arrive from the page, so they never reach a path unfiltered. */
@@ -375,6 +376,40 @@ function addMessage(client, { from, name, role, text, at, mentions }) {
   /* keep it bounded: a thread is a conversation, not an archive */
   writeJSON(msgFile(client), list.slice(-500));
   return m;
+}
+
+/* ---------- shoot guides: Phase 2 of the batch shoot package ----------
+ * One record per generated guide set: a batch, its storyboard, and one guide
+ * per creator (or per concept, when nobody has been cast yet). Same shape the
+ * OS page has always drawn its sample guides in, so the page needed a loader
+ * and not a redesign.
+ */
+const guideFile = (id) => path.join(GUIDES, `${safeId(id)}.json`);
+
+function saveGuide(rec) {
+  const id = safeId(rec.id) || `${slug(rec.client || 'untitled')}-${Date.now()}`;
+  const prev = getGuide(id) || {};
+  const out = { ...prev, ...rec, id, savedAt: new Date().toISOString() };
+  out.createdAt = prev.createdAt || out.savedAt;
+  out.guides = Array.isArray(out.guides) ? out.guides : [];
+  writeJSON(guideFile(id), out);
+  return out;
+}
+
+function getGuide(id) {
+  try { return JSON.parse(fs.readFileSync(guideFile(id), 'utf8')); }
+  catch { return null; }
+}
+
+/* Newest first, whole records: a guide set is a few kilobytes and the page
+   opens straight into it, so a second request per record would buy nothing. */
+function listGuides(client) {
+  const want = client ? slug(client) : null;
+  return fs.readdirSync(GUIDES)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => { try { return JSON.parse(fs.readFileSync(path.join(GUIDES, f), 'utf8')); } catch { return null; } })
+    .filter((g) => g && (!want || slug(g.client || '') === want) && !g.archived)
+    .sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)));
 }
 
 /* What the script and storyboard generators should actually run on. */
@@ -735,5 +770,5 @@ module.exports = {
                    savePush, getPush, allPushes, getPushByBatch, getPushByToken, decide, submitPush, approvedNums,
                    messages, addMessage,
                    saveHarvest, listHarvests, latestHarvest, getHarvest,
-                   saveStory, getStory, listStories, saveFootage, getFootage, listFootage,
+                   saveStory, getStory, listStories, saveGuide, getGuide, listGuides, saveFootage, getFootage, listFootage,
                    notify, notifsFor, markNotifsRead, DATA };

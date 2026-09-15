@@ -89,10 +89,84 @@ async function vehicleMenu(usedLines, opts = {}) {
   } catch { return null; }
 }
 
+/* Which skill is at SKILL_DIR, by its frontmatter name. Two skills have run
+   here: ad-concept-generator (v7.5, staged, with its own reference files and
+   Step 7.x headings) and quick-concepts (2026-09-16, one head, its own gates,
+   no reference files). The pipeline pulls sections out of the skill BY HEADING
+   and loads reference files BY NAME, and both of those are skill-specific: the
+   wrong headings return empty text without a word, the wrong file name throws
+   after the model has been paid. So the profile is read once, from the file,
+   and every skill-shaped read goes through it. */
+function skillName() {
+  const m = /^---\s*[\s\S]*?^name:\s*([^\n]+)/m.exec(skillDoc());
+  return m ? m[1].trim() : 'ad-concept-generator';
+}
+const PROFILES = {
+  'ad-concept-generator': {
+    version: 'v8.4.2-production-brief',
+    refs: ['craft-rules.md', 'libraries.md', 'creative-strategist.md', 'image-prompts.md'],
+    sections: {
+      vehicles:    ['**Sub-procedure 3: Vehicle Candidate Search', '**All v6 rules apply, plus:**'],
+      finalReview: ['### 7.6. Final Creative Strategy Review', '### 8.'],
+    },
+    vehicleLabel: 'Sub-procedure 3',
+    reviewIntro: 'the last gate, Step 7.6 of the skill',
+    reviewQuestions: 'Then review each concept with the 8 questions and the batch with the batch questions.',
+    outputNote: '',
+  },
+  'quick-concepts': {
+    version: 'v9.0-quick-concepts',
+    refs: [],
+    sections: {
+      vehicles:    ['## Vehicle selection', '## The hook rule'],
+      finalReview: ['## Quality pass before shipping', null],
+    },
+    vehicleLabel: 'the skill\u2019s Vehicle selection',
+    reviewIntro: 'the skill\u2019s own final gates: the Quality pass, the Distinctness pass, the Similarity gate and the Final compliance review',
+    reviewQuestions: 'Then run every concept through the Distinctness pass and the Similarity gate, and the batch through the Final compliance review, exactly as the skill writes them.',
+    /* The skill requires three hook variants per concept but its output block
+       does not give them a line of their own, and the lift copies hooks from
+       the text verbatim. This is a format instruction so the lift can find
+       what the skill already demands, not a rule bolted onto the method. */
+    outputNote: '\n\nOUTPUT NOTE FOR THIS SERVICE: after each concept\u2019s Design Components, add a line "Hooks:" followed by the three hook variants the skill requires, one per line. Everything else exactly as the skill\u2019s Output format.',
+  },
+};
+function profile() {
+  const n = skillName();
+  return PROFILES[n] || { ...PROFILES['ad-concept-generator'], version: 'v9-unknown-skill:' + n, refs: [] };
+}
+
+/* A reference file the skill ships. Strict for a file the profile says the
+   skill has (a miss then means a broken checkout, and the run must not spend
+   on a half-prompt); empty for one it does not, so a skill with no reference
+   files can run. Absence is reported once per process, never swallowed. */
+const MISSING_REFS = new Set();
 function ref(name) {
   const p = path.join(SKILL_DIR, 'references', name);
   try { return fs.readFileSync(p, 'utf8'); }
-  catch { throw new Error(`missing skill reference ${name} at ${p}. Is the repo checked out and up to date?`); }
+  catch {
+    if (profile().refs.includes(name)) {
+      throw new Error(`missing skill reference ${name} at ${p}. Is the repo checked out and up to date?`);
+    }
+    if (!MISSING_REFS.has(name)) {
+      MISSING_REFS.add(name);
+      console.warn('[pipeline] %s ships no references/%s; that block is omitted from the prompt', skillName(), name);
+    }
+    return '';
+  }
+}
+/* A titled block, or nothing: a heading over empty text reads to the model as
+   "the rules are: (none)". */
+const refBlock = (title, name) => { const t = ref(name); return t ? `\n\n${title}\n\n${t}` : ''; };
+
+/* One of the skill's sections, by the profile's heading for it. Empty text
+   here is a real event, not a quiet default, so it is logged. */
+function skillSectionFor(key) {
+  const spec = (profile().sections || {})[key];
+  if (!spec) return '';
+  const out = skillSection(spec[0], spec[1]);
+  if (!out) console.warn('[pipeline] %s has no section starting "%s"; the %s prompt runs without it', skillName(), spec[0], key);
+  return out;
 }
 
 /* The skill itself, whole. For months the service read only the reference
@@ -1497,7 +1571,7 @@ async function stageFinalReview({ snapshot, concepts, strategy, log, ask, pool, 
   const name = label || 'Final creative strategy review';
   log(name, 'running');
   const out = await ask({
-    system: `You are the senior social media creative strategist who runs the last gate, Step 7.6 of the skill. You read finished concepts as written creative about to go to a client, not as inputs to a rubric.\n\n${skillSection('### 7.6. Final Creative Strategy Review', '### 8.')}\n\nThe craft rules the concepts were written to:\n\n${ref('craft-rules.md')}\n${HOUSE_RULES}`,
+    system: `You are the senior social media creative strategist who runs ${profile().reviewIntro}. You read finished concepts as written creative about to go to a client, not as inputs to a rubric.\n\n${skillSectionFor('finalReview')}${refBlock('The craft rules the concepts were written to:', 'craft-rules.md')}\n${HOUSE_RULES}`,
     prompt: `${snapshot}\n${strategy ? '\n' + strategyBrief(strategy) + '\n' : ''}${standardNote(snapshot)}${poolNote(pool)}\nBefore anything else, put every concept through these five tests and answer each in your note:
 1. Deletable brand: remove the brand; would anyone still watch this scenario?
 2. Stealable: swap in a competitor; does the concept survive unchanged?
@@ -1506,7 +1580,7 @@ async function stageFinalReview({ snapshot, concepts, strategy, log, ask, pool, 
 5. Trigger: why is this person showing us this today?
 No trigger at all is the kill-level failure. A NO on tests 1 to 4 is a fix the Creative Director
 must make, quoted and prescribed, unless the client's approved library shows the same trait.
-Then review each concept with the 8 questions and the batch with the batch questions. Every REWRITE or
+${profile().reviewQuestions} Every REWRITE or
 KILL cites its source: a brand_brain field, a marketing_report line, an approved-library concept or
 a compliance rule, quoted where you can. You do NOT rewrite: for REWRITE, quote what fails and
 prescribe the fix; for KILL, brief the replacement in one paragraph keeping the slot's objective,
@@ -2793,13 +2867,13 @@ const normFam = (x) => String(x || '').toLowerCase().replace(/[^a-z ]/g, ' ').re
 
 async function stageRowVehicles({ snapshot, strategy, evidence, bank, researchMd, productionBrief, log, ask }) {
   const castLine = productionBrief && productionBrief.cast ? `THE CAST, from the PRODUCTION BRIEF: ${productionBrief.cast.who_on_camera} (${productionBrief.cast.min_people} to ${productionBrief.cast.max_people} on camera${(productionBrief.cast.must_include || []).length ? `; must include ${productionBrief.cast.must_include.map((m) => m.who).join(', ')}` : ''}${(productionBrief.cast.must_exclude || []).length ? `; never ${productionBrief.cast.must_exclude.join(', ')}` : ''}). Shoot: ${(productionBrief.shoot || {}).gear || 'gear not stated'}, ${(productionBrief.shoot || {}).crew || 'crew not stated'}${(productionBrief.shoot || {}).remote ? ', remote' : ''}${(productionBrief.shoot || {}).self_shot ? ', self-shot' : ''}.` : 'THE CAST: no production brief on file; score cast_fit on what the record says about who is on camera.';
-  log('Vehicle selection', 'running', `Sub-procedure 3 over ${bank ? bank.count : 0} bank vehicles${researchMd ? ' and the researched ones' : ''}`);
+  log('Vehicle selection', 'running', `${profile().vehicleLabel} over ${bank ? bank.count : 0} bank vehicles${researchMd ? ' and the researched ones' : ''}`);
   const rows = [];
   (strategy.allocation || []).forEach((a, i) => { for (let k = 0; k < (a.slots || 1); k++) rows.push({ row: rows.length + 1, ...a }); });
   const usedV = new Set((evidence.usedVehicles || []).map((v) => normFam(v)));
   const usedF = new Set((evidence.usedFamilies || []).map(normFam));
   const out = await ask({
-    system: `You are the Creative Director on this account, running the skill's Vehicle Candidate Search and Fit-Check for every row of the Batch Strategy Map, before a word of concept is written.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour libraries:\n\n${ref('libraries.md')}\n${HOUSE_RULES}`,
+    system: `You are the Creative Director on this account, running the skill's vehicle selection for every row of the Batch Strategy Map, before a word of concept is written.\n\n${SKILL_PREFACE}\n\n${skillDoc()}${refBlock('Your libraries:', 'libraries.md')}\n${HOUSE_RULES}`,
     prompt: `${snapshot}
 
 ${evidence.md}
@@ -2810,9 +2884,9 @@ THE VEHICLE POOLS.
 ${bank ? bank.md : '(the curated bank is unreachable this run)'}
 ${researchMd ? '\n' + researchMd : ''}
 
-${skillSection('**Sub-procedure 3: Vehicle Candidate Search', '**All v6 rules apply, plus:**')}
+${skillSectionFor('vehicles')}
 
-Run Sub-procedure 3 for each of these ${rows.length} rows:
+Run ${profile().vehicleLabel} for each of these ${rows.length} rows:
 ${rows.map((r) => `Row ${r.row}: persona "${r.persona}"; selling argument "${r.selling_argument}"; objective "${r.objective}".`).join('\n')}
 
 For each row: 3 to 5 shape keywords for how that persona's world and that selling argument want
@@ -2908,7 +2982,7 @@ async function runDirect({ client, count = 1, prior = '', priorMeta = null, star
 
   /* 2. the one pass with the whole skill, written against the map */
   log('Creative Director, one pass', 'running', `one call, the whole skill, ${n} concept${n === 1 ? '' : 's'} against the Strategy Map`);
-  const system = `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}\n\nYour craft rules:\n\n${ref('craft-rules.md')}\n\nYour libraries:\n\n${ref('libraries.md')}\n\nThe creative strategist's reference:\n\n${ref('creative-strategist.md')}\n${HOUSE_RULES}`;
+  const system = `You are the Creative Director on this account.\n\n${SKILL_PREFACE}\n\n${skillDoc()}${refBlock('Your craft rules:', 'craft-rules.md')}${refBlock('Your libraries:', 'libraries.md')}${refBlock("The creative strategist's reference:", 'creative-strategist.md')}\n${HOUSE_RULES}${profile().outputNote}`;
   const materials = `${snapshot}
 ${researchMd ? '\n' + researchMd + '\n' : ''}${vehicles ? '\nTHE VEHICLE BANK, researched vehicles you may draw on:\n' + vehicles.md + '\n' : ''}${harvestMd ? '\n' + harvestMd + '\n' : ''}${categoryMd ? '\n' + categoryMd + '\n' : ''}
 ${evidence.md}
@@ -3053,7 +3127,7 @@ ${items}`,
 
   const last = rounds[rounds.length - 1] || {};
   return {
-    client: brandName, concepts, pipeline_version: 'v8.4.2-production-brief', mode: 'direct',
+    client: brandName, concepts, pipeline_version: profile().version, skill: skillName(), mode: 'direct',
     production_brief: productionBrief ? { cast: productionBrief.cast, shoot: productionBrief.shoot, confidence: productionBrief.confidence, confirmed_by: productionBrief.confirmed_by || null, extracted_at: productionBrief.extracted_at } : null,
     observations: [], harvest_notes: null, composition_note: 'direct', change_log: [], composition: null,
     strategy,
@@ -3213,4 +3287,5 @@ What you may infer, and only when the document does not say it: the format line 
   };
 }
 
-module.exports = { run, runDirect, importBatch, importScripts, stageProductionBrief, productionBriefMd, castLint, vaultContext, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote, standardNote, humanSituation, premiseLint, stagePremiseGate, premiseTotal, premiseFails };
+module.exports = { skillName, profile, skillSectionFor, ref, refBlock, skillDoc,
+ run, runDirect, importBatch, importScripts, stageProductionBrief, productionBriefMd, castLint, vaultContext, stageGate, stageFeedback, stageFinalReview, stageCompliance, briefMd, poolNote, standardNote, humanSituation, premiseLint, stagePremiseGate, premiseTotal, premiseFails };
