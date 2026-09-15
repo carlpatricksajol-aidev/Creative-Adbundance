@@ -12,6 +12,7 @@
 const http = require('http');
 const store = require('./store');
 const brand = require('./dossier');
+const presence = require('./presence');
 const pipeline = require('./pipeline');
 const scriptPipeline = require('./scriptPipeline');
 const storyboardPipeline = require('./storyboardPipeline');
@@ -865,7 +866,41 @@ const server = http.createServer(async (req, res) => {
                : json(res, 401, { error: 'not signed in' });
     }
 
+    /* ---- who else is on this screen ----
+     * The page heartbeats every few seconds with WHERE it is; the SESSION
+     * says who. Identity is never read from the body: with it in the body,
+     * any signed-in person could put a colleague's face on any surface.
+     *
+     * Both routes take a person's own session token, not the service token,
+     * because presence is about people and the service token is not a person.
+     */
+    if (p === '/presence' && req.method === 'POST') {
+      const me = auth.sessionOf((req.headers.authorization || '').replace(/^Bearer /, ''));
+      if (!me) return json(res, 401, { error: 'not signed in' });
+      const b = await body(req);
+      if (b.leaving) { presence.leave(b.where, me); return json(res, 200, { ok: true, here: [] }); }
+      if (!b.where) return json(res, 400, { error: 'where is required' });
+      presence.beat(b.where, me, { state: b.state, at: b.at });
+      presence.sweep();
+      /* answer with the roster, so a heartbeat and a read are one round trip
+         rather than two: this runs every few seconds per open tab. */
+      return json(res, 200, {
+        ok: true,
+        here: presence.roster(b.where).filter((x) => x.id !== me.id),
+        ttl: presence.TTL_MS,
+      });
+    }
+
+    if (p === '/presence' && req.method === 'GET') {
+      const me = auth.sessionOf((req.headers.authorization || '').replace(/^Bearer /, ''));
+      if (!me) return json(res, 401, { error: 'not signed in' });
+      const where = url.searchParams.get('where') || '';
+      return json(res, 200, { here: presence.roster(where).filter((x) => x.id !== me.id) });
+    }
+
     if (p === '/auth/signout' && req.method === 'POST') {
+      const gone = auth.sessionOf((req.headers.authorization || '').replace(/^Bearer /, ''));
+      if (gone) presence.forget(gone);
       auth.dropSession((req.headers.authorization || '').replace(/^Bearer /, ''));
       auth.dropSession(cookieOf(req, 'ca_sess'));
       res.setHeader('set-cookie', 'ca_sess=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax');
