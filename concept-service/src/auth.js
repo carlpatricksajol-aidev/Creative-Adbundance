@@ -26,12 +26,20 @@ const ROSTER_FILE = path.join(DIR, 'roster.json');
 const SESS_FILE = path.join(DIR, 'sessions.json');
 
 /* Seeded once with the team on the firstname@ pattern; wrong guesses simply
-   cannot sign in until the file is corrected, so the seed is safe. */
+   cannot sign in until the file is corrected, so the seed is safe.
+ *
+ * ONCE is the word that matters. `lookup()` reads the FILE, and the file is
+ * only written when it does not exist, so adding a person HERE does nothing on
+ * a server that already has a roster: the file has to be edited too. Joi could
+ * not sign in for exactly this reason, and the symptom pointed the wrong way -
+ * /auth/request answers the same whether or not an address is on the roster,
+ * on purpose, so a missing person looks identical to broken email. */
 const SEED = [
   { email: 'carl@creativeadbundance.com',     id: 'cs', name: 'Carl Sajol',      role: 'Developer' },
   /* id matches the page's own roster, where the id is load-bearing: it is
      what client ownership is keyed on. */
   { email: 'darshan@creativeadbundance.com',  id: 'dm', name: 'Darshan Mangukiya', role: 'Developer' },
+  { email: 'joi@creativeadbundance.com',      id: 'ja', name: 'Joi Angeles',     role: 'Project manager' },
   { email: 'ricardo@creativeadbundance.com',  id: 'rm', name: 'Ricardo Mestae',  role: 'Editor' },
   { email: 'sabas@creativeadbundance.com',    id: 'sb', name: 'Sabas',           role: 'Editor' },
   { email: 'jessica@creativeadbundance.com',  id: 'js', name: 'Jessica',         role: 'Editor' },
